@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Injera BMS — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-900: #1B4332;
+    --green-800: #2D6A4F;
+    --green-700: #40916C;
+    --green-500: #52B788;
+    --green-100: #D8F3DC;
+    --green-50:  #F0FAF4;
+    --red-500:   #EF4444;
+    --red-100:   #FEE2E2;
+    --gray-900:  #111827;
+    --gray-700:  #374151;
+    --gray-500:  #6B7280;
+    --gray-300:  #D1D5DB;
+    --gray-100:  #F3F4F6;
+    --gray-50:   #F9FAFB;
+    --white:     #FFFFFF;
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    background: var(--gray-50);
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    width: 45%;
+    background: linear-gradient(160deg, var(--green-900) 0%, var(--green-800) 50%, var(--green-700) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .left-panel::before {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    top: -100px; left: -100px;
+  }
+
+  .left-panel::after {
+    content: '';
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    bottom: -80px; right: -80px;
+  }
+
+  .brand {
+    text-align: center;
+    z-index: 1;
+  }
+
+  .brand-icon {
+    width: 80px; height: 80px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    margin: 0 auto 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .brand-name {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .brand-tagline {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 48px;
+  }
+
+  .stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 280px;
+    z-index: 1;
+  }
+
+  .stat-item {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .stat-icon {
+    width: 38px; height: 38px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-family: 'Quicksand', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
+
+  .version-tag {
+    position: absolute;
+    bottom: 24px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    z-index: 1;
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-header {
+    margin-bottom: 32px;
+  }
+
+  .login-title {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 14px;
+    color: var(--gray-500);
+  }
+
+  /* FORM */
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--gray-500);
+    pointer-events: none;
+  }
+
+  input[type="email"],
+  input[type="password"],
+  input[type="text"] {
+    width: 100%;
+    padding: 11px 14px 11px 42px;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    color: var(--gray-900);
+    background: var(--white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  input:focus {
+    border-color: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(82,183,136,0.15);
+  }
+
+  input.error {
+    border-color: var(--red-500);
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+  }
+
+  .toggle-pw {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--gray-500);
+    padding: 2px;
+    transition: color 0.2s;
+  }
+  .toggle-pw:hover { color: var(--gray-900); }
+
+  .form-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+
+  .remember-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+  }
+
+  .remember-wrap input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--green-700);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .remember-label {
+    font-size: 13px;
+    color: var(--gray-700);
+    font-weight: 600;
+  }
+
+  .forgot-link {
+    font-size: 13px;
+    color: var(--green-700);
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .forgot-link:hover { text-decoration: underline; }
+
+  /* BUTTON */
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(45,106,79,0.3);
+  }
+
+  .btn-login:hover { opacity: 0.92; }
+  .btn-login:active { transform: scale(0.99); }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ALERT */
+  .alert {
+    display: none;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .alert.error {
+    display: flex;
+    background: var(--red-100);
+    color: #991B1B;
+    border: 1px solid #FECACA;
+  }
+
+  .alert.success {
+    display: flex;
+    background: var(--green-100);
+    color: var(--green-900);
+    border: 1px solid #A7F3D0;
+  }
+
+  /* SESSION INFO */
+  .session-info {
+    margin-top: 24px;
+    padding: 14px 16px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-100);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--gray-500);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .session-info-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ROLE BADGES */
+  .role-info {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .role-info-label {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .role-badges {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .role-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .role-badge.owner   { background: #FEF3C7; color: #92400E; }
+  .role-badge.manager { background: var(--green-100); color: var(--green-900); }
+  .role-badge.worker  { background: #DBEAFE; color: #1E40AF; }
+
+  /* LOGGED IN STATE */
+  .logged-in {
+    display: none;
+    text-align: center;
+  }
+
+  .logged-in-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .logged-in-name {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+
+  .logged-in-role {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 24px;
+  }
+
+  .btn-dashboard {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(45,106,79,0.3);
+    transition: opacity 0.2s;
+    margin-bottom: 12px;
+  }
+  .btn-dashboard:hover { opacity: 0.9; }
+
+  .btn-logout {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background: none;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .btn-logout:hover { border-color: var(--red-500); color: var(--red-500); }
+
+  /* MOBILE */
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
+    .left-panel {
+      width: 100%;
+      padding: 32px 24px;
+      min-height: auto;
+    }
+    .stats { display: none; }
+    .brand-tagline { margin-bottom: 0; }
+    .right-panel { padding: 32px 20px; }
+    .brand-icon { width: 60px; height: 60px; font-size: 30px; }
+    .brand-name { font-size: 22px; }
+  }
+
+  /* ANIMATION */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .login-box { animation: fadeUp 0.4s ease forwards; }
+</style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+  <div class="brand">
+    <div class="brand-icon">🫓</div>
+    <div class="brand-name">Mena Injera & Derkosh</div>
+    <div class="brand-tagline">Business Management System</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-icon">📊</div>
+      <div>
+        <div class="stat-label">Platform</div>
+        <div class="stat-value">Full BMS v37</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-icon">🗄️</div>
+      <div>
+        <div class="stat-label">Database</div>
+        <div class="stat-value">Supabase Live</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-icon">🔐</div>
+      <div>
+        <div class="stat-label">Security</div>
+        <div class="stat-value">Role-Based Access</div>
+      </div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-icon">🇪🇹</div>
+      <div>
+        <div class="stat-label">Currency</div>
+        <div class="stat-value">ETB · Addis Ababa</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="version-tag">v37 · 2026</div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="login-box">
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm">
+      <div class="login-header">
+        <div class="login-title">Welcome back 👋</div>
+        <div class="login-subtitle">Sign in to your business dashboard</div>
+      </div>
+
+      <!-- Alert -->
+      <div class="alert" id="alertBox">
+        <span id="alertIcon">⚠️</span>
+        <span id="alertMsg">Invalid email or password.</span>
+      </div>
+
+      <!-- Email -->
+      <div class="form-group">
+        <label for="email">Email address</label>
+        <div class="input-wrap">
+          <span class="input-icon">✉️</span>
+          <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔑</span>
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+          <button class="toggle-pw" onclick="togglePassword()" type="button" id="toggleBtn">👁️</button>
+        </div>
+      </div>
+
+      <!-- Remember + Forgot -->
+      <div class="form-row">
+        <label class="remember-wrap">
+          <input type="checkbox" id="remember">
+          <span class="remember-label">Remember me</span>
+        </label>
+        <span class="forgot-link" onclick="showForgot()">Forgot password?</span>
+      </div>
+
+      <!-- Submit -->
+      <button class="btn-login" id="loginBtn" onclick="handleLogin()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btnText">Sign In</span>
+      </button>
+
+      <!-- Session info -->
+      <div class="session-info">
+        <span class="session-info-icon">🔒</span>
+        <span>Your session is secured. You will be automatically signed out after 4 hours of inactivity.</span>
+      </div>
+
+      <!-- Roles -->
+      <div class="role-info">
+        <div class="role-info-label">Access levels</div>
+        <div class="role-badges">
+          <span class="role-badge owner">👑 Owner</span>
+          <span class="role-badge manager">🧑‍💼 Manager</span>
+          <span class="role-badge worker">👷 Worker</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGGED IN STATE -->
+    <div class="logged-in" id="loggedInState">
+      <div class="logged-in-icon">✅</div>
+      <div class="logged-in-name" id="loggedInName">Welcome!</div>
+      <div class="logged-in-role" id="loggedInRole">Owner · Mena Injera & Derkosh</div>
+      <button class="btn-dashboard" onclick="goToDashboard()">
+        📊 Go to Dashboard
+      </button>
+      <button class="btn-logout" onclick="handleLogout()">Sign out</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── SUPABASE CONFIG ──
+const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+
+// ── STORAGE KEYS ──
+const SESSION_KEY = 'injera_bms_session';
+const USER_KEY    = 'injera_bms_user';
+
+// ── ON LOAD: check if already logged in ──
+window.addEventListener('load', () => {
+  const session = localStorage.getItem(SESSION_KEY);
+  const user    = localStorage.getItem(USER_KEY);
+  if (session && user) {
+    const u = JSON.parse(user);
+    showLoggedIn(u);
+  }
+
+  // Enter key support
+  document.getElementById('email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('password').focus();
+  });
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+});
+
+// ── TOGGLE PASSWORD ──
+function togglePassword() {
+  const pw  = document.getElementById('password');
+  const btn = document.getElementById('toggleBtn');
+  if (pw.type === 'password') {
+    pw.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    pw.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+// ── SHOW ALERT ──
+function showAlert(msg, type = 'error') {
+  const box  = document.getElementById('alertBox');
+  const icon = document.getElementById('alertIcon');
+  const text = document.getElementById('alertMsg');
+  box.className = `alert ${type}`;
+  icon.textContent = type === 'error' ? '⚠️' : '✅';
+  text.textContent = msg;
+  box.style.display = 'flex';
+}
+
+function hideAlert() {
+  document.getElementById('alertBox').style.display = 'none';
+}
+
+// ── SET LOADING ──
+function setLoading(state) {
+  const btn     = document.getElementById('loginBtn');
+  const spinner = document.getElementById('spinner');
+  const text    = document.getElementById('btnText');
+  btn.disabled        = state;
+  spinner.style.display = state ? 'block' : 'none';
+  text.textContent    = state ? 'Signing in...' : 'Sign In';
+}
+
+// ── MAIN LOGIN ──
+async function handleLogin() {
+  hideAlert();
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const remember = document.getElementById('remember').checked;
+
+  // Basic validation
+  if (!email) {
+    document.getElementById('email').classList.add('error');
+    showAlert('Please enter your email address.');
+    return;
+  }
+  if (!password) {
+    document.getElementById('password').classList.add('error');
+    showAlert('Please enter your password.');
+    return;
+  }
+
+  document.getElementById('email').classList.remove('error');
+  document.getElementById('password').classList.remove('error');
+  setLoading(true);
+
+  try {
+    // Query the users table in Supabase
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&is_active=eq.true&select=id,name,email,role,password_hash`,
+      {
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type':  'application/json'
+        }
+      }
+    );
+
+    if (!res.ok) throw new Error('Network error. Please try again.');
+
+    const users = await res.json();
+
+    if (!users || users.length === 0) {
+      showAlert('No account found with this email address.');
+      setLoading(false);
+      return;
+    }
+
+    const user = users[0];
+
+    // NOTE: In production, password comparison happens server-side.
+    // For now we do a direct match against password_hash.
+    // When you add Supabase Auth later, this becomes a proper auth call.
+    if (user.password_hash !== password) {
+      showAlert('Incorrect password. Please try again.');
+      // Log failed attempt
+      await logLoginAttempt(email, user.id, 'wrong_password');
+      setLoading(false);
+      return;
+    }
+
+    // Check if account is locked
+    const lockRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=locked_until,failed_attempts`,
+      {
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+    const lockData = await lockRes.json();
+    if (lockData[0]?.locked_until && new Date(lockData[0].locked_until) > new Date()) {
+      showAlert('This account is temporarily locked. Please try again later.');
+      setLoading(false);
+      return;
+    }
+
+    // Success — create session
+    const session = {
+      token:      btoa(`${user.id}:${Date.now()}`),
+      user_id:    user.id,
+      expires_at: Date.now() + (remember ? 7 * 24 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000)
+    };
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem(USER_KEY, JSON.stringify({
+      id:    user.id,
+      name:  user.name,
+      email: user.email,
+      role:  user.role
+    }));
+
+    // Update last_login in DB
+    await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
+      },
+      body: JSON.stringify({
+        last_login:      new Date().toISOString(),
+        failed_attempts: 0
+      })
+    });
+
+    // Log success
+    await logLoginAttempt(email, user.id, 'success');
+
+    setLoading(false);
+    showLoggedIn(user);
+
+  } catch (err) {
+    showAlert(err.message || 'Something went wrong. Please try again.');
+    setLoading(false);
+  }
+}
+
+// ── LOG LOGIN ATTEMPT ──
+async function logLoginAttempt(email, userId, outcome) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/login_log`, {
+      method: 'POST',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
+      },
+      body: JSON.stringify({
+        email,
+        user_id: userId || null,
+        outcome
+      })
+    });
+  } catch (e) {
+    // Silent fail — don't block login for logging errors
+  }
+}
+
+// ── SHOW LOGGED IN STATE ──
+function showLoggedIn(user) {
+  document.getElementById('loginForm').style.display    = 'none';
+  document.getElementById('loggedInState').style.display = 'block';
+  document.getElementById('loggedInName').textContent   = `Welcome, ${user.name}! 🎉`;
+  const roleLabels = { owner: '👑 Owner', manager: '🧑‍💼 Manager', worker: '👷 Worker' };
+  document.getElementById('loggedInRole').textContent   =
+    `${roleLabels[user.role] || user.role} · Mena Injera & Derkosh`;
+}
+
+// ── GO TO DASHBOARD ──
+function goToDashboard() {
+  // Will link to dashboard.html when built
+  alert('Dashboard page coming next! Your login is saved ✅');
+}
+
+// ── LOGOUT ──
+function handleLogout() {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(USER_KEY);
+  document.getElementById('loginForm').style.display    = 'block';
+  document.getElementById('loggedInState').style.display = 'none';
+  document.getElementById('email').value    = '';
+  document.getElementById('password').value = '';
+  hideAlert();
+}
+
+// ── FORGOT PASSWORD ──
+function showForgot() {
+  alert('Password reset: Ask the Owner (Eyasu) to reset your password from the Settings page.');
+}
+</script>
+</body>
+</html>

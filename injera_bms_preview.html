@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Injera BMS — Design Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-900: #1B4332;
+    --green-800: #2D6A4F;
+    --green-700: #40916C;
+    --green-500: #52B788;
+    --green-100: #D8F3DC;
+    --green-50:  #F0FAF4;
+    --amber-500: #F59E0B;
+    --amber-100: #FEF3C7;
+    --red-500:   #EF4444;
+    --red-100:   #FEE2E2;
+    --blue-500:  #3B82F6;
+    --blue-100:  #DBEAFE;
+    --gray-900:  #111827;
+    --gray-700:  #374151;
+    --gray-500:  #6B7280;
+    --gray-300:  #D1D5DB;
+    --gray-100:  #F3F4F6;
+    --gray-50:   #F9FAFB;
+    --white:     #FFFFFF;
+    --sidebar-w: 240px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --radius:    12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--green-900) 0%, var(--green-800) 100%);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-brand {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .brand-logo {
+    width: 40px; height: 40px;
+    background: var(--green-500);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .brand-name {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    line-height: 1.3;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-month {
+    margin: 16px 16px 0;
+    background: rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-month span {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #fff;
+  }
+
+  .month-arrows { display: flex; gap: 4px; }
+  .month-btn {
+    width: 22px; height: 22px;
+    background: rgba(255,255,255,0.15);
+    border: none; border-radius: 5px;
+    color: #fff; cursor: pointer;
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .month-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 12px;
+    overflow-y: auto;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.35);
+    padding: 14px 8px 6px;
+    font-weight: 700;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 2px;
+    text-decoration: none;
+  }
+
+  .nav-item:hover { background: rgba(255,255,255,0.08); }
+  .nav-item.active { background: rgba(255,255,255,0.15); }
+
+  .nav-icon {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .nav-item.active .nav-icon { background: var(--green-500); }
+  .nav-item:not(.active) .nav-icon { background: rgba(255,255,255,0.08); }
+
+  .nav-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+  }
+  .nav-item.active .nav-label { color: #fff; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--red-500);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+
+  .sidebar-user {
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 34px; height: 34px;
+    background: var(--green-500);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 10px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .logout-btn {
+    background: none; border: none;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer; font-size: 14px;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  .logout-btn:hover { color: #fff; }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-100);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar-title {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--gray-900);
+    flex: 1;
+  }
+
+  .topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+  .alert-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--red-100);
+    color: var(--red-500);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .alert-chip:hover { opacity: 0.8; }
+
+  .topbar-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    border: none;
+    transition: background 0.2s;
+    position: relative;
+  }
+  .topbar-btn.bell { background: var(--amber-100); color: var(--amber-500); }
+  .topbar-btn.bell:hover { background: #FDE68A; }
+  .topbar-btn.search { background: var(--gray-100); color: var(--gray-700); }
+  .topbar-btn.search:hover { background: var(--gray-200, #E5E7EB); }
+
+  .bell-dot {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 8px; height: 8px;
+    background: var(--red-500);
+    border-radius: 50%;
+    border: 2px solid var(--white);
+  }
+
+  /* ── PAGE CONTENT ── */
+  .page { padding: 24px 28px; flex: 1; }
+
+  /* ── ALERT BAR ── */
+  .alert-bar {
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #92400E;
+    font-weight: 600;
+  }
+
+  .alert-bar-icon { font-size: 16px; }
+  .alert-items { display: flex; gap: 16px; flex-wrap: wrap; flex: 1; }
+  .alert-tag {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(0,0,0,0.06);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .kpi-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: default;
+  }
+
+  .kpi-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .kpi-card.green::before { background: linear-gradient(90deg, var(--green-700), var(--green-500)); }
+  .kpi-card.amber::before { background: linear-gradient(90deg, #D97706, var(--amber-500)); }
+  .kpi-card.blue::before  { background: linear-gradient(90deg, #2563EB, var(--blue-500)); }
+  .kpi-card.red::before   { background: linear-gradient(90deg, #DC2626, var(--red-500)); }
+
+  .kpi-icon {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-card.green .kpi-icon { background: var(--green-100); }
+  .kpi-card.amber .kpi-icon { background: var(--amber-100); }
+  .kpi-card.blue  .kpi-icon { background: var(--blue-100); }
+  .kpi-card.red   .kpi-icon { background: var(--red-100); }
+
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+  }
+
+  .kpi-value {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value .kpi-currency {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-right: 2px;
+  }
+
+  .kpi-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .kpi-badge {
+    display: flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .kpi-badge.up   { background: var(--green-100); color: var(--green-800); }
+  .kpi-badge.down { background: var(--red-100);   color: var(--red-500); }
+  .kpi-badge.neutral { background: var(--gray-100); color: var(--gray-500); }
+
+  .kpi-meta-label { color: var(--gray-500); font-size: 11px; }
+
+  /* ── CHARTS ROW ── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .chart-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0,0,0,0.04);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .card-title {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gray-900);
+  }
+
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin-top: 2px;
+  }
+
+  .card-action {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green-700);
+    cursor: pointer;
+    text-decoration: none;
+    background: var(--green-50);
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: background 0.2s;
+  }
+  .card-action:hover { background: var(--green-100); }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── CUSTOMER TABLE ── */
+  .customer-table { width: 100%; border-collapse: collapse; }
+  .customer-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-500);
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .customer-table td {
+    padding: 10px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--gray-50);
+    vertical-align: middle;
+  }
+  .customer-table tr:last-child td { border-bottom: none; }
+
+  .cust-rank {
+    width: 22px; height: 22px;
+    background: var(--green-100);
+    color: var(--green-800);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cust-rank.gold { background: var(--amber-100); color: #92400E; }
+
+  .cust-type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .cust-type-badge.hotel { background: var(--blue-100); color: #1E40AF; }
+  .cust-type-badge.restaurant { background: #F3E8FF; color: #6B21A8; }
+  .cust-type-badge.wholesale { background: var(--amber-100); color: #92400E; }
+
+  /* ── INVENTORY STATUS ── */
+  .inv-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .inv-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .inv-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .inv-dot.ok     { background: var(--green-500); }
+  .inv-dot.low    { background: var(--amber-500); }
+  .inv-dot.reorder { background: var(--red-500); }
+
+  .inv-name { font-size: 13px; font-weight: 600; flex: 1; color: var(--gray-700); }
+  .inv-qty  { font-size: 12px; color: var(--gray-500); }
+
+  .inv-bar-wrap {
+    width: 80px;
+    height: 5px;
+    background: var(--gray-100);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .inv-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 1s ease;
+  }
+  .inv-bar.ok     { background: var(--green-500); }
+  .inv-bar.low    { background: var(--amber-500); }
+  .inv-bar.reorder { background: var(--red-500); }
+
+  .inv-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    width: 58px;
+    text-align: center;
+  }
+  .inv-status.ok     { background: var(--green-100); color: var(--green-800); }
+  .inv-status.low    { background: var(--amber-100); color: #92400E; }
+  .inv-status.reorder { background: var(--red-100);  color: var(--red-500); }
+
+  /* ── CASH FLOW CARD ── */
+  .cf-channels { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+
+  .cf-channel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cf-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .cf-icon.cash   { background: var(--green-100); }
+  .cf-icon.bank   { background: var(--blue-100); }
+  .cf-icon.mobile { background: #F3E8FF; }
+
+  .cf-label { font-size: 12px; color: var(--gray-500); font-weight: 600; flex: 1; }
+  .cf-amount { font-family: 'Quicksand', sans-serif; font-size: 14px; font-weight: 700; color: var(--gray-900); }
+
+  .cf-total {
+    border-top: 1px solid var(--gray-100);
+    padding-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cf-total-label { font-size: 12px; font-weight: 700; color: var(--gray-700); }
+  .cf-total-amount { font-family: 'Quicksand', sans-serif; font-size: 18px; font-weight: 700; color: var(--green-800); }
+
+  /* ── QUICK ACTIONS ── */
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .qa-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200, #E5E7EB);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Nunito', sans-serif;
+    text-align: left;
+  }
+  .qa-btn:hover { background: var(--green-50); border-color: var(--green-500); }
+
+  .qa-icon { font-size: 16px; }
+  .qa-label { font-size: 12px; font-weight: 700; color: var(--gray-700); }
+
+  /* ── BUDGET VS ACTUAL ── */
+  .bva-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .bva-item {}
+  .bva-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  .bva-name { font-size: 12px; font-weight: 600; color: var(--gray-700); }
+  .bva-pct  { font-size: 12px; font-weight: 700; }
+  .bva-pct.pos { color: var(--green-700); }
+  .bva-pct.neg { color: var(--red-500); }
+  .bva-pct.warn { color: var(--amber-500); }
+
+  .bva-bar-wrap {
+    height: 6px;
+    background: var(--gray-100);
+    border-radius: 10px;
+    overflow: visible;
+    position: relative;
+  }
+  .bva-bar {
+    height: 100%;
+    border-radius: 10px;
+    position: relative;
+  }
+  .bva-bar.pos { background: linear-gradient(90deg, var(--green-700), var(--green-500)); }
+  .bva-bar.neg { background: linear-gradient(90deg, #DC2626, var(--red-500)); }
+  .bva-bar.warn { background: linear-gradient(90deg, #D97706, var(--amber-500)); }
+
+  .bva-vals {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+  }
+  .bva-val { font-size: 10px; color: var(--gray-500); }
+
+  /* ── LOAN CARD ── */
+  .loan-item {
+    background: var(--gray-50);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .loan-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .loan-name { font-size: 13px; font-weight: 700; color: var(--gray-900); }
+  .loan-status {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 5px;
+    text-transform: uppercase;
+    background: var(--green-100); color: var(--green-800);
+  }
+  .loan-amount { font-family: 'Quicksand', sans-serif; font-size: 18px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+  .loan-detail { font-size: 11px; color: var(--gray-500); }
+  .loan-bar-wrap { height: 4px; background: var(--gray-200, #E5E7EB); border-radius: 10px; margin-top: 10px; overflow: hidden; }
+  .loan-bar { height: 100%; background: linear-gradient(90deg, var(--green-700), var(--green-500)); border-radius: 10px; }
+
+  /* ── MOBILE ── */
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    border-top: 1px solid var(--gray-100);
+    padding: 8px 0 12px;
+    z-index: 200;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  }
+
+  .mobile-nav-inner {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  .mobile-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 12px;
+  }
+  .mobile-nav-icon { font-size: 20px; }
+  .mobile-nav-label { font-size: 10px; font-weight: 700; color: var(--gray-500); }
+  .mobile-nav-item.active .mobile-nav-icon { filter: none; }
+  .mobile-nav-item.active .mobile-nav-label { color: var(--green-700); }
+
+  .mobile-entry-btn {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--green-700), var(--green-500));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 16px rgba(45,106,79,0.4);
+    margin-top: -16px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .mobile-entry-btn:hover { transform: scale(1.05); }
+
+  .menu-toggle {
+    display: none;
+    background: none; border: none;
+    font-size: 20px; cursor: pointer;
+    padding: 4px;
+    color: var(--gray-700);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .kpi-card { animation: countUp 0.4s ease forwards; }
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+  .kpi-card:nth-child(5) { animation-delay: 0.25s; }
+  .kpi-card:nth-child(6) { animation-delay: 0.30s; }
+  .kpi-card:nth-child(7) { animation-delay: 0.35s; }
+  .kpi-card:nth-child(8) { animation-delay: 0.40s; }
+
+  .nav-item { animation: slideIn 0.3s ease forwards; opacity: 0; }
+  .nav-item:nth-child(1) { animation-delay: 0.05s; }
+  .nav-item:nth-child(2) { animation-delay: 0.08s; }
+  .nav-item:nth-child(3) { animation-delay: 0.11s; }
+  .nav-item:nth-child(4) { animation-delay: 0.14s; }
+  .nav-item:nth-child(5) { animation-delay: 0.17s; }
+  .nav-item:nth-child(6) { animation-delay: 0.20s; }
+  .nav-item:nth-child(7) { animation-delay: 0.23s; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1024px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .bottom-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .page { padding: 16px; padding-bottom: 80px; }
+    .topbar { padding: 0 16px; }
+    .menu-toggle { display: block; }
+    .mobile-nav { display: block; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .kpi-value { font-size: 20px; }
+    .bottom-row { grid-template-columns: 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+    .topbar-actions .alert-chip { display: none; }
+  }
+
+  @media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kpi-card { padding: 14px; }
+    .kpi-value { font-size: 18px; }
+  }
+
+  /* ── SIDEBAR OVERLAY ── */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99;
+  }
+  .sidebar-overlay.show { display: block; }
+
+  /* ── TOOLTIP ── */
+  .tooltip { position: relative; }
+  .tooltip-text {
+    display: none;
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gray-900);
+    color: #fff;
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .tooltip:hover .tooltip-text { display: block; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">🫓</div>
+    <div class="brand-name">Mena Injera</div>
+    <div class="brand-sub">& Derkosh</div>
+  </div>
+
+  <div class="sidebar-month">
+    <span>June 2026</span>
+    <div class="month-arrows">
+      <button class="month-btn">‹</button>
+      <button class="month-btn">›</button>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+
+    <a class="nav-item active" href="#">
+      <div class="nav-icon">📊</div>
+      <span class="nav-label">Dashboard</span>
+    </a>
+
+    <div class="nav-section-label">Data Entry</div>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🛒</div>
+      <span class="nav-label">Purchases</span>
+      <span class="nav-badge">3</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🍞</div>
+      <span class="nav-label">Production</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">📦</div>
+      <span class="nav-label">Derkosh</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">💰</div>
+      <span class="nav-label">Sales</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🪙</div>
+      <span class="nav-label">Petty Cash</span>
+    </a>
+
+    <div class="nav-section-label">Finance</div>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">📄</div>
+      <span class="nav-label">P&L Statement</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">💳</div>
+      <span class="nav-label">Cash Flow</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🎯</div>
+      <span class="nav-label">Budget vs Actual</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🏦</div>
+      <span class="nav-label">Loans</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">👥</div>
+      <span class="nav-label">Distribution</span>
+    </a>
+
+    <div class="nav-section-label">Records</div>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🏪</div>
+      <span class="nav-label">Customers</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">🚚</div>
+      <span class="nav-label">Suppliers</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">📦</div>
+      <span class="nav-label">Inventory</span>
+    </a>
+
+    <div class="nav-section-label">Reports</div>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">📈</div>
+      <span class="nav-label">Multi-Year</span>
+    </a>
+
+    <a class="nav-item" href="#">
+      <div class="nav-icon">⚙️</div>
+      <span class="nav-label">Settings</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-avatar">EM</div>
+    <div class="user-info">
+      <div class="user-name">Eyasu Mesfin</div>
+      <div class="user-role">Owner</div>
+    </div>
+    <button class="logout-btn" title="Sign out">⏻</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title">Dashboard</div>
+    <div class="topbar-actions">
+      <div class="alert-chip">⚠ 2 need reorder &nbsp; · &nbsp; 3 pending approval</div>
+      <button class="topbar-btn search tooltip">
+        🔍
+        <span class="tooltip-text">Search</span>
+      </button>
+      <button class="topbar-btn bell tooltip">
+        🔔
+        <div class="bell-dot"></div>
+        <span class="tooltip-text">Notifications</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- PAGE -->
+  <main class="page">
+
+    <!-- ALERT BAR -->
+    <div class="alert-bar">
+      <span class="alert-bar-icon">⚠️</span>
+      <div class="alert-items">
+        <div class="alert-tag">🔴 Gomen Zere: 8 kg — Reorder Now</div>
+        <div class="alert-tag">🟡 Corn: 45 kg — Low Stock</div>
+        <div class="alert-tag">📋 3 expenses pending your approval</div>
+      </div>
+    </div>
+
+    <!-- KPI CARDS ROW 1 -->
+    <div class="kpi-grid">
+
+      <div class="kpi-card green">
+        <div class="kpi-icon">💵</div>
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kpi-revenue">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge up">↑ +2.1%</span>
+          <span class="kpi-meta-label">vs budget</span>
+        </div>
+      </div>
+
+      <div class="kpi-card amber">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-label">Gross Margin</div>
+        <div class="kpi-value"><span id="kpi-margin">0</span><span class="kpi-currency">%</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge up">↑ +1.4%</span>
+          <span class="kpi-meta-label">vs last month</span>
+        </div>
+      </div>
+
+      <div class="kpi-card green">
+        <div class="kpi-icon">✅</div>
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kpi-profit">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge up">↑ +21.9%</span>
+          <span class="kpi-meta-label">vs budget</span>
+        </div>
+      </div>
+
+      <div class="kpi-card blue">
+        <div class="kpi-icon">💳</div>
+        <div class="kpi-label">Cash on Hand</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kpi-cash">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge neutral">Estimated</span>
+        </div>
+      </div>
+
+      <div class="kpi-card green">
+        <div class="kpi-icon">🍞</div>
+        <div class="kpi-label">Injera Produced</div>
+        <div class="kpi-value"><span id="kpi-injera">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-meta-label">pieces this month</span>
+        </div>
+      </div>
+
+      <div class="kpi-card amber">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-label">Cost / Injera</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kpi-cost">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge neutral">→ Stable</span>
+        </div>
+      </div>
+
+      <div class="kpi-card red">
+        <div class="kpi-icon">⏳</div>
+        <div class="kpi-label">Outstanding A/R</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kpi-ar">0</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge down">3 overdue</span>
+        </div>
+      </div>
+
+      <div class="kpi-card blue">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Derkosh Stock</div>
+        <div class="kpi-value"><span id="kpi-derkosh">0</span><span class="kpi-currency"> kg</span></div>
+        <div class="kpi-meta">
+          <span class="kpi-badge up">↑ +3.2 kg</span>
+          <span class="kpi-meta-label">vs last week</span>
+        </div>
+      </div>
+
+    </div><!-- /kpi-grid -->
+
+    <!-- CHARTS ROW -->
+    <div class="charts-row">
+
+      <!-- Revenue chart -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Revenue & Cost Trend</div>
+            <div class="card-subtitle">Last 6 months · ETB</div>
+          </div>
+          <a class="card-action" href="#">View P&L →</a>
+        </div>
+        <canvas id="revenueChart" height="200"></canvas>
+      </div>
+
+      <!-- Donut chart -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Sales by Customer Type</div>
+            <div class="card-subtitle">June 2026</div>
+          </div>
+        </div>
+        <canvas id="donutChart" height="170"></canvas>
+        <div id="donut-legend" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+      </div>
+
+    </div><!-- /charts-row -->
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+
+      <!-- Top Customers -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Top Customers</div>
+            <div class="card-subtitle">By revenue · June 2026</div>
+          </div>
+          <a class="card-action" href="#">All →</a>
+        </div>
+        <table class="customer-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th style="text-align:right">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="cust-rank gold">1</div></td>
+              <td><strong>Skylight Hotel</strong></td>
+              <td><span class="cust-type-badge hotel">Hotel</span></td>
+              <td style="text-align:right; font-family:'Quicksand',sans-serif; font-weight:700;">45,200</td>
+            </tr>
+            <tr>
+              <td><div class="cust-rank">2</div></td>
+              <td><strong>Bole Restaurant</strong></td>
+              <td><span class="cust-type-badge restaurant">Restaurant</span></td>
+              <td style="text-align:right; font-family:'Quicksand',sans-serif; font-weight:700;">22,100</td>
+            </tr>
+            <tr>
+              <td><div class="cust-rank">3</div></td>
+              <td><strong>Wholesale A</strong></td>
+              <td><span class="cust-type-badge wholesale">Wholesale</span></td>
+              <td style="text-align:right; font-family:'Quicksand',sans-serif; font-weight:700;">18,400</td>
+            </tr>
+            <tr>
+              <td><div class="cust-rank">4</div></td>
+              <td><strong>Addis Cafe</strong></td>
+              <td><span class="cust-type-badge restaurant">Restaurant</span></td>
+              <td style="text-align:right; font-family:'Quicksand',sans-serif; font-weight:700;">14,011</td>
+            </tr>
+            <tr>
+              <td><div class="cust-rank">5</div></td>
+              <td><strong>Mega Hotel</strong></td>
+              <td><span class="cust-type-badge hotel">Hotel</span></td>
+              <td style="text-align:right; font-family:'Quicksand',sans-serif; font-weight:700;">10,000</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Inventory Status -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Inventory Status</div>
+            <div class="card-subtitle">Current stock levels</div>
+          </div>
+          <a class="card-action" href="#">Manage →</a>
+        </div>
+        <div class="inv-list">
+          <div class="inv-item">
+            <div class="inv-dot reorder"></div>
+            <span class="inv-name">Gomen Zere</span>
+            <span class="inv-qty">8 / 15 kg</span>
+            <div class="inv-bar-wrap"><div class="inv-bar reorder" style="width:27%"></div></div>
+            <span class="inv-status reorder">Reorder</span>
+          </div>
+          <div class="inv-item">
+            <div class="inv-dot low"></div>
+            <span class="inv-name">Corn</span>
+            <span class="inv-qty">45 / 50 kg</span>
+            <div class="inv-bar-wrap"><div class="inv-bar low" style="width:60%"></div></div>
+            <span class="inv-status low">Low</span>
+          </div>
+          <div class="inv-item">
+            <div class="inv-dot ok"></div>
+            <span class="inv-name">Injera Blend</span>
+            <span class="inv-qty">88 / 50 kg</span>
+            <div class="inv-bar-wrap"><div class="inv-bar ok" style="width:100%"></div></div>
+            <span class="inv-status ok">OK</span>
+          </div>
+          <div class="inv-item">
+            <div class="inv-dot ok"></div>
+            <span class="inv-name">Small Bags</span>
+            <span class="inv-qty">320 / 200 pcs</span>
+            <div class="inv-bar-wrap"><div class="inv-bar ok" style="width:100%"></div></div>
+            <span class="inv-status ok">OK</span>
+          </div>
+          <div class="inv-item">
+            <div class="inv-dot ok"></div>
+            <span class="inv-name">Large Bags</span>
+            <span class="inv-qty">150 / 100 pcs</span>
+            <div class="inv-bar-wrap"><div class="inv-bar ok" style="width:100%"></div></div>
+            <span class="inv-status ok">OK</span>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <div class="card-title" style="margin-bottom:12px;">Budget vs Actual</div>
+          <div class="bva-list">
+            <div class="bva-item">
+              <div class="bva-top">
+                <span class="bva-name">Total Revenue</span>
+                <span class="bva-pct pos">↑ +2.1%</span>
+              </div>
+              <div class="bva-bar-wrap"><div class="bva-bar pos" style="width:100%"></div></div>
+              <div class="bva-vals"><span class="bva-val">Budget: 107,500</span><span class="bva-val">Actual: 109,711</span></div>
+            </div>
+            <div class="bva-item">
+              <div class="bva-top">
+                <span class="bva-name">Total COGS</span>
+                <span class="bva-pct pos">↓ -1.3%</span>
+              </div>
+              <div class="bva-bar-wrap"><div class="bva-bar pos" style="width:95%"></div></div>
+              <div class="bva-vals"><span class="bva-val">Budget: 90,000</span><span class="bva-val">Actual: 88,842</span></div>
+            </div>
+            <div class="bva-item">
+              <div class="bva-top">
+                <span class="bva-name">Delivery Out</span>
+                <span class="bva-pct warn">↑ +6.7%</span>
+              </div>
+              <div class="bva-bar-wrap"><div class="bva-bar warn" style="width:106%"></div></div>
+              <div class="bva-vals"><span class="bva-val">Budget: 3,000</span><span class="bva-val">Actual: 3,200</span></div>
+            </div>
+            <div class="bva-item">
+              <div class="bva-top">
+                <span class="bva-name">Net Profit</span>
+                <span class="bva-pct pos">↑ +21.9%</span>
+              </div>
+              <div class="bva-bar-wrap"><div class="bva-bar pos" style="width:100%"></div></div>
+              <div class="bva-vals"><span class="bva-val">Budget: 14,500</span><span class="bva-val">Actual: 17,669</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cash Flow + Quick Actions -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <div class="chart-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Cash Position</div>
+              <div class="card-subtitle">June 2026 · All channels</div>
+            </div>
+            <a class="card-action" href="#">IAS 7 →</a>
+          </div>
+          <div class="cf-channels">
+            <div class="cf-channel">
+              <div class="cf-icon cash">💵</div>
+              <span class="cf-label">Cash on Hand</span>
+              <span class="cf-amount">ETB 5,240</span>
+            </div>
+            <div class="cf-channel">
+              <div class="cf-icon bank">🏦</div>
+              <span class="cf-label">Bank Account</span>
+              <span class="cf-amount">ETB 15,890</span>
+            </div>
+            <div class="cf-channel">
+              <div class="cf-icon mobile">📱</div>
+              <span class="cf-label">Mobile Money</span>
+              <span class="cf-amount">ETB 3,120</span>
+            </div>
+          </div>
+          <div class="cf-total">
+            <span class="cf-total-label">Total Cash</span>
+            <span class="cf-total-amount">ETB 24,250</span>
+          </div>
+        </div>
+
+        <!-- Loan -->
+        <div class="chart-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Active Loan</div>
+              <div class="card-subtitle">CBE Business Loan</div>
+            </div>
+            <a class="card-action" href="#">Details →</a>
+          </div>
+          <div class="loan-item">
+            <div class="loan-top">
+              <span class="loan-name">Commercial Bank of Ethiopia</span>
+              <span class="loan-status">Active</span>
+            </div>
+            <div class="loan-amount">ETB 85,000</div>
+            <div class="loan-detail">Outstanding · Next payment Jul 15 · ETB 4,200</div>
+            <div class="loan-bar-wrap">
+              <div class="loan-bar" style="width: 40%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Entry -->
+        <div class="chart-card">
+          <div class="card-header">
+            <div class="card-title">Quick Entry</div>
+          </div>
+          <div class="quick-actions">
+            <button class="qa-btn">
+              <span class="qa-icon">🛒</span>
+              <span class="qa-label">New Purchase</span>
+            </button>
+            <button class="qa-btn">
+              <span class="qa-icon">🍞</span>
+              <span class="qa-label">New Batch</span>
+            </button>
+            <button class="qa-btn">
+              <span class="qa-icon">💰</span>
+              <span class="qa-label">New Sale</span>
+            </button>
+            <button class="qa-btn">
+              <span class="qa-icon">📦</span>
+              <span class="qa-label">New Derkosh</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /bottom-row -->
+
+  </main>
+</div><!-- /main -->
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <div class="mobile-nav-item active">
+      <div class="mobile-nav-icon">📊</div>
+      <div class="mobile-nav-label">Dashboard</div>
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">📄</div>
+      <div class="mobile-nav-label">Reports</div>
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-entry-btn">＋</div>
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">💳</div>
+      <div class="mobile-nav-label">Cash Flow</div>
+    </div>
+    <div class="mobile-nav-item">
+      <div class="mobile-nav-icon">☰</div>
+      <div class="mobile-nav-label">Menu</div>
+    </div>
+  </div>
+</nav>
+
+<script>
+// ── SIDEBAR TOGGLE ──
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ── COUNT-UP ANIMATION ──
+function animateCount(el, target, decimals = 0, duration = 1200) {
+  const start = 0;
+  const startTime = performance.now();
+  const fmt = (n) => {
+    if (decimals > 0) return n.toFixed(decimals);
+    return Math.round(n).toLocaleString();
+  };
+  function update(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = fmt(start + (target - start) * ease);
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => animateCount(document.getElementById('kpi-revenue'), 109711), 200);
+  setTimeout(() => animateCount(document.getElementById('kpi-margin'), 19.0, 1), 300);
+  setTimeout(() => animateCount(document.getElementById('kpi-profit'), 17669), 400);
+  setTimeout(() => animateCount(document.getElementById('kpi-cash'), 24250), 500);
+  setTimeout(() => animateCount(document.getElementById('kpi-injera'), 2847), 600);
+  setTimeout(() => animateCount(document.getElementById('kpi-cost'), 38.50, 2), 700);
+  setTimeout(() => animateCount(document.getElementById('kpi-ar'), 19712), 800);
+  setTimeout(() => animateCount(document.getElementById('kpi-derkosh'), 12.4, 1), 900);
+});
+
+// ── REVENUE CHART ──
+const revCtx = document.getElementById('revenueChart').getContext('2d');
+new Chart(revCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [
+      {
+        label: 'Revenue',
+        data: [92000, 98500, 101200, 96000, 104800, 109711],
+        backgroundColor: 'rgba(64,145,108,0.85)',
+        borderRadius: 6,
+        borderSkipped: false,
+      },
+      {
+        label: 'COGS',
+        data: [76000, 81000, 83500, 79200, 87000, 88842],
+        backgroundColor: 'rgba(245,158,11,0.7)',
+        borderRadius: 6,
+        borderSkipped: false,
+      },
+      {
+        label: 'Net Profit',
+        type: 'line',
+        data: [12000, 14200, 14500, 13600, 14800, 17669],
+        borderColor: '#2D6A4F',
+        backgroundColor: 'rgba(45,106,79,0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#2D6A4F',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.4,
+        fill: true,
+        yAxisID: 'y1',
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          font: { family: 'Nunito', size: 11, weight: '600' },
+          padding: 16,
+          usePointStyle: true,
+          pointStyleWidth: 10,
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => ` ${ctx.dataset.label}: ETB ${ctx.raw.toLocaleString()}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { family: 'Nunito', size: 11 } }
+      },
+      y: {
+        grid: { color: 'rgba(0,0,0,0.05)' },
+        ticks: {
+          font: { family: 'Nunito', size: 10 },
+          callback: (v) => 'ETB ' + (v/1000).toFixed(0) + 'k'
+        }
+      },
+      y1: {
+        position: 'right',
+        grid: { display: false },
+        ticks: {
+          font: { family: 'Nunito', size: 10 },
+          callback: (v) => 'ETB ' + (v/1000).toFixed(0) + 'k'
+        }
+      }
+    }
+  }
+});
+
+// ── DONUT CHART ──
+const donutCtx = document.getElementById('donutChart').getContext('2d');
+const donutLabels = ['Hotel', 'Restaurant', 'Wholesale', 'Retail'];
+const donutData   = [45200, 36100, 18400, 10011];
+const donutColors = ['#3B82F6','#8B5CF6','#F59E0B','#52B788'];
+
+new Chart(donutCtx, {
+  type: 'doughnut',
+  data: {
+    labels: donutLabels,
+    datasets: [{
+      data: donutData,
+      backgroundColor: donutColors,
+      borderWidth: 3,
+      borderColor: '#fff',
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => ` ETB ${ctx.raw.toLocaleString()} (${Math.round(ctx.raw/109711*100)}%)`
+        }
+      }
+    }
+  }
+});
+
+// Custom legend
+const legendEl = document.getElementById('donut-legend');
+donutLabels.forEach((label, i) => {
+  const pct = Math.round(donutData[i]/109711*100);
+  const item = document.createElement('div');
+  item.style.cssText = `display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#374151;`;
+  item.innerHTML = `<div style="width:10px;height:10px;border-radius:3px;background:${donutColors[i]};flex-shrink:0;"></div>${label} <span style="color:#6B7280">${pct}%</span>`;
+  legendEl.appendChild(item);
+});
+</script>
+</body>
+</html>
