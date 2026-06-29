@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Injera BMS — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g900:#1B4332;--g800:#2D6A4F;--g700:#40916C;--g500:#52B788;--g100:#D8F3DC;--g50:#F0FAF4;
+  --a500:#F59E0B;--a100:#FEF3C7;
+  --r500:#EF4444;--r100:#FEE2E2;
+  --b500:#3B82F6;--b100:#DBEAFE;
+  --gray900:#111827;--gray700:#374151;--gray500:#6B7280;--gray300:#D1D5DB;--gray100:#F3F4F6;--gray50:#F9FAFB;
+  --white:#FFFFFF;--sidebar:240px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.10);
+  --radius:12px;--radius-sm:8px;
+}
+body{font-family:'Nunito',sans-serif;background:var(--gray50);color:var(--gray900);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);min-height:100vh;background:linear-gradient(180deg,var(--g900) 0%,var(--g800) 100%);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;transition:transform .3s ease}
+.sidebar-brand{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.brand-logo{width:40px;height:40px;background:var(--g500);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.brand-name{font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;color:#fff;line-height:1.3}
+.brand-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.sidebar-month{margin:16px 16px 0;background:rgba(255,255,255,.08);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.sidebar-month span{font-family:'Quicksand',sans-serif;font-weight:600;font-size:13px;color:#fff}
+.month-arrows{display:flex;gap:4px}
+.month-btn{width:22px;height:22px;background:rgba(255,255,255,.15);border:none;border-radius:5px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.month-btn:hover{background:rgba(255,255,255,.25)}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);padding:14px 8px 6px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s;margin-bottom:2px;text-decoration:none}
+.nav-item:hover{background:rgba(255,255,255,.08)}
+.nav-item.active{background:rgba(255,255,255,.15)}
+.nav-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.nav-item.active .nav-icon{background:var(--g500)}
+.nav-item:not(.active) .nav-icon{background:rgba(255,255,255,.08)}
+.nav-label{font-size:13px;font-weight:600;color:rgba(255,255,255,.85)}
+.nav-item.active .nav-label{color:#fff}
+.nav-badge{margin-left:auto;background:var(--r500);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px}
+.sidebar-user{padding:14px 16px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.user-avatar{width:34px;height:34px;background:var(--g500);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.5px}
+.logout-btn{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:14px;padding:4px;transition:color .2s}
+.logout-btn:hover{color:#fff}
+
+/* MAIN */
+.main{margin-left:var(--sidebar);flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--white);border-bottom:1px solid var(--gray100);padding:0 28px;height:60px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50}
+.topbar-title{font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;color:var(--gray900);flex:1}
+.topbar-actions{display:flex;align-items:center;gap:12px}
+.alert-chip{display:flex;align-items:center;gap:6px;background:var(--r100);color:var(--r500);font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;cursor:pointer}
+.topbar-btn{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;border:none;transition:background .2s;position:relative}
+.topbar-btn.bell{background:var(--a100);color:var(--a500)}
+.topbar-btn.search{background:var(--gray100);color:var(--gray700)}
+.bell-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--r500);border-radius:50%;border:2px solid var(--white)}
+.menu-toggle{display:none;background:none;border:none;font-size:20px;cursor:pointer;padding:4px;color:var(--gray700)}
+
+/* PAGE */
+.page{padding:24px 28px;flex:1}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.page-title{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;color:var(--gray900)}
+.page-subtitle{font-size:13px;color:var(--gray500);margin-top:2px}
+.period-badge{background:var(--g50);border:1px solid var(--g100);color:var(--g800);font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px}
+
+/* ALERT BAR */
+.alert-bar{background:#FFF7ED;border:1px solid #FED7AA;border-radius:var(--radius-sm);padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:20px;font-size:13px;color:#92400E;font-weight:600}
+.alert-items{display:flex;gap:12px;flex-wrap:wrap;flex:1}
+.alert-tag{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.06);padding:3px 10px;border-radius:20px;font-size:12px;cursor:pointer}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:12px}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--g100);border-top-color:var(--g700);border-radius:50%;animation:spin .7s linear infinite}
+.loading-text{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--g800);font-size:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.kpi-card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04);position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;cursor:default}
+.kpi-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.kpi-card.green::before{background:linear-gradient(90deg,var(--g700),var(--g500))}
+.kpi-card.amber::before{background:linear-gradient(90deg,#D97706,var(--a500))}
+.kpi-card.blue::before{background:linear-gradient(90deg,#2563EB,var(--b500))}
+.kpi-card.red::before{background:linear-gradient(90deg,#DC2626,var(--r500))}
+.kpi-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px}
+.kpi-card.green .kpi-icon{background:var(--g100)}
+.kpi-card.amber .kpi-icon{background:var(--a100)}
+.kpi-card.blue  .kpi-icon{background:var(--b100)}
+.kpi-card.red   .kpi-icon{background:var(--r100)}
+.kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--gray500);margin-bottom:6px}
+.kpi-value{font-family:'Quicksand',sans-serif;font-size:26px;font-weight:700;color:var(--gray900);line-height:1;margin-bottom:8px}
+.kpi-currency{font-size:14px;font-weight:600;color:var(--gray500);margin-right:2px}
+.kpi-meta{display:flex;align-items:center;gap:6px;font-size:12px}
+.kpi-badge{display:flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-weight:700;font-size:11px}
+.kpi-badge.up{background:var(--g100);color:var(--g800)}
+.kpi-badge.down{background:var(--r100);color:var(--r500)}
+.kpi-badge.neutral{background:var(--gray100);color:var(--gray500)}
+.kpi-meta-label{color:var(--gray500);font-size:11px}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid rgba(0,0,0,.04)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.card-title{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--gray900)}
+.card-subtitle{font-size:11px;color:var(--gray500);margin-top:2px}
+.card-action{font-size:12px;font-weight:600;color:var(--g700);cursor:pointer;background:var(--g50);padding:4px 10px;border-radius:6px;text-decoration:none;transition:background .2s;border:none}
+.card-action:hover{background:var(--g100)}
+
+/* BOTTOM ROW */
+.bottom-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* CUSTOMERS TABLE */
+.customer-table{width:100%;border-collapse:collapse}
+.customer-table th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray500);padding:0 0 10px;border-bottom:1px solid var(--gray100)}
+.customer-table td{padding:10px 0;font-size:13px;border-bottom:1px solid var(--gray50);vertical-align:middle}
+.customer-table tr:last-child td{border-bottom:none}
+.cust-rank{width:22px;height:22px;background:var(--g100);color:var(--g800);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cust-rank.gold{background:var(--a100);color:#92400E}
+.cust-type-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px}
+.cust-type-badge.hotel{background:var(--b100);color:#1E40AF}
+.cust-type-badge.restaurant{background:#F3E8FF;color:#6B21A8}
+.cust-type-badge.wholesale{background:var(--a100);color:#92400E}
+.cust-type-badge.retail{background:var(--g100);color:var(--g800)}
+
+/* INVENTORY */
+.inv-list{display:flex;flex-direction:column;gap:10px}
+.inv-item{display:flex;align-items:center;gap:10px}
+.inv-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.inv-dot.ok{background:var(--g500)}
+.inv-dot.low{background:var(--a500)}
+.inv-dot.reorder{background:var(--r500)}
+.inv-name{font-size:13px;font-weight:600;flex:1;color:var(--gray700)}
+.inv-qty{font-size:12px;color:var(--gray500);white-space:nowrap}
+.inv-bar-wrap{width:70px;height:5px;background:var(--gray100);border-radius:10px;overflow:hidden;flex-shrink:0}
+.inv-bar{height:100%;border-radius:10px}
+.inv-bar.ok{background:var(--g500)}
+.inv-bar.low{background:var(--a500)}
+.inv-bar.reorder{background:var(--r500)}
+.inv-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px;width:58px;text-align:center}
+.inv-status.ok{background:var(--g100);color:var(--g800)}
+.inv-status.low{background:var(--a100);color:#92400E}
+.inv-status.reorder{background:var(--r100);color:var(--r500)}
+
+/* CASH */
+.cf-channels{display:flex;flex-direction:column;gap:12px;margin-bottom:18px}
+.cf-channel{display:flex;align-items:center;gap:10px}
+.cf-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.cf-icon.cash{background:var(--g100)}
+.cf-icon.bank{background:var(--b100)}
+.cf-icon.mobile{background:#F3E8FF}
+.cf-label{font-size:12px;color:var(--gray500);font-weight:600;flex:1}
+.cf-amount{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--gray900)}
+.cf-total{border-top:1px solid var(--gray100);padding-top:12px;display:flex;justify-content:space-between;align-items:center}
+.cf-total-label{font-size:12px;font-weight:700;color:var(--gray700)}
+.cf-total-amount{font-family:'Quicksand',sans-serif;font-size:18px;font-weight:700;color:var(--g800)}
+
+/* QUICK ACTIONS */
+.quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:4px}
+.qa-btn{display:flex;align-items:center;gap:8px;background:var(--gray50);border:1px solid var(--gray300);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;transition:all .15s;font-family:'Nunito',sans-serif;text-align:left}
+.qa-btn:hover{background:var(--g50);border-color:var(--g500)}
+.qa-icon{font-size:16px}
+.qa-label{font-size:12px;font-weight:700;color:var(--gray700)}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:32px 16px;color:var(--gray500)}
+.empty-state-icon{font-size:32px;margin-bottom:8px}
+.empty-state-text{font-size:13px;font-weight:600}
+
+/* LOAN */
+.loan-item{background:var(--gray50);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px}
+.loan-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.loan-name{font-size:13px;font-weight:700;color:var(--gray900)}
+.loan-status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;background:var(--g100);color:var(--g800)}
+.loan-amount{font-family:'Quicksand',sans-serif;font-size:18px;font-weight:700;color:var(--gray900);margin-bottom:4px}
+.loan-detail{font-size:11px;color:var(--gray500)}
+.loan-bar-wrap{height:4px;background:#E5E7EB;border-radius:10px;margin-top:10px;overflow:hidden}
+.loan-bar{height:100%;background:linear-gradient(90deg,var(--g700),var(--g500));border-radius:10px}
+
+/* MOBILE NAV */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--gray100);padding:8px 0 12px;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+.mobile-nav-inner{display:flex;justify-content:space-around;align-items:center}
+.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 12px}
+.mobile-nav-icon{font-size:20px}
+.mobile-nav-label{font-size:10px;font-weight:700;color:var(--gray500)}
+.mobile-nav-item.active .mobile-nav-label{color:var(--g700)}
+.mobile-entry-btn{width:52px;height:52px;background:linear-gradient(135deg,var(--g700),var(--g500));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 16px rgba(45,106,79,.4);margin-top:-16px;cursor:pointer;border:none;color:#fff}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+.sidebar-overlay.show{display:block}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}.bottom-row{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.page{padding:16px;padding-bottom:80px}.topbar{padding:0 16px}.menu-toggle{display:block}.mobile-nav{display:block}.kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px}.kpi-value{font-size:20px}.bottom-row{grid-template-columns:1fr}.charts-row{grid-template-columns:1fr}.topbar-actions .alert-chip{display:none}}
+@media(max-width:480px){.kpi-grid{grid-template-columns:1fr 1fr;gap:8px}.kpi-card{padding:14px}.kpi-value{font-size:18px}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading your dashboard...</div>
+</div>
+
+<div class="sidebar-overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">🫓</div>
+    <div class="brand-name">Mena Injera</div>
+    <div class="brand-sub">& Derkosh</div>
+  </div>
+  <div class="sidebar-month">
+    <span id="currentPeriodLabel">June 2026</span>
+    <div class="month-arrows">
+      <button class="month-btn" onclick="changePeriod(-1)">‹</button>
+      <button class="month-btn" onclick="changePeriod(1)">›</button>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item active" href="dashboard.html"><div class="nav-icon">📊</div><span class="nav-label">Dashboard</span></a>
+    <div class="nav-section-label">Data Entry</div>
+    <a class="nav-item" href="purchases.html"><div class="nav-icon">🛒</div><span class="nav-label">Purchases</span></a>
+    <a class="nav-item" href="production.html"><div class="nav-icon">🍞</div><span class="nav-label">Production</span></a>
+    <a class="nav-item" href="derkosh.html"><div class="nav-icon">📦</div><span class="nav-label">Derkosh</span></a>
+    <a class="nav-item" href="sales.html"><div class="nav-icon">💰</div><span class="nav-label">Sales</span></a>
+    <a class="nav-item" href="petty-cash.html"><div class="nav-icon">🪙</div><span class="nav-label">Petty Cash</span></a>
+    <div class="nav-section-label">Finance</div>
+    <a class="nav-item" href="pnl.html"><div class="nav-icon">📄</div><span class="nav-label">P&L Statement</span></a>
+    <a class="nav-item" href="cashflow.html"><div class="nav-icon">💳</div><span class="nav-label">Cash Flow</span></a>
+    <a class="nav-item" href="budget.html"><div class="nav-icon">🎯</div><span class="nav-label">Budget vs Actual</span></a>
+    <a class="nav-item" href="loans.html"><div class="nav-icon">🏦</div><span class="nav-label">Loans</span></a>
+    <a class="nav-item" href="distribution.html"><div class="nav-icon">👥</div><span class="nav-label">Distribution</span></a>
+    <div class="nav-section-label">Records</div>
+    <a class="nav-item" href="customers.html"><div class="nav-icon">🏪</div><span class="nav-label">Customers</span></a>
+    <a class="nav-item" href="suppliers.html"><div class="nav-icon">🚚</div><span class="nav-label">Suppliers</span></a>
+    <a class="nav-item" href="inventory.html"><div class="nav-icon">📦</div><span class="nav-label">Inventory</span></a>
+    <div class="nav-section-label">Reports</div>
+    <a class="nav-item" href="reports.html"><div class="nav-icon">📈</div><span class="nav-label">Multi-Year</span></a>
+    <a class="nav-item" href="settings.html"><div class="nav-icon">⚙️</div><span class="nav-label">Settings</span></a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar" id="userAvatar">EM</div>
+    <div class="user-info">
+      <div class="user-name" id="userName">Eyasu Mesfin</div>
+      <div class="user-role" id="userRole">Owner</div>
+    </div>
+    <button class="logout-btn" onclick="logout()" title="Sign out">⏻</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <header class="topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title">Dashboard</div>
+    <div class="topbar-actions">
+      <div class="alert-chip" id="alertChip" style="display:none">⚠ Loading...</div>
+      <button class="topbar-btn search">🔍</button>
+      <button class="topbar-btn bell">🔔<div class="bell-dot"></div></button>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- ALERT BAR -->
+    <div class="alert-bar" id="alertBar" style="display:none">
+      <span>⚠️</span>
+      <div class="alert-items" id="alertItems"></div>
+    </div>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Business Overview</div>
+        <div class="page-subtitle" id="pageSubtitle">Loading...</div>
+      </div>
+      <span class="period-badge" id="periodBadge">—</span>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-icon">💵</div>
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kRevenue">—</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral" id="kRevenueBadge">Loading</span></div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-label">Gross Margin</div>
+        <div class="kpi-value"><span id="kMargin">—</span><span class="kpi-currency">%</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral" id="kMarginBadge">Loading</span></div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-icon">✅</div>
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kProfit">—</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral" id="kProfitBadge">Loading</span></div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-icon">💳</div>
+        <div class="kpi-label">Cash on Hand</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kCash">—</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral">3 channels</span></div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-icon">🍞</div>
+        <div class="kpi-label">Injera Produced</div>
+        <div class="kpi-value"><span id="kInjera">—</span></div>
+        <div class="kpi-meta"><span class="kpi-meta-label">pieces this month</span></div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-label">Total COGS</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kCogs">—</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral" id="kCogsBadge">Loading</span></div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-icon">⏳</div>
+        <div class="kpi-label">Outstanding A/R</div>
+        <div class="kpi-value"><span class="kpi-currency">ETB</span><span id="kAR">—</span></div>
+        <div class="kpi-meta"><span class="kpi-badge neutral" id="kARBadge">Loading</span></div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Derkosh Produced</div>
+        <div class="kpi-value"><span id="kDerkosh">—</span><span class="kpi-currency"> kg</span></div>
+        <div class="kpi-meta"><span class="kpi-meta-label">this month</span></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Revenue & Cost Trend</div>
+            <div class="card-subtitle">Last 6 months · ETB</div>
+          </div>
+          <a class="card-action" href="pnl.html">View P&L →</a>
+        </div>
+        <canvas id="revenueChart" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Sales by Customer Type</div>
+            <div class="card-subtitle" id="donutPeriod">This month</div>
+          </div>
+        </div>
+        <canvas id="donutChart" height="170"></canvas>
+        <div id="donutLegend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+      <!-- Top Customers -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Top Customers</div>
+            <div class="card-subtitle">By revenue this month</div>
+          </div>
+          <a class="card-action" href="customers.html">All →</a>
+        </div>
+        <table class="customer-table">
+          <thead><tr><th>#</th><th>Customer</th><th>Type</th><th style="text-align:right">Revenue</th></tr></thead>
+          <tbody id="customersTableBody">
+            <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Loading customers...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Inventory + Budget -->
+      <div class="chart-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Inventory Status</div>
+            <div class="card-subtitle">Current stock levels</div>
+          </div>
+          <a class="card-action" href="inventory.html">Manage →</a>
+        </div>
+        <div class="inv-list" id="inventoryList">
+          <div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">Loading inventory...</div></div>
+        </div>
+      </div>
+
+      <!-- Cash + Loans + Quick Entry -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="chart-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Cash Position</div>
+              <div class="card-subtitle">All channels</div>
+            </div>
+            <a class="card-action" href="cashflow.html">Details →</a>
+          </div>
+          <div class="cf-channels">
+            <div class="cf-channel"><div class="cf-icon cash">💵</div><span class="cf-label">Cash on Hand</span><span class="cf-amount" id="cfCash">—</span></div>
+            <div class="cf-channel"><div class="cf-icon bank">🏦</div><span class="cf-label">Bank Account</span><span class="cf-amount" id="cfBank">—</span></div>
+            <div class="cf-channel"><div class="cf-icon mobile">📱</div><span class="cf-label">Mobile Money</span><span class="cf-amount" id="cfMobile">—</span></div>
+          </div>
+          <div class="cf-total">
+            <span class="cf-total-label">Total Cash</span>
+            <span class="cf-total-amount" id="cfTotal">—</span>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Active Loans</div>
+            </div>
+            <a class="card-action" href="loans.html">Details →</a>
+          </div>
+          <div id="loansContainer">
+            <div class="empty-state"><div class="empty-state-icon">🏦</div><div class="empty-state-text">No active loans</div></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header"><div class="card-title">Quick Entry</div></div>
+          <div class="quick-actions">
+            <button class="qa-btn" onclick="location.href='purchases.html'"><span class="qa-icon">🛒</span><span class="qa-label">New Purchase</span></button>
+            <button class="qa-btn" onclick="location.href='production.html'"><span class="qa-icon">🍞</span><span class="qa-label">New Batch</span></button>
+            <button class="qa-btn" onclick="location.href='sales.html'"><span class="qa-icon">💰</span><span class="qa-label">New Sale</span></button>
+            <button class="qa-btn" onclick="location.href='derkosh.html'"><span class="qa-icon">📦</span><span class="qa-label">New Derkosh</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <div class="mobile-nav-item active" onclick="location.href='dashboard.html'"><div class="mobile-nav-icon">📊</div><div class="mobile-nav-label">Dashboard</div></div>
+    <div class="mobile-nav-item" onclick="location.href='pnl.html'"><div class="mobile-nav-icon">📄</div><div class="mobile-nav-label">Reports</div></div>
+    <button class="mobile-entry-btn" onclick="location.href='sales.html'">＋</button>
+    <div class="mobile-nav-item" onclick="location.href='cashflow.html'"><div class="mobile-nav-icon">💳</div><div class="mobile-nav-label">Cash Flow</div></div>
+    <div class="mobile-nav-item" onclick="toggleSidebar()"><div class="mobile-nav-icon">☰</div><div class="mobile-nav-label">Menu</div></div>
+  </div>
+</nav>
+
+<script>
+// ── CONFIG ──
+const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+const SESSION_KEY  = 'injera_bms_session';
+const USER_KEY     = 'injera_bms_user';
+
+// ── PERIOD STATE ──
+let currentYear  = 2026;
+let currentMonth = 6; // June
+let revenueChart = null;
+let donutChart   = null;
+
+// ── AUTH CHECK ──
+function checkAuth() {
+  const session = localStorage.getItem(SESSION_KEY);
+  const user    = localStorage.getItem(USER_KEY);
+  if (!session || !user) { location.href = 'index.html'; return null; }
+  const s = JSON.parse(session);
+  if (Date.now() > s.expires_at) { logout(); return null; }
+  return JSON.parse(user);
+}
+
+function logout() {
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(USER_KEY);
+  location.href = 'index.html';
+}
+
+// ── SUPABASE FETCH ──
+async function sb(endpoint) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    headers: {
+      'apikey':        SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type':  'application/json'
+    }
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+// ── FORMAT ──
+function fmt(n, dec=0) {
+  if (n === null || n === undefined || isNaN(n)) return '0';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function periodStr() {
+  return `${currentYear}-${String(currentMonth).padStart(2,'0')}`;
+}
+
+function periodLabel() {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[currentMonth-1]} ${currentYear}`;
+}
+
+// ── PERIOD NAVIGATION ──
+function changePeriod(dir) {
+  currentMonth += dir;
+  if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  if (currentMonth < 1)  { currentMonth = 12; currentYear--; }
+  document.getElementById('currentPeriodLabel').textContent = periodLabel();
+  document.getElementById('periodBadge').textContent        = periodLabel();
+  loadDashboard();
+}
+
+// ── COUNT UP ──
+function countUp(el, target, dec=0, dur=1000) {
+  const start = performance.now();
+  function update(now) {
+    const p = Math.min((now - start) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(target * e, dec);
+    if (p < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ── MAIN LOAD ──
+async function loadDashboard() {
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  const period = periodStr();
+
+  try {
+    // Load all data in parallel
+    const [sales, purchases, overhead, production, derkosh, customers, openingBal, loans, inventory] = await Promise.all([
+      sb(`sales?period=eq.${period}&is_deleted=eq.false&select=revenue,product_type,payment_method,customer_id`),
+      sb(`purchases?period=eq.${period}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&select=total_cost,type`),
+      sb(`monthly_overhead?period=eq.${period}&select=amount`),
+      sb(`production_batches?period=eq.${period}&is_deleted=eq.false&select=injera_qty`),
+      sb(`derkosh_batches?period=eq.${period}&is_deleted=eq.false&select=produced_kg`),
+      sb(`customers?is_active=eq.true&select=id,name,type`),
+      sb(`channel_opening_balances?period=eq.${period}&select=channel,opening_balance`),
+      sb(`loans?status=eq.active&select=lender_name,outstanding_balance,monthly_payment`),
+      sb(`inventory_items?is_active=eq.true&select=id,name,unit,reorder_level`)
+    ]);
+
+    // ── KPIs ──
+    const totalRevenue  = sales.reduce((s, r) => s + parseFloat(r.revenue || 0), 0);
+    const injRevenue    = sales.filter(r => r.product_type === 'injera').reduce((s, r) => s + parseFloat(r.revenue || 0), 0);
+    const drkRevenue    = sales.filter(r => r.product_type === 'derkosh').reduce((s, r) => s + parseFloat(r.revenue || 0), 0);
+    const totalCOGS     = purchases.filter(p => p.type === 'purchase').reduce((s, p) => s + parseFloat(p.total_cost || 0), 0);
+    const totalOpex     = purchases.filter(p => p.type === 'expense').reduce((s, p) => s + parseFloat(p.total_cost || 0), 0);
+    const totalOverhead = overhead.reduce((s, o) => s + parseFloat(o.amount || 0), 0);
+    const totalCost     = totalCOGS + totalOpex + totalOverhead;
+    const netProfit     = totalRevenue - totalCost;
+    const grossMargin   = totalRevenue > 0 ? ((totalRevenue - totalCOGS) / totalRevenue) * 100 : 0;
+    const injeraTotal   = production.reduce((s, p) => s + (p.injera_qty || 0), 0);
+    const derkoshTotal  = derkosh.reduce((s, d) => s + parseFloat(d.produced_kg || 0), 0);
+
+    // Cash
+    const cashCh   = openingBal.find(b => b.channel === 'cash')?.opening_balance   || 0;
+    const bankCh   = openingBal.find(b => b.channel === 'bank')?.opening_balance   || 0;
+    const mobileCh = openingBal.find(b => b.channel === 'mobile')?.opening_balance || 0;
+    const totalCash = parseFloat(cashCh) + parseFloat(bankCh) + parseFloat(mobileCh);
+
+    // A/R
+    const creditSales = sales.filter(s => s.payment_method === 'credit').reduce((s, r) => s + parseFloat(r.revenue || 0), 0);
+
+    // ── UPDATE KPI CARDS ──
+    countUp(document.getElementById('kRevenue'), totalRevenue);
+    countUp(document.getElementById('kMargin'),  grossMargin, 1);
+    countUp(document.getElementById('kProfit'),  netProfit);
+    countUp(document.getElementById('kCash'),    totalCash);
+    countUp(document.getElementById('kInjera'),  injeraTotal);
+    countUp(document.getElementById('kCogs'),    totalCOGS);
+    countUp(document.getElementById('kAR'),      creditSales);
+    countUp(document.getElementById('kDerkosh'), derkoshTotal, 1);
+
+    // Badges
+    setBadge('kRevenueBadge', totalRevenue, 'Revenue');
+    setBadge('kProfitBadge',  netProfit,    'Profit');
+    document.getElementById('kMarginBadge').textContent = grossMargin > 20 ? '✓ Healthy' : grossMargin > 10 ? '~ Moderate' : '↓ Low';
+    document.getElementById('kMarginBadge').className   = `kpi-badge ${grossMargin > 20 ? 'up' : grossMargin > 10 ? 'neutral' : 'down'}`;
+    document.getElementById('kCogsBadge').textContent   = `ETB ${fmt(totalCOGS)} materials`;
+    document.getElementById('kCogsBadge').className     = 'kpi-badge neutral';
+    document.getElementById('kARBadge').textContent     = creditSales > 0 ? 'Credit outstanding' : 'No credit';
+    document.getElementById('kARBadge').className       = `kpi-badge ${creditSales > 0 ? 'down' : 'up'}`;
+
+    // Cash channels
+    document.getElementById('cfCash').textContent   = `ETB ${fmt(cashCh)}`;
+    document.getElementById('cfBank').textContent   = `ETB ${fmt(bankCh)}`;
+    document.getElementById('cfMobile').textContent = `ETB ${fmt(mobileCh)}`;
+    document.getElementById('cfTotal').textContent  = `ETB ${fmt(totalCash)}`;
+
+    // Page info
+    document.getElementById('pageSubtitle').textContent = `${periodLabel()} · Mena Injera & Derkosh`;
+    document.getElementById('periodBadge').textContent  = periodLabel();
+
+    // ── ALERTS ──
+    buildAlerts(inventory, creditSales);
+
+    // ── CUSTOMERS TABLE ──
+    buildCustomersTable(sales, customers);
+
+    // ── INVENTORY ──
+    buildInventory(inventory);
+
+    // ── LOANS ──
+    buildLoans(loans);
+
+    // ── REVENUE CHART ──
+    await buildRevenueChart();
+
+    // ── DONUT CHART ──
+    buildDonutChart(sales, customers);
+
+  } catch (err) {
+    console.error('Dashboard error:', err);
+  }
+
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function setBadge(id, value, label) {
+  const el = document.getElementById(id);
+  el.textContent = value > 0 ? `ETB ${fmt(value)}` : 'No data yet';
+  el.className   = `kpi-badge ${value > 0 ? 'up' : 'neutral'}`;
+}
+
+// ── ALERTS ──
+function buildAlerts(inventory, creditSales) {
+  const alerts = [];
+  inventory.forEach(item => {
+    // We just show static alerts for now until inventory balance view is ready
+  });
+  if (creditSales > 0) alerts.push(`💳 ETB ${fmt(creditSales)} in unpaid credit sales`);
+
+  const bar   = document.getElementById('alertBar');
+  const chip  = document.getElementById('alertChip');
+  const items = document.getElementById('alertItems');
+
+  if (alerts.length > 0) {
+    bar.style.display  = 'flex';
+    chip.style.display = 'flex';
+    chip.textContent   = `⚠ ${alerts.length} alert${alerts.length>1?'s':''}`;
+    items.innerHTML    = alerts.map(a => `<div class="alert-tag">${a}</div>`).join('');
+  } else {
+    bar.style.display  = 'none';
+    chip.style.display = 'none';
+  }
+}
+
+// ── CUSTOMERS TABLE ──
+function buildCustomersTable(sales, customers) {
+  const tbody = document.getElementById('customersTableBody');
+  if (!sales.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">No sales recorded this month</div></div></td></tr>`;
+    return;
+  }
+
+  // Group by customer
+  const map = {};
+  sales.forEach(s => {
+    const cid = s.customer_id;
+    if (!map[cid]) map[cid] = 0;
+    map[cid] += parseFloat(s.revenue || 0);
+  });
+
+  const sorted = Object.entries(map).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const custMap = {};
+  customers.forEach(c => custMap[c.id] = c);
+
+  const typeClass = { hotel:'hotel', restaurant:'restaurant', wholesale:'wholesale', retail:'retail' };
+  const ranks     = ['gold','','','',''];
+
+  tbody.innerHTML = sorted.map(([cid, rev], i) => {
+    const c = custMap[cid] || { name: 'Unknown', type: 'retail' };
+    return `<tr>
+      <td><div class="cust-rank ${ranks[i]||''}">${i+1}</div></td>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="cust-type-badge ${typeClass[c.type]||'retail'}">${c.type}</span></td>
+      <td style="text-align:right;font-family:'Quicksand',sans-serif;font-weight:700">${fmt(rev)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── INVENTORY ──
+function buildInventory(inventory) {
+  const list = document.getElementById('inventoryList');
+  if (!inventory.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No inventory items</div></div>`;
+    return;
+  }
+
+  list.innerHTML = inventory.slice(0,6).map(item => {
+    // Without actual stock counts, show items with reorder levels
+    const status = 'ok';
+    const pct    = 75;
+    return `<div class="inv-item">
+      <div class="inv-dot ${status}"></div>
+      <span class="inv-name">${item.name}</span>
+      <span class="inv-qty">${item.unit}</span>
+      <div class="inv-bar-wrap"><div class="inv-bar ${status}" style="width:${pct}%"></div></div>
+      <span class="inv-status ${status}">${status.toUpperCase()}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── LOANS ──
+function buildLoans(loans) {
+  const container = document.getElementById('loansContainer');
+  if (!loans.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏦</div><div class="empty-state-text">No active loans</div></div>`;
+    return;
+  }
+
+  container.innerHTML = loans.map(l => `
+    <div class="loan-item">
+      <div class="loan-top">
+        <span class="loan-name">${l.lender_name}</span>
+        <span class="loan-status-badge">Active</span>
+      </div>
+      <div class="loan-amount">ETB ${fmt(l.outstanding_balance)}</div>
+      <div class="loan-detail">Outstanding · Monthly: ETB ${fmt(l.monthly_payment)}</div>
+      <div class="loan-bar-wrap"><div class="loan-bar" style="width:40%"></div></div>
+    </div>
+  `).join('');
+}
+
+// ── REVENUE CHART ──
+async function buildRevenueChart() {
+  // Load last 6 months
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    let m = currentMonth - i;
+    let y = currentYear;
+    while (m < 1)  { m += 12; y--; }
+    while (m > 12) { m -= 12; y++; }
+    months.push({ period: `${y}-${String(m).padStart(2,'0')}`, label: `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]}` });
+  }
+
+  const revenues = [];
+  const cogs     = [];
+  const profits  = [];
+
+  for (const { period } of months) {
+    try {
+      const [s, p, o] = await Promise.all([
+        sb(`sales?period=eq.${period}&is_deleted=eq.false&select=revenue`),
+        sb(`purchases?period=eq.${period}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&select=total_cost,type`),
+        sb(`monthly_overhead?period=eq.${period}&select=amount`)
+      ]);
+      const rev  = s.reduce((a,r) => a + parseFloat(r.revenue||0), 0);
+      const cg   = p.filter(x=>x.type==='purchase').reduce((a,r) => a + parseFloat(r.total_cost||0), 0);
+      const oh   = o.reduce((a,r) => a + parseFloat(r.amount||0), 0);
+      const opex = p.filter(x=>x.type==='expense').reduce((a,r) => a + parseFloat(r.total_cost||0), 0);
+      revenues.push(rev);
+      cogs.push(cg);
+      profits.push(rev - cg - oh - opex);
+    } catch {
+      revenues.push(0); cogs.push(0); profits.push(0);
+    }
+  }
+
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(ctx, {
+    data: {
+      labels: months.map(m => m.label),
+      datasets: [
+        { type:'bar',  label:'Revenue',    data:revenues, backgroundColor:'rgba(64,145,108,0.85)', borderRadius:6, borderSkipped:false },
+        { type:'bar',  label:'COGS',       data:cogs,     backgroundColor:'rgba(245,158,11,0.7)',  borderRadius:6, borderSkipped:false },
+        { type:'line', label:'Net Profit', data:profits,  borderColor:'#2D6A4F', backgroundColor:'rgba(45,106,79,.08)', borderWidth:2.5, pointRadius:4, tension:0.4, fill:true, yAxisID:'y1' }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'top', labels:{ font:{family:'Nunito',size:11,weight:'600'}, padding:16, usePointStyle:true, pointStyleWidth:10 }},
+        tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ETB ${fmt(ctx.raw)}` }}
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{family:'Nunito',size:11}} },
+        y:{ grid:{color:'rgba(0,0,0,.05)'}, ticks:{font:{family:'Nunito',size:10}, callback: v=>'ETB '+(v/1000).toFixed(0)+'k'} },
+        y1:{ position:'right', grid:{display:false}, ticks:{font:{family:'Nunito',size:10}, callback: v=>'ETB '+(v/1000).toFixed(0)+'k'} }
+      }
+    }
+  });
+}
+
+// ── DONUT CHART ──
+function buildDonutChart(sales, customers) {
+  const custMap = {};
+  customers.forEach(c => custMap[c.id] = c);
+
+  const typeRevenue = { hotel:0, restaurant:0, wholesale:0, retail:0 };
+  sales.forEach(s => {
+    const c = custMap[s.customer_id];
+    if (c) typeRevenue[c.type] = (typeRevenue[c.type] || 0) + parseFloat(s.revenue || 0);
+  });
+
+  const labels = Object.keys(typeRevenue).filter(k => typeRevenue[k] > 0);
+  const data   = labels.map(k => typeRevenue[k]);
+  const colors = { hotel:'#3B82F6', restaurant:'#8B5CF6', wholesale:'#F59E0B', retail:'#52B788' };
+  const bgColors = labels.map(k => colors[k]);
+  const total  = data.reduce((a,b) => a+b, 0);
+
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  if (donutChart) donutChart.destroy();
+
+  if (!data.length) {
+    document.getElementById('donutLegend').innerHTML = '<div style="font-size:12px;color:#6B7280;text-align:center;width:100%">No sales data this month</div>';
+    return;
+  }
+
+  donutChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:bgColors, borderWidth:3, borderColor:'#fff', hoverOffset:8 }] },
+    options:{
+      responsive:true, maintainAspectRatio:true, cutout:'68%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => ` ETB ${fmt(ctx.raw)} (${Math.round(ctx.raw/total*100)}%)` }}
+      }
+    }
+  });
+
+  document.getElementById('donutLegend').innerHTML = labels.map((l,i) =>
+    `<div style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#374151">
+      <div style="width:10px;height:10px;border-radius:3px;background:${bgColors[i]};flex-shrink:0"></div>
+      ${l} <span style="color:#6B7280">${Math.round(data[i]/total*100)}%</span>
+    </div>`
+  ).join('');
+}
+
+// ── SIDEBAR ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  const user = checkAuth();
+  if (!user) return;
+
+  // Set user info
+  document.getElementById('userName').textContent = user.name;
+  document.getElementById('userRole').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+  document.getElementById('userAvatar').textContent = user.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('currentPeriodLabel').textContent = periodLabel();
+  document.getElementById('periodBadge').textContent        = periodLabel();
+  document.getElementById('donutPeriod').textContent        = periodLabel();
+
+  loadDashboard();
+});
+</script>
+</body>
+</html>
