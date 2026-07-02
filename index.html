@@ -376,11 +376,11 @@
         <p class="lead">You have successfully logged in.</p>
 
         <div class="userbar">
-          <div class="av">EM<span class="dot"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
+          <div class="av" id="avInitials">--<span class="dot"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span></div>
           <div class="info">
-            <div class="nm-row"><h4>Eyasu Mesfin</h4><span class="badge-owner">OWNER</span></div>
-            <p>Owner</p>
-            <p><span>Full Access</span></p>
+            <div class="nm-row"><h4 id="userName">--</h4><span class="badge-owner" id="userRoleBadge">--</span></div>
+            <p id="userRoleText">--</p>
+            <p><span id="userAccessText">--</span></p>
           </div>
         </div>
 
@@ -395,7 +395,7 @@
           </div>
           <div class="detail-row">
             <div class="di"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"/></svg></div>
-            <div><div class="dt">IP Address</div><div class="dv">102.22.45.67 · Addis Ababa, Ethiopia</div></div>
+            <div><div class="dt">IP Address</div><div class="dv" id="loginIp">—</div></div>
           </div>
         </div>
 
@@ -407,7 +407,7 @@
           </div>
         </div>
 
-        <p class="warn-txt">If you are not Eyasu Mesfin, please <a href="#" id="logoutLink">log out</a> and try again.</p>
+        <p class="warn-txt">If you are not <span id="warnName">this user</span>, please <a href="#" id="logoutLink">log out</a> and try again.</p>
       </div>
 
     </div>
@@ -461,50 +461,123 @@
   rememberChk.addEventListener('change', syncRememberState);
   syncRememberState();
 
-  // ---- Supabase configuration ----
+  // ---- Supabase Auth ----
   const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
 
-  async function signInWithSupabase(email, password) {
+  // Redirect straight to the dashboard if a valid, non-expired session already exists
+  (function checkExistingSession(){
+    const existing = loadSession();
+    if (existing && existing.access_token && existing.hard_expiry > Date.now()){
+      window.location.href = 'dashboard.html';
+    } else if (existing) {
+      clearSession();
+    }
+  })();
+
+  function loadSession(){
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function clearSession(){
+    localStorage.removeItem('injera_session');
+    sessionStorage.removeItem('injera_session');
+  }
+  function saveSession(session, remember, hardExpiryMs){
+    clearSession();
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem('injera_session', JSON.stringify({ ...session, hard_expiry: hardExpiryMs }));
+  }
+
+  // Attempts a real sign-in against Supabase Auth.
+  // Returns { ok:true, session, profile } or { ok:false, reason, message }
+  async function signIn(email, password){
+    let authRes, authData;
+    try {
+      authRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password })
+        body: JSON.stringify({ email: email.trim(), password })
       });
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = (data.error_description || data.msg || '').toLowerCase();
-        if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('password')) {
-          return { ok: false, reason: 'wrong_password' };
-        }
-        if (msg.includes('not found') || msg.includes('no user')) {
-          return { ok: false, reason: 'not_found' };
-        }
-        if (msg.includes('locked') || msg.includes('banned')) {
-          return { ok: false, reason: 'locked' };
-        }
-        return { ok: false, reason: 'wrong_password' };
-      }
-      // Store session token
-      const expires = rememberChk.checked
-        ? (sessionDuration.value === '4h' ? Date.now() + 4*60*60*1000 : Date.now() + 7*24*60*60*1000)
-        : null;
-      const session = {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        user: data.user,
-        expires_at: expires
-      };
-      localStorage.setItem('bms_session', JSON.stringify(session));
-      return { ok: true, user: data.user };
+      authData = await authRes.json();
     } catch (err) {
-      return { ok: false, reason: 'network', message: err.message };
+      return { ok:false, reason:'network', message:'Could not reach the server. Check your internet connection and try again.' };
     }
+
+    if (!authRes.ok){
+      // Supabase deliberately returns the same generic error for both
+      // "no such account" and "wrong password" to prevent user enumeration.
+      const msg = (authData && (authData.msg || authData.error_description || authData.message)) || '';
+      if (authRes.status === 429){
+        return { ok:false, reason:'rate_limited', message:'Too many attempts. Please wait a moment and try again.' };
+      }
+      return { ok:false, reason:'invalid_credentials', message: msg || 'Invalid email or password.' };
+    }
+
+    const session = authData; // { access_token, refresh_token, expires_in, user, ... }
+
+    // Fetch this user's profile row (role, name, active status) from our own users table
+    let profile;
+    try {
+      const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${session.user.id}&select=*`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      const rows = await profRes.json();
+      profile = rows && rows[0];
+    } catch (err) {
+      return { ok:false, reason:'network', message:'Signed in, but could not load your profile. Please try again.' };
+    }
+
+    if (!profile){
+      return { ok:false, reason:'no_profile', message:'Your account exists but has no profile set up yet. Contact your administrator.' };
+    }
+    if (!profile.is_active){
+      return { ok:false, reason:'locked', message:'This account has been deactivated. Contact your administrator.' };
+    }
+
+    return { ok:true, session, profile };
+  }
+
+  async function logAttempt(email, userId, outcome){
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/login_log`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          user_id: userId || null,
+          outcome,
+          user_agent: navigator.userAgent
+        })
+      });
+    } catch (err) { /* logging failures shouldn't block sign-in */ }
+  }
+
+  async function touchLastLogin(userId, accessToken){
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ last_login: new Date().toISOString() })
+      });
+    } catch (err) { /* non-critical */ }
   }
 
   const emailInput = document.getElementById('email');
@@ -523,27 +596,6 @@
   }
   emailInput.addEventListener('input', clearErrors);
   pwInput.addEventListener('input', clearErrors);
-
-  function showError(reason){
-    let msg = '';
-    if (reason === 'not_found'){
-      msg = 'No account found with this email address.';
-      emailField.classList.add('invalid');
-      emailInput.focus();
-    } else if (reason === 'wrong_password'){
-      msg = 'Incorrect password. Please try again.';
-      pwField.classList.add('invalid');
-      pwField.classList.add('shake');
-      setTimeout(()=>pwField.classList.remove('shake'), 400);
-      pwInput.focus();
-      pwInput.value = '';
-    } else if (reason === 'locked'){
-      msg = 'This account has been locked after multiple failed attempts. Contact your administrator to unlock it.';
-      emailField.classList.add('invalid');
-    }
-    errMsg.textContent = msg;
-    errBanner.classList.add('show');
-  }
 
   function setLoading(isLoading){
     signinBtn.disabled = isLoading;
@@ -575,19 +627,10 @@
     ctx.stroke();
   }
 
-  // Check if already logged in on page load
-  window.addEventListener('load', () => {
-    try {
-      const stored = localStorage.getItem('bms_session');
-      if (stored) {
-        const session = JSON.parse(stored);
-        if (session.access_token) {
-          // Valid session exists, redirect to dashboard
-          window.location.href = 'dashboard.html';
-        }
-      }
-    } catch(e) { localStorage.removeItem('bms_session'); }
-  });
+  function showBanner(message){
+    errMsg.textContent = message;
+    errBanner.classList.add('show');
+  }
 
   document.getElementById('loginForm').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -599,44 +642,76 @@
     if (!email || !password){
       if (!email) emailField.classList.add('invalid');
       if (!password) pwField.classList.add('invalid');
-      errMsg.textContent = 'Please enter both your email and password.';
-      errBanner.classList.add('show');
+      showBanner('Please enter both your email and password.');
       return;
     }
 
     setLoading(true);
-
-    const result = await signInWithSupabase(email, password);
+    const result = await signIn(email, password);
     setLoading(false);
 
     if (!result.ok){
-      if (result.reason === 'network') {
-        errMsg.textContent = 'Connection error. Please check your internet and try again.';
-        errBanner.classList.add('show');
-      } else {
-        showError(result.reason);
+      const outcomeMap = { invalid_credentials:'wrong_password', locked:'locked', no_profile:'not_found' };
+      logAttempt(email, null, outcomeMap[result.reason] || 'wrong_password');
+
+      if (result.reason === 'invalid_credentials'){
+        pwField.classList.add('invalid');
+        pwField.classList.add('shake');
+        setTimeout(()=>pwField.classList.remove('shake'), 400);
+        pwInput.focus();
+        pwInput.value = '';
+      } else if (result.reason === 'locked' || result.reason === 'no_profile'){
+        emailField.classList.add('invalid');
       }
+      showBanner(result.message);
       return;
     }
 
-    // Login success — show success screen
+    const { session, profile } = result;
+
+    logAttempt(email, profile.id, 'success');
+    touchLastLogin(profile.id, session.access_token);
+
+    // "Remember me" controls where the session lives (localStorage vs sessionStorage).
+    // The dropdown sets a soft client-side expiry; the Supabase refresh token itself
+    // governs the real underlying session lifetime.
+    const remember = rememberChk.checked;
+    const hardExpiryMs = remember
+      ? Date.now() + (sessionDuration.value === '4h' ? 4*60*60*1000 : 7*24*60*60*1000)
+      : Date.now() + 12*60*60*1000; // session-only: cap at 12h as a safety net
+    saveSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      user_id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role
+    }, remember, hardExpiryMs);
+
+    // Populate the success screen with the real signed-in user
+    const initials = profile.name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
+    document.getElementById('avInitials').firstChild.textContent = initials;
+    document.getElementById('userName').textContent = profile.name;
+    document.getElementById('userRoleBadge').textContent = profile.role.toUpperCase();
+    document.getElementById('userRoleText').textContent = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+    document.getElementById('userAccessText').textContent = profile.role === 'owner' ? 'Full Access' : (profile.role === 'manager' ? 'Manager Access' : 'Limited Access');
+    document.getElementById('warnName').textContent = profile.name;
+
     const now = new Date();
     document.getElementById('loginTime').textContent =
       now.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'}) + ' • ' +
       now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     document.getElementById('loginDevice').textContent = navigator.userAgentData?.platform
       ? 'Chrome on ' + navigator.userAgentData.platform
-      : 'Chrome on Windows';
+      : navigator.userAgent.includes('Windows') ? 'Chrome on Windows'
+      : navigator.userAgent.includes('Mac') ? 'Chrome on macOS'
+      : 'Browser';
 
-    // Update user display name if available
-    const user = result.user;
-    if (user && user.email) {
-      const nm = user.user_metadata?.name || user.email.split('@')[0];
-      const initials = nm.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
-      document.querySelector('.av').childNodes[0].textContent = initials;
-      document.querySelector('.userbar .info h4').textContent = nm;
-      document.querySelector('.userbar .info p').textContent = user.user_metadata?.role || 'User';
-    }
+    // Best-effort public IP lookup (non-blocking, fails silently)
+    const ipEl = document.getElementById('loginIp');
+    fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => {
+      if (d && d.ip) ipEl.textContent = d.ip;
+    }).catch(() => { ipEl.textContent = 'Not available'; });
 
     viewLogin.style.display = 'none';
     viewSuccess.style.display = 'block';
@@ -661,25 +736,9 @@
     }, 50);
   });
 
-  document.getElementById('logoutLink').addEventListener('click', async function(e){
+  document.getElementById('logoutLink').addEventListener('click', function(e){
     e.preventDefault();
-    // Clear Supabase session
-    try {
-      const stored = localStorage.getItem('bms_session');
-      if (stored) {
-        const session = JSON.parse(stored);
-        if (session.access_token) {
-          await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
-        }
-      }
-    } catch(e) {}
-    localStorage.removeItem('bms_session');
+    clearSession();
     viewSuccess.style.display = 'none';
     viewLogin.style.display = 'block';
     card.classList.remove('success-mode');
