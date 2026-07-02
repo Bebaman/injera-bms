@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add User — Mena Injera & Derkosh</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#27ae60; --green-dark:#1a6b3c; --red:#e53935;
+    --cream:#faf7f0; --td:#1a2e25; --tm:#5a6e65; --border:#e0eae5;
+  }
+  body{
+    font-family:'Nunito',sans-serif; background:var(--cream); color:var(--td);
+    min-height:100vh; display:flex; align-items:flex-start; justify-content:center;
+    padding:48px 20px;
+  }
+  h1,h2{font-family:'Quicksand',sans-serif}
+  .wrap{width:100%; max-width:480px}
+  .back{display:inline-block; margin-bottom:16px; color:var(--tm); text-decoration:none; font-size:14px}
+  .back:hover{color:var(--green-dark)}
+  .card{
+    background:#fff; border:1px solid var(--border); border-radius:16px;
+    padding:32px; box-shadow:0 4px 24px rgba(26,46,37,0.06);
+  }
+  h1{font-size:22px; font-weight:800; margin-bottom:4px}
+  .sub{color:var(--tm); font-size:14px; margin-bottom:24px}
+  label{display:block; font-size:13px; font-weight:700; margin-bottom:6px; margin-top:16px}
+  label:first-of-type{margin-top:0}
+  input,select{
+    width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:10px;
+    font-family:inherit; font-size:14px; color:var(--td); background:var(--cream);
+  }
+  input:focus,select:focus{outline:none; border-color:var(--green)}
+  .btn{
+    width:100%; margin-top:24px; padding:13px; border:none; border-radius:10px;
+    background:var(--green); color:#fff; font-weight:700; font-size:15px;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{background:var(--green-dark)}
+  .btn:disabled{opacity:0.6; cursor:not-allowed}
+  .msg{
+    margin-top:16px; padding:12px 14px; border-radius:10px; font-size:13.5px;
+    display:none; line-height:1.5;
+  }
+  .msg.error{display:block; background:#fdecea; color:var(--red); border:1px solid #f5c6c3}
+  .msg.success{display:block; background:#e9f9ef; color:var(--green-dark); border:1px solid #b7e4c7}
+  .denied{
+    background:#fff; border:1px solid var(--border); border-radius:16px;
+    padding:32px; text-align:center; color:var(--tm);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="dashboard.html" class="back">← Back to Dashboard</a>
+
+  <div id="formCard" class="card" style="display:none">
+    <h1>Add a New User</h1>
+    <p class="sub">Creates their login account and profile in one step.</p>
+
+    <form id="addUserForm">
+      <label for="name">Full Name</label>
+      <input id="name" type="text" placeholder="e.g. Almaz Tesfaye" required>
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="name@menainjera.com" required>
+
+      <label for="password">Temporary Password</label>
+      <input id="password" type="text" placeholder="At least 8 characters" required minlength="8">
+
+      <label for="role">Role</label>
+      <select id="role" required>
+        <option value="">Select a role…</option>
+        <option value="owner">Owner</option>
+        <option value="manager">Manager</option>
+        <option value="worker">Worker</option>
+      </select>
+
+      <button type="submit" class="btn" id="submitBtn">Create User</button>
+      <div class="msg" id="msgBox"></div>
+    </form>
+  </div>
+
+  <div id="deniedCard" class="denied" style="display:none">
+    <h2 style="margin-bottom:8px">Not Authorized</h2>
+    <p>Only owners and managers can add new users. Please <a href="login.html">log in</a> with the right account.</p>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+
+  function loadSession(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  const session = loadSession();
+  const formCard = document.getElementById('formCard');
+  const deniedCard = document.getElementById('deniedCard');
+
+  // Only show the form to a logged-in owner/manager. The serverless function
+  // re-checks this server-side too, so this is just for a clean UI experience.
+  if (!session || !session.access_token || !['owner','manager'].includes(session.role)){
+    deniedCard.style.display = 'block';
+  } else {
+    formCard.style.display = 'block';
+  }
+
+  const msgBox = document.getElementById('msgBox');
+  function showMsg(text, type){
+    msgBox.textContent = text;
+    msgBox.className = 'msg ' + type;
+  }
+
+  document.getElementById('addUserForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    msgBox.className = 'msg';
+
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+    const submitBtn = document.getElementById('submitBtn');
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating…';
+
+    try {
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      const data = await res.json();
+
+      if (!res.ok){
+        showMsg(data.error || 'Something went wrong.', 'error');
+      } else {
+        showMsg(`${name} was created successfully as ${role}. Share their email and temporary password with them directly.`, 'success');
+        document.getElementById('addUserForm').reset();
+      }
+    } catch (err) {
+      showMsg('Could not reach the server. Check your connection and try again.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create User';
+    }
+  });
+</script>
+</body>
+</html>
