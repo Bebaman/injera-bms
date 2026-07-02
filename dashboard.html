@@ -851,6 +851,44 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 </div>
 
 <script>
+// ── Session / Auth ────────────────────────────────────────
+function loadSession(){
+  try {
+    const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function clearSession(){
+  localStorage.removeItem('injera_session');
+  sessionStorage.removeItem('injera_session');
+}
+
+(function guardAndPopulateSidebar(){
+  const session = loadSession();
+  if (!session || !session.access_token || (session.hard_expiry && session.hard_expiry < Date.now())){
+    clearSession();
+    window.location.href = 'login.html';
+    return;
+  }
+  const initials = (session.name || '')
+    .split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() || '??';
+  const avEl = document.querySelector('.sb-foot .av');
+  const nameEl = document.querySelector('.sb-foot-txt h4');
+  const roleEl = document.querySelector('.sb-foot-txt span');
+  if (avEl) avEl.textContent = initials;
+  if (nameEl) nameEl.textContent = session.name || 'Unknown User';
+  if (roleEl) roleEl.textContent = session.role
+    ? session.role.charAt(0).toUpperCase() + session.role.slice(1)
+    : '';
+})();
+
+document.querySelector('.sb-logout')?.addEventListener('click', function(){
+  if (confirm('Sign out of Mena Injera & Derkosh BMS?')){
+    clearSession();
+    window.location.href = 'login.html';
+  }
+});
+
 // ── Sidebar ─────────────────────────────────────────────
 function toggleSidebar(){
   const sb=document.getElementById('sidebar');
