@@ -487,8 +487,11 @@
   }
   function saveSession(session, remember, hardExpiryMs){
     clearSession();
-    const store = remember ? localStorage : sessionStorage;
-    store.setItem('injera_session', JSON.stringify({ ...session, hard_expiry: hardExpiryMs }));
+    // Always use localStorage so the session works across tabs (sessionStorage is
+    // tied to a single tab and breaks pages like add-user.html when opened in a
+    // new tab). "Remember me" still controls how long the session stays valid
+    // via hardExpiryMs below.
+    localStorage.setItem('injera_session', JSON.stringify({ ...session, hard_expiry: hardExpiryMs }));
   }
 
   // Attempts a real sign-in against Supabase Auth.
