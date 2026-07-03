@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Management — Mena Injera & Derkosh BMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sw:220px;
+  --bg:#eef3f0;
+  --white:#fff;
+  --td:#16261e;--tm:#5e7268;--tl:#94a89f;
+  --border:#e3ece7;
+  --green:#27ae60;--red:#e5484d;--orange:#f59e0b;
+  --sh:0 1px 3px rgba(20,40,30,.06),0 1px 2px rgba(20,40,30,.04);
+  --sh-hover:0 4px 14px rgba(20,40,30,.09);
+  --fs-2xs:9.5px;
+  --fs-xs:10.5px;
+  --fs-sm:11.5px;
+  --fs-base:13px;
+  --fs-md:14px;
+  --fs-lg:17px;
+  --fs-xl:20px;
+}
+body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:var(--fs-base);line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif;letter-spacing:.1px}
+
+/* ══ ANIMATIONS ═══════════════════════════════════════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{0%{opacity:0;transform:scale(.9)}70%{transform:scale(1.02)}100%{opacity:1;transform:scale(1)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(39,174,96,.18)}50%{box-shadow:0 0 0 6px rgba(39,174,96,.1)}}
+@keyframes ringPop{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}70%{box-shadow:0 0 0 6px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+
+.kc-anim{animation:fadeUp .5s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d) * 60ms)}
+.sb-a{animation:slideInLeft .4s ease both}
+.sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
+.al{animation:fadeUp .45s ease both}
+.al:nth-child(1){animation-delay:.05s}.al:nth-child(2){animation-delay:.12s}.al:nth-child(3){animation-delay:.19s}.al:nth-child(4){animation-delay:.26s}
+.qa-item{animation:fadeUp .45s ease both}
+.qa-item:nth-child(1){animation-delay:.05s}.qa-item:nth-child(2){animation-delay:.12s}.qa-item:nth-child(3){animation-delay:.19s}.qa-item:nth-child(4){animation-delay:.26s}
+.card{animation:fadeIn .5s ease both}
+.dnut canvas{animation:popIn .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:.15s}
+.bell-badge{animation:ringPop 2.4s ease-in-out infinite}
+.stat-dot{animation:pulseDot 2.2s ease-in-out infinite}
+
+/* Press feedback */
+.qa-item:active{transform:scale(.98)}
+.arr:active{transform:scale(.92)}
+.bell:active{transform:scale(.94)}
+.mpick:active,.rsel:active,.fbtn:active{transform:scale(.98)}
+.pg-btn:active{transform:scale(.92)}
+.add-btn:active,.exp-btn-top:active{transform:scale(.97)}
+
+/* Legend hover sync */
+.exp-r{transition:transform .15s ease,opacity .15s ease;cursor:default;border-radius:5px}
+.exp-r:hover{transform:translateX(2px)}
+.exp-r:hover .exp-d{transform:scale(1.3)}
+.exp-d{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+
+/* ══ SIDEBAR ══════════════════════════════════════════ */
+.sb{width:var(--sw);min-height:100vh;background:linear-gradient(165deg,#1e6240 0%,#163a26 55%,#10271a 100%);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:200;overflow-y:auto;overflow-x:hidden;box-shadow:2px 0 12px rgba(0,0,0,.08)}
+.sb-logo{display:flex;align-items:center;gap:11px;padding:16px 14px 15px;border-bottom:1px solid rgba(255,255,255,.09)}
+.logo-circle{width:46px;height:46px;border-radius:50%;background:linear-gradient(145deg,#f7b03a,#e8891a);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,255,255,.18);box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo-circle svg{width:28px;height:28px}
+.logo-txt{min-width:0}
+.logo-txt h2{font-size:12px;font-weight:700;color:#fff;line-height:1.28;white-space:nowrap;letter-spacing:.2px}
+.logo-txt p{font-size:7px;color:rgba(255,255,255,.4);letter-spacing:1.2px;text-transform:uppercase;margin-top:4px;white-space:nowrap;font-weight:600}
+.sb-grp{padding:11px 0 3px}
+.sb-lbl{font-size:var(--fs-2xs);font-weight:700;color:rgba(255,255,255,.3);letter-spacing:1.6px;text-transform:uppercase;padding:0 14px 5px}
+.sb-a{display:flex;align-items:center;gap:9px;padding:8px 12px;color:rgba(255,255,255,.66);font-size:var(--fs-sm);font-weight:500;cursor:pointer;border-radius:7px;margin:1px 8px;text-decoration:none;transition:background .15s ease,color .15s ease,transform .1s ease;white-space:nowrap}
+.sb-a:hover{background:rgba(255,255,255,.08);color:#fff;transform:translateX(1px)}
+.sb-a.active{background:linear-gradient(135deg,#34c97a,#27ae60);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(39,174,96,.4)}
+.sb-a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;opacity:.85}
+.sb-a.active svg{opacity:1}
+.sb-foot{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:9px}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(145deg,#34c97a,#27ae60);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-sm);color:#fff;flex-shrink:0;letter-spacing:.5px;box-shadow:0 2px 6px rgba(39,174,96,.3)}
+.av-lg{width:36px;height:36px;font-size:13px}
+.sb-foot-txt h4{font-size:var(--fs-sm);font-weight:700;color:#fff;white-space:nowrap}
+.sb-foot-txt span{font-size:var(--fs-xs);color:rgba(255,255,255,.45)}
+.sb-logout{margin-left:auto;color:rgba(255,255,255,.4);cursor:pointer;display:flex;flex-shrink:0;transition:color .15s}
+.sb-logout:hover{color:#fff}
+.sb-logout svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ MAIN ════════════════════════════════════════════ */
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* ══ TOPBAR ══════════════════════════════════════════ */
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;height:58px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+@keyframes loadPulse{0%{background-position:0% 0}100%{background-position:200% 0}}
+.tb-ham{cursor:pointer;color:var(--tm);display:flex;transition:color .15s;flex-shrink:0}
+.tb-ham:hover{color:var(--td)}
+.tb-ham svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.tb-ttl{flex-shrink:0}
+.tb-ttl h1{font-size:var(--fs-lg);font-weight:700;color:var(--td);line-height:1.1;letter-spacing:.1px;white-space:nowrap}
+.tb-ttl p{font-size:var(--fs-xs);color:var(--tl);margin-top:2px;white-space:nowrap}
+.tb-mid{margin-left:18px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.mpick{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:var(--fs-base);font-weight:600;color:var(--td);background:#fff;cursor:pointer;height:34px;transition:border-color .15s}
+.mpick:hover{border-color:#c5d6cd}
+.mpick svg{width:14px;height:14px;stroke:#a4b6ac;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.mpick select{border:none;outline:none;font-family:'Nunito',sans-serif;font-size:var(--fs-base);font-weight:600;color:var(--td);cursor:pointer;background:transparent}
+.arr{width:30px;height:34px;border:1px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;color:var(--tm);font-size:16px;font-weight:300;transition:background .15s,border-color .15s,transform .12s;user-select:none}
+.arr:hover{background:var(--bg);border-color:#c5d6cd}
+.tb-search{margin-left:14px;flex:1;max-width:280px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:0 12px;height:34px;background:#fbfdfc;transition:border-color .15s}
+.tb-search:focus-within{border-color:#9cc9ad;background:#fff}
+.tb-search svg{width:14px;height:14px;stroke:#a4b6ac;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.tb-search input{border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:var(--fs-base);color:var(--td);width:100%}
+.tb-search input::placeholder{color:var(--tl)}
+.tb-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.exp-btn-top{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:0 14px;height:34px;background:#fff;color:var(--tm);font-size:var(--fs-sm);font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .15s,border-color .15s}
+.exp-btn-top:hover{background:var(--bg);border-color:#c5d6cd}
+.exp-btn-top svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.add-btn{display:flex;align-items:center;gap:7px;border:none;border-radius:8px;padding:0 16px;height:34px;background:linear-gradient(135deg,#34c97a,#1d8c4f);color:#fff;font-size:var(--fs-sm);font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 2px 8px rgba(39,174,96,.3);transition:box-shadow .15s,transform .15s}
+.add-btn:hover{box-shadow:0 4px 12px rgba(39,174,96,.4);transform:translateY(-1px)}
+.add-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.bell{position:relative;width:36px;height:34px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;transition:border-color .15s;flex-shrink:0}
+.bell:hover{border-color:#c5d6cd}
+.bell svg{width:17px;height:17px;stroke:#5e7268;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bell-badge{position:absolute;top:-5px;right:-5px;background:#e5484d;color:#fff;font-size:8px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.uchip{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px 4px 4px;border-radius:8px;transition:background .15s;flex-shrink:0}
+.uchip:hover{background:var(--bg)}
+.uchip-txt h4{font-size:var(--fs-sm);font-weight:700;color:var(--td);line-height:1.1}
+.uchip-txt span{font-size:var(--fs-xs);color:var(--tl)}
+.uchip svg{width:12px;height:12px;stroke:var(--tl);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ CONTENT ════════════════════════════════════════ */
+.content{padding:20px 22px;flex:1}
+
+/* ══ KPI ROW ════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px;padding-top:4px}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s ease,transform .2s ease}
+.kc:hover{box-shadow:var(--sh-hover);transform:translateY(-1px)}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.kc:hover .kc-ico{transform:scale(1.12) rotate(-4deg)}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e3f6ec}.ic-g svg{stroke:#27ae60}
+.ic-t{background:#dff3ee}.ic-t svg{stroke:#0d9b7a}
+.ic-o{background:#fef2e0}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdeaea}.ic-r svg{stroke:#e5484d}
+.ic-b{background:#dfeefe}.ic-b svg{stroke:#2563eb}
+.ic-p{background:#f1e8fc}.ic-p svg{stroke:#8b5cf6}
+.kc-lbl{font-size:var(--fs-sm);color:var(--tl);font-weight:600;display:block;margin-bottom:5px}
+.kc-val{font-size:var(--fs-xl);font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px;letter-spacing:.1px}
+.kc-val .u{font-size:var(--fs-sm);font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:var(--fs-sm);font-weight:600;margin-top:6px;display:flex;align-items:center;gap:2px}
+.up{color:#27ae60}.dn{color:#e5484d}
+.vs{color:var(--tl);font-weight:500;font-size:var(--fs-xs);margin-left:2px}
+.kc-tgt{font-size:var(--fs-sm);font-weight:700;color:#b9770e;margin-top:6px;display:flex;align-items:center;gap:4px}
+.kc-tgt svg{width:13px;height:13px;stroke:#f59e0b;fill:none;stroke-width:2.3}
+
+/* ══ GENERIC CARD ═══════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s ease;display:flex;flex-direction:column}
+.card:hover{box-shadow:var(--sh-hover)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;gap:10px;flex-wrap:wrap}
+.card-ttl{font-size:var(--fs-md);font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl svg{width:15px;height:15px;stroke:#27ae60;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.card-sub{font-size:11px;color:var(--tl);font-weight:500;margin-left:1px}
+.vall{font-size:var(--fs-sm);font-weight:700;color:#27ae60;cursor:pointer;transition:color .15s;text-decoration:none;display:flex;align-items:center;gap:3px}
+.vall:hover{color:#1f8c4d;text-decoration:underline}
+.vall svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.3}
+
+/* ══ ROW LAYOUTS ═════════════════════════════════════ */
+.row-main{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-bottom:14px;align-items:start}
+.left-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.right-stack{display:flex;flex-direction:column;gap:14px}
+.chart-donut-row{display:grid;grid-template-columns:1.5fr 1.15fr;gap:14px;align-items:stretch}
+.bottom3{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:14px;margin-bottom:16px}
+
+/* ══ TOOLBAR / FILTERS ══════════════════════════════ */
+.tbl-tools{display:flex;align-items:center;gap:8px}
+.tsel{border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:var(--fs-sm);font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none;transition:border-color .15s;height:34px}
+.tsel:hover{border-color:#c5d6cd}
+.fbtn{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;color:var(--tm);transition:background .15s,border-color .15s}
+.fbtn:hover{background:var(--bg);border-color:#c5d6cd}
+.fbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ TABLE ══════════════════════════════════════════ */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-base);white-space:nowrap}
+.tbl th{padding:9px 14px;text-align:left;font-size:var(--fs-xs);font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+.tbl td{padding:10px 14px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+.tbl tr td{transition:background .15s ease}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl td.num{font-weight:600;color:var(--tm)}
+.tbl td.tcost{font-weight:700;color:var(--td)}
+.row-menu{width:26px;height:26px;border:none;background:transparent;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--tl);transition:background .15s,color .15s}
+.row-menu:hover{background:var(--bg);color:var(--td)}
+.row-menu svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Badges */
+.tag{display:inline-block;padding:3px 11px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.2px}
+.tag-normal{background:#e3f6ec;color:#1f8c4d}
+.tag-special{background:#dfeefe;color:#2563eb}
+.tag-completed{background:#e3f6ec;color:#1f8c4d}
+.tag-review{background:#fef2e0;color:#b9770e}
+.tag-warning{background:#fde7cf;color:#c2660c}
+.tag-alert{background:#fdeaea;color:#c1272d}
+.tag-excellent{background:#e3f6ec;color:#1f8c4d}
+
+/* Pagination */
+.pg-wrap{display:flex;align-items:center;gap:6px;padding:13px 17px;border-top:1px solid var(--border)}
+.pg-info{font-size:var(--fs-sm);color:var(--tl);margin-right:auto}
+.pg-btn{min-width:30px;height:30px;padding:0 4px;border:1px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;color:var(--tm);font-size:var(--fs-sm);font-weight:600;font-family:'Nunito',sans-serif;transition:background .15s,border-color .15s,color .15s}
+.pg-btn:hover{background:var(--bg);border-color:#c5d6cd}
+.pg-btn.active{background:linear-gradient(135deg,#34c97a,#27ae60);border-color:#27ae60;color:#fff;box-shadow:0 2px 6px rgba(39,174,96,.3)}
+.pg-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+/* ══ QUICK ACTIONS (list style) ═════════════════════ */
+.qa-list{padding:6px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.qa-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:#fff;text-decoration:none;transition:background .15s,border-color .15s,transform .15s}
+.qa-item:hover{background:#f7fbf9;border-color:#c5d6cd;transform:translateX(2px)}
+.qa-ico{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.qa-ico svg{width:20px;height:20px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-txt{min-width:0;flex:1}
+.qa-txt h5{font-size:var(--fs-base);font-weight:700;color:var(--td);line-height:1.25}
+.qa-txt p{font-size:var(--fs-xs);color:var(--tl);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qa-chev{flex-shrink:0;color:#b7c5be}
+.qa-chev svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ ALERTS (with count badge) ══════════════════════ */
+.al{display:flex;align-items:flex-start;gap:11px;padding:11px 17px;border-bottom:1px solid var(--border);transition:background .15s}
+.al:last-child{border-bottom:none}
+.al:hover{background:#f7fbf8}
+.al-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.al:hover .al-ic{transform:scale(1.1)}
+.al-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ai-r{background:#fdeaea}.ai-r svg{stroke:#e5484d}
+.ai-o{background:#fef2e0}.ai-o svg{stroke:#f59e0b}
+.ai-b{background:#dfeefe}.ai-b svg{stroke:#2563eb}
+.al-bd{flex:1;min-width:0}
+.al-bd h5{font-size:var(--fs-base);font-weight:700;color:var(--td);margin-bottom:2px;line-height:1.3}
+.al-bd p{font-size:var(--fs-sm);color:var(--tl)}
+.al-cnt{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;font-family:'Quicksand',sans-serif}
+.ac-r{background:#fdeaea;color:#e5484d}
+.ac-o{background:#fef2e0;color:#dc7e0c}
+.ac-b{background:#dfeefe;color:#2563eb}
+
+/* ══ CHART CARD ══════════════════════════════════════ */
+.chart-box{padding:0 17px 16px;flex:1;display:flex;flex-direction:column}
+.chart-box canvas{flex:1}
+.leg{display:flex;gap:16px;margin-bottom:8px;font-size:var(--fs-sm);font-weight:600;color:var(--tm)}
+.leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* ══ DONUT ═══════════════════════════════════════════ */
+.exp-bd{padding:8px 16px 16px;display:flex;align-items:center;gap:14px;flex:1}
+.dnut{position:relative;flex-shrink:0}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:84px}
+.dnut-lbl span{font-size:var(--fs-2xs);color:var(--tl);font-weight:600;display:block;line-height:1.2}
+.dnut-lbl strong{font-size:12px;font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
+.exp-leg{font-size:var(--fs-xs);flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.exp-r{display:flex;align-items:center;gap:6px}
+.exp-d{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.exp-n{color:var(--tm);font-weight:600;white-space:nowrap;font-size:10.5px}
+.exp-v{font-weight:700;color:var(--td);white-space:nowrap;font-size:10.5px;margin-left:auto;padding-left:8px}
+.exp-p{color:var(--tl);width:32px;text-align:right;flex-shrink:0;font-size:10.5px}
+
+/* ══ MATERIAL CONSUMPTION ═══════════════════════════ */
+.mini-tbl-wrap{overflow-x:auto}
+.mc-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.mc-tbl th{padding:7px 6px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);white-space:nowrap}
+.mc-tbl th:first-child,.mc-tbl td:first-child{padding-left:17px}
+.mc-tbl td{padding:9px 6px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.mc-tbl tr:last-child td{border-bottom:none}
+.mc-item{display:flex;align-items:center;gap:7px;font-weight:700;white-space:nowrap}
+.mc-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mc-ico svg{width:14px;height:14px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ BATCH RANKING ═══════════════════════════════════ */
+.rk-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.rk-tbl th{padding:7px 5px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rk-tbl th:first-child,.rk-tbl td:first-child{padding-left:17px;width:32px}
+.rk-tbl td{padding:9px 5px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.rk-tbl tr:last-child td{border-bottom:none}
+.rk-tbl .tag{padding:3px 8px;font-size:9.5px}
+.rk-medal{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;font-family:'Quicksand',sans-serif}
+.rk-1{background:linear-gradient(145deg,#ffd76a,#e8a83a)}
+.rk-2{background:linear-gradient(145deg,#dfe4e8,#aab4bd)}
+.rk-3{background:linear-gradient(145deg,#e8b27a,#c47a3d)}
+
+/* ══ VIEW-ALL FOOTER LINK ═══════════════════════════ */
+.view-all-btn{display:flex;align-items:center;justify-content:center;gap:7px;margin:auto 14px 14px;padding:10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:var(--fs-sm);font-weight:700;color:#27ae60;background:#eaf8f0;text-decoration:none;transition:background .15s,border-color .15s}
+.view-all-btn:hover{background:#ddf1e5;border-color:#bcdece}
+.view-all-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ WEEKLY CALENDAR ═════════════════════════════════ */
+.wk-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;padding:6px 17px 4px}
+.wk-day{border-radius:10px;padding:11px 4px;text-align:center;transition:transform .15s}
+.wk-day:hover{transform:translateY(-2px)}
+.wk-day .wd-name{font-size:9.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.4px}
+.wk-day .wd-date{font-size:11px;color:var(--tl);font-weight:700;margin:5px 0 7px}
+.wk-day .wd-qty{font-size:15px;font-weight:800;color:var(--td);font-family:'Quicksand',sans-serif}
+.wk-day .wd-batches{font-size:9px;color:var(--tl);margin-top:4px;font-weight:600}
+.wk-good{background:#eaf8f0}
+.wk-zero{background:#fdeaea}
+.wk-zero .wd-qty{color:#c1272d}
+.wk-empty{background:#fdf6ec}
+.wk-empty .wd-qty{color:#cdb791}
+
+/* ══ FOOTER ════════════════════════════════════════ */
+.footer{text-align:center;padding:13px;font-size:var(--fs-xs);color:var(--tl);border-top:1px solid var(--border);background:#fff}
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+@media (max-width:1400px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .row-main{grid-template-columns:1fr}
+  .chart-donut-row{grid-template-columns:1fr}
+  .bottom3{grid-template-columns:1fr}
+}
+/* ══ SIDEBAR COLLAPSED STATE ═════════════════════════ */
+body.sb-collapsed .sb{width:68px}
+body.sb-collapsed .main{margin-left:68px}
+body.sb-collapsed .logo-txt,body.sb-collapsed .sb-lbl,body.sb-collapsed .sb-a span,
+body.sb-collapsed .sb-foot-txt,body.sb-collapsed .sb-logout{display:none}
+body.sb-collapsed .sb-logo{justify-content:center;padding:16px 0 15px}
+body.sb-collapsed .sb-a{justify-content:center;padding:9px;margin:1px 12px}
+body.sb-collapsed .sb-foot{justify-content:center;padding:12px 0}
+.sb{transition:width .22s cubic-bezier(.4,0,.2,1)}
+.main{transition:margin-left .22s cubic-bezier(.4,0,.2,1)}
+.sb-a{position:relative}
+body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:74px;background:#16261e;color:#fff;font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;font-family:'Nunito',sans-serif}
+
+/* ══ MODAL ════════════════════════════════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,30,22,.45);backdrop-filter:blur(2px);z-index:900;display:none;align-items:center;justify-content:center;padding:24px;animation:fadeIn .18s ease}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(10,25,18,.3);animation:popIn .22s cubic-bezier(.34,1.56,.64,1)}
+.modal-box.wide{max-width:780px}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:2;border-radius:14px 14px 0 0}
+.modal-hd h3{font-family:'Quicksand',sans-serif;font-size:16.5px;font-weight:700;color:var(--td)}
+.modal-close{width:30px;height:30px;border-radius:8px;border:none;background:var(--bg);color:var(--tm);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;flex-shrink:0}
+.modal-close:hover{background:#e2ece6;color:var(--td)}
+.modal-close svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.3;stroke-linecap:round}
+.modal-bd{padding:20px 22px}
+.modal-ft{display:flex;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff;border-radius:0 0 14px 14px}
+
+/* Form */
+.f-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f-field{display:flex;flex-direction:column;gap:6px}
+.f-field.full{grid-column:1/-1}
+.f-field label{font-size:11.5px;font-weight:700;color:var(--tm)}
+.f-field input,.f-field select{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--td);outline:none;transition:border-color .15s;background:#fff}
+.f-field input:focus,.f-field select:focus{border-color:#7fbf9a}
+.f-hint{font-size:10.5px;color:var(--tl);margin-top:1px}
+.btn{border:none;border-radius:8px;padding:10px 18px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:transform .12s,box-shadow .15s,background .15s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#34c97a,#1d8c4f);color:#fff;box-shadow:0 2px 8px rgba(39,174,96,.3)}
+.btn-primary:hover{box-shadow:0 4px 12px rgba(39,174,96,.4)}
+.btn-ghost{background:var(--bg);color:var(--tm)}
+.btn-ghost:hover{background:#e2ece6;color:var(--td)}
+.btn-danger{background:#fdeaea;color:#c1272d}
+.btn-danger:hover{background:#fbd6d6}
+.calc-box{background:#f6faf7;border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.calc-row{display:flex;justify-content:space-between;color:var(--tm);font-weight:600}
+.calc-row strong{color:var(--td);font-weight:800}
+
+/* View modal detail rows */
+.dv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+.dv-item span{display:block;font-size:10.5px;color:var(--tl);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.dv-item strong{font-size:14px;color:var(--td);font-weight:700}
+
+/* Generic detail/report table */
+.det-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.det-tbl th{text-align:left;padding:8px 10px;background:#f6faf7;font-size:10px;color:var(--tl);font-weight:700;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border)}
+.det-tbl td{padding:8px 10px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+.det-tbl tr:last-child td{border-bottom:none}
+
+/* Report stat tiles inside modal */
+.rep-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.rep-tile{background:#f6faf7;border:1px solid var(--border);border-radius:10px;padding:12px}
+.rep-tile span{display:block;font-size:10.5px;color:var(--tl);font-weight:700;margin-bottom:4px}
+.rep-tile strong{font-size:17px;color:var(--td);font-weight:800;font-family:'Quicksand',sans-serif}
+
+/* ══ DROPDOWN PANELS (notif / user / filter / row-menu) ══ */
+.dd-panel{position:absolute;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 14px 36px rgba(15,30,22,.16);z-index:300;display:none;overflow:hidden;animation:fadeUp .16s ease}
+.dd-panel.open{display:block}
+.dd-hd{padding:12px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--td);display:flex;justify-content:space-between;align-items:center}
+.dd-hd small{font-size:10.5px;color:#27ae60;font-weight:700;cursor:pointer}
+.notif-panel{width:300px;top:48px;right:120px;max-height:380px;overflow-y:auto}
+.notif-row{display:flex;gap:10px;padding:11px 15px;border-bottom:1px solid #f0f5f2;cursor:default}
+.notif-row:last-child{border-bottom:none}
+.notif-row .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.notif-row .ic svg{width:15px;height:15px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.notif-row p{font-size:12px;font-weight:700;color:var(--td)}
+.notif-row span{font-size:10.5px;color:var(--tl)}
+.user-panel{width:190px;top:48px;right:20px}
+.user-item{display:flex;align-items:center;gap:9px;padding:10px 15px;font-size:12.5px;font-weight:600;color:var(--tm);cursor:pointer;transition:background .15s,color .15s}
+.user-item:hover{background:var(--bg);color:var(--td)}
+.user-item svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.filter-panel{width:200px;top:40px;right:0;padding:6px}
+.filter-opt{display:flex;align-items:center;gap:8px;padding:7px 9px;font-size:12.5px;font-weight:600;color:var(--tm);cursor:pointer;border-radius:7px}
+.filter-opt:hover{background:var(--bg)}
+.filter-opt input{accent-color:#27ae60;width:14px;height:14px}
+.row-menu-panel{width:140px;padding:5px}
+.rm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--tm);cursor:pointer;border-radius:7px}
+.rm-item:hover{background:var(--bg);color:var(--td)}
+.rm-item.danger:hover{background:#fdeaea;color:#c1272d}
+.rm-item svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ TOAST ════════════════════════════════════════════ */
+.toast-root{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:1000}
+.toast{display:flex;align-items:center;gap:10px;background:#16261e;color:#fff;padding:11px 16px;border-radius:10px;font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);max-width:320px}
+.toast.out{animation:toastOut .2s ease forwards}
+.toast svg{width:16px;height:16px;flex-shrink:0;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.toast.t-ok svg{stroke:#34c97a}
+.toast.t-err svg{stroke:#ff7a7a}
+.toast.t-info svg{stroke:#5eb8ff}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px) scale(.95)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(30px) scale(.95)}}
+
+/* ══ EMPTY STATE ══════════════════════════════════════ */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;color:var(--tl)}
+.empty-state svg{width:38px;height:38px;stroke:#c7d6cd;fill:none;stroke-width:1.6;margin-bottom:10px}
+.empty-state h5{font-size:13.5px;font-weight:700;color:var(--tm);margin-bottom:3px}
+.empty-state p{font-size:11.5px;color:var(--tl)}
+
+/* Active filter pill */
+.fbtn.has-active{background:#eaf8f0;border-color:#9cc9ad;color:#1d8c4f}
+.search-clear{cursor:pointer;color:var(--tl);display:none;flex-shrink:0}
+.search-clear svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.4}
+.tb-search.has-val .search-clear{display:flex}
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+/* ══ RESPONSIVE (small screens) ═══════════════════════ */
+@media (max-width:900px){
+  body:not(.sb-expanded-mobile) .sb{width:64px}
+  body:not(.sb-expanded-mobile) .logo-txt,body:not(.sb-expanded-mobile) .sb-lbl,body:not(.sb-expanded-mobile) .sb-a span,body:not(.sb-expanded-mobile) .sb-foot-txt{display:none}
+  body:not(.sb-expanded-mobile) .main{margin-left:64px}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .tb-search{display:none}
+}
+</style></head>
+<body>
+
+<!-- ════ SIDEBAR ════ -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="logo-circle">
+      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="12" fill="rgba(255,255,255,0.15)"/>
+        <ellipse cx="14" cy="15" rx="9" ry="6" fill="rgba(255,255,255,0.9)"/>
+        <ellipse cx="14" cy="14" rx="9" ry="6" fill="white"/>
+        <path d="M7 12 Q14 10 21 12" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/>
+        <path d="M6 14 Q14 12 22 14" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/>
+        <path d="M7 16 Q14 14 21 16" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/>
+        <path d="M14 4 L14 9" stroke="rgba(255,255,255,0.8)" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M11 6 L14 4 L17 6" stroke="rgba(255,255,255,0.8)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="logo-txt">
+      <h2>MENA INJERA<br>&amp; DERKOSH</h2>
+      <p>Business Management System</p>
+    </div>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-lbl">Main</div>
+    <a class="sb-a" href="dashboard.html" data-tip="Dashboard" onclick="return goTo('Dashboard')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a class="sb-a active" href="production.html" data-tip="Production" onclick="return true">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Production</span>
+    </a>
+    <a class="sb-a" href="derkosh.html" data-tip="Derkosh" onclick="return goTo('Derkosh')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      <span>Derkosh</span>
+    </a>
+    <a class="sb-a" href="sales.html" data-tip="Sales" onclick="return goTo('Sales')">
+      <svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      <span>Sales</span>
+    </a>
+    <a class="sb-a" href="pettycash.html" data-tip="Petty Cash" onclick="return goTo('Petty Cash')">
+      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <span>Petty Cash</span>
+    </a>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-lbl">Finance</div>
+    <a class="sb-a" href="pl.html" data-tip="P&L Statement" onclick="return goTo('P&L Statement')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>P&amp;L Statement</span>
+    </a>
+    <a class="sb-a" href="cashflow.html" data-tip="Cash Flow" onclick="return goTo('Cash Flow')">
+      <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      <span>Cash Flow</span>
+    </a>
+    <a class="sb-a" href="budget.html" data-tip="Budget vs Actual" onclick="return goTo('Budget vs Actual')">
+      <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <span>Budget vs Actual</span>
+    </a>
+    <a class="sb-a" href="loans.html" data-tip="Loans" onclick="return goTo('Loans')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+      <span>Loans</span>
+    </a>
+    <a class="sb-a" href="profit.html" data-tip="Distribution" onclick="return goTo('Distribution')">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Distribution</span>
+    </a>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-lbl">Records</div>
+    <a class="sb-a" href="customers.html" data-tip="Customers" onclick="return goTo('Customers')">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Customers</span>
+    </a>
+    <a class="sb-a" href="suppliers.html" data-tip="Suppliers" onclick="return goTo('Suppliers')">
+      <svg viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>Suppliers</span>
+    </a>
+    <a class="sb-a" href="inventory.html" data-tip="Inventory" onclick="return goTo('Inventory')">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+      <span>Inventory</span>
+    </a>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-lbl">Reports</div>
+    <a class="sb-a" href="reports.html" data-tip="Multi-Year" onclick="return goTo('Multi-Year')">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Multi-Year</span>
+    </a>
+  </div>
+
+  <div class="sb-grp">
+    <div class="sb-lbl">Settings</div>
+    <a class="sb-a" href="settings.html" data-tip="Settings" onclick="return goTo('Settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+  </div>
+
+  <div class="sb-foot">
+    <div class="av">EM</div>
+    <div class="sb-foot-txt">
+      <h4>Eyasu Mesfin</h4>
+      <span>Owner</span>
+    </div>
+    <div class="sb-logout" onclick="signOut()" title="Sign out">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+  </div>
+</aside>
+
+<!-- ════ MAIN ════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div id="loadingBar" style="display:none;position:absolute;top:0;left:0;right:0;height:2.5px;background:linear-gradient(90deg,#27ae60,#6fcf97,#27ae60);background-size:200% 100%;animation:loadPulse 1.1s linear infinite;z-index:50"></div>
+    <div class="tb-ham" onclick="toggleSidebar()" title="Toggle sidebar">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </div>
+    <div class="tb-ttl">
+      <h1>Production Management</h1>
+      <p>Track and manage all production batches</p>
+    </div>
+    <div class="tb-mid">
+      <div class="mpick">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <select id="msel" onchange="onMonthChange()"></select>
+        <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:#aab8b2;stroke-width:3"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="arr" onclick="chgM(-1)">&#8249;</div>
+      <div class="arr" onclick="chgM(1)">&#8250;</div>
+    </div>
+    <div class="tb-search" id="tbSearchWrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search batches..." oninput="onSearchInput(this.value)">
+      <div class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="tb-right">
+      <button class="exp-btn-top" onclick="exportCSV()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="add-btn" onclick="openAddModal()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Production
+      </button>
+      <div style="position:relative">
+        <div class="bell" onclick="toggleDD('notifDD',event)">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="bell-badge" id="bellBadge">7</div>
+        </div>
+        <div class="dd-panel notif-panel" id="notifDD">
+          <div class="dd-hd">Notifications <small onclick="clearNotifs()">Mark all read</small></div>
+          <div id="notifList"></div>
+        </div>
+      </div>
+      <div style="position:relative">
+        <div class="uchip" id="userChip" onclick="toggleDD('userDD',event)">
+          <div class="av av-lg">EM</div>
+          <div class="uchip-txt">
+            <h4>Eyasu Mesfin</h4>
+            <span>Owner</span>
+          </div>
+          <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="dd-panel user-panel" id="userDD">
+          <div class="user-panel-top" style="display:flex;align-items:center;gap:9px;padding:10px 12px 12px;border-bottom:1px solid var(--border)">
+            <div class="av av-lg">EM</div>
+            <div class="user-panel-name"><h4 style="font-size:var(--fs-sm);font-weight:700;color:var(--td)">Eyasu Mesfin</h4><span style="font-size:var(--fs-xs);color:var(--tl)">Owner · Mena Injera</span></div>
+          </div>
+          <div class="user-item" id="userPanelProfile" onclick="toast('Profile settings are not wired up in this prototype.','info')"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/></svg>My Profile</div>
+          <div class="user-item" id="userPanelAddUser" onclick="window.location.href='add-user.html'"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>Add User</div>
+          <div class="user-item" id="userPanelSettings" onclick="window.location.href='settings.html'"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</div>
+          <div class="user-panel-divider" style="border-top:1px solid var(--border);margin:4px 0"></div>
+          <div class="user-item" id="userPanelSignOut" onclick="signOut()" style="color:#c1272d"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- KPI -->
+    <div class="kpi-row">
+      <div class="kc kc-anim" style="--d:0">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <span class="kc-lbl">Total Batches <span style="font-weight:600">(Month)</span></span>
+        <div class="kc-val" id="kpiBatchesVal"><span>—</span></div>
+        <div class="kc-chg" id="kpiBatchesChg" style="color:var(--tl)">across all statuses</div>
+      </div>
+      <div class="kc kc-anim" style="--d:1">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></div>
+        <span class="kc-lbl">Injera Produced <span style="font-weight:600">(Month)</span></span>
+        <div class="kc-val" id="kpiQtyVal"><span>—</span> <span class="u">pieces</span></div>
+        <div class="kc-chg" id="kpiQtyChg" style="color:var(--tl)">this month to date</div>
+      </div>
+      <div class="kc kc-anim" style="--d:2">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <span class="kc-lbl">Production Cost <span style="font-weight:600">(Month)</span></span>
+        <div class="kc-val" id="kpiCostVal"><span>—</span> <span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiCostChg" style="color:var(--tl)">material + overhead + other</div>
+      </div>
+      <div class="kc kc-anim" style="--d:3">
+        <div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+        <span class="kc-lbl">Average Cost / Injera</span>
+        <div class="kc-val" id="kpiCpiVal"><span>—</span> <span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiCpiChg" style="color:var(--tl)">month-to-date average</div>
+      </div>
+      <div class="kc kc-anim" style="--d:4" title="Yield Rate = % of batches where actual pieces/kg ≥ 90% of the monthly type average. Spec §3.5: Actual_Count / Actual_kg_total, flagged if > 8% below standard.">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <span class="kc-lbl">Yield Rate</span>
+        <div class="kc-val" id="yieldRateVal"><span>—</span> <span class="u">%</span></div>
+        <div class="kc-tgt" id="yieldRateTgt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Target: 90%</div>
+      </div>
+      <div class="kc kc-anim" style="--d:5" title="Production Efficiency = actual total pieces ÷ expected pieces (monthly avg rate × total kg used) × 100. Spec §3.5: compares actual output against standard output per kg of ingredient.">
+        <div class="kc-ico ic-t"><svg viewBox="0 0 24 24"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1117.32 0"/></svg></div>
+        <span class="kc-lbl">Production Efficiency</span>
+        <div class="kc-val" id="prodEffVal"><span>—</span> <span class="u">%</span></div>
+        <div class="kc-chg" id="prodEffChg">vs avg rate this month</div>
+      </div>
+    </div>
+
+    <!-- ROW: Production Batch List + Quick Actions / Alerts -->
+    <div class="row-main">
+      <div class="left-stack">
+
+        <!-- Production Batch List -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">
+              <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              Production Batch List
+            </div>
+            <div class="tbl-tools">
+              <select class="tsel" id="typeFilter" onchange="onTypeFilterChange()">
+                <option value="all">All Types</option>
+                <option value="Normal">Normal</option>
+                <option value="Special">Special</option>
+              </select>
+              <div style="position:relative">
+                <div class="fbtn" id="filterBtn" onclick="toggleDD('statusDD',event)"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></div>
+                <div class="dd-panel filter-panel" id="statusDD">
+                  <label class="filter-opt"><input type="checkbox" value="Completed" checked onchange="onStatusFilterChange()">Completed</label>
+                  <label class="filter-opt"><input type="checkbox" value="Review" checked onchange="onStatusFilterChange()">Review</label>
+                  <label class="filter-opt"><input type="checkbox" value="Warning" checked onchange="onStatusFilterChange()">Warning</label>
+                  <label class="filter-opt"><input type="checkbox" value="Alert" checked onchange="onStatusFilterChange()">Alert</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Batch No.</th><th>Date</th><th>Batch Type</th><th>Blend (kg)</th><th>Corn (kg)</th><th>Gomen (kg)</th><th>Injera Qty</th>
+                  <th>Material Cost (ETB)</th><th>Overhead (ETB)</th><th>Other Cost (ETB)</th><th>Total Cost (ETB)</th><th>Cost/Injera (ETB)</th><th>Status</th><th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="batchTbody"></tbody>
+            </table>
+          </div>
+          <div id="emptyTblState" style="display:none"></div>
+          <div class="pg-wrap" id="pgWrap">
+            <span class="pg-info" id="pgInfo">Showing 1 to 12 of 52 batches</span>
+            <div id="pgBtns" style="display:flex;gap:6px"></div>
+          </div>
+        </div>
+
+        <!-- Daily Trend + Cost Breakdown -->
+        <div class="chart-donut-row">
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-ttl">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Daily Production Trend <span class="card-sub">(Injera Pieces)</span>
+              </div>
+              <select class="tsel" id="trendSel" onchange="updateTrendChart()">
+                <option value="qty" selected>Injera Produced</option>
+                <option value="cost">Production Cost (ETB)</option>
+              </select>
+            </div>
+            <div class="chart-box">
+              <div style="position:relative;flex:1;min-height:250px;max-height:280px">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-ttl">Production Cost Breakdown <span class="card-sub">(This Month)</span></div>
+            </div>
+            <div class="exp-bd">
+              <div class="dnut">
+                <canvas id="costChart" width="118" height="118"></canvas>
+                <div class="dnut-lbl">
+                  <span>Total Cost</span>
+                  <strong id="dnutTotal">0.00<br>ETB</strong>
+                </div>
+              </div>
+              <div class="exp-leg" id="costLegend">
+                <!-- populated by renderCostBreakdown() from getBatches() — audit fix, see chat -->
+                <div class="exp-r"><div class="exp-d" style="background:#27ae60"></div><span class="exp-n">Materials</span><span class="exp-v" id="legMaterialV">0.00 ETB</span><span class="exp-p" id="legMaterialP">0%</span></div>
+                <div class="exp-r"><div class="exp-d" style="background:#3b82f6"></div><span class="exp-n">Overhead</span><span class="exp-v" id="legOverheadV">0.00 ETB</span><span class="exp-p" id="legOverheadP">0%</span></div>
+                <div class="exp-r"><div class="exp-d" style="background:#94a3b8"></div><span class="exp-n">Other Costs</span><span class="exp-v" id="legOtherV">0.00 ETB</span><span class="exp-p" id="legOtherP">0%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Quick Actions + Production Alerts -->
+      <div class="right-stack">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl" style="gap:0"><svg style="display:none"></svg>Quick Actions</div></div>
+          <div class="qa-list">
+            <a class="qa-item" onclick="openAddModal()">
+              <div class="qa-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+              <div class="qa-txt"><h5>Add Production</h5><p>Record a new production batch</p></div>
+              <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </a>
+            <a class="qa-item" onclick="openBatchStandards()">
+              <div class="qa-ico ic-p"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+              <div class="qa-txt"><h5>Batch Standards</h5><p>Manage production standards</p></div>
+              <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </a>
+            <a class="qa-item" onclick="openProductionReport()">
+              <div class="qa-ico ic-b"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+              <div class="qa-txt"><h5>Production Report</h5><p>View production analytics</p></div>
+              <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </a>
+            <a class="qa-item" onclick="openMaterialUsage()">
+              <div class="qa-ico ic-o"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
+              <div class="qa-txt"><h5>Material Usage</h5><p>Track material consumption</p></div>
+              <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </a>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1">
+          <div class="card-hd">
+            <div class="card-ttl">
+              <svg viewBox="0 0 24 24" style="stroke:#e5484d"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              Production Alerts
+            </div>
+            <a class="vall" onclick="openAllAlerts()">View All</a>
+          </div>
+          <div>
+            <div class="al" onclick="filterByAlert('material')">
+              <div class="al-ic ai-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
+              <div class="al-bd"><h5>High Material Usage</h5><p>Batches exceeding material target</p></div>
+              <div class="al-cnt ac-r">2</div>
+            </div>
+            <div class="al" onclick="filterByAlert('yield')">
+              <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+              <div class="al-bd"><h5>Low Yield</h5><p>Below 90% yield rate</p></div>
+              <div class="al-cnt ac-o">3</div>
+            </div>
+            <div class="al" onclick="filterByAlert('cost')">
+              <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+              <div class="al-bd"><h5>Cost Above Target</h5><p>Cost per injera above target</p></div>
+              <div class="al-cnt ac-o">4</div>
+            </div>
+            <div class="al" style="border-bottom:none" onclick="filterByAlert('missing')">
+              <div class="al-ic ai-b"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
+              <div class="al-bd"><h5>Missing Batch Data</h5><p>Incomplete batch information</p></div>
+              <div class="al-cnt ac-b">1</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM 3 -->
+    <div class="bottom3">
+
+      <!-- Material Consumption -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Material Consumption <span class="card-sub">(This Month)</span>
+          </div>
+        </div>
+        <div class="mini-tbl-wrap">
+        <table class="mc-tbl">
+          <thead><tr><th>Item</th><th>Used</th><th>WAC</th><th>Total Cost</th></tr></thead>
+          <tbody id="matConsumptionBody">
+            <!-- populated by renderMaterialConsumption() from getBatches() — audit fix, see chat -->
+            <tr>
+              <td><div class="mc-item"><div class="mc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>Injera Blend</div></td>
+              <td id="mcBlendKg">—</td><td>15.05</td><td id="mcBlendCost">—</td>
+            </tr>
+            <tr>
+              <td><div class="mc-item"><div class="mc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></div>Corn</div></td>
+              <td id="mcCornKg">—</td><td>11.20</td><td id="mcCornCost">—</td>
+            </tr>
+            <tr>
+              <td><div class="mc-item"><div class="mc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></div>Gomen Zere</div></td>
+              <td id="mcGomenKg">—</td><td>18.40</td><td id="mcGomenCost">—</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <a class="view-all-btn" onclick="openMaterialUsage()">View All Materials <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+      </div>
+
+      <!-- Batch Performance Ranking -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">
+            <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+            Batch Performance Ranking <span class="card-sub">(This Month)</span>
+          </div>
+        </div>
+        <div class="mini-tbl-wrap">
+        <table class="rk-tbl">
+          <thead><tr><th>Rank</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Inj.</th><th>Yield</th><th>Status</th></tr></thead>
+          <tbody id="rankingBody">
+            <!-- populated by renderRanking() from getBatches() — audit fix, see chat -->
+          </tbody>
+        </table>
+        </div>
+        <a class="view-all-btn" onclick="openFullRanking()">View Full Ranking <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+      </div>
+
+      <!-- Weekly Production Calendar -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Weekly Production Calendar</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11.5px;font-weight:700;color:var(--tm)" id="wkRangeLbl">Loading…</span>
+            <div class="arr" style="width:26px;height:26px" onclick="chgWeek(-1)"><svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;stroke-width:2.5"><polyline points="15 18 9 12 15 6"/></svg></div>
+            <div class="arr" style="width:26px;height:26px" onclick="chgWeek(1)"><svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;stroke-width:2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </div>
+        </div>
+        <div class="wk-cal" id="wkCal">
+          <div style="grid-column:1/-1;text-align:center;color:var(--tl);font-size:12px;padding:20px 0">Loading…</div>
+        </div>
+        <a class="view-all-btn" onclick="openFullCalendar()">View Full Calendar <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+      </div>
+
+    </div>
+
+  </div><!-- /content -->
+  <footer class="footer">&copy; 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- ════ MODAL ROOT ════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<!-- ════ ROW ACTION MENU (shared floating popover) ════ -->
+<div class="dd-panel row-menu-panel" id="rowMenuDD" style="position:fixed"></div>
+
+<!-- ════ TOAST ROOT ════ -->
+<div class="toast-root" id="toastRoot"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   SESSION / AUTH — ported exactly from dashboard.html so this
+   page behaves identically to the rest of the app. The BMS uses
+   a hand-rolled session (Supabase Auth under the hood, but the
+   resulting token is stored in localStorage under 'injera_session'
+   rather than left to the Supabase JS SDK) — NOT db.auth.getSession().
+   See chat: the earlier version of this file assumed the SDK
+   managed sessions itself, which doesn't match how login.html and
+   dashboard.html actually work.
+   ════════════════════════════════════════════════════════ */
+function loadSession(){
+  try {
+    const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function clearSession(){
+  localStorage.removeItem('injera_session');
+  sessionStorage.removeItem('injera_session');
+}
+
+// Guard first, synchronously, before anything else runs — matches
+// dashboard.html's guardAndPopulateSidebar() IIFE exactly.
+const CURRENT_SESSION = (function guardAndPopulateSidebar(){
+  const session = loadSession();
+  if (!session || !session.access_token || (session.hard_expiry && session.hard_expiry < Date.now())){
+    clearSession();
+    window.location.href = 'login.html';
+    return null;
+  }
+  const initials = (session.name || '')
+    .split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() || '??';
+  const roleLbl = session.role ? session.role.charAt(0).toUpperCase() + session.role.slice(1) : '';
+
+  document.querySelectorAll('.sb-foot .av, .uchip .av, .user-panel-top .av').forEach(el => el.textContent = initials);
+  const sbName = document.querySelector('.sb-foot-txt h4'); if (sbName) sbName.textContent = session.name || 'Unknown User';
+  const sbRole = document.querySelector('.sb-foot-txt span'); if (sbRole) sbRole.textContent = roleLbl;
+  const chipName = document.querySelector('.uchip-txt h4'); if (chipName) chipName.textContent = session.name || 'Unknown User';
+  const chipRole = document.querySelector('.uchip-txt span'); if (chipRole) chipRole.textContent = roleLbl;
+  const panelName = document.querySelector('.user-panel-name h4'); if (panelName) panelName.textContent = session.name || 'Unknown User';
+  const panelRole = document.querySelector('.user-panel-name span'); if (panelRole) panelRole.textContent = `${roleLbl} · Mena Injera`;
+
+  // Only owners/managers should see the Add User shortcut
+  const addUserItem = document.getElementById('userPanelAddUser');
+  if (addUserItem && !['owner','manager'].includes(session.role)) addUserItem.style.display = 'none';
+
+  return session;
+})();
+
+function signOut(){
+  openModal(`
+    <div class="modal-hd"><h3>Sign Out</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd"><p style="font-size:13.5px;color:var(--tm);line-height:1.6">Are you sure you want to sign out of Mena Injera &amp; Derkosh BMS?</p></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="clearSession();window.location.href='login.html'">Sign Out</button>
+    </div>
+  `);
+}
+
+/* ════════════════════════════════════════════════════════
+   SUPABASE CLIENT — same project as login.html/dashboard.html.
+   Requests are made with the logged-in user's own access_token
+   (not just the bare anon key) so that if/when RLS policies are
+   added later, this page keeps working without further changes.
+   ════════════════════════════════════════════════════════ */
+let db = null;
+if(typeof supabase !== 'undefined' && CURRENT_SESSION){
+  const { createClient } = supabase;
+  db = createClient(
+    'https://mfxkkaavgzyttasgqnmw.supabase.co',
+    'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH',
+    { global: { headers: { Authorization: `Bearer ${CURRENT_SESSION.access_token}` } } }
+  );
+} else if(typeof supabase === 'undefined') {
+  console.error('Supabase JS failed to load from CDN — check your internet connection and reload.');
+}
+
+/* ════════════════════════════════════════════════════════
+   DATA MODEL — backed by live Supabase reads/writes against
+   production_batches, production_batch_materials,
+   production_batch_costs (view), monthly_wac (view), and
+   inventory_items. See chat for full schema notes.
+
+   MONTH_DATA[month] is populated by loadMonth() and acts as
+   an in-memory cache so the rest of the page's rendering code
+   (renderTable, computeKPIs, renderCostBreakdown, etc.) can
+   stay synchronous exactly as before — only the load/save/
+   delete functions are async.
+   ════════════════════════════════════════════════════════ */
+// Rolling window of selectable months: from the earliest month with real
+// data (Jan 2026, per the original seed range) through 2 months past
+// whatever "today" actually is — so the picker never goes stale relative to
+// the real clock, and always includes the current month (audit fix, see chat:
+// this used to be a fixed Jan–Jun 2026 list that fell out of range once the
+// real date passed June).
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function buildMonthsWindow(){
+  const start = new Date(2026,0,1); // earliest month this BMS has data for
+  const end = new Date();
+  end.setMonth(end.getMonth()+2); // small forward margin for planning ahead
+  const months = [];
+  const cur = new Date(start);
+  while(cur <= end){
+    months.push(`${MONTH_NAMES[cur.getMonth()]} ${cur.getFullYear()}`);
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return months;
+}
+const MONTHS = buildMonthsWindow();
+
+function populateMonthSelect(){
+  const sel = document.getElementById('msel');
+  if(!sel) return;
+  const todayLabel = monthLabelFromDate(new Date().toISOString().slice(0,10));
+  // Default to the current real month if it's in range, otherwise the most
+  // recent month that actually has data (May 2026) as the more useful start.
+  const defaultLabel = MONTHS.includes(todayLabel) ? todayLabel : 'May 2026';
+  sel.innerHTML = MONTHS.map(m=>`<option ${m===defaultLabel?'selected':''}>${m}</option>`).join('');
+}
+const MONTH_DATA = {};
+const LOADED_MONTHS = new Set();
+
+function fmt2(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt1(n){ return n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+function fmt0(n){ return Math.round(n).toLocaleString('en-US'); }
+function dStr(d){ return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); }
+
+// month label ("May 2026") <-> period string ("2026-05")
+function monthLabelToPeriod(label){
+  const [monStr, yr] = label.split(' ');
+  const idx = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(monStr);
+  return `${yr}-${String(idx+1).padStart(2,'0')}`;
+}
+
+// Cached inventory item UUIDs, looked up by name once and reused.
+// Injera Blend / Corn / Gomen Zere are seeded exactly under these names
+// (injera_bms_COMPLETE.sql — inventory_items seed).
+let ITEM_IDS = null; // { blend, corn, gomen }
+async function loadItemIds(){
+  if(ITEM_IDS) return ITEM_IDS;
+  if(!db) throw new Error('Supabase client not available (CDN failed to load).');
+  const { data, error } = await db.from('inventory_items')
+    .select('id,name')
+    .in('name', ['Injera Blend','Corn','Gomen Zere']);
+  if(error){ console.error('loadItemIds error', error); throw error; }
+  const byName = Object.fromEntries(data.map(r=>[r.name, r.id]));
+  ITEM_IDS = { blend: byName['Injera Blend'], corn: byName['Corn'], gomen: byName['Gomen Zere'] };
+  return ITEM_IDS;
+}
+
+// Live WAC for a given period, read from the monthly_wac VIEW (never hardcoded
+// — audit fix, see chat). Falls back to the last-known period's WAC if the
+// current period has no approved purchases yet (spec §12: "no WAC for
+// production month" case), and finally to a hardcoded emergency fallback
+// only if literally no purchase history exists anywhere.
+const FALLBACK_WAC = { blend: 15.05, corn: 11.20, gomen: 18.40 };
+async function loadWacForPeriod(period){
+  const ids = await loadItemIds();
+  const { data, error } = await db.from('monthly_wac')
+    .select('item_id,period,wac_per_unit')
+    .in('item_id', [ids.blend, ids.corn, ids.gomen].filter(Boolean));
+  if(error){ console.error('loadWacForPeriod error', error); throw error; }
+
+  const pick = (itemId) => {
+    const rows = data.filter(r=>r.item_id===itemId);
+    const exact = rows.find(r=>r.period===period);
+    if(exact) return Number(exact.wac_per_unit);
+    // fall back to most recent period on/before the requested one
+    const prior = rows.filter(r=>r.period <= period).sort((a,b)=>b.period.localeCompare(a.period))[0];
+    return prior ? Number(prior.wac_per_unit) : null;
+  };
+
+  const blend = pick(ids.blend);
+  const corn  = pick(ids.corn);
+  const gomen = pick(ids.gomen);
+  const usedFallback = blend===null || corn===null || gomen===null;
+  if(usedFallback){
+    toast('No approved purchase history for one or more materials this period — using last-known WAC as a fallback.','info');
+  }
+  return {
+    blend: blend ?? FALLBACK_WAC.blend,
+    corn:  corn  ?? FALLBACK_WAC.corn,
+    gomen: gomen ?? FALLBACK_WAC.gomen
+  };
+}
+
+let WAC = { ...FALLBACK_WAC }; // live value populated by loadMonth(); kept as a
+                                 // module-level var (not const) since it now
+                                 // changes when the selected month changes.
+
+// Compute derived fields (material cost from WAC, total, cost/injera) — always
+// derived, never hand-entered, so numbers can't drift out of sync anywhere on
+// the page (audit fix, see chat).
+function computeDerived(o){
+  const costBlend = Math.round(o.blend * WAC.blend * 100) / 100;
+  const costCorn  = Math.round(o.corn  * WAC.corn  * 100) / 100;
+  const costGomen = Math.round((o.gomen||0) * WAC.gomen * 100) / 100;
+  o.material = Math.round((costBlend + costCorn + costGomen) * 100) / 100;
+  o.total = Math.round((o.material+o.overhead+o.other)*100)/100;
+  o.costPerInjera = o.qty>0 ? Math.round((o.total/o.qty)*100)/100 : 0;
+  return o;
+}
+
+const STATUS_LABEL = { completed:'Completed', review:'Review', warning:'Warning', alert:'Alert' };
+const STATUS_VALUE  = { Completed:'completed', Review:'review', Warning:'warning', Alert:'alert' };
+
+// Loads one month of batches from Supabase: production_batches (base fields),
+// production_batch_costs (material/overhead/total — the view already applies
+// the correct WAC × quantity and monthly_overhead ÷ days-in-month math, so we
+// don't recompute that part client-side), and production_batch_materials
+// (per-ingredient kg breakdown, joined to inventory_items for the item name).
+async function loadMonth(monthLabel){
+  const period = monthLabelToPeriod(monthLabel);
+  WAC = await loadWacForPeriod(period);
+  const ids = await loadItemIds();
+
+  const { data: batches, error: batchesErr } = await db.from('production_batches')
+    .select('*').eq('period', period).eq('is_deleted', false);
+  if(batchesErr) throw batchesErr;
+
+  const batchIds = batches.map(b=>b.id);
+  const [costsRes, materialsRes] = await Promise.all([
+    db.from('production_batch_costs').select('*').eq('period', period),
+    batchIds.length
+      ? db.from('production_batch_materials').select('batch_id,item_id,quantity_used').in('batch_id', batchIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  if(costsRes.error) throw costsRes.error;
+  if(materialsRes.error) throw materialsRes.error;
+
+  const costsById = Object.fromEntries(costsRes.data.map(c=>[c.id, c]));
+  const materialsByBatch = {};
+  materialsRes.data.forEach(m=>{
+    (materialsByBatch[m.batch_id] ??= []).push(m);
+  });
+
+  const list = batches.map(b=>{
+    const mats = materialsByBatch[b.id] || [];
+    const kgFor = itemId => Number(mats.find(m=>m.item_id===itemId)?.quantity_used || 0);
+    const cost = costsById[b.id]; // may be undefined if materials/overhead not yet recorded
+    const row = {
+      id: b.id,
+      dbBatchNumber: b.batch_number,
+      batchNo: batchLabelForDate(b.date, b.batch_number),
+      date: b.date,
+      type: b.type === 'special' ? 'Special' : 'Normal',
+      blend: kgFor(ids.blend),
+      corn: kgFor(ids.corn),
+      gomen: kgFor(ids.gomen),
+      qty: b.injera_qty,
+      overhead: cost ? Number(cost.overhead_cost) : 0,
+      other: Number(b.other_cost),
+      status: STATUS_LABEL[b.status] || 'Completed',
+    };
+    // Prefer the view's own material_cost/total_cost when available (it reflects
+    // the period's real WAC exactly as stored); fall back to local computation
+    // only if the view hasn't picked the row up yet (e.g. right after an insert
+    // before Postgres has recalculated, or WAC missing for this period).
+    if(cost){
+      row.material = Number(cost.material_cost);
+      row.total = Number(cost.total_cost);
+      row.costPerInjera = row.qty>0 ? Math.round((row.total/row.qty)*100)/100 : 0;
+    } else {
+      computeDerived(row);
+    }
+    return row;
+  });
+  list.sort((a,b)=> b.date.localeCompare(a.date) || b.dbBatchNumber-a.dbBatchNumber);
+  MONTH_DATA[monthLabel] = list;
+  LOADED_MONTHS.add(monthLabel);
+  return list;
+}
+
+function currentMonth(){ return document.getElementById('msel').value; }
+function getBatches(){ return MONTH_DATA[currentMonth()] || []; }
+
+// Batch number label is derived from the DATE actually entered in the form —
+// using the ISO week number as the "lot" — instead of a fixed lot regardless
+// of date (audit fix, see chat). E.g. 2026-05-20 falls in ISO week 21, so a
+// batch entered for that date is labeled INJ-2026-021-XX.
+function isoWeek(dateObj){
+  const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const week = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay()+6)%7)) / 7);
+  return { year: d.getUTCFullYear(), week };
+}
+function batchLabelForDate(isoDateStr, batchNum){
+  const dateObj = new Date(isoDateStr+'T00:00:00');
+  const { year, week } = isoWeek(dateObj);
+  return `INJ-${year}-${String(week).padStart(3,'0')}-${String(batchNum).padStart(2,'0')}`;
+}
+
+/* ════════════════════════════════════════════════════════
+   TABLE STATE + RENDER
+   ════════════════════════════════════════════════════════ */
+const state = { page:1, pageSize:12, type:'all', statuses:new Set(['Completed','Review','Warning','Alert']), search:'' };
+
+function filteredBatches(){
+  let rows = getBatches();
+  if(state.type!=='all') rows = rows.filter(r=>r.type===state.type);
+  rows = rows.filter(r=>state.statuses.has(r.status));
+  if(state.search.trim()){
+    const q = state.search.trim().toLowerCase();
+    rows = rows.filter(r=>r.batchNo.toLowerCase().includes(q));
+  }
+  return rows;
+}
+
+function tagClass(status){
+  return {Completed:'tag-completed',Review:'tag-review',Warning:'tag-warning',Alert:'tag-alert'}[status];
+}
+
+function renderTable(){
+  const tbody = document.getElementById('batchTbody');
+  const wrap = document.querySelector('.tbl-wrap');
+  const emptyState = document.getElementById('emptyTblState');
+  const all = filteredBatches();
+  const total = all.length;
+  const pageCount = Math.max(1, Math.ceil(total/state.pageSize));
+  if(state.page>pageCount) state.page = pageCount;
+  if(state.page<1) state.page = 1;
+
+  if(getBatches().length===0){
+    wrap.style.display='none';
+    emptyState.style.display='block';
+    emptyState.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><h5>No production data for ${currentMonth()}</h5><p>No batches have been recorded for this month yet.</p></div>`;
+    document.getElementById('pgInfo').textContent = 'Showing 0 of 0 batches';
+    document.getElementById('pgBtns').innerHTML='';
+    return;
+  }
+  if(total===0){
+    wrap.style.display='none';
+    emptyState.style.display='block';
+    emptyState.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><h5>No matching batches</h5><p>Try adjusting your search or filters.</p></div>`;
+    document.getElementById('pgInfo').textContent = 'Showing 0 of 0 batches';
+    document.getElementById('pgBtns').innerHTML='';
+    return;
+  }
+  wrap.style.display='block';
+  emptyState.style.display='none';
+
+  const startIdx = (state.page-1)*state.pageSize;
+  const pageRows = all.slice(startIdx, startIdx+state.pageSize);
+
+  tbody.innerHTML = pageRows.map(r=>`
+    <tr>
+      <td>${r.batchNo}</td>
+      <td>${dStr(new Date(r.date+'T00:00:00'))}</td>
+      <td><span class="tag ${r.type==='Special'?'tag-special':'tag-normal'}">${r.type}</span></td>
+      <td class="num">${fmt1(r.blend)}</td>
+      <td class="num">${fmt1(r.corn)}</td>
+      <td class="num">${fmt1(r.gomen)}</td>
+      <td class="num">${fmt0(r.qty)}</td>
+      <td class="num">${fmt2(r.material)}</td>
+      <td class="num">${fmt2(r.overhead)}</td>
+      <td class="num">${fmt2(r.other)}</td>
+      <td class="tcost">${fmt2(r.total)}</td>
+      <td class="num">${fmt2(r.costPerInjera)}</td>
+      <td><span class="tag ${tagClass(r.status)}">${r.status}</span></td>
+      <td><button class="row-menu" onclick="openRowMenu('${r.id}', this, event)"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></td>
+    </tr>`).join('');
+
+  const from = startIdx+1, to = Math.min(startIdx+state.pageSize, total);
+  document.getElementById('pgInfo').textContent = `Showing ${from} to ${to} of ${total} batch${total===1?'':'es'}`;
+
+  let btns = `<div class="pg-btn" onclick="setPage(${state.page-1})" ${state.page<=1?'style="opacity:.4;pointer-events:none"':''}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>`;
+  for(let p=1;p<=pageCount;p++){
+    btns += `<div class="pg-btn ${p===state.page?'active':''}" onclick="setPage(${p})">${p}</div>`;
+  }
+  btns += `<div class="pg-btn" onclick="setPage(${state.page+1})" ${state.page>=pageCount?'style="opacity:.4;pointer-events:none"':''}><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>`;
+  document.getElementById('pgBtns').innerHTML = btns;
+}
+
+function setPage(n){ state.page = n; renderTable(); document.querySelector('.tbl-wrap').scrollIntoView({block:'nearest'}); }
+function onTypeFilterChange(){ state.type = document.getElementById('typeFilter').value; state.page=1; renderTable(); }
+function onStatusFilterChange(){
+  const boxes = document.querySelectorAll('#statusDD input[type=checkbox]');
+  state.statuses = new Set(Array.from(boxes).filter(b=>b.checked).map(b=>b.value));
+  document.getElementById('filterBtn').classList.toggle('has-active', state.statuses.size<4);
+  state.page=1; renderTable();
+}
+function onSearchInput(v){
+  state.search = v; state.page=1;
+  document.getElementById('tbSearchWrap').classList.toggle('has-val', v.length>0);
+  renderTable();
+}
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  onSearchInput('');
+}
+
+/* ════════════════════════════════════════════════════════
+   MONTH / WEEK NAVIGATION (honest empty states — only May 2026 has data)
+   ════════════════════════════════════════════════════════ */
+async function chgM(d){
+  const s = document.getElementById('msel');
+  const i = s.selectedIndex+d;
+  if(i>=0 && i<s.options.length){ s.selectedIndex=i; await onMonthChange(); }
+}
+async function onMonthChange(){
+  const m = currentMonth();
+  state.page=1;
+  await ensureMonthLoaded(m);
+  refreshDashboard();
+  if(getBatches().length===0){
+    toast(`No production data recorded for ${m} yet.`,'info');
+  }
+}
+
+// Fetches a month from Supabase only once; subsequent visits reuse the cache
+// (cleared automatically by refreshCurrentMonth() after any save/delete).
+async function ensureMonthLoaded(monthLabel){
+  if(LOADED_MONTHS.has(monthLabel)) return MONTH_DATA[monthLabel];
+  try{
+    setLoading(true);
+    return await loadMonth(monthLabel);
+  }catch(e){
+    console.error('loadMonth failed', e);
+    toast('Could not load production data from the database. Check your connection.','err');
+    MONTH_DATA[monthLabel] = MONTH_DATA[monthLabel] || [];
+    return MONTH_DATA[monthLabel];
+  }finally{
+    setLoading(false);
+  }
+}
+function setLoading(isLoading){
+  const el = document.getElementById('loadingBar');
+  if(el) el.style.display = isLoading ? 'block' : 'none';
+}
+
+let weekOffset = 0;
+
+// Monday of the week containing `d` (weekData labels run Mon..Sun).
+function mondayOf(d){
+  const copy = new Date(d);
+  const day = copy.getDay(); // 0=Sun..6=Sat
+  const diff = day===0 ? -6 : 1-day; // shift Sunday back to the prior Monday
+  copy.setDate(copy.getDate()+diff);
+  copy.setHours(0,0,0,0);
+  return copy;
+}
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function shortMonthDay(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+// Renders the Mon–Sun week at the given offset (0 = this week) from whatever
+// month is currently loaded in MONTH_DATA. If the week spans a month that
+// hasn't been fetched yet, it's loaded first — audit fix, see chat: this used
+// to be one hardcoded week with everything else disabled after ±1 click.
+async function chgWeek(dir){
+  weekOffset += dir;
+  await renderWeek();
+}
+
+async function renderWeek(){
+  const lbl = document.getElementById('wkRangeLbl');
+  const cal = document.getElementById('wkCal');
+  const today = new Date();
+  const monday = mondayOf(today);
+  monday.setDate(monday.getDate() + weekOffset*7);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+
+  lbl.textContent = `${shortMonthDay(monday)} – ${shortMonthDay(sunday)}, ${sunday.getFullYear()}`;
+
+  // Make sure every month this week touches is loaded (a Mon–Sun week can
+  // straddle a month boundary).
+  const monthsNeeded = new Set([monthLabelFromDate(isoDate(monday)), monthLabelFromDate(isoDate(sunday))]);
+  for(const m of monthsNeeded){
+    if(MONTHS.includes(m)) await ensureMonthLoaded(m);
+  }
+  const allRows = [...monthsNeeded].filter(m=>MONTHS.includes(m)).flatMap(m=>MONTH_DATA[m]||[]);
+  const byDate = {};
+  allRows.forEach(r=>{ (byDate[r.date] ??= {qty:0,n:0}); byDate[r.date].qty+=r.qty; byDate[r.date].n++; });
+
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const cells = dayLabels.map((l,i)=>{
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    const iso = isoDate(d);
+    const entry = byDate[iso];
+    const isFuture = d > today;
+    const cls = entry ? 'wk-good' : (isFuture ? 'wk-empty' : 'wk-zero');
+    const qtyHtml = entry ? entry.qty.toLocaleString() : (isFuture ? '&mdash;' : '0');
+    const batchesHtml = entry ? entry.n+' Batches' : (isFuture ? 'No Data' : '0 Batches');
+    return `<div class="wk-day ${cls}"><div class="wd-name">${l}</div><div class="wd-date">${d.getDate()}</div><div class="wd-qty">${qtyHtml}</div><div class="wd-batches">${batchesHtml}</div></div>`;
+  }).join('');
+  cal.innerHTML = cells;
+}
+
+/* ════════════════════════════════════════════════════════
+   SIDEBAR TOGGLE
+   ════════════════════════════════════════════════════════ */
+function toggleSidebar(){
+  document.body.classList.toggle('sb-collapsed');
+  localStorage.setItem('bms_sb_collapsed', document.body.classList.contains('sb-collapsed')?'1':'0');
+}
+(function initSidebar(){
+  if(localStorage.getItem('bms_sb_collapsed')==='1') document.body.classList.add('sb-collapsed');
+})();
+function goTo(label){
+  toast(`"${label}" module hasn't been built yet — this prototype only includes Production.`,'info');
+  return false;
+}
+
+/* ════════════════════════════════════════════════════════
+   DROPDOWNS (notifications / user menu / filter / row menu)
+   ════════════════════════════════════════════════════════ */
+function closeAllDD(except){
+  document.querySelectorAll('.dd-panel.open').forEach(p=>{ if(p.id!==except) p.classList.remove('open'); });
+}
+function toggleDD(id, ev){
+  ev && ev.stopPropagation();
+  const panel = document.getElementById(id);
+  const willOpen = !panel.classList.contains('open');
+  closeAllDD(null);
+  if(willOpen) panel.classList.add('open');
+}
+document.addEventListener('click', ()=>closeAllDD(null));
+
+const NOTIFS = [
+  {ic:'r',title:'High Material Usage flagged',sub:'2 batches exceeding material target · 2h ago'},
+  {ic:'o',title:'Low Yield on batch #050-12',sub:'Yield dropped below 90% · 3h ago'},
+  {ic:'o',title:'Cost Above Target',sub:'4 batches over cost/injera target · 5h ago'},
+  {ic:'b',title:'Missing Batch Data',sub:'1 batch missing field entries · 1d ago'},
+  {ic:'g',title:'Batch INJ-2026-050-01 completed',sub:'2,150 pieces produced · 1d ago'},
+  {ic:'g',title:'Daily production logged',sub:'May 20 batches recorded · 1d ago'},
+  {ic:'b',title:'Weekly report ready',sub:'May 12–18 summary available · 2d ago'}
+];
+function renderNotifs(){
+  const icoMap = {
+    r:['ai-r','<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>'],
+    o:['ai-o','<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'],
+    b:['ai-b','<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>'],
+    g:['ic-g','<path d="M20 6L9 17l-5-5"/>']
+  };
+  document.getElementById('notifList').innerHTML = NOTIFS.map(n=>{
+    const [cls,path] = icoMap[n.ic];
+    return `<div class="notif-row"><div class="ic ${cls}"><svg viewBox="0 0 24 24">${path}</svg></div><div><p>${n.title}</p><span>${n.sub}</span></div></div>`;
+  }).join('');
+}
+renderNotifs();
+function clearNotifs(){
+  document.getElementById('bellBadge').style.display='none';
+  document.getElementById('notifList').innerHTML = `<div class="empty-state" style="padding:30px 15px"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><h5>All caught up</h5><p>No new notifications.</p></div>`;
+  toast('All notifications marked as read.','ok');
+}
+
+let activeRowMenuId = null;
+function openRowMenu(id, btnEl, ev){
+  ev.stopPropagation();
+  const panel = document.getElementById('rowMenuDD');
+  if(activeRowMenuId===id && panel.classList.contains('open')){ panel.classList.remove('open'); activeRowMenuId=null; return; }
+  activeRowMenuId = id;
+  const rect = btnEl.getBoundingClientRect();
+  panel.style.top = (rect.bottom+6)+'px';
+  panel.style.left = (rect.right-140)+'px';
+  panel.innerHTML = `
+    <div class="rm-item" onclick="openViewModal('${id}')"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>View Details</div>
+    <div class="rm-item" onclick="openAddModal('${id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit Batch</div>
+    <div class="rm-item danger" onclick="deleteBatch('${id}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Delete</div>`;
+  closeAllDD(null);
+  panel.classList.add('open');
+}
+
+/* ════════════════════════════════════════════════════════
+   TOASTS
+   ════════════════════════════════════════════════════════ */
+function toast(msg, type){
+  type = type||'ok';
+  const icons = {
+    ok:'<polyline points="20 6 9 17 4 12"/>',
+    err:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
+  };
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${icons[type]}</svg><span>${msg}</span>`;
+  document.getElementById('toastRoot').appendChild(el);
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),220); }, 3400);
+}
+
+/* ════════════════════════════════════════════════════════
+   MODAL ENGINE
+   ════════════════════════════════════════════════════════ */
+function openModal(html, wide){
+  document.getElementById('modalBox').className = 'modal-box'+(wide?' wide':'');
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeModal(); closeAllDD(null); }
+});
+
+/* WAC RATES declared earlier (top of script) so makeBatch() can use them too. */
+
+/* ── Batch Standards — from spec §14.5 seed data ── */
+const BATCH_STD = {
+  Normal:  { blend: 60.00, corn: 15.00, gomen: 5.00, count: 300 },
+  Special: { blend: 80.00, corn: 20.00, gomen: 8.00, count: 400 }
+};
+
+/* Daily overhead for May 2026: spec says monthly_total / days_in_month.
+   May overhead from seed data: 633 × 31 days = 19,623 ETB/month ÷ 31 = 633.00/day */
+const DAILY_OVERHEAD = 633.00;
+
+/* ── Add / Edit Production Modal — spec §11.4 layout ── */
+function openAddModal(editId){
+  const isEdit = !!editId;
+  const b = isEdit ? getBatches().find(r=>r.id===editId) : null;
+  const today = new Date().toISOString().slice(0,10);
+  const dateVal = b ? b.date : today;
+  // Auto-suggest next batch number for the batch's date (or today, for a new
+  // batch) — matches the real UNIQUE(date, batch_number) constraint, so the
+  // suggestion is always a number that's actually free on that date.
+  const targetDate = dateVal;
+  const rows = getBatches();
+  const sameDayNums = rows.filter(r=>r.date===targetDate).map(r=>r.dbBatchNumber);
+  const maxNum = sameDayNums.length ? Math.max(...sameDayNums) : 0;
+  const suggestedBatchNum = b ? b.dbBatchNumber : maxNum+1;
+
+  openModal(`
+    <div class="modal-hd">
+      <h3>${isEdit ? 'Edit Production Batch' : 'New Production Batch'}</h3>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd" style="padding:18px 22px">
+
+      <!-- ROW 1: Date + Batch # -->
+      <div class="f-grid" style="margin-bottom:12px">
+        <div class="f-field">
+          <label>Date <span style="color:#e5484d">*</span></label>
+          <input type="date" id="f_date" value="${dateVal}" required>
+        </div>
+        <div class="f-field">
+          <label>Batch # <span style="color:#e5484d">*</span></label>
+          <input type="number" id="f_batchnum" value="${suggestedBatchNum}" min="1" required
+            style="font-weight:700" oninput="validateBatchNum()">
+          <span class="f-hint" id="batchnum_hint" style="color:var(--tl)">Auto-suggested: last + 1</span>
+        </div>
+      </div>
+
+      <!-- ROW 2: Batch Type + Location -->
+      <div class="f-grid" style="margin-bottom:16px">
+        <div class="f-field">
+          <label>Batch Type <span style="color:#e5484d">*</span></label>
+          <select id="f_type" onchange="recalcForm()" required>
+            <option value="">— Select type —</option>
+            <option value="Normal"  ${b&&b.type==='Normal' ?'selected':(!b?'selected':'')}>Normal</option>
+            <option value="Special" ${b&&b.type==='Special'?'selected':''}>Special</option>
+          </select>
+        </div>
+        <div class="f-field">
+          <label>Location</label>
+          <select id="f_location">
+            <option value="Main Kitchen" selected>Main Kitchen</option>
+            <option value="Secondary Kitchen">Secondary Kitchen</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- INGREDIENTS USED section — spec §11.4 exact layout -->
+      <div style="background:#f6faf7;border:1px solid #d1e7d9;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:10.5px;font-weight:800;color:#27ae60;text-transform:uppercase;letter-spacing:.9px;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          INGREDIENTS USED
+        </div>
+
+        <!-- Injera Blend -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e3ece7">
+          <div class="f-field">
+            <label>Injera Blend (kg) <span style="color:#e5484d">*</span></label>
+            <input type="number" step="0.01" id="f_blend" value="${b?b.blend:'60.00'}"
+              oninput="recalcForm()" placeholder="0.00" required min="0">
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;padding:8px 0 0">
+            <div style="font-size:11.5px;color:var(--tl);font-weight:600">Monthly WAC: <strong style="color:var(--td)">${fmt2(WAC.blend)} ETB/kg</strong></div>
+            <div style="font-size:13px;font-weight:700;color:var(--td);margin-top:4px">Cost: <span id="cost_blend" style="color:#1d8c4f">0.00 ETB</span></div>
+          </div>
+        </div>
+
+        <!-- Corn -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #e3ece7">
+          <div class="f-field">
+            <label>Corn (kg) <span style="color:#e5484d">*</span></label>
+            <input type="number" step="0.01" id="f_corn" value="${b?b.corn:'15.00'}"
+              oninput="recalcForm()" placeholder="0.00" required min="0">
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;padding:8px 0 0">
+            <div style="font-size:11.5px;color:var(--tl);font-weight:600">Monthly WAC: <strong style="color:var(--td)">${fmt2(WAC.corn)} ETB/kg</strong></div>
+            <div style="font-size:13px;font-weight:700;color:var(--td);margin-top:4px">Cost: <span id="cost_corn" style="color:#1d8c4f">0.00 ETB</span></div>
+          </div>
+        </div>
+
+        <!-- Gomen Zere (optional per spec) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="f-field">
+            <label>Gomen Zere (kg)</label>
+            <input type="number" step="0.01" id="f_gomen" value="${b&&b.gomen?b.gomen:''}"
+              oninput="recalcForm()" placeholder="Leave blank if not used">
+            <span class="f-hint" style="color:#b9770e;display:flex;align-items:center;gap:4px;margin-top:3px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#b9770e" stroke-width="2.3"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Leave blank only if not used — will ask to confirm
+            </span>
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;padding:8px 0 0">
+            <div style="font-size:11.5px;color:var(--tl);font-weight:600">Monthly WAC: <strong style="color:var(--td)">${fmt2(WAC.gomen)} ETB/kg</strong></div>
+            <div style="font-size:13px;font-weight:700;color:var(--td);margin-top:4px">Cost: <span id="cost_gomen" style="color:#1d8c4f">0.00 ETB</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Injera Qty Produced * + Other Cost — spec shows them on same row -->
+      <div class="f-grid" style="margin-bottom:16px">
+        <div class="f-field">
+          <label>Injera Qty Produced <span style="color:#e5484d">*</span></label>
+          <input type="number" id="f_qty" value="${b?b.qty:''}"
+            oninput="recalcForm()" placeholder="e.g. 300" required min="1"
+            style="font-size:16px;font-weight:700">
+          <span class="f-hint" id="qty_err" style="color:#e5484d;display:none">Quantity must be greater than zero.</span>
+        </div>
+        <div class="f-field">
+          <label>Other Cost (ETB)</label>
+          <input type="number" step="0.01" id="f_other" value="${b?b.other:''}"
+            oninput="recalcForm()" placeholder="0.00 (optional)">
+          <span class="f-hint">Packaging, delivery, extras for special batches</span>
+        </div>
+      </div>
+
+      <!-- Status (edit only — new batches default to Completed) -->
+      ${isEdit ? `<div class="f-field" style="margin-bottom:16px">
+        <label>Status</label>
+        <select id="f_status">
+          ${['Completed','Review','Warning','Alert'].map(s=>`<option ${b&&b.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>` : '<input type="hidden" id="f_status" value="Completed">'}
+
+      <!-- COMPUTED COSTS — spec §11.4: "live, updates as you type" -->
+      <div style="background:#fff;border:1.5px solid #d1e7d9;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="background:#1d8c4f;padding:9px 14px">
+          <div style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.9px">COMPUTED COSTS (live, updates as you type)</div>
+        </div>
+        <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--tm);font-weight:600">
+            <span>Material Cost</span><strong id="calc_material" style="color:var(--td)">0.00 ETB</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--tm);font-weight:600">
+            <span>Overhead</span><strong id="calc_overhead" style="color:var(--td)">${fmt2(DAILY_OVERHEAD)} ETB</strong>
+          </div>
+          <div style="height:1px;background:var(--border)"></div>
+          <div style="display:flex;justify-content:space-between;font-size:14.5px;font-weight:800">
+            <span style="color:var(--td)">Total Batch Cost</span><strong id="calc_total" style="color:#1d8c4f;font-family:'Quicksand',sans-serif">0.00 ETB</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--tm);font-weight:600">
+            <span>Cost per Injera</span><strong id="calc_cpi" style="color:var(--td)">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- vs Standard row — spec §11.4 -->
+      <div id="std_row" style="background:#f6faf7;border:1px solid var(--border);border-radius:8px;padding:9px 14px;display:flex;gap:16px;font-size:12px;font-weight:700;color:var(--tm)">
+        <span>vs Standard:</span>
+        <span id="std_count">Count — —</span>
+        <span style="color:var(--border)">│</span>
+        <span id="std_blend">Blend — —</span>
+      </div>
+
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBatchBtn" onclick="saveBatch('${editId||''}')">
+        ${isEdit ? 'Save Changes' : 'Save Batch'}
+      </button>
+    </div>
+  `);
+  recalcForm();
+}
+
+function validateBatchNum(){
+  // Non-blocking — just shows hint. Uniqueness enforced on save.
+  const val = parseInt(document.getElementById('f_batchnum').value||'0');
+  const hint = document.getElementById('batchnum_hint');
+  if(val<=0){ hint.textContent='Batch number must be at least 1.'; hint.style.color='#e5484d'; }
+  else{ hint.textContent='Auto-suggested: last + 1'; hint.style.color='var(--tl)'; }
+}
+
+function recalcForm(){
+  const blend    = parseFloat(document.getElementById('f_blend')?.value)    || 0;
+  const corn     = parseFloat(document.getElementById('f_corn')?.value)     || 0;
+  const gomenEl  = document.getElementById('f_gomen');
+  const gomen    = gomenEl && gomenEl.value !== '' ? (parseFloat(gomenEl.value)||0) : 0;
+  const qty      = parseFloat(document.getElementById('f_qty')?.value)      || 0;
+  const other    = parseFloat(document.getElementById('f_other')?.value)    || 0;
+
+  const costBlend = Math.round(blend * WAC.blend * 100) / 100;
+  const costCorn  = Math.round(corn  * WAC.corn  * 100) / 100;
+  const costGomen = Math.round(gomen * WAC.gomen * 100) / 100;
+  const material  = Math.round((costBlend + costCorn + costGomen) * 100) / 100;
+  const total     = Math.round((material + DAILY_OVERHEAD + other) * 100) / 100;
+
+  // Update ingredient cost displays
+  const cb = document.getElementById('cost_blend');
+  const cc = document.getElementById('cost_corn');
+  const cg = document.getElementById('cost_gomen');
+  if(cb) cb.textContent = fmt2(costBlend)+' ETB';
+  if(cc) cc.textContent = fmt2(costCorn)+' ETB';
+  if(cg) cg.textContent = fmt2(costGomen)+' ETB';
+
+  // Update computed costs section
+  const cm = document.getElementById('calc_material');
+  const ct = document.getElementById('calc_total');
+  const cp = document.getElementById('calc_cpi');
+  if(cm) cm.textContent = fmt2(material)+' ETB';
+  if(ct) ct.textContent = fmt2(total)+' ETB';
+  if(cp) cp.textContent = qty > 0 ? fmt2(total/qty)+' ETB' : '—';
+
+  // vs Standard row — spec §3.5 Batch Variance Analysis
+  const typeEl = document.getElementById('f_type');
+  const type = typeEl ? typeEl.value : 'Normal';
+  const std = BATCH_STD[type] || BATCH_STD['Normal'];
+  const stdRow = document.getElementById('std_row');
+  const stdCount = document.getElementById('std_count');
+  const stdBlend = document.getElementById('std_blend');
+  if(stdRow && stdCount && stdBlend){
+    const countVar = qty - std.count;
+    const blendVar = Math.round((blend - std.blend)*100)/100;
+    const countOk  = qty === 0 || countVar >= -std.count*0.10; // flag if >10% below
+    const blendOk  = blend === 0 || blendVar <= std.blend*0.05; // flag if >5% over
+    const cvSign   = countVar >= 0 ? '+' : '';
+    const bvSign   = blendVar >= 0 ? '+' : '';
+    stdCount.innerHTML = qty === 0
+      ? 'Count — —'
+      : `Count ${countOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${cvSign}${countVar}`;
+    stdBlend.innerHTML = blend === 0
+      ? 'Blend — —'
+      : `Blend ${blendOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${bvSign}${fmt1(blendVar)} kg`;
+  }
+
+  // Show/hide qty error
+  const qtyErr = document.getElementById('qty_err');
+  const qtyEl  = document.getElementById('f_qty');
+  if(qtyErr && qtyEl && qtyEl.value !== ''){
+    qtyErr.style.display = qty <= 0 ? 'flex' : 'none';
+    qtyEl.style.borderColor = qty <= 0 ? '#e5484d' : '';
+  }
+}
+
+// Cached location UUIDs, looked up by name (only "Main Kitchen" is seeded —
+// injera_bms_COMPLETE.sql. "Secondary Kitchen" in the form's dropdown has no
+// matching DB row yet, so it resolves to null/location_id unset until it's
+// added to the locations table.)
+let LOCATION_IDS = null;
+async function loadLocationIds(){
+  if(LOCATION_IDS) return LOCATION_IDS;
+  if(!db){ LOCATION_IDS = {}; return LOCATION_IDS; }
+  const { data, error } = await db.from('locations').select('id,name');
+  if(error){ console.error('loadLocationIds error', error); LOCATION_IDS = {}; return LOCATION_IDS; }
+  LOCATION_IDS = Object.fromEntries(data.map(r=>[r.name, r.id]));
+  return LOCATION_IDS;
+}
+
+async function saveBatch(editId){
+  // ── Validation per spec §12.1 and §9 business rules ──
+  const type = document.getElementById('f_type')?.value;
+  const date = document.getElementById('f_date')?.value;
+  const batchNumRaw = document.getElementById('f_batchnum')?.value;
+  const blend    = parseFloat(document.getElementById('f_blend')?.value   || '0');
+  const corn     = parseFloat(document.getElementById('f_corn')?.value    || '0');
+  const gomenEl  = document.getElementById('f_gomen');
+  const gomenRaw = gomenEl ? gomenEl.value : '';
+  const gomen    = gomenRaw !== '' ? (parseFloat(gomenRaw)||0) : null;
+  const qtyRaw   = document.getElementById('f_qty')?.value;
+  const qty      = parseFloat(qtyRaw || '0');
+  const other    = parseFloat(document.getElementById('f_other')?.value  || '0');
+  const statusLabel = document.getElementById('f_status')?.value || 'Completed';
+  const locationName = document.getElementById('f_location')?.value || 'Main Kitchen';
+
+  // Required field checks
+  if(!type){ toast('Batch Type is required.','err'); return; }
+  if(!date){ toast('Date is required.','err'); return; }
+
+  // Injera qty = 0 → spec §9 block rule: "Injera quantity cannot be zero."
+  if(!qtyRaw || qtyRaw.trim()===''){
+    toast('Injera Qty Produced is required.','err');
+    const el = document.getElementById('f_qty');
+    if(el){ el.style.borderColor='#e5484d'; el.focus(); }
+    return;
+  }
+  if(qty <= 0){
+    toast('Injera quantity cannot be zero.','err');
+    const el = document.getElementById('f_qty');
+    if(el){ el.style.borderColor='#e5484d'; el.focus(); }
+    document.getElementById('qty_err').style.display='flex';
+    return;
+  }
+
+  // Reject all negative quantities/prices — spec §3.18
+  const negativeFieldChecks = [
+    ['f_blend', blend, 'Injera Blend (kg)'],
+    ['f_corn',  corn,  'Corn (kg)'],
+    ['f_gomen', gomen, 'Gomen Zere (kg)'],
+    ['f_other', other, 'Other Cost'],
+  ];
+  for(const [id, val, label] of negativeFieldChecks){
+    if(val !== null && val < 0){
+      toast(`${label} cannot be negative.`,'err');
+      const el = document.getElementById(id);
+      if(el){ el.style.borderColor='#e5484d'; el.focus(); }
+      return;
+    }
+  }
+
+  // Warn on date > 30 days in the future — spec §3.18
+  const dateObj = new Date(date+'T00:00:00');
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()+30);
+  if(dateObj > cutoff){
+    if(!confirm('Date is more than 30 days in the future. Confirm this is correct.')){
+      document.getElementById('f_date').focus();
+      return;
+    }
+  }
+
+  // Gomen Zere blank confirmation — spec §12.1 and §9
+  if(gomen === null || gomenRaw.trim() === ''){
+    if(!confirm('Gomen Zere is blank. Confirm this batch used no Gomen Zere?')){
+      document.getElementById('f_gomen').focus();
+      return;
+    }
+  }
+
+  // Batch number uniqueness per day — enforced by the real DB constraint
+  // UNIQUE(date, batch_number) on production_batches. We check client-side
+  // first for a fast, friendly error, but the DB constraint is the real
+  // source of truth (see the 23505 catch below for the belt-and-suspenders case).
+  const batchNum = parseInt(batchNumRaw || '0');
+  if(batchNum <= 0){ toast('Batch number must be at least 1.','err'); return; }
+  const isEdit = editId && editId !== 'null' && editId !== '';
+  const rows = getBatches();
+  const duplicate = rows.find(r=>r.date===date && r.dbBatchNumber===batchNum && (!isEdit || r.id!==editId));
+  if(duplicate){
+    const next = batchNum+1;
+    toast(`Batch number ${batchNum} was already used on this date. Next available: ${next}.`,'err');
+    const el = document.getElementById('f_batchnum');
+    if(el){ el.style.borderColor='#e5484d'; el.value=next; }
+    return;
+  }
+
+  const batchNoFormatted = batchLabelForDate(date, batchNum);
+  const saveBtn = document.getElementById('saveBatchBtn');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  try {
+    const ids = await loadItemIds();
+    const locIds = await loadLocationIds();
+    const locationId = locIds[locationName] ?? null;
+    let batchId;
+
+    if(isEdit){
+      const { error } = await db.from('production_batches')
+        .update({
+          date, batch_number: batchNum,
+          type: type.toLowerCase(),
+          injera_qty: qty,
+          other_cost: other,
+          status: STATUS_VALUE[statusLabel] || 'completed',
+          location_id: locationId
+        })
+        .eq('id', editId);
+      if(error) throw error;
+      batchId = editId;
+
+      // Simplest correct way to replace the ingredient set on edit, given the
+      // UNIQUE(batch_id, item_id) constraint on production_batch_materials:
+      // delete this batch's rows and reinsert from the form's current values.
+      const { error: delErr } = await db.from('production_batch_materials')
+        .delete().eq('batch_id', batchId);
+      if(delErr) throw delErr;
+    } else {
+      const { data, error } = await db.from('production_batches')
+        .insert({
+          date, batch_number: batchNum,
+          type: type.toLowerCase(),
+          injera_qty: qty,
+          other_cost: other,
+          status: STATUS_VALUE[statusLabel] || 'completed',
+          location_id: locationId
+        })
+        .select('id')
+        .single();
+      if(error) throw error;
+      batchId = data.id;
+    }
+
+    // production_batch_materials.quantity_used has a CHECK (> 0) constraint,
+    // so zero/blank ingredients are simply omitted rather than inserted as 0.
+    const materialRows = [
+      { batch_id: batchId, item_id: ids.blend, quantity_used: blend },
+      { batch_id: batchId, item_id: ids.corn,  quantity_used: corn  },
+    ];
+    if(gomen && gomen > 0) materialRows.push({ batch_id: batchId, item_id: ids.gomen, quantity_used: gomen });
+    const toInsert = materialRows.filter(r=>r.quantity_used > 0);
+    if(toInsert.length){
+      const { error: matErr } = await db.from('production_batch_materials').insert(toInsert);
+      if(matErr) throw matErr;
+    }
+
+    closeModal();
+    if(currentMonth()!==monthLabelFromDate(date)){
+      // saved batch belongs to a different month than the one currently viewed —
+      // switch the picker so the user immediately sees what they just saved.
+      const targetLabel = monthLabelFromDate(date);
+      if(MONTHS.includes(targetLabel)) document.getElementById('msel').value = targetLabel;
+    }
+    await refreshCurrentMonth();
+
+    const totalNow = getBatches().find(r=>r.id===batchId);
+    const cpiMsg = totalNow ? fmt2(totalNow.costPerInjera) : '—';
+    toast(isEdit
+      ? `Batch ${batchNoFormatted} updated.`
+      : `Batch #${batchNum} saved. Cost per injera: ${cpiMsg} ETB.`, 'ok');
+
+  } catch(e) {
+    console.error('saveBatch error', e);
+    if(e.code === '23505'){
+      toast('That batch number was just used by someone else for this date. Please pick another.','err');
+    } else {
+      toast('Could not save this batch. Please check your connection and try again.','err');
+    }
+  } finally {
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = 'Save Batch'; }
+  }
+}
+
+function monthLabelFromDate(isoDateStr){
+  const d = new Date(isoDateStr+'T00:00:00');
+  const monNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${monNames[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Re-renders every widget that depends on batch data — table, KPI cards,
+// cost breakdown donut, material consumption, and ranking — so nothing on
+// the page can go stale after an add/edit/delete (audit fix, see chat).
+function refreshDashboard(){
+  renderTable();
+  computeKPIs();
+  renderCostBreakdown();
+  renderMaterialConsumption();
+  renderRanking();
+  renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
+}
+
+// Invalidates the cached month and re-fetches it from Supabase, then
+// re-renders. Always call this (not just refreshDashboard) after any
+// insert/update/delete so the numbers reflect what's actually in the DB —
+// including values computed server-side by production_batch_costs
+// (WAC-priced materials, overhead ÷ days-in-month) rather than a client
+// guess.
+async function refreshCurrentMonth(){
+  const m = currentMonth();
+  LOADED_MONTHS.delete(m);
+  try{
+    setLoading(true);
+    await loadMonth(m);
+  }catch(e){
+    console.error('refreshCurrentMonth failed', e);
+    toast('Saved, but could not refresh the latest data from the database. Reloading may help.','info');
+  }finally{
+    setLoading(false);
+  }
+  state.page=1;
+  refreshDashboard();
+}
+
+function deleteBatch(id){
+  document.getElementById('rowMenuDD').classList.remove('open');
+  const rows = getBatches();
+  const b = rows.find(r=>r.id===id);
+  if(!b) return;
+  openModal(`
+    <div class="modal-hd"><h3>Delete Batch</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd"><p style="font-size:13.5px;color:var(--tm);line-height:1.6">Are you sure you want to delete <strong style="color:var(--td)">${b.batchNo}</strong>? It will be removed from all reports, but stays in the database for audit history.</p></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDelete('${id}')">Delete Batch</button>
+    </div>
+  `);
+}
+
+// Soft-deletes in Supabase (UPDATE is_deleted = true) rather than a hard DELETE,
+// matching the audit-trail pattern already used across the rest of the schema
+// (production_batches.is_deleted, production_batch_costs view already filters
+// on it). See chat for why this was chosen over a real delete.
+async function confirmDelete(id){
+  const rows = getBatches();
+  const b = rows.find(r=>r.id===id);
+  if(!b){ closeModal(); return; }
+  const btn = document.getElementById('confirmDeleteBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Deleting…'; }
+  try{
+    const { error } = await db.from('production_batches')
+      .update({ is_deleted: true })
+      .eq('id', id);
+    if(error) throw error;
+    toast(`Batch ${b.batchNo} deleted.`,'ok');
+    closeModal();
+    await refreshCurrentMonth();
+  }catch(e){
+    console.error('confirmDelete error', e);
+    toast('Could not delete this batch. Please try again.','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Delete Batch'; }
+  }
+}
+
+/* ── View Detail Modal ── */
+function openViewModal(id){
+  document.getElementById('rowMenuDD').classList.remove('open');
+  const b = getBatches().find(r=>r.id===id);
+  if(!b) return;
+  openModal(`
+    <div class="modal-hd"><h3>${b.batchNo}</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <span class="tag ${b.type==='Special'?'tag-special':'tag-normal'}">${b.type}</span>
+        <span class="tag ${tagClass(b.status)}">${b.status}</span>
+      </div>
+      <div class="dv-grid">
+        <div class="dv-item"><span>Date</span><strong>${dStr(new Date(b.date+'T00:00:00'))}</strong></div>
+        <div class="dv-item"><span>Injera Qty</span><strong>${fmt0(b.qty)} pieces</strong></div>
+        <div class="dv-item"><span>Injera Blend</span><strong>${fmt1(b.blend)} kg</strong></div>
+        <div class="dv-item"><span>Corn</span><strong>${fmt1(b.corn)} kg</strong></div>
+        <div class="dv-item"><span>Gomen Zere</span><strong>${fmt1(b.gomen)} kg</strong></div>
+        <div class="dv-item"><span>Cost / Injera</span><strong>${fmt2(b.costPerInjera)} ETB</strong></div>
+        <div class="dv-item"><span>Material Cost</span><strong>${fmt2(b.material)} ETB</strong></div>
+        <div class="dv-item"><span>Overhead</span><strong>${fmt2(b.overhead)} ETB</strong></div>
+        <div class="dv-item"><span>Other Cost</span><strong>${fmt2(b.other)} ETB</strong></div>
+        <div class="dv-item"><span>Total Cost</span><strong>${fmt2(b.total)} ETB</strong></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="openAddModal('${b.id}')">Edit Batch</button>
+    </div>
+  `);
+}
+
+/* ── Batch Standards ── */
+function openBatchStandards(){
+  openModal(`
+    <div class="modal-hd"><h3>Batch Standards</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <p style="font-size:12.5px;color:var(--tm);margin-bottom:12px">Target material consumption and yield benchmarks per batch type, used to flag Production Alerts.</p>
+      <table class="det-tbl">
+        <thead><tr><th>Batch Type</th><th>Blend Range</th><th>Target Qty</th><th>Target Cost/Injera</th><th>Target Yield</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-normal">Normal</span></td><td>53–61 kg</td><td>1,650–2,200 pcs</td><td>≤ 4.95 ETB</td><td>≥ 90%</td></tr>
+          <tr><td><span class="tag tag-special">Special</span></td><td>61–67 kg</td><td>2,100–2,520 pcs</td><td>≤ 5.20 ETB</td><td>≥ 92%</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:var(--tl);margin-top:14px">Overhead is allocated at a flat 633.00 ETB/batch-day and excluded from yield calculations per current COGS policy.</p>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `);
+}
+
+/* ── Production Report ── */
+function openProductionReport(){
+  const rows = getBatches();
+  const m = currentMonth();
+  const totalQty = rows.reduce((s,r)=>s+r.qty,0);
+  const totalCost = rows.reduce((s,r)=>s+r.total,0);
+  const avgCpi = totalQty>0 ? totalCost/totalQty : 0;
+  const completed = rows.filter(r=>r.status==='Completed').length;
+  const flagged = rows.length-completed;
+  openModal(`
+    <div class="modal-hd"><h3>Production Report — ${m}</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <div class="rep-grid">
+        <div class="rep-tile"><span>Total Batches</span><strong>${rows.length}</strong></div>
+        <div class="rep-tile"><span>Total Injera Produced</span><strong>${fmt0(totalQty)}</strong></div>
+        <div class="rep-tile"><span>Total Production Cost</span><strong>${fmt2(totalCost)} ETB</strong></div>
+        <div class="rep-tile"><span>Avg Cost / Injera</span><strong>${rows.length?fmt2(avgCpi):'—'} ETB</strong></div>
+        <div class="rep-tile"><span>Completed Batches</span><strong>${completed}</strong></div>
+        <div class="rep-tile"><span>Flagged Batches</span><strong>${flagged}</strong></div>
+      </div>
+      <p style="font-size:12px;color:var(--tm);line-height:1.6">${rows.length ? `Computed live from all ${rows.length} recorded ${m} batches. Flagged batches include Review, Warning, and Alert statuses and are worth a closer look before month-end close.` : `No production batches recorded for ${m} yet.`}</p>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="closeModal();exportCSV()">Export Full Data</button>
+    </div>
+  `);
+}
+
+/* ── Material Usage — live from getBatches(), always current month.
+   Packaging Bags intentionally excluded: that's a Derkosh cost
+   (spec §3.6 col G), not a Production Management cost. ── */
+function openMaterialUsage(){
+  const rows = getBatches();
+  const m = currentMonth();
+  const blendKg = rows.reduce((s,r)=>s+r.blend,0);
+  const cornKg  = rows.reduce((s,r)=>s+r.corn,0);
+  const gomenKg = rows.reduce((s,r)=>s+(r.gomen||0),0);
+  const rowsHtml = rows.length ? `
+          <tr><td>Injera Blend</td><td>${fmt1(blendKg)} kg</td><td>${fmt2(WAC.blend)}</td><td>${fmt2(blendKg*WAC.blend)}</td></tr>
+          <tr><td>Corn</td><td>${fmt1(cornKg)} kg</td><td>${fmt2(WAC.corn)}</td><td>${fmt2(cornKg*WAC.corn)}</td></tr>
+          <tr><td>Gomen Zere</td><td>${fmt1(gomenKg)} kg</td><td>${fmt2(WAC.gomen)}</td><td>${fmt2(gomenKg*WAC.gomen)}</td></tr>
+  ` : `<tr><td colspan="4" style="text-align:center;color:var(--tl);padding:14px 0">No production batches recorded for ${m} yet.</td></tr>`;
+  openModal(`
+    <div class="modal-hd"><h3>Material Usage — ${m}</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <table class="det-tbl">
+        <thead><tr><th>Item</th><th>Used</th><th>WAC (ETB)</th><th>Total Cost (ETB)</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+
+  `);
+}
+
+/* ── Full Ranking ── */
+function openFullRanking(){
+  const rows = [...getBatches()].filter(r=>r.status==='Completed').sort((a,b)=>a.costPerInjera-b.costPerInjera).slice(0,12);
+  openModal(`
+    <div class="modal-hd"><h3>Full Batch Performance Ranking</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <table class="det-tbl">
+        <thead><tr><th>#</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Injera</th><th>Status</th></tr></thead>
+        <tbody>
+          ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.batchNo}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td><span class="tag tag-excellent">Excellent</span></td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `, true);
+}
+
+/* ── Full Calendar (month grid built from real batch data) ── */
+function openFullCalendar(){
+  const rows = getBatches();
+  const m = currentMonth();
+  const period = monthLabelToPeriod(m); // "YYYY-MM"
+  const [yr, mo] = period.split('-').map(Number);
+  const byDate = {};
+  rows.forEach(r=>{ if(!byDate[r.date]) byDate[r.date]={qty:0,n:0}; byDate[r.date].qty+=r.qty; byDate[r.date].n++; });
+  const first = new Date(yr, mo-1, 1);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const startPad = first.getDay();
+  let cells='';
+  for(let i=0;i<startPad;i++) cells += `<div></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const iso = `${period}-${String(day).padStart(2,'0')}`;
+    const d = byDate[iso];
+    cells += `<div class="wk-day ${d?'wk-good':'wk-empty'}" style="padding:8px 3px"><div class="wd-date" style="margin:0 0 4px">${day}</div><div class="wd-qty" style="font-size:12px">${d?d.qty.toLocaleString():'—'}</div><div class="wd-batches">${d?d.n+' B.':'—'}</div></div>`;
+  }
+  openModal(`
+    <div class="modal-hd"><h3>Full Production Calendar — ${m}</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;font-size:9.5px;font-weight:700;color:var(--tl);text-transform:uppercase;margin-bottom:6px;text-align:center">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${cells}</div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `, true);
+}
+
+/* ── Alerts ── */
+function filterByAlert(kind){
+  document.getElementById('typeFilter').value='all';
+  state.type='all';
+  document.querySelectorAll('#statusDD input').forEach(b=>b.checked=true);
+  state.statuses = new Set(['Completed','Review','Warning','Alert']);
+  state.search='';
+  document.getElementById('searchInput').value='';
+
+  const map = {
+    material:{statuses:['Alert'],label:'batches flagged for High Material Usage'},
+    yield:{statuses:['Warning'],label:'batches flagged for Low Yield'},
+    cost:{statuses:['Review'],label:'batches flagged for Cost Above Target'},
+    missing:{statuses:['Alert','Warning'],label:'batches with potential Missing Batch Data'}
+  };
+  const cfg = map[kind];
+  state.statuses = new Set(cfg.statuses);
+  document.querySelectorAll('#statusDD input').forEach(b=>{ b.checked = cfg.statuses.includes(b.value); });
+  document.getElementById('filterBtn').classList.add('has-active');
+  state.page=1;
+  renderTable();
+  document.querySelector('.tbl-wrap').scrollIntoView({behavior:'smooth',block:'center'});
+  toast(`Filtered to ${cfg.label}.`,'info');
+}
+function openAllAlerts(){
+  openModal(`
+    <div class="modal-hd"><h3>All Production Alerts</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
+      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('material')"><div class="al-ic ai-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div><div class="al-bd"><h5>High Material Usage</h5><p>2 batches exceeding material target — review blend ratios.</p></div><div class="al-cnt ac-r">2</div></div>
+      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('yield')"><div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="al-bd"><h5>Low Yield</h5><p>3 batches below the 90% yield rate target.</p></div><div class="al-cnt ac-o">3</div></div>
+      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('cost')"><div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div><div class="al-bd"><h5>Cost Above Target</h5><p>4 batches with cost per injera above target.</p></div><div class="al-cnt ac-o">4</div></div>
+      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('missing')"><div class="al-ic ai-b"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div><div class="al-bd"><h5>Missing Batch Data</h5><p>1 batch with incomplete field information.</p></div><div class="al-cnt ac-b">1</div></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `);
+}
+
+/* ════════════════════════════════════════════════════════
+   EXPORT CSV
+   ════════════════════════════════════════════════════════ */
+function exportCSV(){
+  const rows = filteredBatches();
+  if(rows.length===0){ toast('No batches to export with the current filters.','err'); return; }
+  const headers = ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material Cost (ETB)','Overhead (ETB)','Other Cost (ETB)','Total Cost (ETB)','Cost/Injera (ETB)','Status'];
+  const lines = [headers.join(',')];
+  rows.forEach(r=>{
+    lines.push([r.batchNo,r.date,r.type,fmt1(r.blend),fmt1(r.corn),fmt1(r.gomen),r.qty,fmt2(r.material),fmt2(r.overhead),fmt2(r.other),fmt2(r.total),fmt2(r.costPerInjera),r.status].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `production-batches-${currentMonth().replace(' ','-')}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} batches to CSV.`,'ok');
+}
+
+/* ════════════════════════════════════════════════════════
+   COUNT-UP ANIMATION FOR KPI VALUES
+   ════════════════════════════════════════════════════════ */
+function animateCount(el){
+  const target = parseFloat(el.dataset.target);
+  const decimals = parseInt(el.dataset.decimals || '0', 10);
+  const duration = 1000;
+  const start = performance.now();
+  function easeOutExpo(t){ return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+  function tick(now){
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = easeOutExpo(progress);
+    const value = target * eased;
+    el.textContent = value.toLocaleString('en-US', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = target.toLocaleString('en-US', {minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+  }
+  requestAnimationFrame(tick);
+}
+function initCountUps(){
+  const counters = document.querySelectorAll('.cnt');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){ animateCount(entry.target); io.unobserve(entry.target); }
+    });
+  },{threshold:0.3});
+  counters.forEach(c=>io.observe(c));
+}
+
+/* ════════════════════════════════════════════════════════
+   CHARTS
+   ════════════════════════════════════════════════════════ */
+// trendChart is declared here (not inside the try below) so that
+// updateTrendChart() always exists as a callable function even if
+// Chart.js fails to load from the CDN — same reasoning as the cost
+// breakdown / material consumption / ranking functions further down
+// (audit fix, see chat: function declarations must not live inside
+// a try block whose first statement can throw).
+let trendChart = null;
+const dayLabels = Array.from({length:31}, (_,i)=>'May '+(i+1));
+const qtyData  = [1620,1480,2050,2380,1750,1340,1980,2150,1600,2420,1280,1750,1870,2010,2400,1900,1950,4530,2020,6510,0,2400,0,0,0,1850,2240,2680,1920,2310,2050];
+const costData = qtyData.map(v=>Math.round(v*4.9*100)/100);
+
+function updateTrendChart(){
+  if(!trendChart) return;
+  const sel = document.getElementById('trendSel').value;
+  const isCost = sel==='cost';
+  trendChart.data.datasets[0].data = isCost?costData:qtyData;
+  trendChart.data.datasets[0].label = isCost?'Production Cost (ETB)':'Injera Produced';
+  trendChart.update();
+}
+
+try {
+  Chart.register(ChartDataLabels);
+  const tc = document.getElementById('trendChart').getContext('2d');
+  trendChart = new Chart(tc,{
+  type:'line',
+  data:{
+    labels:dayLabels,
+    datasets:[{
+      label:'Injera Produced',
+      data:qtyData,
+      borderColor:'#27ae60',
+      backgroundColor:'rgba(39,174,96,0.09)',
+      borderWidth:2.5,
+      pointBackgroundColor:'#27ae60',
+      pointBorderColor:'#fff',
+      pointBorderWidth:1.5,
+      pointRadius:3,
+      pointHoverRadius:7,
+      pointHoverBorderWidth:2,
+      pointHitRadius:10,
+      fill:true,tension:0.35
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    layout:{padding:{top:16,bottom:6}},
+    interaction:{intersect:false,mode:'index'},
+    animation:{duration:900,easing:'easeOutQuart'},
+    plugins:{
+      legend:{display:false},
+      datalabels:{display:false},
+      tooltip:{
+        backgroundColor:'#16261e',
+        padding:10,
+        cornerRadius:8,
+        titleFont:{family:'Quicksand',size:12,weight:'700'},
+        bodyFont:{family:'Nunito',size:11.5,weight:'600'},
+        displayColors:true,
+        boxPadding:4,
+        callbacks:{
+          label:c=>{
+            const isCost = document.getElementById('trendSel').value==='cost';
+            return ' '+(isCost?'Cost: ':'Injera: ')+c.parsed.y.toLocaleString()+(isCost?' ETB':' pieces');
+          }
+        }
+      }
+    },
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5',autoSkip:true,maxTicksLimit:11}},
+      y:{
+        grid:{color:'#eef3f0',lineWidth:1},
+        min:0,
+        ticks:{font:{family:'Nunito',size:11},color:'#9aada5',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+        beginAtZero:true
+      }
+    }
+  }
+  });
+} catch(e) { console.warn("Chart.js not loaded (CDN blocked in sandbox). Trend chart will appear in browser.", e.message); }
+
+// Cost Breakdown donut — data always derived from getBatches(), never hardcoded
+// (audit fix, see chat). Categories match what Production actually tracks:
+// Materials, Overhead, Other Cost. Packaging is a Derkosh cost (spec §3.6 col G),
+// not Production, so it's intentionally not shown here.
+let costChart = null;
+function renderCostBreakdown(){
+  const rows = getBatches();
+  const materials = rows.reduce((s,r)=>s+r.material,0);
+  const overhead  = rows.reduce((s,r)=>s+r.overhead,0);
+  const other     = rows.reduce((s,r)=>s+r.other,0);
+  const total = materials+overhead+other;
+  const pct = v => total>0 ? (v/total*100) : 0;
+
+  const dnutTotal = document.getElementById('dnutTotal');
+  if(dnutTotal) dnutTotal.innerHTML = `${fmt2(total)}<br>ETB`;
+
+  const setLeg = (vId,pId,val)=>{
+    const vEl=document.getElementById(vId), pEl=document.getElementById(pId);
+    if(vEl) vEl.textContent = fmt2(val)+' ETB';
+    if(pEl) pEl.textContent = fmt1(pct(val))+'%';
+  };
+  setLeg('legMaterialV','legMaterialP',materials);
+  setLeg('legOverheadV','legOverheadP',overhead);
+  setLeg('legOtherV','legOtherP',other);
+
+  const data = [materials, overhead, other];
+  if(costChart){
+    costChart.data.datasets[0].data = data;
+    costChart.update();
+    return;
+  }
+  try {
+    const ccEl = document.getElementById('costChart');
+    if(!ccEl || typeof Chart === 'undefined') return;
+    const cc = ccEl.getContext('2d');
+    costChart = new Chart(cc,{
+      type:'doughnut',
+      data:{
+        labels:['Materials','Overhead','Other Costs'],
+        datasets:[{
+          data,
+          backgroundColor:['#27ae60','#3b82f6','#94a3b8'],
+          borderWidth:2,borderColor:'#fff',
+          hoverOffset:10,
+          hoverBorderWidth:3
+        }]
+      },
+      options:{
+        responsive:false,cutout:'68%',
+        animation:{animateScale:true,animateRotate:true,duration:900,easing:'easeOutQuart'},
+        plugins:{
+          legend:{display:false},
+          datalabels:{display:false},
+          tooltip:{
+            backgroundColor:'#16261e',
+            padding:10,
+            cornerRadius:8,
+            titleFont:{family:'Quicksand',size:12,weight:'700'},
+            bodyFont:{family:'Nunito',size:11.5,weight:'600'},
+            callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}
+          }
+        }
+      }
+    });
+  } catch(e) { console.warn("Chart.js not loaded (CDN blocked in sandbox). Cost breakdown donut will appear in browser.", e.message); }
+}
+
+renderCostBreakdown();
+
+// Material Consumption card — kg used and cost always summed from getBatches()
+// at the live WAC constants, never hardcoded (audit fix, see chat).
+function renderMaterialConsumption(){
+  const rows = getBatches();
+  const blendKg = rows.reduce((s,r)=>s+r.blend,0);
+  const cornKg  = rows.reduce((s,r)=>s+r.corn,0);
+  const gomenKg = rows.reduce((s,r)=>s+(r.gomen||0),0);
+
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
+  set('mcBlendKg', fmt1(blendKg)+' kg');
+  set('mcCornKg',  fmt1(cornKg)+' kg');
+  set('mcGomenKg', fmt1(gomenKg)+' kg');
+  set('mcBlendCost', fmt2(blendKg*WAC.blend));
+  set('mcCornCost',  fmt2(cornKg*WAC.corn));
+  set('mcGomenCost', fmt2(gomenKg*WAC.gomen));
+}
+try { renderMaterialConsumption(); }
+catch(e) { console.warn("Material consumption table could not render.", e.message); }
+
+// Batch Performance Ranking (mini card) — top 3 Completed batches by lowest
+// cost/injera, computed live from getBatches() (audit fix, see chat).
+// Yield % uses the same type-average logic as the Yield Rate KPI card.
+function renderRanking(){
+  const tbody = document.getElementById('rankingBody');
+  if(!tbody) return;
+  const all = getBatches();
+  const completed = all.filter(r=>r.status==='Completed');
+  if(completed.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--tl);padding:14px 0">No completed batches this month</td></tr>`;
+    return;
+  }
+  const { normalAvg, specialAvg, rate } = typeRateAverages(all);
+  const top3 = [...completed].sort((a,b)=>a.costPerInjera-b.costPerInjera).slice(0,3);
+  const medalCls = ['rk-1','rk-2','rk-3'];
+  tbody.innerHTML = top3.map((r,i)=>{
+    const typeAvg = r.type==='Special' ? specialAvg : normalAvg;
+    const yieldPct = typeAvg>0 ? (rate(r)/typeAvg)*100 : 0;
+    const tag = yieldPct>=95 ? 'tag-excellent' : yieldPct>=90 ? 'tag-completed' : 'tag-review';
+    const label = yieldPct>=95 ? 'Excellent' : yieldPct>=90 ? 'Good' : 'Review';
+    return `<tr><td><div class="rk-medal ${medalCls[i]}">${i+1}</div></td><td>${r.batchNo.replace('INJ-2026-','#')}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${fmt1(yieldPct)}%</td><td><span class="tag ${tag}">${label}</span></td></tr>`;
+  }).join('');
+}
+try { renderRanking(); }
+catch(e) { console.warn("Batch ranking table could not render.", e.message); }
+
+/* ════════════════════════════════════════════════════════
+   KPI COMPUTATION — spec §3.5
+   ════════════════════════════════════════════════════════
+   Yield Rate     = % of batches where actual pcs/kg ≥ 90% of
+                    that batch type's monthly average pcs/kg.
+                    (Spec: Actual_Count / Actual_kg_total,
+                     flagged if > 8% below standard yield.)
+
+   Production Efficiency = (actual total pieces produced) /
+                           (expected pieces at monthly-avg rate × total kg) × 100.
+                    Shows whether the MONTH as a whole is running
+                    above or below its own average baseline.
+
+   NOTE: The §14.5 batch_standard seed targets (300 / 400 pcs)
+   are placeholder targets that do not match the real workbook's
+   batch outputs (1,750–2,400 pcs). Eyu must calibrate those
+   targets in the Batch Standards screen once real kitchen
+   output figures are confirmed. Until then we use the
+   monthly-average as the internal benchmark.
+   ════════════════════════════════════════════════════════ */
+
+// Shared by computeKPIs() and renderRanking() so "yield vs type average"
+// is computed identically everywhere on the page — one source of truth.
+function typeRateAverages(rows){
+  const rate = r => r.qty / (r.blend + r.corn + r.gomen);
+  const normalRates  = rows.filter(r=>r.type==='Normal').map(rate);
+  const specialRates = rows.filter(r=>r.type==='Special').map(rate);
+  const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
+  return { normalAvg: avg(normalRates), specialAvg: avg(specialRates), rate };
+}
+
+function computeKPIs(){
+  const rows = getBatches();
+
+  // ── Cards 1-4: simple month-scoped totals — always computed from
+  //    getBatches(), never hardcoded (audit fix — see chat) ──────
+  const bEl  = document.getElementById('kpiBatchesVal');
+  const qEl  = document.getElementById('kpiQtyVal');
+  const cEl  = document.getElementById('kpiCostVal');
+  const cpEl = document.getElementById('kpiCpiVal');
+
+  if(!rows || rows.length === 0){
+    if(bEl)  bEl.innerHTML  = '<span>0</span>';
+    if(qEl)  qEl.innerHTML  = '<span>0</span> <span class="u">pieces</span>';
+    if(cEl)  cEl.innerHTML  = '<span>0.00</span> <span class="u">ETB</span>';
+    if(cpEl) cpEl.innerHTML = '<span>—</span> <span class="u">ETB</span>';
+    return;
+  }
+
+  const totalBatches = rows.length;
+  const totalQtyAll   = rows.reduce((s,r)=>s+r.qty, 0);
+  const totalCostAll  = rows.reduce((s,r)=>s+r.total, 0);
+  const avgCpiAll     = totalQtyAll > 0 ? totalCostAll / totalQtyAll : 0;
+
+  if(bEl)  bEl.innerHTML  = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700">${fmt0(totalBatches)}</span>`;
+  if(qEl)  qEl.innerHTML  = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700">${fmt0(totalQtyAll)}</span> <span class="u">pieces</span>`;
+  if(cEl)  cEl.innerHTML  = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700">${fmt2(totalCostAll)}</span> <span class="u">ETB</span>`;
+  if(cpEl) cpEl.innerHTML = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700">${fmt2(avgCpiAll)}</span> <span class="u">ETB</span>`;
+
+  // ── per-batch rate: pcs / total_kg_input ──────────────
+  const { normalAvg, specialAvg, rate } = typeRateAverages(rows);
+  const overallAvg = (normalAvg + specialAvg) > 0
+    ? (normalAvg*rows.filter(r=>r.type==='Normal').length + specialAvg*rows.filter(r=>r.type==='Special').length) / rows.length
+    : 0;
+
+  if(overallAvg === 0) return;
+
+  // ── Yield Rate: % batches meeting ≥ 90% of type avg ──
+  const threshold = 0.90;
+  const passing = rows.filter(r=>{
+    const typeAvg = r.type === 'Special' ? specialAvg : normalAvg;
+    return rate(r) >= threshold * typeAvg;
+  }).length;
+  const yieldRate = (passing / rows.length) * 100;
+
+  // ── Production Efficiency: actual / expected-at-avg ──
+  const totalActual = rows.reduce((s,r)=>s+r.qty, 0);
+  const totalExpected = rows.reduce((s,r)=>{
+    const typeAvg = r.type === 'Special' ? specialAvg : normalAvg;
+    return s + typeAvg * (r.blend + r.corn + r.gomen);
+  }, 0);
+  const efficiency = totalExpected > 0 ? (totalActual / totalExpected) * 100 : 0;
+
+  // ── Update DOM ─────────────────────────────────────────
+  const yrEl = document.getElementById('yieldRateVal');
+  const peEl = document.getElementById('prodEffVal');
+  const peChg = document.getElementById('prodEffChg');
+  const yrTgt = document.getElementById('yieldRateTgt');
+
+  if(yrEl){
+    yrEl.innerHTML = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700">${fmt1(yieldRate)}</span> <span class="u">%</span>`;
+    // colour: green if ≥ 90%, amber if ≥ 80%, red below
+    const col = yieldRate >= 90 ? '#27ae60' : yieldRate >= 80 ? '#b9770e' : '#e5484d';
+    yrEl.querySelector('span').style.color = col;
+  }
+  if(yrTgt){
+    yrTgt.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      ${passing} of ${rows.length} batches ≥ 90% avg`;
+  }
+
+  if(peEl){
+    const col = efficiency >= 100 ? '#27ae60' : efficiency >= 92 ? '#b9770e' : '#e5484d';
+    peEl.innerHTML = `<span style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:700;color:${col}">${fmt1(efficiency)}</span> <span class="u">%</span>`;
+  }
+  if(peChg){
+    const diff = efficiency - 100;
+    const sign = diff >= 0 ? '▲ +' : '▼ ';
+    const cls  = diff >= 0 ? 'up' : 'dn';
+    peChg.className = `kc-chg ${cls}`;
+    peChg.textContent = `${sign}${fmt1(Math.abs(diff))}% vs avg baseline`;
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async ()=>{
+  initCountUps();
+  populateMonthSelect();
+  if(!db){
+    if(CURRENT_SESSION){
+      toast('Could not connect to the database (Supabase failed to load). Check your internet connection and reload the page.','err');
+    }
+    // else: guardAndPopulateSidebar() already redirected to login.html — no need to toast.
+    return;
+  }
+  await onMonthChange(); // loads the initially-selected month and renders everything (includes renderWeek via refreshDashboard)
+});
+</script>
+
+</body>
+</html>
