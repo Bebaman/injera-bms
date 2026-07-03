@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Users — Mena Injera & Derkosh</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#27ae60; --green-dark:#1a6b3c; --red:#e53935;
+    --cream:#faf7f0; --td:#1a2e25; --tm:#5a6e65; --border:#e0eae5;
+  }
+  body{
+    font-family:'Nunito',sans-serif; background:var(--cream); color:var(--td);
+    min-height:100vh; padding:48px 20px;
+  }
+  h1,h2{font-family:'Quicksand',sans-serif}
+  .wrap{max-width:760px; margin:0 auto}
+  .back{display:inline-block; margin-bottom:16px; color:var(--tm); text-decoration:none; font-size:14px}
+  .back:hover{color:var(--green-dark)}
+  .headrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px}
+  h1{font-size:22px; font-weight:800}
+  .newbtn{
+    background:var(--green); color:#fff; border:none; font-weight:700;
+    font-size:14px; padding:10px 16px; border-radius:10px; cursor:pointer; font-family:inherit;
+  }
+  .newbtn:hover{background:var(--green-dark)}
+
+  /* Add user form (collapsible) */
+  .addform-card{
+    background:#fff; border:1px solid var(--border); border-radius:14px;
+    padding:24px; margin-bottom:24px; display:none;
+  }
+  .addform-card.show{display:block}
+  .addform-card h2{font-size:16px; margin-bottom:16px}
+  label{display:block; font-size:13px; font-weight:700; margin-bottom:6px; margin-top:14px}
+  label:first-of-type{margin-top:0}
+  input,select{
+    width:100%; padding:11px 13px; border:1.5px solid var(--border); border-radius:9px;
+    font-family:inherit; font-size:14px; color:var(--td); background:var(--cream);
+  }
+  input:focus,select:focus{outline:none; border-color:var(--green)}
+  .form-actions{display:flex; gap:10px; margin-top:18px}
+  .btn-primary{
+    flex:1; padding:12px; border:none; border-radius:9px; background:var(--green);
+    color:#fff; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+  .btn-primary:hover{background:var(--green-dark)}
+  .btn-primary:disabled{opacity:0.6; cursor:not-allowed}
+  .btn-cancel{
+    padding:12px 18px; border:1.5px solid var(--border); border-radius:9px; background:#fff;
+    color:var(--tm); font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+  .btn-cancel:hover{background:var(--cream)}
+
+  /* User list */
+  .card{
+    background:#fff; border:1px solid var(--border); border-radius:14px;
+    padding:16px 20px; margin-bottom:12px; display:flex; align-items:center; gap:16px;
+  }
+  .av{
+    width:44px; height:44px; border-radius:50%; background:var(--green);
+    color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;
+    font-size:14px; flex-shrink:0;
+  }
+  .card.inactive .av{background:#b7bdb8}
+  .info{flex:1; min-width:0}
+  .nm{font-weight:700; font-size:15px}
+  .em{color:var(--tm); font-size:13px}
+  .status{font-size:12px; margin-top:2px}
+  .status.active{color:var(--green-dark)}
+  .status.inactive{color:var(--red)}
+  .actions{display:flex; align-items:center; gap:8px; flex-shrink:0}
+  .role-select{
+    border:1.5px solid var(--border); background:#fff; padding:6px 10px;
+    border-radius:8px; font-weight:700; font-size:12px; font-family:inherit;
+    color:var(--green-dark); cursor:pointer; text-transform:capitalize;
+  }
+  .role-select:disabled{opacity:0.5; cursor:not-allowed}
+  .toggle-btn{
+    border:1.5px solid var(--border); background:#fff; padding:8px 14px;
+    border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; font-family:inherit;
+    white-space:nowrap;
+  }
+  .toggle-btn.deactivate{color:var(--red); border-color:#f5c6c3}
+  .toggle-btn.deactivate:hover{background:#fdecea}
+  .toggle-btn.activate{color:var(--green-dark); border-color:#b7e4c7}
+  .toggle-btn.activate:hover{background:#e9f9ef}
+  .toggle-btn:disabled{opacity:0.5; cursor:not-allowed}
+
+  .msg{
+    margin-bottom:16px; padding:12px 14px; border-radius:10px; font-size:13.5px; display:none; line-height:1.5;
+  }
+  .msg.error{display:block; background:#fdecea; color:var(--red); border:1px solid #f5c6c3}
+  .msg.success{display:block; background:#e9f9ef; color:var(--green-dark); border:1px solid #b7e4c7}
+  .denied{
+    background:#fff; border:1px solid var(--border); border-radius:16px;
+    padding:32px; text-align:center; color:var(--tm);
+  }
+  .loading{color:var(--tm); font-size:14px; padding:20px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="dashboard.html" class="back">← Back to Dashboard</a>
+
+  <div id="mainCard" style="display:none">
+    <div class="headrow">
+      <h1>Manage Users</h1>
+      <button class="newbtn" id="toggleAddForm">+ Add User</button>
+    </div>
+
+    <div class="addform-card" id="addFormCard">
+      <h2>Add a New User</h2>
+      <form id="addUserForm">
+        <label for="name">Full Name</label>
+        <input id="name" type="text" placeholder="e.g. Almaz Tesfaye" required>
+
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="name@menainjera.com" required>
+
+        <label for="password">Temporary Password</label>
+        <input id="password" type="text" placeholder="At least 8 characters" required minlength="8">
+
+        <label for="role">Role</label>
+        <select id="role" required>
+          <option value="">Select a role…</option>
+          <option value="owner">Owner</option>
+          <option value="manager">Manager</option>
+          <option value="worker">Worker</option>
+        </select>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="submitBtn">Create User</button>
+          <button type="button" class="btn-cancel" id="cancelAddBtn">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="msg" id="msgBox"></div>
+    <div id="userList" class="loading">Loading users…</div>
+  </div>
+
+  <div id="deniedCard" class="denied" style="display:none">
+    <h2 style="margin-bottom:8px">Not Authorized</h2>
+    <p>Only owners and managers can manage users. Please <a href="login.html">log in</a> with the right account.</p>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+
+  function loadSession(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+
+  const session = loadSession();
+  const mainCard = document.getElementById('mainCard');
+  const deniedCard = document.getElementById('deniedCard');
+  const userList = document.getElementById('userList');
+  const msgBox = document.getElementById('msgBox');
+  const addFormCard = document.getElementById('addFormCard');
+
+  if (!session || !session.access_token || !['owner','manager'].includes(session.role)){
+    deniedCard.style.display = 'block';
+  } else {
+    mainCard.style.display = 'block';
+    fetchUsers();
+  }
+
+  // ---- Toggle the Add User form open/closed ----
+  document.getElementById('toggleAddForm').addEventListener('click', () => {
+    addFormCard.classList.toggle('show');
+    if (addFormCard.classList.contains('show')) document.getElementById('name').focus();
+  });
+  document.getElementById('cancelAddBtn').addEventListener('click', () => {
+    addFormCard.classList.remove('show');
+    document.getElementById('addUserForm').reset();
+  });
+
+  function showMsg(text, type){
+    msgBox.textContent = text;
+    msgBox.className = 'msg ' + type;
+    setTimeout(() => { msgBox.className = 'msg'; }, 4500);
+  }
+
+  function initials(name){
+    return name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
+  }
+
+  // ---- Create user ----
+  document.getElementById('addUserForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
+    const submitBtn = document.getElementById('submitBtn');
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating…';
+
+    try {
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      const data = await res.json();
+
+      if (!res.ok){
+        showMsg(data.error || 'Something went wrong.', 'error');
+      } else {
+        showMsg(`${name} was created successfully as ${role}. Share their email and temporary password with them directly.`, 'success');
+        document.getElementById('addUserForm').reset();
+        addFormCard.classList.remove('show');
+        fetchUsers();
+      }
+    } catch (err) {
+      showMsg('Could not reach the server. Check your connection and try again.', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create User';
+    }
+  });
+
+  // ---- List users ----
+  async function fetchUsers(){
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=*&order=name.asc`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      if (!res.ok) throw new Error('Failed to load users');
+      const users = await res.json();
+      renderUsers(users);
+    } catch (err) {
+      userList.innerHTML = '';
+      showMsg('Could not load users. Please refresh and try again.', 'error');
+    }
+  }
+
+  function renderUsers(users){
+    if (!users.length){
+      userList.innerHTML = '<p class="loading">No users found.</p>';
+      return;
+    }
+    userList.innerHTML = '';
+    users.forEach(u => {
+      const card = document.createElement('div');
+      card.className = 'card' + (u.is_active ? '' : ' inactive');
+      card.innerHTML = `
+        <div class="av">${initials(u.name)}</div>
+        <div class="info">
+          <div class="nm">${u.name}</div>
+          <div class="em">${u.email}</div>
+          <div class="status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? '● Active' : '● Deactivated'}</div>
+        </div>
+        <div class="actions">
+          <select class="role-select" data-id="${u.id}" data-current="${u.role}">
+            <option value="owner" ${u.role === 'owner' ? 'selected' : ''}>Owner</option>
+            <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option>
+            <option value="worker" ${u.role === 'worker' ? 'selected' : ''}>Worker</option>
+          </select>
+          <button class="toggle-btn ${u.is_active ? 'deactivate' : 'activate'}" data-id="${u.id}" data-active="${u.is_active}">
+            ${u.is_active ? 'Deactivate' : 'Reactivate'}
+          </button>
+        </div>
+      `;
+      userList.appendChild(card);
+    });
+
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => toggleUser(btn));
+    });
+    document.querySelectorAll('.role-select').forEach(sel => {
+      sel.addEventListener('change', () => changeRole(sel));
+    });
+  }
+
+  async function changeRole(sel){
+    const id = sel.dataset.id;
+    const previousRole = sel.dataset.current;
+    const newRole = sel.value;
+
+    if (id === session.user_id && newRole !== 'owner'){
+      showMsg("You can't change your own role away from owner while logged in.", 'error');
+      sel.value = previousRole;
+      return;
+    }
+
+    sel.disabled = true;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (!res.ok) throw new Error('Update failed');
+      sel.dataset.current = newRole;
+      showMsg('Role updated.', 'success');
+    } catch (err) {
+      showMsg('Could not update role. Please try again.', 'error');
+      sel.value = previousRole;
+    } finally {
+      sel.disabled = false;
+    }
+  }
+
+  async function toggleUser(btn){
+    const id = btn.dataset.id;
+    const currentlyActive = btn.dataset.active === 'true';
+    const newState = !currentlyActive;
+
+    if (id === session.user_id && currentlyActive){
+      showMsg("You can't deactivate your own account while logged in.", 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ is_active: newState })
+      });
+      if (!res.ok) throw new Error('Update failed');
+      showMsg(newState ? 'User reactivated.' : 'User deactivated.', 'success');
+      fetchUsers();
+    } catch (err) {
+      showMsg('Could not update this user. Please try again.', 'error');
+      btn.disabled = false;
+      btn.textContent = currentlyActive ? 'Deactivate' : 'Reactivate';
+    }
+  }
+</script>
+</body>
+</html>
