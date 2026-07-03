@@ -1259,7 +1259,14 @@ async function refreshDashboard(){
       const pct = reorder>0 ? clamp((qty/(reorder*2))*100, 2, 100) : 100;
       return {name:a.name, qty, unit: item?.unit || '', status, pct, id:a.item_id};
     });
-    inventoryLevels.push({name:'Derkosh Stock', qty:derkoshStockCur, unit:'kg', status: derkoshStockCur>0?'ok':'low', pct: derkoshStockCur>0?70:5, id:'derkosh'});
+    // Derkosh has no reorder_level in the schema (it's produced, not purchased), so we derive a
+    // sensible buffer from this period's own production rather than just checking "> 0" —
+    // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.
+    const derkoshPeriodProduced = derkoshRows.reduce((s,d)=>s+num(d.produced_kg),0);
+    const derkoshLowThreshold = Math.max(10, derkoshPeriodProduced * 0.15);
+    const derkoshStatus = derkoshStockCur < derkoshLowThreshold ? 'low' : 'ok';
+    const derkoshPct = derkoshLowThreshold>0 ? clamp((derkoshStockCur/(derkoshLowThreshold*2))*100, 2, 100) : 100;
+    inventoryLevels.push({name:'Derkosh Stock', qty:derkoshStockCur, unit:'kg', status: derkoshStatus, pct: derkoshPct, id:'derkosh'});
 
     // ── Manufacturing (current period) ────────────────────
     const flourItem = invItems.find(i=>i.name==='Injera Blend');
@@ -1271,7 +1278,7 @@ async function refreshDashboard(){
       if(std) targetTotal += num(std.target_injera_count);
     });
     const batchesCompleted = prodBatchRows.length;
-    const derkoshPacked = derkoshRows.reduce((s,d)=>s+num(d.produced_kg),0);
+    const derkoshPacked = derkoshPeriodProduced; // same figure computed above for the stock threshold
     const mfgEfficiency = targetTotal>0 ? clamp(Math.round((injeraBaked/targetTotal)*100), 0, 100) : 0;
 
     // ── Today's performance ────────────────────────────────
@@ -1299,7 +1306,13 @@ async function refreshDashboard(){
     const cashFlowScore = monthlyOpexApprox>0 ? clamp((cashTotalCur/monthlyOpexApprox)/2*100, 0, 100) : (cashTotalCur>0?100:0);
     const okItems = inventoryLevels.filter(i=>i.status==='ok').length;
     const inventoryScore = inventoryLevels.length ? (okItems/inventoryLevels.length*100) : 100;
-    const debtScore = curD.revenue>0 ? clamp(100 - (loanTotalOutstanding/(curD.revenue*3))*100, 0, 100) : 100;
+    // Debt Load — compared against a full year of revenue (standard debt-to-revenue benchmark)
+    // rather than just 3 months, which was unrealistically harsh for a normal business loan.
+    // A loan with no revenue behind it to service it is genuinely risky, so that case scores low
+    // rather than defaulting to a misleading 100.
+    const annualRevenueEstimate = curD.revenue * 12;
+    const debtScore = loanTotalOutstanding<=0 ? 100
+      : (annualRevenueEstimate>0 ? clamp(100 - (loanTotalOutstanding/annualRevenueEstimate)*100, 0, 100) : 20);
     const healthOverall = Math.round((profitScore+cashFlowScore+inventoryScore+debtScore)/4);
     const healthPillars = [
       {name:'Cash Flow', score:Math.round(cashFlowScore)},
