@@ -49,6 +49,15 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 .sb.collapsed .sb-logo{justify-content:center;padding:14px 0}
 .sb.collapsed .sb-a{justify-content:center;margin:1px 10px;padding:9px}
 .sb.collapsed .sb-foot{justify-content:center;padding:12px 0}
+/* Hover-to-expand: when collapsed, hovering pops the sidebar open as an overlay
+   without shifting the page content (main margin stays tied to the click-state only) */
+.sb.collapsed:hover{width:var(--sw);box-shadow:6px 0 28px rgba(0,0,0,.28);z-index:400}
+.sb.collapsed:hover .logo-txt,.sb.collapsed:hover .sb-lbl,
+.sb.collapsed:hover .sb-a span,.sb.collapsed:hover .sb-foot-txt,
+.sb.collapsed:hover .sb-logout{opacity:1;width:auto;overflow:visible;pointer-events:auto;transition:opacity .18s .08s}
+.sb.collapsed:hover .sb-logo{justify-content:flex-start;padding:15px 14px 14px}
+.sb.collapsed:hover .sb-a{justify-content:flex-start;margin:1px 10px;padding:9px 14px}
+.sb.collapsed:hover .sb-foot{justify-content:flex-start;padding:12px 14px}
 @media(max-width:1100px){
   .sb{box-shadow:4px 0 24px rgba(0,0,0,.3)}
 }
@@ -1130,9 +1139,9 @@ async function refreshDashboard(){
   try{
     const [
       pnlRows, salesRows, purchasesRows, overheadRows, pettyRows,
-      prodBatchRows, derkoshRows, invItems, allPurchaseQty, allBatchMaterials,
-      allDerkoshAllTime, allSalesAllTime, allCreditPayments, openingBalances,
-      allPurchasesCashFlow, allPettyAllTime, allPayroll, allLoanRepay,
+      prodBatchRows, derkoshRows, invItems,
+      allDerkoshAllTime, allSalesAllTime, allCreditPayments,
+      cashFlowRows, stockAlertRows,
       loanSummaryRows, customersRows, budgetRows, batchStandardRows,
       salesToday, expenseToday, pettyToday, productionToday,
       pendingApprovals, customerProfitability
@@ -1145,16 +1154,11 @@ async function refreshDashboard(){
       sbGet(`production_batches?select=*,production_batch_materials(item_id,quantity_used)&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`derkosh_batches?select=*&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`inventory_items?select=*&is_active=eq.true`),
-      sbGet(`purchases?select=item_id,quantity&type=eq.purchase&is_deleted=eq.false`),
-      sbGet(`production_batch_materials?select=item_id,quantity_used`),
       sbGet(`derkosh_batches?select=pkg_item_id,bags_used,produced_kg,date&is_deleted=eq.false`),
       sbGet(`sales?select=product_type,quantity,revenue,payment_method,customer_id,date&is_deleted=eq.false`),
-      sbGet(`credit_payments?select=amount_paid,payment_date,channel`),
-      sbGet(`channel_opening_balances?select=*`),
-      sbGet(`purchases?select=total_cost,payment_channel,type,date&is_deleted=eq.false`),
-      sbGet(`petty_cash?select=amount,date`),
-      sbGet(`payroll_detail?select=net_pay,payment_channel,payment_date,period`),
-      sbGet(`loan_repayment_schedule?select=principal_portion,interest_portion,payment_channel,actual_payment_date&status=eq.paid`),
+      sbGet(`credit_payments?select=amount_paid,payment_date`),
+      sbGet(`monthly_cash_flow?select=*&period=in.(${period},${prevP})`),
+      sbGet(`stock_alerts?select=*`),
       sbGet(`loan_summary?select=*&status=eq.active`),
       sbGet(`customers?select=id,name,type,credit_limit&is_active=eq.true`),
       sbGet(`budget_lines?select=*&period=eq.${period}`),
@@ -1189,34 +1193,26 @@ async function refreshDashboard(){
     }
     const derkoshStockCur = derkoshStockAsOf(cutoffCur), derkoshStockPrev = derkoshStockAsOf(cutoffPrev);
 
-    // ── Outstanding A/R (cumulative, as of period end) ────
+    // ── Outstanding A/R — current value from the app's own customer_profitability view (all-time, live, authoritative) ──
+    const arCur = customerProfitability.reduce((s,c)=>s+Math.max(0,num(c.outstanding_ar)),0);
+    // customer_profitability has no historical snapshot, so the "vs last month" comparison is
+    // reconstructed from date-stamped sales + collections as of last month's end.
     function arAsOf(cutoff){
       const creditSales = allSalesAllTime.filter(r=>r.payment_method==='credit' && r.date<=cutoff).reduce((s,r)=>s+num(r.revenue),0);
       const collected = allCreditPayments.filter(r=>r.payment_date<=cutoff).reduce((s,r)=>s+num(r.amount_paid),0);
       return Math.max(0, creditSales - collected);
     }
-    const arCur = arAsOf(cutoffCur), arPrev = arAsOf(cutoffPrev);
+    const arPrev = arAsOf(cutoffPrev);
 
-    // ── Cash position by channel (as of period end) ───────
-    function cashAsOf(cutoff, uptoPeriod){
+    // ── Cash position — from the schema's own monthly_cash_flow view (per channel, per period) ──
+    function cashFor(p){
+      const rows = cashFlowRows.filter(r=>r.period===p);
       const chan = {cash:0, bank:0, mobile:0};
-      openingBalances.forEach(r=>{ if(r.period <= uptoPeriod && chan[r.channel]!==undefined) chan[r.channel]+=num(r.opening_balance); });
-      allSalesAllTime.forEach(r=>{
-        if(r.date<=cutoff && r.payment_method!=='credit' && chan[r.payment_method]!==undefined) chan[r.payment_method]+=num(r.revenue);
-      });
-      allCreditPayments.forEach(r=>{ if(r.payment_date<=cutoff && chan[r.channel]!==undefined) chan[r.channel]+=num(r.amount_paid); });
-      allPurchasesCashFlow.forEach(r=>{ if(r.date<=cutoff && chan[r.payment_channel]!==undefined) chan[r.payment_channel]-=num(r.total_cost); });
-      allPettyAllTime.forEach(r=>{ if(r.date<=cutoff) chan.cash-=num(r.amount); });
-      allPayroll.forEach(r=>{
-        const d = r.payment_date;
-        const withinCutoff = d ? d<=cutoff : r.period<=uptoPeriod;
-        if(withinCutoff && chan[r.payment_channel]!==undefined) chan[r.payment_channel]-=num(r.net_pay);
-      });
-      allLoanRepay.forEach(r=>{ if(r.actual_payment_date && r.actual_payment_date<=cutoff && chan[r.payment_channel]!==undefined) chan[r.payment_channel]-=(num(r.principal_portion)+num(r.interest_portion)); });
+      rows.forEach(r=>{ if(chan[r.channel]!==undefined) chan[r.channel] = num(r.closing_balance); });
       return chan;
     }
-    const cashCur = cashAsOf(cutoffCur, period);
-    const cashPrev = cashAsOf(cutoffPrev, prevP);
+    const cashCur = cashFor(period);
+    const cashPrev = cashFor(prevP);
     const cashTotalCur = cashCur.cash + cashCur.bank + cashCur.mobile;
     const cashTotalPrev = cashPrev.cash + cashPrev.bank + cashPrev.mobile;
 
@@ -1269,16 +1265,14 @@ async function refreshDashboard(){
     const activeAccounts = new Set(salesRows.map(s=>s.customer_id)).size;
     const avgOrder = salesRows.length ? custTotal / salesRows.length : 0;
 
-    // ── Inventory levels (all-time running balance) ───────
-    const purchaseByItem = {}; allPurchaseQty.forEach(p=>{ purchaseByItem[p.item_id]=(purchaseByItem[p.item_id]||0)+num(p.quantity); });
-    const usedByItem = {}; allBatchMaterials.forEach(m=>{ usedByItem[m.item_id]=(usedByItem[m.item_id]||0)+num(m.quantity_used); });
-    const bagsUsedByItem = {}; allDerkoshAllTime.forEach(d=>{ if(d.pkg_item_id) bagsUsedByItem[d.pkg_item_id]=(bagsUsedByItem[d.pkg_item_id]||0)+num(d.bags_used); });
-    const inventoryLevels = invItems.map(item=>{
-      const qty = Math.max(0, (purchaseByItem[item.id]||0) - (usedByItem[item.id]||0) - (bagsUsedByItem[item.id]||0));
-      const reorder = num(item.reorder_level);
-      const status = reorder>0 && qty<=reorder ? 'low' : 'ok';
+    // ── Inventory levels — from the schema's own stock_alerts view (WAC-based, authoritative) ──
+    const inventoryLevels = stockAlertRows.map(a=>{
+      const item = invItems.find(i=>i.id===a.item_id);
+      const qty = num(a.closing_qty);
+      const reorder = num(a.reorder_level);
+      const status = a.low_stock ? 'low' : 'ok';
       const pct = reorder>0 ? clamp((qty/(reorder*2))*100, 2, 100) : 100;
-      return {name:item.name, qty, unit:item.unit, status, pct, id:item.id};
+      return {name:a.name, qty, unit: item?.unit || '', status, pct, id:a.item_id};
     });
     inventoryLevels.push({name:'Derkosh Stock', qty:derkoshStockCur, unit:'kg', status: derkoshStockCur>0?'ok':'low', pct: derkoshStockCur>0?70:5, id:'derkosh'});
 
@@ -1805,56 +1799,64 @@ function pdfHeader(d, pageTitle){
       </div>
     </div>`;
 }
-function pdfFooter(pageNum, totalPages){
+function pdfFooter(d){
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e3ece7;display:flex;justify-content:space-between;font-size:9.5px;color:#94a89f;flex-shrink:0">
-    <span>Mena Injera &amp; Derkosh Business Management System · Confidential</span>
-    <span>Page ${pageNum} of ${totalPages}</span>
+    <span>Mena Injera &amp; Derkosh Business Management System · Confidential — for internal use only</span>
+    <span>${d.preparedBy ? `Prepared by ${d.preparedBy}${d.preparedRole?' · '+d.preparedRole:''}` : ''}</span>
   </div>`;
 }
 
 // ── Dedicated high-resolution charts for print (not the small on-screen canvases) ──
-function renderExportCharts(){
+// Sourced from the SAME live series feeding the on-screen chart + real expense legend data
+// scraped from the DOM (which is itself populated from Supabase) — nothing hardcoded.
+function renderExportCharts(d){
   const holder = document.createElement('div');
   Object.assign(holder.style,{position:'fixed',left:'-99999px',top:'0'});
   document.body.appendChild(holder);
 
+  const rangeSel = document.getElementById('rangeSel')?.value || '6';
+  const n = rangeSel === 'ytd' ? fullLabels.length : (parseInt(rangeSel,10) || 6);
+  const labels = fullLabels.slice(-n), rev = fullRevenue.slice(-n), prof = fullProfit.slice(-n);
+
+  // Sized 2.35:1 to match the wide card it will sit in — object-fit:contain
+  // on the <img> keeps it from ever stretching regardless of card size.
   const revCanvas = document.createElement('canvas');
-  revCanvas.width = 1800; revCanvas.height = 744;
+  revCanvas.width = 1410; revCanvas.height = 600;
   holder.appendChild(revCanvas);
   const revChart = new Chart(revCanvas.getContext('2d'), {
     type:'line',
     data:{
-      labels: fullLabels.slice(-6),
+      labels,
       datasets:[
-        {label:'Revenue (ETB)', data:fullRevenue.slice(-6), borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,.12)', borderWidth:5, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:7, fill:true, tension:.35,
-          datalabels:{align:'top',anchor:'end',offset:10,color:'#16261e',font:{family:'Nunito',size:19,weight:'700'},formatter:v=>v.toLocaleString()}},
-        {label:'Net Profit (ETB)', data:fullProfit.slice(-6), borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.16)', borderWidth:5, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:7, fill:true, tension:.35,
-          datalabels:{align:'bottom',anchor:'start',offset:10,color:'#9a7b0a',font:{family:'Nunito',size:19,weight:'700'},formatter:v=>v.toLocaleString()}}
+        {label:'Revenue (ETB)', data:rev, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,.1)', borderWidth:4, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:2.5, pointRadius:6, fill:true, tension:.35,
+          datalabels:{align:'top',anchor:'end',offset:8,color:'#16261e',font:{family:'Nunito',size:16,weight:'700'},formatter:v=>v.toLocaleString()}},
+        {label:'Net Profit (ETB)', data:prof, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.14)', borderWidth:4, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:2.5, pointRadius:6, fill:true, tension:.35,
+          datalabels:{align:'bottom',anchor:'start',offset:8,color:'#9a7b0a',font:{family:'Nunito',size:16,weight:'700'},formatter:v=>v.toLocaleString()}}
       ]
     },
     options:{
       responsive:false, animation:false,
-      layout:{padding:{top:36,right:24,bottom:6,left:6}},
-      plugins:{
-        legend:{display:true, position:'top', align:'end', labels:{font:{family:'Nunito',size:20,weight:'700'},color:'#16261e',boxWidth:18,boxHeight:18,padding:22,usePointStyle:true,pointStyle:'circle'}}
-      },
+      layout:{padding:{top:30,right:18,bottom:4,left:4}},
+      plugins:{legend:{display:false}},
       scales:{
-        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:19,weight:'600'},color:'#5e7268'}},
-        y:{grid:{color:'#eef3f0',lineWidth:2},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:17},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:15,weight:'600'},color:'#5e7268'}},
+        y:{grid:{color:'#eef3f0',lineWidth:2},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:14},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
       }
     }
   });
   const revImg = revCanvas.toDataURL('image/png',1);
   revChart.destroy();
 
+  const expLabels = d.expenses.map(e=>e.name);
+  const expValues = d.expenses.map(e=>parseFloat(String(e.value).replace(/,/g,'')) || 0);
+  const expColors = d.expenses.map(e=>e.color || '#94a3b8');
   const expCanvas = document.createElement('canvas');
-  expCanvas.width = 740; expCanvas.height = 740;
+  expCanvas.width = 560; expCanvas.height = 560;
   holder.appendChild(expCanvas);
   const expChart = new Chart(expCanvas.getContext('2d'), {
     type:'doughnut',
-    data:{labels:['Raw Materials','Labor','Rent','Utilities','Delivery','Other'],
-      datasets:[{data:[46250,15600,8000,6150,4200,8642],backgroundColor:['#27ae60','#3b82f6','#8b5cf6','#06b6d4','#f59e0b','#94a3b8'],borderWidth:5,borderColor:'#fff'}]},
-    options:{responsive:false,cutout:'62%',animation:false,plugins:{legend:{display:false},datalabels:{display:false}}}
+    data:{labels:expLabels, datasets:[{data:expValues, backgroundColor:expColors, borderWidth:4, borderColor:'#fff'}]},
+    options:{responsive:false,cutout:'64%',animation:false,plugins:{legend:{display:false},datalabels:{display:false}}}
   });
   const expImg = expCanvas.toDataURL('image/png',1);
   expChart.destroy();
@@ -1863,108 +1865,88 @@ function renderExportCharts(){
   return { revImg, expImg };
 }
 
-function buildPdfPage1(d, charts){
+function buildPdfPage(d, charts){
   const el = pdfPageWrap();
-  el.innerHTML = pdfHeader(d, 'Monthly Business Summary') + `
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px;flex-shrink:0">
+
+  const custTable = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9px;text-align:left"><th style="padding:3px 0">Customer</th><th style="text-align:right">Revenue</th><th style="text-align:right">%</th></tr></thead>
+      <tbody>${d.topCustomers.map(c=>`<tr style="${c.isTotal?'font-weight:800;border-top:2px solid #e3ece7':'border-top:1px solid #f2f6f4'}"><td style="padding:4px 0">${c.name}</td><td style="text-align:right">${c.revenue}</td><td style="text-align:right;color:#5e7268">${c.pct}</td></tr>`).join('')}</tbody>
+    </table>`;
+
+  const invTable = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9px;text-align:left"><th style="padding:3px 0">Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Status</th></tr></thead>
+      <tbody>${d.inventory.map(i=>`<tr style="border-top:1px solid #f2f6f4"><td style="padding:4px 0;font-weight:600">${i.name}</td><td style="text-align:right;color:#5e7268">${i.qty}</td><td style="text-align:right">${pdfStatusChip(i.status)}</td></tr>`).join('')}</tbody>
+    </table>`;
+
+  const cashLoans = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      <div>${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding:5px 0;margin-bottom:6px;border-top:1px solid #e3ece7;border-bottom:1px solid #e3ece7">Total Cash<span>${d.cashTotal}</span></div>
+      <div style="flex:1">${d.loans.map(l=>`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px solid #f2f6f4">
+          <div><div style="font-weight:700;font-size:11px">${l.name}</div><div style="font-size:9.5px;color:#94a89f">${l.due}</div></div>
+          <div style="text-align:right;font-size:10.5px;color:#5e7268">${l.remaining}</div>
+        </div>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding-top:5px;border-top:1px solid #e3ece7">Total Outstanding<span>${d.loanTotal}</span></div>
+    </div>`;
+
+  const mfgContent = `
+    ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid #f2f6f4"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}`;
+
+  const budgetContent = `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${d.budgets.map(b=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f7fbf9;border-radius:8px">
+          <span style="font-weight:700;font-size:11px">${b.name}</span>
+          ${pdfStatusChip(b.status)}
+        </div>`).join('')}
+    </div>`;
+
+  const healthContent = `
+    <div style="display:flex;align-items:center;gap:20px;height:100%">
+      <div style="text-align:center;flex-shrink:0;padding-right:16px;border-right:1px solid #e3ece7">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:32px;color:#1e6240;line-height:1">${d.health.score}</div>
+        <div style="font-size:10.5px;color:#94a89f;font-weight:700">out of 100</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        ${d.health.pillars.map(p=>`<div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#5e7268;font-weight:600">${p.name}</span><span style="font-weight:800">${p.score}</span></div>`).join('')}
+      </div>
+    </div>`;
+
+  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary') + `
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px;flex-shrink:0">
       ${d.kpis.map(k=>`
-        <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:12px;padding:14px;aspect-ratio:1/0.72;display:flex;flex-direction:column;justify-content:space-between">
-          <div style="font-size:10.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.3px">${k.label}</div>
+        <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
+          <div style="font-size:9.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.3px">${k.label}</div>
           <div>
-            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:19px;color:#16261e;line-height:1.15">${fmtNum(k.value)}</div>
-            <div style="font-size:10px;color:#5e7268;font-weight:600">${k.unit}</div>
+            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:17px;color:#16261e;line-height:1.15">${fmtNum(k.value)} <span style="font-size:9.5px;font-weight:600;color:#5e7268">${k.unit}</span></div>
           </div>
-          <div style="font-size:10.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':'#c0392b'}">${k.change}</div>
+          <div style="font-size:9.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':k.change.includes('▼')?'#c0392b':'#94a89f'}">${k.change}</div>
         </div>`).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;flex:1;min-height:0">
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;flex:1.15;min-height:0">
       ${pdfCard('Revenue Overview', `<img src="${charts.revImg}" style="width:100%;height:100%;object-fit:contain">`)}
-      ${pdfCard('Expense Breakdown', `
-        <div style="display:flex;align-items:center;gap:16px;height:100%">
-          <img src="${charts.expImg}" style="width:130px;height:130px;flex-shrink:0">
-          <div style="flex:1;display:flex;flex-direction:column;gap:7px">
-            <div style="font-size:11.5px;color:#5e7268;font-weight:700;margin-bottom:2px">Total: ${d.expenseTotal.replace(/\s+/g,' ')}</div>
-            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:8px;font-size:11.5px"><span style="width:10px;height:10px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:800;width:40px;text-align:right">${e.pct}</span></div>`).join('')}
+      ${pdfCard(`Expense Breakdown — Total ${d.expenseTotal.replace(/\s+/g,' ')}`, `
+        <div style="display:flex;align-items:center;gap:14px;height:100%">
+          <img src="${charts.expImg}" style="width:104px;height:104px;flex-shrink:0">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:11px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:800;width:36px;text-align:right">${e.pct}</span></div>`).join('')}
           </div>
         </div>`)}
     </div>
-  ` + pdfFooter(1,3);
-  return el;
-}
-
-function buildPdfPage2(d){
-  const el = pdfPageWrap();
-  const custTable = `
-    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
-      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9.5px;text-align:left"><th style="padding:4px 0">Customer</th><th style="text-align:right">Revenue</th><th style="text-align:right">%</th></tr></thead>
-      <tbody>${d.topCustomers.map(c=>`<tr style="${c.isTotal?'font-weight:800;border-top:2px solid #e3ece7':'border-top:1px solid #f2f6f4'}"><td style="padding:5px 0">${c.name}</td><td style="text-align:right">${c.revenue}</td><td style="text-align:right;color:#5e7268">${c.pct}</td></tr>`).join('')}</tbody>
-    </table>`;
-  const invTable = `
-    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
-      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9.5px;text-align:left"><th style="padding:4px 0">Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Status</th></tr></thead>
-      <tbody>${d.inventory.map(i=>`<tr style="border-top:1px solid #f2f6f4"><td style="padding:5px 0;font-weight:600">${i.name}</td><td style="text-align:right;color:#5e7268">${i.qty}</td><td style="text-align:right">${pdfStatusChip(i.status)}</td></tr>`).join('')}</tbody>
-    </table>`;
-  el.innerHTML = pdfHeader(d, 'Customers, Inventory &amp; Cash') + `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;flex:1;min-height:0">
       ${pdfCard('Top Customers', custTable)}
       ${pdfCard('Inventory Status', invTable)}
+      ${pdfCard('Cash &amp; Loans', cashLoans)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0">
-      ${pdfCard('Cash Position', `
-        <div style="display:flex;flex-direction:column;justify-content:space-between;height:100%">
-          <div>${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}</div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding-top:6px;border-top:1px solid #e3ece7">Total Cash<span>${d.cashTotal}</span></div>
-        </div>`)}
-      ${pdfCard('Active Loans', `
-        <div style="display:flex;flex-direction:column;justify-content:space-between;height:100%">
-          <div>${d.loans.map(l=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f2f6f4">
-              <div><div style="font-weight:700;font-size:12px">${l.name}</div><div style="font-size:10px;color:#94a89f">${l.type} · ${l.due}</div></div>
-              <div style="text-align:right"><div style="font-weight:800;font-size:12px">${l.remaining}</div><div style="font-size:10px;color:#94a89f">${l.paid}</div></div>
-            </div>`).join('')}</div>
-          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding-top:6px;border-top:1px solid #e3ece7">Total Outstanding<span>${d.loanTotal}</span></div>
-        </div>`)}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:12px;flex:.85;min-height:0">
+      ${pdfCard(`Manufacturing — ${d.mfgEfficiency} efficiency`, mfgContent)}
+      ${pdfCard('Budget vs Actual', budgetContent)}
+      ${pdfCard('Business Health', healthContent)}
     </div>
-  ` + pdfFooter(2,3);
-  return el;
-}
-
-function buildPdfPage3(d){
-  const el = pdfPageWrap();
-  el.innerHTML = pdfHeader(d, 'Production, Budget &amp; Business Health') + `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:14px;flex:1;min-height:0;margin-bottom:14px">
-      ${pdfCard('Manufacturing', `
-        <div style="font-size:11px;color:#5e7268;font-weight:700;margin-bottom:8px">Efficiency: ${d.mfgEfficiency}</div>
-        ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}`)}
-      ${pdfCard('Sales by Customer Type', d.customerTypes.map(c=>`
-        <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span>${c.name}</span><span style="font-weight:700">${c.pct}</span></div>`).join(''))}
-      ${pdfCard('Budget vs Actual', `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          ${d.budgets.map(b=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#f7fbf9;border-radius:8px">
-              <div><div style="font-weight:700;font-size:11.5px">${b.name}</div><div style="font-size:9.5px;color:#94a89f">${b.spent}</div></div>
-              ${pdfStatusChip(b.status)}
-            </div>`).join('')}
-        </div>`)}
-    </div>
-    <div style="flex:1;min-height:0">
-      ${pdfCard('Business Health', `
-        <div style="display:flex;align-items:center;gap:32px;height:100%">
-          <div style="text-align:center;flex-shrink:0;padding:0 16px;border-right:1px solid #e3ece7">
-            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:38px;color:#1e6240;line-height:1">${d.health.score}</div>
-            <div style="font-size:12px;color:#94a89f;font-weight:700">out of 100</div>
-          </div>
-          <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
-            ${d.health.pillars.map(p=>`
-              <div>
-                <div style="font-size:11.5px;color:#5e7268;font-weight:700;margin-bottom:6px">${p.name}</div>
-                <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:22px;color:#16261e">${p.score}</div>
-                <div style="height:6px;background:#eef3f0;border-radius:4px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:linear-gradient(90deg,#1e6240,#34c97a);border-radius:4px"></div></div>
-              </div>`).join('')}
-          </div>
-        </div>`, 'height:100%')}
-    </div>
-  ` + pdfFooter(3,3);
+  ` + pdfFooter(d);
   return el;
 }
 
@@ -1988,26 +1970,23 @@ async function exportPDF(){
   const loading = document.getElementById('exportLoading');
   const loadingText = document.getElementById('exportLoadingText');
   loading.classList.add('show');
+  loadingText.textContent = 'Building your PDF report…';
 
   try{
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const data = getDashboardData();
-    const charts = renderExportCharts();
+    const charts = renderExportCharts(data);
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const pages = [buildPdfPage1(data, charts), buildPdfPage2(data), buildPdfPage3(data)];
 
-    for (let i = 0; i < pages.length; i++){
-      loadingText.textContent = `Building PDF page ${i+1} of ${pages.length}…`;
-      const canvas = await renderPdfPage(pages[i]);
-      const imgData = canvas.toDataURL('image/png');
-      if (i > 0) pdf.addPage();
-      // canvas is built at the exact A4 aspect ratio, so this fills the page edge-to-edge with no distortion
-      pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
-    }
+    const page = buildPdfPage(data, charts);
+    const canvas = await renderPdfPage(page);
+    const imgData = canvas.toDataURL('image/png');
+    // canvas is built at the exact A4 aspect ratio, so this fills the page edge-to-edge with no distortion
+    pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
 
     pdf.save(`Mena-Injera-Dashboard-${data.period.replace(/\s+/g,'-')}.pdf`);
   }catch(err){
