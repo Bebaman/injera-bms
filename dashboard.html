@@ -844,22 +844,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
             <div class="ai-panel-body" id="aiPanelBody">
               <div class="ai-panel-inner">
                 <div class="ai-asking" id="aiAsking"><div class="ai-dots"><span></span><span></span><span></span></div>Analyzing your business data…</div>
-                <div class="ai-insights" id="aiInsights" style="display:none">
-                  <div class="ai-insight positive" style="animation-delay:.05s"><div class="ai-insight-emoji">✅</div><div class="ai-insight-text"><strong>Revenue up 12.5% month-on-month.</strong> Strong growth driven by Addis Hotel and Bole Restaurant increasing order volume. May 2026 is your best month in 6 months.</div></div>
-                  <div class="ai-insight positive" style="animation-delay:.1s"><div class="ai-insight-emoji">📈</div><div class="ai-insight-text"><strong>Net profit margin improved to 16.1%</strong>, up from 14.5% in April. Revenue grew faster than costs — your pricing or efficiency changes are paying off.</div></div>
-                  <div class="ai-insight positive" style="animation-delay:.15s"><div class="ai-insight-emoji">🍞</div><div class="ai-insight-text"><strong>Production efficiency is at 87%.</strong> 14,800 injera baked from 312 kg of flour — roughly 47 pcs/kg, consistent with your best batches. 18 batches completed this month.</div></div>
-                  <div class="ai-insight positive" style="animation-delay:.2s"><div class="ai-insight-emoji">🏪</div><div class="ai-insight-text"><strong>Well-diversified customer mix.</strong> Hotels at 38%, Restaurants at 29%, Wholesale at 22%, Retail at 11% — no single customer type controls more than 40%, which is healthy risk distribution.</div></div>
-                  <div class="ai-insight positive" style="animation-delay:.25s"><div class="ai-insight-emoji">🫓</div><div class="ai-insight-text"><strong>Derkosh production is up 5.6% vs April</strong> at 412 kg. Converting surplus injera into derkosh is adding significant value — consider tracking derkosh margin vs fresh injera margin to see which earns more per ETB of teff used.</div></div>
-                  <div class="ai-insight warning" style="animation-delay:.3s"><div class="ai-insight-emoji">📦</div><div class="ai-insight-text"><strong>Gomen Zere stock is critically low at 2.50 kg.</strong> At current usage rates you could run out within 2–3 days. Order immediately to avoid halting production.</div></div>
-                  <div class="ai-insight warning" style="animation-delay:.35s"><div class="ai-insight-emoji">💸</div><div class="ai-insight-text"><strong>Utilities and Labor are over budget.</strong> Utilities at 123% (1,150 ETB over) and Labor at 104% (600 ETB over). Combined 1,750 ETB unplanned spend — review shift scheduling and electricity usage before month-end.</div></div>
-                  <div class="ai-insight warning" style="animation-delay:.4s"><div class="ai-insight-emoji">💳</div><div class="ai-insight-text"><strong>Outstanding receivables are at 19,712 ETB.</strong> Addis Hotel is at 85% of their credit limit. Consider a payment reminder before extending more credit — they represent 29.6% of your monthly revenue so collection risk is real.</div></div>
-                  <div class="ai-insight warning" style="animation-delay:.45s"><div class="ai-insight-emoji">💰</div><div class="ai-insight-text"><strong>Cash is split unevenly across channels.</strong> Bank (29,874 ETB) and Cash on Hand (28,140 ETB) are roughly equal, but Mobile Money has only 5,200 ETB. If daily purchases rely on cash, consider moving funds from the bank to avoid a daily cash crunch.</div></div>
-                  <div class="ai-insight neutral" style="animation-delay:.5s"><div class="ai-insight-emoji">🏦</div><div class="ai-insight-text"><strong>2 active loans totalling 19,250 ETB outstanding</strong> — about 17.5% of this month's revenue. Dashen Bank payment is due in 7 days (12,450 ETB). Ensure that amount is liquid and not tied up in receivables.</div></div>
-                  <div class="ai-insight neutral" style="animation-delay:.55s"><div class="ai-insight-emoji">🎯</div><div class="ai-insight-text"><strong>Raw Materials budget well-managed at 92%</strong>, with 3,750 ETB remaining. This is your largest cost category at 52% of total expenses — maintaining this discipline is the single biggest lever for protecting your margins.</div></div>
-                  <div class="ai-insight neutral" style="animation-delay:.6s"><div class="ai-insight-emoji">📊</div><div class="ai-insight-text"><strong>Revenue trend is consistently upward for 4 of the last 6 months.</strong> The dip in April (97,465 vs March's 100,221) was temporary — May recovered strongly at 109,711. The 6-month trajectory is positive.</div></div>
-                  <div class="ai-insight neutral" style="animation-delay:.65s"><div class="ai-insight-emoji">🔑</div><div class="ai-insight-text"><strong>Top 5 customers account for 78.5% of revenue</strong> (86,150 of 109,711 ETB). While this shows strong relationships, it also means losing even one major account could significantly impact monthly revenue. Consider nurturing a 6th and 7th large account.</div></div>
-                  <div class="ai-insight positive" style="animation-delay:.7s"><div class="ai-insight-emoji">💪</div><div class="ai-insight-text"><strong>Overall Business Health score is 82/100 — Strong.</strong> Cash flow (88), debt management (90), and profitability (81) are all healthy. Inventory (64) is the one area to watch, driven primarily by the Gomen Zere shortage.</div></div>
-                </div>
+                <div class="ai-insights" id="aiInsights" style="display:none"></div>
                 <div class="ai-refresh" id="aiRefreshRow" style="display:none">
                   <button class="ai-refresh-btn" id="aiRefreshBtn" onclick="refreshAI()">
                     <span class="ai-refresh-ico"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></span> Refresh insights
@@ -1362,6 +1347,7 @@ async function refreshDashboard(){
     await renderRevenueChart(period);
     renderSecondaryPanels();
     document.getElementById('healthLbl').textContent = healthLabel;
+    if(aiLoaded) renderAIInsights(); // keep Business Intelligence panel in sync when period changes
   }catch(err){
     console.error('Dashboard load failed', err);
     const kpiRow = document.getElementById('kpiRow');
@@ -1628,17 +1614,149 @@ function animateHealthRing(score){
   arc.style.strokeDashoffset=offset;
 }
 
-// ── Business AI ──────────────────────────────────────────
+// ── Business AI (real insights generated from live LAST data) ────
 let aiLoaded=false;
 function toggleAI(){
   const body=document.getElementById('aiPanelBody');
   const btn=document.getElementById('aiToggleBtn');
   const isOpen=body.classList.toggle('open');
   btn.classList.toggle('open',isOpen);
-  if(isOpen&&!aiLoaded)setTimeout(loadAIInsights,700);
+  if(isOpen&&!aiLoaded)setTimeout(loadAIInsights,500);
 }
+
+// Builds a list of insight objects {type, emoji, html} purely from LAST — the same
+// live payload feeding the KPIs, health score, inventory and every other panel on
+// this dashboard. Nothing here is hardcoded or mock; if LAST is empty, no insights render.
+function buildAIInsights(){
+  const d = LAST;
+  const insights = [];
+  if(!d) return insights;
+  const prevLabel = periodToLabel(prevPeriodGlobal);
+
+  // Revenue trend
+  if(d.prevD.revenue>0){
+    const chg = ((d.curD.revenue-d.prevD.revenue)/d.prevD.revenue)*100;
+    if(chg>=0){
+      insights.push({type:'positive', emoji:'✅', html:`<strong>Revenue up ${chg.toFixed(1)}% vs ${prevLabel}.</strong> ${fmtInt(d.curD.revenue)} ETB this period compared to ${fmtInt(d.prevD.revenue)} ETB last period.`});
+    }else{
+      insights.push({type:'critical', emoji:'📉', html:`<strong>Revenue down ${Math.abs(chg).toFixed(1)}% vs ${prevLabel}.</strong> ${fmtInt(d.curD.revenue)} ETB this period compared to ${fmtInt(d.prevD.revenue)} ETB last period — worth reviewing what changed.`});
+    }
+  }else if(d.curD.revenue>0){
+    insights.push({type:'neutral', emoji:'📊', html:`<strong>${fmtInt(d.curD.revenue)} ETB recorded in revenue</strong> this period. No prior-period data yet to compare growth.`});
+  }
+
+  // Net margin
+  if(d.curD.revenue>0){
+    const curMargin = d.curD.netProfit/d.curD.revenue*100;
+    if(d.prevD.revenue>0){
+      const prevMargin = d.prevD.netProfit/d.prevD.revenue*100;
+      const dir = curMargin>=prevMargin ? 'improved' : 'slipped';
+      insights.push({type: curMargin>=prevMargin?'positive':'warning', emoji: curMargin>=prevMargin?'📈':'⚠️', html:`<strong>Net profit margin ${dir} to ${curMargin.toFixed(1)}%</strong>, from ${prevMargin.toFixed(1)}% last period.`});
+    }else{
+      insights.push({type: curMargin>=0?'neutral':'critical', emoji:'📈', html:`<strong>Net profit margin is ${curMargin.toFixed(1)}%</strong> this period.`});
+    }
+  }
+
+  // Production efficiency
+  if(d.batchesCompleted>0){
+    const type = d.mfgEfficiency>=80?'positive':d.mfgEfficiency>=60?'neutral':'warning';
+    insights.push({type, emoji:'🍞', html:`<strong>Production efficiency is at ${d.mfgEfficiency}%.</strong> ${fmtInt(d.injeraBaked)} injera baked from ${fmtInt(d.flourUsed)} kg of flour across ${d.batchesCompleted} batch${d.batchesCompleted===1?'':'es'} this period.`});
+  }
+
+  // Customer mix diversification
+  if(d.typeEntries.length){
+    const top = d.typeEntries[0];
+    const topPct = top.pct;
+    const label = d.TYPE_LABELS[top.type] || top.type;
+    const mixStr = d.typeEntries.map(t=>`${d.TYPE_LABELS[t.type]||t.type} ${t.pct.toFixed(0)}%`).join(', ');
+    if(topPct<45){
+      insights.push({type:'positive', emoji:'🏪', html:`<strong>Well-diversified customer mix.</strong> ${mixStr} — no single customer type controls more than ${Math.ceil(topPct/5)*5}%, which is healthy risk distribution.`});
+    }else{
+      insights.push({type:'warning', emoji:'🏪', html:`<strong>${label} makes up ${topPct.toFixed(0)}% of revenue.</strong> ${mixStr} — this segment carries a large share of your income, so a slowdown there would hit hard.`});
+    }
+  }
+
+  // Derkosh stock trend
+  if(d.derkoshStockPrev>0 || d.derkoshStockCur>0){
+    if(d.derkoshStockPrev>0){
+      const chg = ((d.derkoshStockCur-d.derkoshStockPrev)/d.derkoshStockPrev)*100;
+      insights.push({type:'neutral', emoji:'🫓', html:`<strong>Derkosh stock is ${fmtInt(d.derkoshStockCur)} kg</strong>, ${chg>=0?'up':'down'} ${Math.abs(chg).toFixed(1)}% vs ${prevLabel}.`});
+    }
+  }
+
+  // Low stock items — one insight per critical item (matches Inventory Status panel)
+  d.inventoryLevels.filter(i=>i.status==='low').forEach(i=>{
+    insights.push({type:'critical', emoji:'📦', html:`<strong>${i.name} stock is low at ${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit}.</strong> Reorder soon to avoid interrupting production.`});
+  });
+  if(d.inventoryLevels.length && !d.inventoryLevels.some(i=>i.status==='low')){
+    insights.push({type:'positive', emoji:'📦', html:`<strong>All ${d.inventoryLevels.length} tracked inventory items are above reorder level.</strong> No stock action needed right now.`});
+  }
+
+  // Budget over/near limit
+  const overBudgets = d.budgetTiles.filter(b=>b.status==='over');
+  const warnBudgets = d.budgetTiles.filter(b=>b.status==='warn');
+  if(overBudgets.length){
+    const totalOver = overBudgets.reduce((s,b)=>s+Math.abs(b.diff),0);
+    insights.push({type:'critical', emoji:'💸', html:`<strong>${overBudgets.map(b=>b.name).join(', ')} ${overBudgets.length===1?'is':'are'} over budget.</strong> Combined ${fmtInt(totalOver)} ETB unplanned spend this period.`});
+  }else if(warnBudgets.length){
+    insights.push({type:'warning', emoji:'💸', html:`<strong>${warnBudgets.map(b=>b.name).join(', ')} ${warnBudgets.length===1?'is':'are'} near budget limit.</strong> Worth watching before month-end.`});
+  }else if(d.budgetTiles.length){
+    const largest = [...d.budgetTiles].sort((a,b)=>b.spent-a.spent)[0];
+    if(largest) insights.push({type:'neutral', emoji:'🎯', html:`<strong>${largest.name} is your largest tracked cost line at ${fmtInt(largest.spent)} ETB</strong>, and is currently on track against budget.`});
+  }
+
+  // Outstanding receivables / credit limit risk
+  if(d.arCur>0){
+    const arPctRev = d.curD.revenue>0 ? (d.arCur/d.curD.revenue*100) : 0;
+    insights.push({type: arPctRev>25?'warning':'neutral', emoji:'💳', html:`<strong>Outstanding receivables are at ${fmtInt(d.arCur)} ETB</strong>${d.curD.revenue>0?` — about ${arPctRev.toFixed(1)}% of this period's revenue.`:'.'}`});
+  }
+
+  // Cash channel imbalance
+  const cashVals = [d.cashCur.cash, d.cashCur.bank, d.cashCur.mobile];
+  if(d.cashTotalCur>0){
+    const minCh = Math.min(...cashVals), maxCh = Math.max(...cashVals);
+    if(maxCh>0 && minCh/maxCh<0.15){
+      insights.push({type:'warning', emoji:'💰', html:`<strong>Cash is split unevenly across channels.</strong> Cash on Hand ${fmtInt(d.cashCur.cash)}, Bank ${fmtInt(d.cashCur.bank)}, Mobile Money ${fmtInt(d.cashCur.mobile)} ETB — consider rebalancing if one channel funds daily operations.`});
+    }
+  }
+
+  // Loans due soon
+  const dueSoon = d.loanSummaryRows.filter(l=>{
+    if(!l.next_payment_due) return false;
+    const days = Math.round((new Date(l.next_payment_due)-new Date())/86400000);
+    return days<=10 && days>=0;
+  });
+  if(dueSoon.length){
+    insights.push({type:'warning', emoji:'🏦', html:`<strong>${dueSoon.length} loan payment${dueSoon.length===1?'':'s'} due within 10 days.</strong> Total outstanding across all active loans is ${fmtInt(d.loanTotalOutstanding)} ETB.`});
+  }else if(d.loanSummaryRows.length){
+    insights.push({type:'neutral', emoji:'🏦', html:`<strong>${d.loanSummaryRows.length} active loan${d.loanSummaryRows.length===1?'':'s'} totalling ${fmtInt(d.loanTotalOutstanding)} ETB outstanding.</strong> No payments due in the next 10 days.`});
+  }
+
+  // Top customer concentration
+  if(d.top5.length && d.custTotal>0){
+    const top5Pct = d.top5Total/d.custTotal*100;
+    insights.push({type: top5Pct>70?'warning':'neutral', emoji:'🔑', html:`<strong>Top ${d.top5.length} customer${d.top5.length===1?'':'s'} account for ${top5Pct.toFixed(1)}% of revenue</strong> (${fmtInt(d.top5Total)} of ${fmtInt(d.custTotal)} ETB).${top5Pct>70?' Losing even one major account could significantly impact monthly revenue.':''}`});
+  }
+
+  // Overall Business Health summary
+  insights.push({type: d.healthOverall>=80?'positive':d.healthOverall>=60?'neutral':'critical', emoji:'💪', html:`<strong>Overall Business Health score is ${d.healthOverall}/100 — ${d.healthLabel}.</strong> ${d.healthPillars.map(p=>`${p.name} (${p.score})`).join(', ')}.`});
+
+  return insights;
+}
+
+function renderAIInsights(){
+  const wrap = document.getElementById('aiInsights');
+  const list = buildAIInsights();
+  if(!list.length){
+    wrap.innerHTML = `<div class="ai-insight neutral"><div class="ai-insight-emoji">ℹ️</div><div class="ai-insight-text">Not enough live data yet this period to generate insights. Add sales, purchases, or production entries and refresh.</div></div>`;
+  }else{
+    wrap.innerHTML = list.map((ins,i)=>`<div class="ai-insight ${ins.type}" style="animation-delay:${(i*0.05).toFixed(2)}s"><div class="ai-insight-emoji">${ins.emoji}</div><div class="ai-insight-text">${ins.html}</div></div>`).join('');
+  }
+}
+
 function loadAIInsights(){
   document.getElementById('aiAsking').style.display='none';
+  renderAIInsights();
   document.getElementById('aiInsights').style.display='flex';
   document.getElementById('aiRefreshRow').style.display='flex';
   aiLoaded=true;
@@ -1650,7 +1768,7 @@ function refreshAI(){
   document.getElementById('aiAsking').style.display='flex';
   document.getElementById('aiRefreshRow').style.display='none';
   aiLoaded=false;
-  setTimeout(()=>{btn.classList.remove('spinning');loadAIInsights();},900);
+  setTimeout(()=>{btn.classList.remove('spinning');loadAIInsights();},600);
 }
 
 // ── Kick off initial load ────────────────────────────────
@@ -1865,7 +1983,7 @@ function renderExportCharts(d){
   return { revImg, expImg };
 }
 
-function buildPdfPage(d, charts){
+function buildPdfPage1(d, charts){
   const el = pdfPageWrap();
 
   const custTable = `
@@ -1880,42 +1998,7 @@ function buildPdfPage(d, charts){
       <tbody>${d.inventory.map(i=>`<tr style="border-top:1px solid #f2f6f4"><td style="padding:4px 0;font-weight:600">${i.name}</td><td style="text-align:right;color:#5e7268">${i.qty}</td><td style="text-align:right">${pdfStatusChip(i.status)}</td></tr>`).join('')}</tbody>
     </table>`;
 
-  const cashLoans = `
-    <div style="display:flex;flex-direction:column;height:100%">
-      <div>${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}</div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding:5px 0;margin-bottom:6px;border-top:1px solid #e3ece7;border-bottom:1px solid #e3ece7">Total Cash<span>${d.cashTotal}</span></div>
-      <div style="flex:1">${d.loans.map(l=>`
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px solid #f2f6f4">
-          <div><div style="font-weight:700;font-size:11px">${l.name}</div><div style="font-size:9.5px;color:#94a89f">${l.due}</div></div>
-          <div style="text-align:right;font-size:10.5px;color:#5e7268">${l.remaining}</div>
-        </div>`).join('')}</div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding-top:5px;border-top:1px solid #e3ece7">Total Outstanding<span>${d.loanTotal}</span></div>
-    </div>`;
-
-  const mfgContent = `
-    ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid #f2f6f4"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}`;
-
-  const budgetContent = `
-    <div style="display:flex;flex-direction:column;gap:6px">
-      ${d.budgets.map(b=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f7fbf9;border-radius:8px">
-          <span style="font-weight:700;font-size:11px">${b.name}</span>
-          ${pdfStatusChip(b.status)}
-        </div>`).join('')}
-    </div>`;
-
-  const healthContent = `
-    <div style="display:flex;align-items:center;gap:20px;height:100%">
-      <div style="text-align:center;flex-shrink:0;padding-right:16px;border-right:1px solid #e3ece7">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:32px;color:#1e6240;line-height:1">${d.health.score}</div>
-        <div style="font-size:10.5px;color:#94a89f;font-weight:700">out of 100</div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-        ${d.health.pillars.map(p=>`<div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#5e7268;font-weight:600">${p.name}</span><span style="font-weight:800">${p.score}</span></div>`).join('')}
-      </div>
-    </div>`;
-
-  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary') + `
+  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 1 of 2') + `
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px;flex-shrink:0">
       ${d.kpis.map(k=>`
         <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
@@ -1926,25 +2009,84 @@ function buildPdfPage(d, charts){
           <div style="font-size:9.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':k.change.includes('▼')?'#c0392b':'#94a89f'}">${k.change}</div>
         </div>`).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;flex:1.15;min-height:0">
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;flex:1.3;min-height:0">
       ${pdfCard('Revenue Overview', `<img src="${charts.revImg}" style="width:100%;height:100%;object-fit:contain">`)}
       ${pdfCard(`Expense Breakdown — Total ${d.expenseTotal.replace(/\s+/g,' ')}`, `
         <div style="display:flex;align-items:center;gap:14px;height:100%">
-          <img src="${charts.expImg}" style="width:104px;height:104px;flex-shrink:0">
-          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:11px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:800;width:36px;text-align:right">${e.pct}</span></div>`).join('')}
+          <img src="${charts.expImg}" style="width:120px;height:120px;flex-shrink:0">
+          <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:600">${e.value}</span><span style="color:#16261e;font-weight:800;width:40px;text-align:right">${e.pct}</span></div>`).join('')}
           </div>
         </div>`)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;flex:1;min-height:0">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1.15;min-height:0">
       ${pdfCard('Top Customers', custTable)}
       ${pdfCard('Inventory Status', invTable)}
-      ${pdfCard('Cash &amp; Loans', cashLoans)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:12px;flex:.85;min-height:0">
-      ${pdfCard(`Manufacturing — ${d.mfgEfficiency} efficiency`, mfgContent)}
-      ${pdfCard('Budget vs Actual', budgetContent)}
+  ` + pdfFooter(d);
+  return el;
+}
+
+function buildPdfPage2(d, insightsList){
+  const el = pdfPageWrap();
+
+  const cashLoans = `
+    <div style="display:flex;flex-direction:column;height:100%">
+      <div>${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}</div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;padding:6px 0;margin-bottom:8px;border-top:1px solid #e3ece7;border-bottom:1px solid #e3ece7">Total Cash<span>${d.cashTotal}</span></div>
+      <div style="flex:1">${d.loans.length ? d.loans.map(l=>`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f2f6f4">
+          <div><div style="font-weight:700;font-size:11.5px">${l.name}</div><div style="font-size:10px;color:#94a89f">${l.due}</div></div>
+          <div style="text-align:right;font-size:11px;color:#5e7268">${l.remaining}</div>
+        </div>`).join('') : '<div style="font-size:11.5px;color:#94a89f;padding:4px 0">No active loans</div>'}</div>
+      ${d.loans.length ? `<div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;padding-top:6px;border-top:1px solid #e3ece7">Total Outstanding<span>${d.loanTotal}</span></div>` : ''}
+    </div>`;
+
+  const mfgContent = `
+    ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #f2f6f4"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:8px 0 0;margin-top:4px"><span style="font-weight:700">Production Efficiency</span><span style="font-weight:800;color:#1e6240">${d.mfgEfficiency}</span></div>`;
+
+  const budgetContent = `
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${d.budgets.length ? d.budgets.map(b=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#f7fbf9;border-radius:8px">
+          <span style="font-weight:700;font-size:11.5px">${b.name}</span>
+          <span style="font-size:10.5px;color:#5e7268;margin-right:8px">${b.spent}</span>
+          ${pdfStatusChip(b.status)}
+        </div>`).join('') : '<div style="font-size:11.5px;color:#94a89f">No budget lines set for this period</div>'}
+    </div>`;
+
+  const healthContent = `
+    <div style="display:flex;align-items:center;gap:22px;height:100%">
+      <div style="text-align:center;flex-shrink:0;padding-right:18px;border-right:1px solid #e3ece7">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:34px;color:#1e6240;line-height:1">${d.health.score}</div>
+        <div style="font-size:10.5px;color:#94a89f;font-weight:700">out of 100</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+        ${d.health.pillars.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#5e7268;font-weight:600">${p.name}</span><span style="font-weight:800">${p.score}</span></div>`).join('')}
+      </div>
+    </div>`;
+
+  // Business Intelligence — the same live insights shown on-screen (max 6, to fit the page cleanly)
+  const AI_COLORS = { positive:{bg:'#eef9f2',fg:'#1a6b3c'}, warning:{bg:'#fff8ed',fg:'#b06d0a'}, critical:{bg:'#fdedee',fg:'#c0392b'}, neutral:{bg:'#f6faf7',fg:'#5e7268'} };
+  const aiContent = insightsList.length ? `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${insightsList.slice(0,6).map(ins=>{
+        const c = AI_COLORS[ins.type] || AI_COLORS.neutral;
+        const text = ins.html.replace(/<\/?strong>/g,'');
+        return `<div style="display:flex;gap:8px;padding:7px 10px;background:${c.bg};border-radius:8px;font-size:10.5px;line-height:1.4;color:#16261e"><span style="flex-shrink:0">${ins.emoji}</span><span>${text}</span></div>`;
+      }).join('')}
+    </div>` : '<div style="font-size:11.5px;color:#94a89f">Open Business Intelligence on the dashboard to generate insights.</div>';
+
+  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 2 of 2') + `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:12px;margin-bottom:12px;flex:1;min-height:0">
+      ${pdfCard('Cash &amp; Loans', cashLoans)}
+      ${pdfCard('Manufacturing', mfgContent)}
       ${pdfCard('Business Health', healthContent)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;flex:1.05;min-height:0">
+      ${pdfCard('Budget vs Actual', budgetContent)}
+      ${pdfCard('Business Intelligence', aiContent)}
     </div>
   ` + pdfFooter(d);
   return el;
@@ -1976,17 +2118,23 @@ async function exportPDF(){
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const data = getDashboardData();
     const charts = renderExportCharts(data);
+    const insightsList = LAST ? buildAIInsights() : [];
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
 
-    const page = buildPdfPage(data, charts);
-    const canvas = await renderPdfPage(page);
-    const imgData = canvas.toDataURL('image/png');
-    // canvas is built at the exact A4 aspect ratio, so this fills the page edge-to-edge with no distortion
-    pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+    // Page 1 — KPIs, revenue chart, expense breakdown, top customers, inventory
+    const page1 = buildPdfPage1(data, charts);
+    const canvas1 = await renderPdfPage(page1);
+    pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
+
+    // Page 2 — cash & loans, manufacturing, business health, budget vs actual, business intelligence
+    pdf.addPage('a4', 'landscape');
+    const page2 = buildPdfPage2(data, insightsList);
+    const canvas2 = await renderPdfPage(page2);
+    pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
 
     pdf.save(`Mena-Injera-Dashboard-${data.period.replace(/\s+/g,'-')}.pdf`);
   }catch(err){
@@ -2060,6 +2208,15 @@ function exportExcel(){
       ['Pillar','Score'],
       ...d.health.pillars.map(p=>[p.name, p.score])
     ]), 'Business Health');
+
+    const insightsForExcel = LAST ? buildAIInsights() : [];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Business Intelligence — Automated Insights from Live Data'],
+      ['Type', 'Insight'],
+      ...(insightsForExcel.length
+        ? insightsForExcel.map(ins => [ins.type, ins.html.replace(/<\/?strong>/g,'').replace(/<[^>]+>/g,'')])
+        : [['neutral', 'Open Business Intelligence on the dashboard to generate insights, then re-export.']])
+    ]), 'Business Intelligence');
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
       ['Manufacturing Metric','Value'],
