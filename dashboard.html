@@ -1372,7 +1372,7 @@ function renderExportCharts(){
   document.body.appendChild(holder);
 
   const revCanvas = document.createElement('canvas');
-  revCanvas.width = 1500; revCanvas.height = 620;
+  revCanvas.width = 1800; revCanvas.height = 744;
   holder.appendChild(revCanvas);
   const revChart = new Chart(revCanvas.getContext('2d'), {
     type:'line',
@@ -1401,7 +1401,7 @@ function renderExportCharts(){
   revChart.destroy();
 
   const expCanvas = document.createElement('canvas');
-  expCanvas.width = 620; expCanvas.height = 620;
+  expCanvas.width = 740; expCanvas.height = 740;
   holder.appendChild(expCanvas);
   const expChart = new Chart(expCanvas.getContext('2d'), {
     type:'doughnut',
@@ -1530,7 +1530,7 @@ function waitForImages(el){
 async function renderPdfPage(el){
   await waitForImages(el);
   await new Promise(r => setTimeout(r, 40));
-  const canvas = await html2canvas(el, { scale: 2, width: PDF_PAGE_W, height: PDF_PAGE_H, backgroundColor: '#ffffff', useCORS: true });
+  const canvas = await html2canvas(el, { scale: 2.6, width: PDF_PAGE_W, height: PDF_PAGE_H, backgroundColor: '#ffffff', useCORS: true });
   document.body.removeChild(el);
   return canvas;
 }
@@ -1548,7 +1548,7 @@ async function exportPDF(){
     const charts = renderExportCharts();
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const pages = [buildPdfPage1(data, charts), buildPdfPage2(data), buildPdfPage3(data)];
@@ -1556,10 +1556,10 @@ async function exportPDF(){
     for (let i = 0; i < pages.length; i++){
       loadingText.textContent = `Building PDF page ${i+1} of ${pages.length}…`;
       const canvas = await renderPdfPage(pages[i]);
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const imgData = canvas.toDataURL('image/png');
       if (i > 0) pdf.addPage();
       // canvas is built at the exact A4 aspect ratio, so this fills the page edge-to-edge with no distortion
-      pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+      pdf.addImage(imgData, 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
     }
 
     pdf.save(`Mena-Injera-Dashboard-${data.period.replace(/\s+/g,'-')}.pdf`);
