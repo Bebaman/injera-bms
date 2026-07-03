@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -38,17 +41,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 
 /* ══ SIDEBAR ══════════════════════════════════════════ */
-.sb{width:var(--sw);min-height:100vh;background:linear-gradient(165deg,#1e6240 0%,#163a26 55%,#10271a 100%);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:300;overflow-y:auto;overflow-x:hidden;box-shadow:2px 0 12px rgba(0,0,0,.1);transition:width .28s cubic-bezier(.4,0,.2,1)}
+.sb{width:var(--sw);min-height:100vh;background:linear-gradient(165deg,#1e6240 0%,#163a26 55%,#10271a 100%);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:300;overflow-y:auto;overflow-x:hidden;box-shadow:2px 0 12px rgba(0,0,0,.1);transition:width .22s cubic-bezier(.4,0,.2,1)}
 .sb.collapsed{width:var(--sw-col)}
+.sb.collapsed .logo-txt,.sb.collapsed .sb-lbl,
+.sb.collapsed .sb-a span,.sb.collapsed .sb-foot-txt,
+.sb.collapsed .sb-logout{opacity:0;width:0;overflow:hidden;pointer-events:none;transition:opacity .12s}
+.sb.collapsed .sb-logo{justify-content:center;padding:14px 0}
+.sb.collapsed .sb-a{justify-content:center;margin:1px 10px;padding:9px}
+.sb.collapsed .sb-foot{justify-content:center;padding:12px 0}
 @media(max-width:1100px){
-  .sb:not(.force-open){width:var(--sw-col)}
-  .sb:not(.force-open) .logo-txt,.sb:not(.force-open) .sb-lbl,
-  .sb:not(.force-open) .sb-a span,.sb:not(.force-open) .sb-foot-txt,
-  .sb:not(.force-open) .sb-logout{opacity:0;width:0;overflow:hidden;pointer-events:none}
-  .sb:not(.force-open) .sb-logo{justify-content:center;padding:14px 0}
-  .sb:not(.force-open) .sb-a{justify-content:center;margin:1px 10px;padding:9px}
-  .sb:not(.force-open) .sb-foot{justify-content:center;padding:12px 0}
-  .main:not(.sb-wide){margin-left:var(--sw-col)}
+  .sb{box-shadow:4px 0 24px rgba(0,0,0,.3)}
 }
 .sb-logo{display:flex;align-items:center;gap:10px;padding:15px 14px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
 .logo-circle{width:44px;height:44px;border-radius:50%;background:linear-gradient(145deg,#f7b03a,#e8891a);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,255,255,.2);box-shadow:0 2px 8px rgba(0,0,0,.2)}
@@ -71,8 +73,44 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 .sb-logout:hover{color:#fff}
 .sb-logout svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
+/* ══ CONFIRM MODAL ═════════════════════════════════════ */
+.cfm-ov{position:fixed;inset:0;background:rgba(16,39,26,.45);backdrop-filter:blur(2px);z-index:1000;display:none;align-items:center;justify-content:center;animation:fadeIn .15s ease}
+.cfm-ov.show{display:flex}
+.cfm-box{background:#fff;border-radius:16px;width:360px;max-width:90vw;padding:26px;box-shadow:0 20px 50px rgba(16,39,26,.25);animation:popIn .2s ease}
+.cfm-ico{width:46px;height:46px;border-radius:50%;background:#fdecea;color:var(--red);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.cfm-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cfm-box h3{font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:var(--td);margin-bottom:6px}
+.cfm-box p{font-size:var(--fs-sm);color:var(--tm);line-height:1.5;margin-bottom:20px}
+.cfm-actions{display:flex;gap:10px}
+.cfm-btn{flex:1;padding:11px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-weight:700;font-size:var(--fs-sm);cursor:pointer;transition:opacity .15s,transform .1s}
+.cfm-btn:active{transform:scale(.97)}
+.cfm-btn-cancel{background:var(--bg);color:var(--tm)}
+.cfm-btn-cancel:hover{background:#e3ece7}
+.cfm-btn-danger{background:var(--red);color:#fff}
+.cfm-btn-danger:hover{opacity:.9}
+
+/* ══ EXPORT MENU ═══════════════════════════════════════ */
+.exp-wrap{position:relative}
+.exp-trigger{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid var(--border);background:#fff;color:var(--td);font-family:'Nunito',sans-serif;font-weight:700;font-size:var(--fs-sm);cursor:pointer;transition:background .15s,border-color .15s}
+.exp-trigger:hover{background:var(--bg);border-color:var(--green)}
+.exp-trigger svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.exp-menu{position:absolute;top:calc(100% + 10px);right:0;width:250px;background:#fff;border-radius:14px;border:1px solid var(--border);box-shadow:var(--sh-lg);z-index:400;display:none;animation:slideDown .2s ease;overflow:hidden}
+.exp-menu.show{display:block}
+.exp-menu-item{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;transition:background .15s}
+.exp-menu-item:hover{background:#f7fbf9}
+.exp-menu-item svg{width:20px;height:20px;stroke:var(--green-dark,#1a6b3c);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.exp-menu-item h5{font-size:var(--fs-sm);font-weight:700;color:var(--td)}
+.exp-menu-item span{font-size:var(--fs-2xs);color:var(--tm)}
+.exp-menu-item+.exp-menu-item{border-top:1px solid var(--border)}
+
+/* ══ EXPORT LOADING OVERLAY ════════════════════════════ */
+.exp-loading{position:fixed;inset:0;background:rgba(16,39,26,.55);z-index:1100;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.exp-loading.show{display:flex}
+.exp-spinner{width:38px;height:38px;border:3.5px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+.exp-loading p{color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:var(--fs-sm)}
+
 /* ══ MAIN ══════════════════════════════════════════════ */
-.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;transition:margin-left .28s cubic-bezier(.4,0,.2,1)}
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;transition:margin-left .22s cubic-bezier(.4,0,.2,1)}
 .main.sb-collapsed{margin-left:var(--sw-col)}
 
 /* ══ TOPBAR ════════════════════════════════════════════ */
@@ -461,6 +499,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
     <div class="sb-lbl">Finance</div>
     <a class="sb-a" href="pl.html" title="P&L Statement"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>P&amp;L Statement</span></a>
     <a class="sb-a" href="cashflow.html" title="Cash Flow"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><span>Cash Flow</span></a>
+    <a class="sb-a" href="overhead.html" title="Monthly Overhead"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><span>Monthly Overhead</span></a>
     <a class="sb-a" href="budget.html" title="Budget vs Actual"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Budget vs Actual</span></a>
     <a class="sb-a" href="loans.html" title="Loans"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg><span>Loans</span></a>
     <a class="sb-a" href="profit.html" title="Distribution"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Distribution</span></a>
@@ -480,6 +519,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 
   <div class="sb-grp">
     <div class="sb-lbl">Settings</div>
+    <a class="sb-a" href="add-user.html" title="Add User"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg><span>Add User</span></a>
     <a class="sb-a" href="settings.html" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Settings</span></a>
   </div>
 
@@ -535,6 +575,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 
       <div class="stat-pill"><div class="stat-dot"></div>Data is up to date</div>
 
+      <!-- Export -->
+      <div class="exp-wrap" id="exportWrap">
+        <button class="exp-trigger" id="exportBtn" onclick="toggleExportMenu(event)">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <div class="exp-menu" id="exportMenu">
+          <div class="exp-menu-item" id="exportPdfBtn"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><h5>Export as PDF</h5><span>One-page A4 summary report</span></div></div>
+          <div class="exp-menu-item" id="exportXlsBtn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><div><h5>Export as Excel</h5><span>Full data workbook (.xlsx)</span></div></div>
+        </div>
+      </div>
+
       <!-- User chip -->
       <div class="uchip" id="userChip" onclick="toggleUserPanel(event)">
         <div class="av av-lg">EM</div>
@@ -550,11 +602,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
           <div class="av" style="width:40px;height:40px;font-size:15px">EM</div>
           <div class="user-panel-name"><h4>Eyasu Mesfin</h4><span>Owner · Mena Injera</span></div>
         </div>
-        <div class="user-panel-item"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> My Profile</div>
-        <div class="user-panel-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> Settings</div>
-        <div class="user-panel-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Help &amp; Support</div>
+        <div class="user-panel-item" id="userPanelProfile"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> My Profile</div>
+        <div class="user-panel-item" id="userPanelAddUser"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg> Add User</div>
+        <div class="user-panel-item" id="userPanelSettings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> Settings</div>
+        <div class="user-panel-item" id="userPanelHelp"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Help &amp; Support</div>
         <div class="user-panel-divider"></div>
-        <div class="user-panel-item danger"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sign Out</div>
+        <div class="user-panel-item danger" id="userPanelSignOut"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sign Out</div>
       </div>
     </div>
   </header>
@@ -850,6 +903,25 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
 </div>
 
+<!-- EXPORT LOADING -->
+<div class="exp-loading" id="exportLoading">
+  <div class="exp-spinner"></div>
+  <p id="exportLoadingText">Preparing your export…</p>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="cfm-ov" id="cfmOverlay">
+  <div class="cfm-box">
+    <div class="cfm-ico"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+    <h3 id="cfmTitle">Sign Out</h3>
+    <p id="cfmMsg">Are you sure you want to sign out of Mena Injera &amp; Derkosh BMS?</p>
+    <div class="cfm-actions">
+      <button class="cfm-btn cfm-btn-cancel" id="cfmCancel">Cancel</button>
+      <button class="cfm-btn cfm-btn-danger" id="cfmConfirm">Sign Out</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Session / Auth ────────────────────────────────────────
 function loadSession(){
@@ -872,41 +944,77 @@ function clearSession(){
   }
   const initials = (session.name || '')
     .split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase() || '??';
-  const avEl = document.querySelector('.sb-foot .av');
-  const nameEl = document.querySelector('.sb-foot-txt h4');
-  const roleEl = document.querySelector('.sb-foot-txt span');
-  if (avEl) avEl.textContent = initials;
-  if (nameEl) nameEl.textContent = session.name || 'Unknown User';
-  if (roleEl) roleEl.textContent = session.role
-    ? session.role.charAt(0).toUpperCase() + session.role.slice(1)
-    : '';
+  const roleLbl = session.role ? session.role.charAt(0).toUpperCase() + session.role.slice(1) : '';
+
+  document.querySelectorAll('.sb-foot .av, .uchip .av, .user-panel-top .av').forEach(el => el.textContent = initials);
+  const sbName = document.querySelector('.sb-foot-txt h4'); if (sbName) sbName.textContent = session.name || 'Unknown User';
+  const sbRole = document.querySelector('.sb-foot-txt span'); if (sbRole) sbRole.textContent = roleLbl;
+  const chipName = document.querySelector('.uchip-txt h4'); if (chipName) chipName.textContent = session.name || 'Unknown User';
+  const chipRole = document.querySelector('.uchip-txt span'); if (chipRole) chipRole.textContent = roleLbl;
+  const panelName = document.querySelector('.user-panel-name h4'); if (panelName) panelName.textContent = session.name || 'Unknown User';
+  const panelRole = document.querySelector('.user-panel-name span'); if (panelRole) panelRole.textContent = `${roleLbl} · Mena Injera`;
+
+  // Only owners/managers should see the Add User shortcut
+  const addUserItem = document.getElementById('userPanelAddUser');
+  if (addUserItem && !['owner','manager'].includes(session.role)) addUserItem.style.display = 'none';
 })();
 
-document.querySelector('.sb-logout')?.addEventListener('click', function(){
-  if (confirm('Sign out of Mena Injera & Derkosh BMS?')){
-    clearSession();
-    window.location.href = 'login.html';
-  }
-});
+// ── Confirm Modal (replaces browser confirm()) ─────────────
+function showConfirm({title, message, confirmLabel = 'Confirm', onConfirm}){
+  const ov = document.getElementById('cfmOverlay');
+  document.getElementById('cfmTitle').textContent = title;
+  document.getElementById('cfmMsg').textContent = message;
+  const confirmBtn = document.getElementById('cfmConfirm');
+  confirmBtn.textContent = confirmLabel;
+  ov.classList.add('show');
+
+  const cleanup = () => {
+    ov.classList.remove('show');
+    confirmBtn.removeEventListener('click', onConfirmClick);
+    cancelBtn.removeEventListener('click', onCancelClick);
+    ov.removeEventListener('click', onOverlayClick);
+  };
+  const onConfirmClick = () => { cleanup(); onConfirm(); };
+  const onCancelClick = () => cleanup();
+  const onOverlayClick = (e) => { if (e.target === ov) cleanup(); };
+  const cancelBtn = document.getElementById('cfmCancel');
+
+  confirmBtn.addEventListener('click', onConfirmClick);
+  cancelBtn.addEventListener('click', onCancelClick);
+  ov.addEventListener('click', onOverlayClick);
+}
+
+function signOut(){
+  showConfirm({
+    title: 'Sign Out',
+    message: 'Are you sure you want to sign out of Mena Injera & Derkosh BMS?',
+    confirmLabel: 'Sign Out',
+    onConfirm: () => { clearSession(); window.location.href = 'login.html'; }
+  });
+}
+
+document.querySelector('.sb-logout')?.addEventListener('click', signOut);
+document.getElementById('userPanelSignOut')?.addEventListener('click', signOut);
+document.getElementById('userPanelAddUser')?.addEventListener('click', () => window.location.href = 'add-user.html');
+document.getElementById('userPanelProfile')?.addEventListener('click', () => window.location.href = 'settings.html');
+document.getElementById('userPanelSettings')?.addEventListener('click', () => window.location.href = 'settings.html');
 
 // ── Sidebar ─────────────────────────────────────────────
-function toggleSidebar(){
+function setSidebar(collapsed){
   const sb=document.getElementById('sidebar');
   const main=document.getElementById('mainContent');
-  const w=window.innerWidth;
-  if(w<=1100&&!sb.classList.contains('force-open')){
-    sb.classList.add('force-open');
-    main.classList.add('sb-wide');
-    main.style.marginLeft='var(--sw)';
-  }else if(sb.classList.contains('force-open')){
-    sb.classList.remove('force-open');
-    main.classList.remove('sb-wide');
-    main.style.marginLeft='';
-  }else{
-    const c=sb.classList.toggle('collapsed');
-    main.classList.toggle('sb-collapsed',c);
-  }
+  sb.classList.toggle('collapsed',collapsed);
+  main.classList.toggle('sb-collapsed',collapsed);
 }
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  setSidebar(!sb.classList.contains('collapsed'));
+}
+function autoSidebarForWidth(){
+  if(window.innerWidth<=1100) setSidebar(true);
+}
+window.addEventListener('resize',autoSidebarForWidth);
+autoSidebarForWidth();
 
 // ── Month Picker ─────────────────────────────────────────
 function chgM(){/* placeholder — will query Supabase by month when wired */}
@@ -943,10 +1051,23 @@ function toggleUserPanel(e){
   notifOpen=false;
 }
 
+// ── Export Menu ──────────────────────────────────────────
+let exportMenuOpen=false;
+function toggleExportMenu(e){
+  e.stopPropagation();
+  exportMenuOpen=!exportMenuOpen;
+  document.getElementById('exportMenu').classList.toggle('show',exportMenuOpen);
+  document.getElementById('notifPanel').classList.remove('open');
+  document.getElementById('userPanel').classList.remove('open');
+  document.getElementById('userChip').classList.remove('open');
+  notifOpen=false; userOpen=false;
+}
+
 // Close panels when clicking outside
 document.addEventListener('click',function(){
   if(notifOpen){closeNotif();notifOpen=false;}
   if(userOpen){document.getElementById('userPanel').classList.remove('open');document.getElementById('userChip').classList.remove('open');userOpen=false;}
+  if(exportMenuOpen){document.getElementById('exportMenu').classList.remove('show');exportMenuOpen=false;}
 });
 
 // ── Count-up animation ───────────────────────────────────
@@ -1087,6 +1208,312 @@ function refreshAI(){
   aiLoaded=false;
   setTimeout(()=>{btn.classList.remove('spinning');loadAIInsights();},900);
 }
+
+// ══════════════════════════════════════════════════════════
+// ── EXPORT: shared data scraping ────────────────────────────
+// ══════════════════════════════════════════════════════════
+function getDashboardData(){
+  const period = document.getElementById('msel')?.value || 'Current Period';
+  const session = loadSession() || {};
+
+  const kpis = Array.from(document.querySelectorAll('.kpi-row .kc')).map(kc => {
+    const cnt = kc.querySelector('.cnt');
+    return {
+      label: kc.querySelector('.kc-lbl')?.textContent.trim() || '',
+      value: cnt ? parseFloat(cnt.dataset.target) : 0,
+      unit: kc.querySelector('.u')?.textContent.trim() || '',
+      change: kc.querySelector('.kc-chg')?.textContent.trim().replace(/\s+/g,' ') || ''
+    };
+  });
+
+  const expenseTotal = document.querySelector('.dnut-lbl strong')?.textContent.replace(/\s+/g,' ').trim() || '';
+  const expenses = Array.from(document.querySelectorAll('.bot .exp-leg .exp-r')).map(r => ({
+    name: r.querySelector('.exp-n')?.textContent.trim() || '',
+    value: r.querySelector('.exp-v')?.textContent.trim() || '',
+    pct: r.querySelector('.exp-p')?.textContent.trim() || '',
+    color: r.querySelector('.exp-d')?.style.background || ''
+  }));
+
+  const topCustomers = Array.from(document.querySelectorAll('.bot table.tbl tbody tr')).map(tr => {
+    const tds = tr.querySelectorAll('td');
+    return { name: tds[0]?.textContent.trim()||'', revenue: tds[1]?.textContent.trim()||'', pct: tds[2]?.textContent.trim()||'', isTotal: tr.classList.contains('tot') };
+  });
+
+  const inventory = Array.from(document.querySelectorAll('.inv-list2 .inv-item')).map(it => ({
+    name: it.querySelector('.inv-name')?.textContent.trim() || '',
+    qty: it.querySelector('.inv-qty-val')?.textContent.replace(/\s+/g,' ').trim() || '',
+    status: it.querySelector('.inv-tag')?.textContent.trim() || ''
+  }));
+
+  const cashPosition = Array.from(document.querySelectorAll('.cf-list .cf-row')).map(r => ({
+    label: r.querySelector('.cf-lbl')?.textContent.trim() || '',
+    amount: r.querySelector('.cf-amt')?.textContent.trim() || ''
+  }));
+  const cashTotal = document.querySelector('.cf-total-amt')?.textContent.trim() || '';
+
+  const loans = Array.from(document.querySelectorAll('.loan-list .loan-card')).map(l => ({
+    name: l.querySelector('h5')?.textContent.trim() || '',
+    type: l.querySelector('p')?.textContent.trim() || '',
+    due: l.querySelector('.loan-due-tag')?.textContent.trim() || '',
+    paid: l.querySelector('.loan-paid')?.textContent.trim() || '',
+    remaining: l.querySelector('.loan-remain')?.textContent.trim() || ''
+  }));
+  const loanTotal = document.querySelector('.loan-total-amt')?.textContent.trim() || '';
+
+  const budgets = Array.from(document.querySelectorAll('.bud-tiles .bud-tile')).map(t => ({
+    name: t.querySelector('.bud-tile-lbl')?.textContent.trim() || '',
+    spent: t.querySelector('.bud-tile-val')?.textContent.trim() || '',
+    status: t.querySelector('.bud-badge')?.textContent.trim() || '',
+    sub: Array.from(t.querySelectorAll('.bud-tile-sub span')).map(s=>s.textContent.trim()).join(' · ')
+  }));
+
+  const health = {
+    score: document.getElementById('healthNum')?.textContent.trim() || '',
+    pillars: Array.from(document.querySelectorAll('.health-pillar')).map(p => ({
+      name: p.querySelector('.health-pillar-nm')?.textContent.trim() || '',
+      score: p.querySelector('.health-pillar-sc')?.textContent.trim() || ''
+    }))
+  };
+
+  const manufacturing = Array.from(document.querySelectorAll('.mfg-rows .mfg-row')).map(r => ({
+    label: r.querySelector('.mfg-lbl')?.textContent.trim() || '',
+    value: r.querySelector('.mfg-val')?.textContent.trim() || ''
+  }));
+  const mfgEfficiency = document.querySelector('.mfg-eff-pct')?.textContent.trim() || '';
+
+  const customerTypes = Array.from(document.querySelectorAll('.donut-sm-wrap .exp-leg .exp-r')).map(r => ({
+    name: r.querySelector('.exp-n')?.textContent.trim() || '',
+    pct: r.querySelector('.exp-p')?.textContent.trim() || ''
+  }));
+
+  const dailyPerf = Array.from(document.querySelectorAll('.daily-grid .daily-item')).map(d => ({
+    label: d.querySelector('.daily-item-lbl')?.textContent.trim() || '',
+    value: d.querySelector('.daily-item-val')?.textContent.trim() || '',
+    sub: d.querySelector('.daily-item-sub')?.textContent.trim() || ''
+  }));
+
+  const revChartImg = window.Chart?.getChart('revChart')?.toBase64Image() || null;
+  const expChartImg = window.Chart?.getChart('expChart')?.toBase64Image() || null;
+
+  return { period, preparedBy: session.name || '', preparedRole: session.role || '', generatedAt: new Date(),
+    kpis, expenseTotal, expenses, topCustomers, inventory, cashPosition, cashTotal, loans, loanTotal,
+    budgets, health, manufacturing, mfgEfficiency, customerTypes, dailyPerf, revChartImg, expChartImg };
+}
+
+function fmtNum(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ══════════════════════════════════════════════════════════
+// ── EXPORT: PDF (compact A4-landscape one-pager) ────────────
+// ══════════════════════════════════════════════════════════
+function buildPdfTemplate(d){
+  const wrap = document.createElement('div');
+  wrap.id = 'pdfExportRoot';
+  Object.assign(wrap.style, { position:'fixed', left:'-99999px', top:'0', width:'1600px',
+    background:'#faf7f0', fontFamily:"'Nunito',sans-serif", color:'#16261e', padding:'28px 34px' });
+
+  const chip = s => `<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${s.includes('▲')||s.toLowerCase().includes('ok')||s.toLowerCase().includes('track')?'#e9f9ef':s.toLowerCase().includes('low')||s.toLowerCase().includes('over')||s.includes('▼')?'#fdecea':'#fff4e0'};color:${s.includes('▲')||s.toLowerCase().includes('ok')||s.toLowerCase().includes('track')?'#1a6b3c':s.toLowerCase().includes('low')||s.toLowerCase().includes('over')||s.includes('▼')?'#c0392b':'#b06d0a'}">${s}</span>`;
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #1e6240;padding-bottom:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(145deg,#f7b03a,#e8891a);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Quicksand',sans-serif;font-weight:800;font-size:17px">M</div>
+        <div>
+          <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:19px;color:#16261e">Mena Injera &amp; Derkosh</div>
+          <div style="font-size:11px;color:#5e7268;font-weight:600">Business Management System — Monthly Summary</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:#1e6240">${d.period}</div>
+        <div style="font-size:10px;color:#94a89f">Generated ${d.generatedAt.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}${d.preparedBy?' · by '+d.preparedBy:''}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
+      ${d.kpis.map(k=>`
+        <div style="background:#fff;border:1px solid #e3ece7;border-radius:10px;padding:10px 12px">
+          <div style="font-size:9.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${k.label}</div>
+          <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:16px;color:#16261e">${fmtNum(k.value)} <span style="font-size:9px;color:#5e7268;font-weight:600">${k.unit}</span></div>
+          <div style="font-size:9px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':'#c0392b'};margin-top:2px">${k.change}</div>
+        </div>`).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Revenue Overview</div>
+        ${d.revChartImg ? `<img src="${d.revChartImg}" style="width:100%;height:150px;object-fit:contain">` : '<div style="height:150px"></div>'}
+      </div>
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Expense Breakdown <span style="font-size:9.5px;color:#94a89f;font-weight:600">— Total ${d.expenseTotal.replace(/\s+/g,' ')}</span></div>
+        <div style="display:flex;align-items:center;gap:14px">
+          ${d.expChartImg ? `<img src="${d.expChartImg}" style="width:96px;height:96px;flex-shrink:0">` : ''}
+          <div style="flex:1">
+            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:6px;font-size:10px;padding:2px 0"><span style="width:8px;height:8px;border-radius:2px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#5e7268;font-weight:700">${e.pct}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Top Customers</div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px">
+          <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:8.5px;text-align:left"><th style="padding:2px 0">Customer</th><th style="text-align:right">Revenue</th><th style="text-align:right">%</th></tr></thead>
+          <tbody>${d.topCustomers.map(c=>`<tr style="${c.isTotal?'font-weight:800;border-top:1.5px solid #e3ece7':''}"><td style="padding:3px 0">${c.name}</td><td style="text-align:right">${c.revenue}</td><td style="text-align:right;color:#5e7268">${c.pct}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Inventory Status</div>
+        ${d.inventory.map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:3px 0;border-bottom:1px solid #f2f6f4"><span style="font-weight:600">${i.name}</span><span style="color:#5e7268">${i.qty}</span>${chip(i.status)}</div>`).join('')}
+      </div>
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Cash &amp; Loans</div>
+        ${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;padding:4px 0;border-top:1px solid #e3ece7;margin-top:4px">Total Cash<span>${d.cashTotal}</span></div>
+        <div style="height:1px;background:#e3ece7;margin:8px 0"></div>
+        ${d.loans.map(l=>`<div style="font-size:10px;padding:2px 0"><div style="display:flex;justify-content:space-between;font-weight:700">${l.name}<span>${l.remaining}</span></div><div style="color:#94a89f;font-size:9px">${l.due}</div></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;padding:4px 0;border-top:1px solid #e3ece7;margin-top:4px">Total Outstanding<span>${d.loanTotal}</span></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Manufacturing <span style="font-size:9.5px;color:#94a89f;font-weight:600">— ${d.mfgEfficiency} efficiency</span></div>
+        ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}
+      </div>
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:8px">Budget vs Actual</div>
+        ${d.budgets.map(b=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:2px 0"><span style="font-weight:600">${b.name}</span>${chip(b.status)}</div>`).join('')}
+      </div>
+      <div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:12.5px">Business Health</div>
+          <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:18px;color:#1e6240">${d.health.score}<span style="font-size:10px;color:#94a89f">/100</span></div>
+        </div>
+        ${d.health.pillars.map(p=>`<div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0"><span>${p.name}</span><span style="font-weight:700">${p.score}</span></div>`).join('')}
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px;padding-top:10px;border-top:1px solid #e3ece7;font-size:9px;color:#94a89f">Mena Injera &amp; Derkosh Business Management System · Confidential — for internal use only</div>
+  `;
+  document.body.appendChild(wrap);
+  return wrap;
+}
+
+async function exportPDF(){
+  document.getElementById('exportMenu').classList.remove('show');
+  exportMenuOpen = false;
+  const loading = document.getElementById('exportLoading');
+  document.getElementById('exportLoadingText').textContent = 'Building your PDF report…';
+  loading.classList.add('show');
+
+  try{
+    const data = getDashboardData();
+    const el = buildPdfTemplate(data);
+    await new Promise(r => setTimeout(r, 60)); // let layout settle
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#faf7f0', useCORS: true });
+    document.body.removeChild(el);
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const ratio = Math.min(pageW / canvas.width, pageH / canvas.height);
+    const w = canvas.width * ratio, h = canvas.height * ratio;
+    pdf.addImage(imgData, 'JPEG', (pageW - w) / 2, (pageH - h) / 2, w, h);
+    pdf.save(`Mena-Injera-Dashboard-${data.period.replace(/\s+/g,'-')}.pdf`);
+  }catch(err){
+    console.error('PDF export failed', err);
+    alert('Something went wrong generating the PDF. Please try again.');
+  }finally{
+    loading.classList.remove('show');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// ── EXPORT: Excel workbook ──────────────────────────────────
+// ══════════════════════════════════════════════════════════
+function exportExcel(){
+  document.getElementById('exportMenu').classList.remove('show');
+  exportMenuOpen = false;
+  const loading = document.getElementById('exportLoading');
+  document.getElementById('exportLoadingText').textContent = 'Building your Excel workbook…';
+  loading.classList.add('show');
+
+  try{
+    const d = getDashboardData();
+    const wb = XLSX.utils.book_new();
+
+    const summarySheet = XLSX.utils.aoa_to_sheet([
+      ['Mena Injera & Derkosh — Dashboard Export'],
+      ['Period', d.period],
+      ['Generated', d.generatedAt.toLocaleString('en-US')],
+      ['Prepared By', d.preparedBy + (d.preparedRole?` (${d.preparedRole})`:'')],
+      [],
+      ['KPI', 'Value', 'Unit', 'Change vs Prior Month'],
+      ...d.kpis.map(k => [k.label, k.value, k.unit, k.change.replace(/[▲▼]/g,'').trim()])
+    ]);
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Expense Category','Amount (ETB)','% of Total'],
+      ...d.expenses.map(e=>[e.name, e.value, e.pct])
+    ]), 'Expense Breakdown');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Customer','Revenue (ETB)','% of Total'],
+      ...d.topCustomers.map(c=>[c.name, c.revenue, c.pct])
+    ]), 'Top Customers');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Item','Quantity','Status'],
+      ...d.inventory.map(i=>[i.name, i.qty, i.status])
+    ]), 'Inventory');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Account','Amount'],
+      ...d.cashPosition.map(c=>[c.label, c.amount]),
+      ['Total Cash', d.cashTotal]
+    ]), 'Cash Position');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Loan','Type','Due','Paid','Remaining'],
+      ...d.loans.map(l=>[l.name, l.type, l.due, l.paid, l.remaining]),
+      ['Total Outstanding','','','', d.loanTotal]
+    ]), 'Loans');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Category','Spent','Status','Detail'],
+      ...d.budgets.map(b=>[b.name, b.spent, b.status, b.sub])
+    ]), 'Budget vs Actual');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Business Health Score', d.health.score],
+      [],
+      ['Pillar','Score'],
+      ...d.health.pillars.map(p=>[p.name, p.score])
+    ]), 'Business Health');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      ['Manufacturing Metric','Value'],
+      ...d.manufacturing.map(m=>[m.label, m.value]),
+      ['Production Efficiency', d.mfgEfficiency],
+      [],
+      ["Today's Performance",''],
+      ...d.dailyPerf.map(p=>[p.label, p.value + ' ' + p.sub])
+    ]), 'Production');
+
+    XLSX.writeFile(wb, `Mena-Injera-Dashboard-${d.period.replace(/\s+/g,'-')}.xlsx`);
+  }catch(err){
+    console.error('Excel export failed', err);
+    alert('Something went wrong generating the Excel file. Please try again.');
+  }finally{
+    loading.classList.remove('show');
+  }
+}
+
+document.getElementById('exportPdfBtn')?.addEventListener('click', exportPDF);
+document.getElementById('exportXlsBtn')?.addEventListener('click', exportExcel);
 </script>
 </body>
 </html>
