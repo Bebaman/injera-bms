@@ -528,6 +528,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
       <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
       <span>Petty Cash</span>
     </a>
+    <a class="sb-a" href="purchases.html" data-tip="Purchases">
+      <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span>Purchases</span>
+    </a>
   </div>
 
   <div class="sb-grp">
@@ -636,6 +640,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
           Export
         </button>
         <div class="export-menu" id="exportMenu1">
+          <div class="exp-item sheet" onclick="exportFullSheetPDF();closeExportMenus()"><div class="exp-ico" style="background:#eef0fd;color:#4338ca"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><span>Full Sheet (PDF)<small>Everything on screen, incl. charts</small></span></div>
           <div class="exp-item pdf" onclick="exportPDF();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>PDF Report<small>Formatted summary + table</small></span></div>
           <div class="exp-item xlsx" onclick="exportExcelWorkbook();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg></div><span>Excel Workbook<small>.xlsx, 2 sheets</small></span></div>
           <div class="exp-item csv" onclick="exportCSV();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>CSV File<small>Raw data</small></span></div>
@@ -2060,6 +2065,7 @@ function refreshDashboard(){
   renderMaterialConsumption();
   renderRanking();
   renderAlertCard();
+  renderTrendChart();
   renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
 }
 
@@ -2479,6 +2485,106 @@ function toggleExportMenu(evt, id){
 }
 document.addEventListener('click', ()=>{ closeExportMenus(); });
 
+// ── Full Sheet (PDF) — html2canvas capture of everything on screen
+// (KPIs, charts, table, calendar), sliced across pages without cutting
+// through a card. Ported from pettycash.html's exportFullSheetPDF().
+async function exportFullSheetPDF(){
+  if(typeof html2canvas==='undefined' || typeof window.jspdf==='undefined'){
+    toast('PDF/canvas library did not load. Check your connection.','err'); return;
+  }
+  const rows = filteredBatches();
+  if(!rows.length){ toast('No batches to export with the current filters.','err'); return; }
+  toast('Capturing the full sheet — this can take a few seconds…','info');
+
+  // Temporarily show every filtered row (not just the current page), and
+  // reveal the print header for the capture.
+  __printSavedPage = state.page;
+  state.printAll = true;
+  renderTable();
+  document.getElementById('printMonth').textContent = currentMonth();
+  document.getElementById('printGen').textContent = 'Generated '+new Date().toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const hd = document.getElementById('printHd');
+  const hdWasHidden = hd.style.display !== 'block';
+  hd.style.display = 'block';
+
+  // Hide interactive chrome that shouldn't appear in a document export.
+  const hideSelectors = ['.sb','.topbar','.toast-root','.modal-overlay','.export-menu','.dd-panel','.row-actions','.pg-bar'];
+  const restoreList = [];
+  hideSelectors.forEach(sel=>document.querySelectorAll(sel).forEach(el=>{ restoreList.push([el, el.style.display]); el.style.display='none'; }));
+  document.querySelector('.main').style.marginLeft='0';
+
+  try{
+    const target = document.querySelector('.content');
+    // Measure card/KPI boundaries BEFORE capture so we know where it's safe
+    // to cut a page. The batch-list table card is excluded from the "must
+    // fit whole" list — it's allowed to start on a page and flow into the
+    // next one, since its individual rows are protected below.
+    const targetRect = target.getBoundingClientRect();
+    const bigTableCard = document.querySelector('.tbl-wrap') ? document.querySelector('.tbl-wrap').closest('.card') : null;
+    const atomicEls = Array.from(target.querySelectorAll('.kc, .card, .print-hd')).filter(el=>el!==bigTableCard);
+    const rowEls = Array.from(target.querySelectorAll('.tbl-wrap thead tr, .tbl-wrap tbody tr'));
+    const blocksCss = [...atomicEls, ...rowEls].map(el=>{
+      const r = el.getBoundingClientRect();
+      return { top: r.top-targetRect.top, bottom: r.bottom-targetRect.top };
+    }).filter(b=>b.bottom>b.top).sort((a,b)=>a.top-b.top);
+
+    const canvas = await html2canvas(target,{ scale:2, useCORS:true, backgroundColor:'#eef3f0' });
+    const scaleY = canvas.height/targetRect.height;
+    const blocksPx = blocksCss.map(b=>({ top:b.top*scaleY, bottom:b.bottom*scaleY }));
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4', orientation:'landscape' });
+    const MARGIN = 24;
+    const pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+    const usableW = pageW-MARGIN*2, usableH = pageH-MARGIN*2-18;
+    const imgW = usableW;
+    const pxPerPt = canvas.width/imgW;
+    const pageBudgetPx = usableH*pxPerPt;
+
+    // Pull a proposed page-end back to just above any card it would otherwise slice through.
+    function findSafeBreak(start,end){
+      let best = end;
+      for(const b of blocksPx){
+        if(b.top>start+1 && b.top<end && b.bottom>end) best = Math.min(best,b.top);
+      }
+      return best>start+40 ? best : end; // fall back to a hard cut only if nothing else fits
+    }
+
+    let offsetPx=0, pageNum=0;
+    while(offsetPx<canvas.height-0.5){
+      if(pageNum>0) doc.addPage();
+      const breakPx = findSafeBreak(offsetPx, Math.min(offsetPx+pageBudgetPx, canvas.height));
+      const sliceHeightPx = breakPx-offsetPx;
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeightPx;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas,0,offsetPx,canvas.width,sliceHeightPx,0,0,canvas.width,sliceHeightPx);
+      doc.addImage(sliceCanvas.toDataURL('image/jpeg',0.92),'JPEG',MARGIN,MARGIN,imgW,sliceHeightPx/pxPerPt);
+      offsetPx = breakPx;
+      pageNum++;
+      if(pageNum>25) break; // safety cap
+    }
+    const totalPages = doc.internal.getNumberOfPages();
+    for(let i=1;i<=totalPages;i++){
+      doc.setPage(i);
+      doc.setFontSize(7.5); doc.setTextColor(130,140,135);
+      doc.text('Mena Injera & Derkosh — Production Full Sheet — '+currentMonth(),MARGIN,pageH-10);
+      doc.text('Page '+i+' of '+totalPages,pageW-MARGIN,pageH-10,{align:'right'});
+    }
+    doc.save(`production-full-sheet-${monthLabelToPeriod(currentMonth())}.pdf`);
+    toast('Full sheet PDF downloaded (landscape).','ok');
+  }catch(e){
+    console.error('[production] full sheet export failed:', e);
+    toast('Could not capture the full sheet. Try the standard PDF Report instead.','err');
+  }finally{
+    restoreList.forEach(([el,disp])=>{ el.style.display = disp; });
+    document.querySelector('.main').style.marginLeft='';
+    if(hdWasHidden) hd.style.display='none';
+    restorePrintState();
+  }
+}
+
 // ── PDF Report (jsPDF + autotable) ──────────────────────
 function exportPDF(){
   if(typeof window.jspdf==='undefined'){ toast('PDF library did not load. Check your connection.','err'); return; }
@@ -2665,16 +2771,50 @@ function initCountUps(){
 // (audit fix, see chat: function declarations must not live inside
 // a try block whose first statement can throw).
 let trendChart = null;
-const dayLabels = Array.from({length:31}, (_,i)=>'May '+(i+1));
-const qtyData  = [1620,1480,2050,2380,1750,1340,1980,2150,1600,2420,1280,1750,1870,2010,2400,1900,1950,4530,2020,6510,0,2400,0,0,0,1850,2240,2680,1920,2310,2050];
-const costData = qtyData.map(v=>Math.round(v*4.9*100)/100);
+
+// Builds one point per day-of-month for the currently selected month, summing
+// every batch's qty/total on that date. Days with no batches are 0 — never
+// invented. Replaces the old hardcoded qtyData/costData demo arrays (audit
+// fix, see chat: "Injera Produced" chart was showing fake/frozen numbers).
+function buildTrendSeries(){
+  const period = monthLabelToPeriod(currentMonth());
+  const [y,m] = period.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const monthShort = currentMonth().split(' ')[0];
+
+  const qtyByDay = new Array(daysInMonth).fill(0);
+  const costByDay = new Array(daysInMonth).fill(0);
+  getBatches().forEach(r=>{
+    const day = Number(r.date.slice(8,10)); // ISO date, e.g. "2026-05-20" -> 20
+    if(day>=1 && day<=daysInMonth){
+      qtyByDay[day-1]  += r.qty;
+      costByDay[day-1] += r.total;
+    }
+  });
+
+  const labels = Array.from({length:daysInMonth}, (_,i)=>monthShort+' '+(i+1));
+  return { labels, qtyData: qtyByDay, costData: costByDay.map(v=>Math.round(v*100)/100) };
+}
 
 function updateTrendChart(){
   if(!trendChart) return;
   const sel = document.getElementById('trendSel').value;
   const isCost = sel==='cost';
+  const { qtyData, costData } = buildTrendSeries();
   trendChart.data.datasets[0].data = isCost?costData:qtyData;
   trendChart.data.datasets[0].label = isCost?'Production Cost (ETB)':'Injera Produced';
+  trendChart.update();
+}
+
+// Called from refreshDashboard() on every month change / batch add / edit /
+// delete — rebuilds both the labels (day count varies by month) and the data
+// from whatever getBatches() currently holds, then swaps them into the chart.
+function renderTrendChart(){
+  if(!trendChart) return;
+  const { labels, qtyData, costData } = buildTrendSeries();
+  const isCost = document.getElementById('trendSel')?.value === 'cost';
+  trendChart.data.labels = labels;
+  trendChart.data.datasets[0].data = isCost?costData:qtyData;
   trendChart.update();
 }
 
@@ -2684,10 +2824,13 @@ try {
   trendChart = new Chart(tc,{
   type:'line',
   data:{
-    labels:dayLabels,
+    // Empty at construction time — #msel has no options yet at this point
+    // in page load. renderTrendChart() (called from refreshDashboard() once
+    // the initial month has loaded) fills in the real labels/data.
+    labels:[],
     datasets:[{
       label:'Injera Produced',
-      data:qtyData,
+      data:[],
       borderColor:'#27ae60',
       backgroundColor:'rgba(39,174,96,0.09)',
       borderWidth:2.5,
