@@ -10,6 +10,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -118,6 +122,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .exp-btn-top{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:0 14px;height:34px;background:#fff;color:var(--tm);font-size:var(--fs-sm);font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .15s,border-color .15s}
 .exp-btn-top:hover{background:var(--bg);border-color:#c5d6cd}
 .exp-btn-top svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.export-wrap{position:relative;display:inline-flex}
+.export-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 30px rgba(16,38,26,.16);min-width:190px;z-index:500;overflow:hidden;padding:6px}
+.export-menu.open{display:block;animation:fadeUp .18s ease}
+.exp-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--td);transition:background .13s}
+.exp-item:hover{background:#f6faf7}
+.exp-item .exp-ico{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.exp-item .exp-ico svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.exp-item.pdf .exp-ico{background:#fdeaea;color:#e5484d}
+.exp-item.xlsx .exp-ico{background:#e3f6ec;color:#1f8c4d}
+.exp-item.csv .exp-ico{background:#dfeefe;color:#2563eb}
+.exp-item.print .exp-ico{background:#f1eefd;color:#6d28d9}
+.exp-item span small{display:block;font-size:9.5px;font-weight:600;color:var(--tl);margin-top:1px}
 .add-btn{display:flex;align-items:center;gap:7px;border:none;border-radius:8px;padding:0 16px;height:34px;background:linear-gradient(135deg,#34c97a,#1d8c4f);color:#fff;font-size:var(--fs-sm);font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 2px 8px rgba(39,174,96,.3);transition:box-shadow .15s,transform .15s}
 .add-btn:hover{box-shadow:0 4px 12px rgba(39,174,96,.4);transform:translateY(-1px)}
 .add-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
@@ -227,6 +243,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 
 /* ══ ALERTS (with count badge) ══════════════════════ */
 .al{display:flex;align-items:flex-start;gap:11px;padding:11px 17px;border-bottom:1px solid var(--border);transition:background .15s}
+.notif-item{display:flex;align-items:flex-start;gap:11px;padding:10px 15px;border-bottom:1px solid #f0f5f2;cursor:pointer;transition:background .15s}
+.notif-item:hover{background:#f6faf7}
+.notif-item:last-child{border-bottom:none}
 .al:last-child{border-bottom:none}
 .al:hover{background:#f7fbf8}
 .al-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
@@ -314,18 +333,28 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
   .chart-donut-row{grid-template-columns:1fr}
   .bottom3{grid-template-columns:1fr}
 }
-/* ══ SIDEBAR COLLAPSED STATE ═════════════════════════ */
-body.sb-collapsed .sb{width:68px}
-body.sb-collapsed .main{margin-left:68px}
-body.sb-collapsed .logo-txt,body.sb-collapsed .sb-lbl,body.sb-collapsed .sb-a span,
-body.sb-collapsed .sb-foot-txt,body.sb-collapsed .sb-logout{display:none}
-body.sb-collapsed .sb-logo{justify-content:center;padding:16px 0 15px}
-body.sb-collapsed .sb-a{justify-content:center;padding:9px;margin:1px 12px}
-body.sb-collapsed .sb-foot{justify-content:center;padding:12px 0}
-.sb{transition:width .22s cubic-bezier(.4,0,.2,1)}
-.main{transition:margin-left .22s cubic-bezier(.4,0,.2,1)}
+/* ══ SIDEBAR — collapsed by default, expands on hover, ═
+   collapses again the instant the cursor leaves. Pure CSS
+   (no JS) so there's no lag or flash on hover in/out.
+   The expanded sidebar overlays the content rather than
+   pushing it, since .sb and .main are siblings — this also
+   avoids the whole page jumping wider on every hover. ══ */
+.sb{width:68px}
+.main{margin-left:68px}
+.logo-txt,.sb-lbl,.sb-a span,.sb-foot-txt,.sb-logout{display:none}
+.sb-logo{justify-content:center;padding:16px 0 15px}
+.sb-a{justify-content:center;padding:9px;margin:1px 12px}
+.sb-foot{justify-content:center;padding:12px 0}
+.sb{transition:width .18s cubic-bezier(.4,0,.2,1);box-shadow:2px 0 12px rgba(0,0,0,.08)}
 .sb-a{position:relative}
-body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:74px;background:#16261e;color:#fff;font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;font-family:'Nunito',sans-serif}
+.sb:not(:hover) .sb-a:hover::after{content:attr(data-tip);position:fixed;left:74px;background:#16261e;color:#fff;font-size:11.5px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;font-family:'Nunito',sans-serif}
+.sb:hover{width:var(--sw);z-index:250;box-shadow:4px 0 24px rgba(0,0,0,.18)}
+.sb:hover .logo-txt,.sb:hover .sb-lbl,.sb:hover .sb-a span,
+.sb:hover .sb-foot-txt{display:block}
+.sb:hover .sb-logout{display:flex}
+.sb:hover .sb-logo{justify-content:flex-start;padding:20px 18px 16px}
+.sb:hover .sb-a{justify-content:flex-start;padding:9px 14px;margin:1px 12px}
+.sb:hover .sb-foot{justify-content:flex-start;padding:12px 14px}
 
 /* ══ MODAL ════════════════════════════════════════════ */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,30,22,.45);backdrop-filter:blur(2px);z-index:900;display:none;align-items:center;justify-content:center;padding:24px;animation:fadeIn .18s ease}
@@ -429,11 +458,29 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 /* ══ RESPONSIVE ══════════════════════════════════════ */
 /* ══ RESPONSIVE (small screens) ═══════════════════════ */
 @media (max-width:900px){
+  .sb:hover{width:64px;box-shadow:none}
+  .sb:hover .logo-txt,.sb:hover .sb-lbl,.sb:hover .sb-a span,.sb:hover .sb-foot-txt,.sb:hover .sb-logout{display:none}
   body:not(.sb-expanded-mobile) .sb{width:64px}
   body:not(.sb-expanded-mobile) .logo-txt,body:not(.sb-expanded-mobile) .sb-lbl,body:not(.sb-expanded-mobile) .sb-a span,body:not(.sb-expanded-mobile) .sb-foot-txt{display:none}
   body:not(.sb-expanded-mobile) .main{margin-left:64px}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
   .tb-search{display:none}
+}
+/* ══ PRINT ════════════════════════════════════════════ */
+.print-hd{display:none}
+@media print{
+  .sb,.topbar,.toast-root,.modal-overlay,.export-menu,.dd-panel,.row-actions,.pg-bar{display:none!important}
+  .main{margin-left:0!important}
+  .content{padding:10px}
+  body{overflow-x:visible}
+  .print-hd{display:block;text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #27ae60}
+  .print-hd h1{font-size:19px;color:#163a26;margin-bottom:3px}
+  .print-hd p{font-size:11.5px;color:#556;margin-bottom:6px}
+  .print-hd-meta{display:flex;justify-content:center;gap:18px;font-size:10.5px;color:#778;font-weight:600}
+  .kc,.card,.chart-donut-row>*,.bottom3>*{page-break-inside:avoid;break-inside:avoid}
+  .tbl-wrap{overflow:visible}
+  .tbl{min-width:0}
+  .tbl td,.tbl th{white-space:normal}
 }
 </style></head>
 <body>
@@ -461,7 +508,7 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <div class="sb-grp">
     <div class="sb-lbl">Main</div>
-    <a class="sb-a" href="dashboard.html" data-tip="Dashboard" onclick="return goTo('Dashboard')">
+    <a class="sb-a" href="dashboard.html" data-tip="Dashboard">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       <span>Dashboard</span>
     </a>
@@ -469,15 +516,15 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
       <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>Production</span>
     </a>
-    <a class="sb-a" href="derkosh.html" data-tip="Derkosh" onclick="return goTo('Derkosh')">
+    <a class="sb-a" href="derkosh.html" data-tip="Derkosh">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
       <span>Derkosh</span>
     </a>
-    <a class="sb-a" href="sales.html" data-tip="Sales" onclick="return goTo('Sales')">
+    <a class="sb-a" href="sales.html" data-tip="Sales">
       <svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
       <span>Sales</span>
     </a>
-    <a class="sb-a" href="pettycash.html" data-tip="Petty Cash" onclick="return goTo('Petty Cash')">
+    <a class="sb-a" href="pettycash.html" data-tip="Petty Cash">
       <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
       <span>Petty Cash</span>
     </a>
@@ -485,23 +532,27 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <div class="sb-grp">
     <div class="sb-lbl">Finance</div>
-    <a class="sb-a" href="pl.html" data-tip="P&L Statement" onclick="return goTo('P&L Statement')">
+    <a class="sb-a" href="pl.html" data-tip="P&L Statement">
       <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>P&amp;L Statement</span>
     </a>
-    <a class="sb-a" href="cashflow.html" data-tip="Cash Flow" onclick="return goTo('Cash Flow')">
+    <a class="sb-a" href="cashflow.html" data-tip="Cash Flow">
       <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       <span>Cash Flow</span>
     </a>
-    <a class="sb-a" href="budget.html" data-tip="Budget vs Actual" onclick="return goTo('Budget vs Actual')">
+    <a class="sb-a" href="overhead.html" data-tip="Monthly Overhead">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg>
+      <span>Monthly Overhead</span>
+    </a>
+    <a class="sb-a" href="budget.html" data-tip="Budget vs Actual">
       <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       <span>Budget vs Actual</span>
     </a>
-    <a class="sb-a" href="loans.html" data-tip="Loans" onclick="return goTo('Loans')">
+    <a class="sb-a" href="loans.html" data-tip="Loans">
       <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
       <span>Loans</span>
     </a>
-    <a class="sb-a" href="profit.html" data-tip="Distribution" onclick="return goTo('Distribution')">
+    <a class="sb-a" href="profit.html" data-tip="Distribution">
       <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
       <span>Distribution</span>
     </a>
@@ -509,15 +560,15 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <div class="sb-grp">
     <div class="sb-lbl">Records</div>
-    <a class="sb-a" href="customers.html" data-tip="Customers" onclick="return goTo('Customers')">
+    <a class="sb-a" href="customers.html" data-tip="Customers">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Customers</span>
     </a>
-    <a class="sb-a" href="suppliers.html" data-tip="Suppliers" onclick="return goTo('Suppliers')">
+    <a class="sb-a" href="suppliers.html" data-tip="Suppliers">
       <svg viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       <span>Suppliers</span>
     </a>
-    <a class="sb-a" href="inventory.html" data-tip="Inventory" onclick="return goTo('Inventory')">
+    <a class="sb-a" href="inventory.html" data-tip="Inventory">
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
       <span>Inventory</span>
     </a>
@@ -525,7 +576,7 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <div class="sb-grp">
     <div class="sb-lbl">Reports</div>
-    <a class="sb-a" href="reports.html" data-tip="Multi-Year" onclick="return goTo('Multi-Year')">
+    <a class="sb-a" href="reports.html" data-tip="Multi-Year">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       <span>Multi-Year</span>
     </a>
@@ -533,7 +584,7 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <div class="sb-grp">
     <div class="sb-lbl">Settings</div>
-    <a class="sb-a" href="settings.html" data-tip="Settings" onclick="return goTo('Settings')">
+    <a class="sb-a" href="settings.html" data-tip="Settings">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       <span>Settings</span>
     </a>
@@ -579,10 +630,18 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
       <div class="search-clear" onclick="clearSearch()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
     </div>
     <div class="tb-right">
-      <button class="exp-btn-top" onclick="exportCSV()">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export
-      </button>
+      <div class="export-wrap">
+        <button class="exp-btn-top" onclick="toggleExportMenu(event,'exportMenu1')">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <div class="export-menu" id="exportMenu1">
+          <div class="exp-item pdf" onclick="exportPDF();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>PDF Report<small>Formatted summary + table</small></span></div>
+          <div class="exp-item xlsx" onclick="exportExcelWorkbook();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg></div><span>Excel Workbook<small>.xlsx, 2 sheets</small></span></div>
+          <div class="exp-item csv" onclick="exportCSV();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>CSV File<small>Raw data</small></span></div>
+          <div class="exp-item print" onclick="printReport();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></div><span>Print<small>Uses your browser's print dialog</small></span></div>
+        </div>
+      </div>
       <button class="add-btn" onclick="openAddModal()">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Production
@@ -590,10 +649,10 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
       <div style="position:relative">
         <div class="bell" onclick="toggleDD('notifDD',event)">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          <div class="bell-badge" id="bellBadge">7</div>
+          <div class="bell-badge" id="bellBadge" style="display:none">0</div>
         </div>
         <div class="dd-panel notif-panel" id="notifDD">
-          <div class="dd-hd">Notifications <small onclick="clearNotifs()">Mark all read</small></div>
+          <div class="dd-hd">Production Alerts <small onclick="closeAllDD(null);openAllAlerts()">View All</small></div>
           <div id="notifList"></div>
         </div>
       </div>
@@ -624,6 +683,15 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
 
   <!-- CONTENT -->
   <div class="content">
+
+    <div class="print-hd" id="printHd">
+      <h1>Mena Injera &amp; Derkosh</h1>
+      <p>Business Management System — Production Report</p>
+      <div class="print-hd-meta">
+        <span id="printMonth"></span>
+        <span id="printGen"></span>
+      </div>
+    </div>
 
     <!-- KPI -->
     <div class="kpi-row">
@@ -795,22 +863,22 @@ body.sb-collapsed .sb-a:hover::after{content:attr(data-tip);position:fixed;left:
             <div class="al" onclick="filterByAlert('material')">
               <div class="al-ic ai-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
               <div class="al-bd"><h5>High Material Usage</h5><p>Batches exceeding material target</p></div>
-              <div class="al-cnt ac-r">2</div>
+              <div class="al-cnt ac-r" id="alertCountMaterial">0</div>
             </div>
             <div class="al" onclick="filterByAlert('yield')">
               <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
               <div class="al-bd"><h5>Low Yield</h5><p>Below 90% yield rate</p></div>
-              <div class="al-cnt ac-o">3</div>
+              <div class="al-cnt ac-o" id="alertCountYield">0</div>
             </div>
             <div class="al" onclick="filterByAlert('cost')">
               <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
               <div class="al-bd"><h5>Cost Above Target</h5><p>Cost per injera above target</p></div>
-              <div class="al-cnt ac-o">4</div>
+              <div class="al-cnt ac-o" id="alertCountCost">0</div>
             </div>
             <div class="al" style="border-bottom:none" onclick="filterByAlert('missing')">
               <div class="al-ic ai-b"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>
               <div class="al-bd"><h5>Missing Batch Data</h5><p>Incomplete batch information</p></div>
-              <div class="al-cnt ac-b">1</div>
+              <div class="al-cnt ac-b" id="alertCountMissing">0</div>
             </div>
           </div>
         </div>
@@ -1092,7 +1160,28 @@ async function loadWacForPeriod(period){
 }
 
 let WAC = { ...FALLBACK_WAC }; // live value populated by loadMonth(); kept as a
-                                 // module-level var (not const) since it now
+                                 // module-level var (not const) since it changes per month
+
+// Live daily overhead = SUM(monthly_overhead.amount for period) / days_in_month,
+// same formula production_batch_costs applies server-side — surfaced here too
+// so the "New Batch" form's live cost preview matches what will actually be
+// saved, instead of a hardcoded constant (audit fix, see chat).
+const FALLBACK_DAILY_OVERHEAD = 633.00;
+let DAILY_OVERHEAD = FALLBACK_DAILY_OVERHEAD;
+async function loadDailyOverheadForPeriod(period){
+  if(!db) return FALLBACK_DAILY_OVERHEAD;
+  const { data, error } = await db.from('monthly_overhead').select('amount').eq('period', period);
+  if(error){ console.error('loadDailyOverheadForPeriod error', error); return FALLBACK_DAILY_OVERHEAD; }
+  if(!data.length){
+    toast('No overhead recorded for this period yet — using last-known daily overhead as a fallback.','info');
+    return FALLBACK_DAILY_OVERHEAD;
+  }
+  const total = data.reduce((s,r)=>s+Number(r.amount),0);
+  const [y,m] = period.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  return Math.round((total/daysInMonth)*100)/100;
+}
+
                                  // changes when the selected month changes.
 
 // Compute derived fields (material cost from WAC, total, cost/injera) — always
@@ -1119,6 +1208,7 @@ const STATUS_VALUE  = { Completed:'completed', Review:'review', Warning:'warning
 async function loadMonth(monthLabel){
   const period = monthLabelToPeriod(monthLabel);
   WAC = await loadWacForPeriod(period);
+  DAILY_OVERHEAD = await loadDailyOverheadForPeriod(period);
   const ids = await loadItemIds();
 
   const { data: batches, error: batchesErr } = await db.from('production_batches')
@@ -1202,7 +1292,7 @@ function batchLabelForDate(isoDateStr, batchNum){
 /* ════════════════════════════════════════════════════════
    TABLE STATE + RENDER
    ════════════════════════════════════════════════════════ */
-const state = { page:1, pageSize:12, type:'all', statuses:new Set(['Completed','Review','Warning','Alert']), search:'' };
+const state = { page:1, pageSize:12, type:'all', statuses:new Set(['Completed','Review','Warning','Alert']), search:'', printAll:false, alertFilter:null };
 
 function filteredBatches(){
   let rows = getBatches();
@@ -1211,6 +1301,10 @@ function filteredBatches(){
   if(state.search.trim()){
     const q = state.search.trim().toLowerCase();
     rows = rows.filter(r=>r.batchNo.toLowerCase().includes(q));
+  }
+  if(state.alertFilter){
+    const flaggedIds = new Set(computeAlerts()[state.alertFilter].map(r=>r.id));
+    rows = rows.filter(r=>flaggedIds.has(r.id));
   }
   return rows;
 }
@@ -1248,8 +1342,8 @@ function renderTable(){
   wrap.style.display='block';
   emptyState.style.display='none';
 
-  const startIdx = (state.page-1)*state.pageSize;
-  const pageRows = all.slice(startIdx, startIdx+state.pageSize);
+  const startIdx = state.printAll ? 0 : (state.page-1)*state.pageSize;
+  const pageRows = state.printAll ? all : all.slice(startIdx, startIdx+state.pageSize);
 
   tbody.innerHTML = pageRows.map(r=>`
     <tr>
@@ -1281,15 +1375,16 @@ function renderTable(){
 }
 
 function setPage(n){ state.page = n; renderTable(); document.querySelector('.tbl-wrap').scrollIntoView({block:'nearest'}); }
-function onTypeFilterChange(){ state.type = document.getElementById('typeFilter').value; state.page=1; renderTable(); }
+function onTypeFilterChange(){ state.type = document.getElementById('typeFilter').value; state.alertFilter=null; state.page=1; renderTable(); }
 function onStatusFilterChange(){
   const boxes = document.querySelectorAll('#statusDD input[type=checkbox]');
   state.statuses = new Set(Array.from(boxes).filter(b=>b.checked).map(b=>b.value));
   document.getElementById('filterBtn').classList.toggle('has-active', state.statuses.size<4);
+  state.alertFilter=null;
   state.page=1; renderTable();
 }
 function onSearchInput(v){
-  state.search = v; state.page=1;
+  state.search = v; state.page=1; state.alertFilter=null;
   document.getElementById('tbSearchWrap').classList.toggle('has-val', v.length>0);
   renderTable();
 }
@@ -1395,20 +1490,13 @@ async function renderWeek(){
 }
 
 /* ════════════════════════════════════════════════════════
-   SIDEBAR TOGGLE
+   SIDEBAR TOGGLE — desktop expand/collapse is pure CSS hover
+   now (see .sb:hover rules), so this only handles mobile,
+   where there's no hover to rely on and a tap must do the job.
    ════════════════════════════════════════════════════════ */
 function toggleSidebar(){
-  document.body.classList.toggle('sb-collapsed');
-  localStorage.setItem('bms_sb_collapsed', document.body.classList.contains('sb-collapsed')?'1':'0');
+  document.body.classList.toggle('sb-expanded-mobile');
 }
-(function initSidebar(){
-  if(localStorage.getItem('bms_sb_collapsed')==='1') document.body.classList.add('sb-collapsed');
-})();
-function goTo(label){
-  toast(`"${label}" module hasn't been built yet — this prototype only includes Production.`,'info');
-  return false;
-}
-
 /* ════════════════════════════════════════════════════════
    DROPDOWNS (notifications / user menu / filter / row menu)
    ════════════════════════════════════════════════════════ */
@@ -1424,33 +1512,11 @@ function toggleDD(id, ev){
 }
 document.addEventListener('click', ()=>closeAllDD(null));
 
-const NOTIFS = [
-  {ic:'r',title:'High Material Usage flagged',sub:'2 batches exceeding material target · 2h ago'},
-  {ic:'o',title:'Low Yield on batch #050-12',sub:'Yield dropped below 90% · 3h ago'},
-  {ic:'o',title:'Cost Above Target',sub:'4 batches over cost/injera target · 5h ago'},
-  {ic:'b',title:'Missing Batch Data',sub:'1 batch missing field entries · 1d ago'},
-  {ic:'g',title:'Batch INJ-2026-050-01 completed',sub:'2,150 pieces produced · 1d ago'},
-  {ic:'g',title:'Daily production logged',sub:'May 20 batches recorded · 1d ago'},
-  {ic:'b',title:'Weekly report ready',sub:'May 12–18 summary available · 2d ago'}
-];
-function renderNotifs(){
-  const icoMap = {
-    r:['ai-r','<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>'],
-    o:['ai-o','<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'],
-    b:['ai-b','<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>'],
-    g:['ic-g','<path d="M20 6L9 17l-5-5"/>']
-  };
-  document.getElementById('notifList').innerHTML = NOTIFS.map(n=>{
-    const [cls,path] = icoMap[n.ic];
-    return `<div class="notif-row"><div class="ic ${cls}"><svg viewBox="0 0 24 24">${path}</svg></div><div><p>${n.title}</p><span>${n.sub}</span></div></div>`;
-  }).join('');
-}
-renderNotifs();
-function clearNotifs(){
-  document.getElementById('bellBadge').style.display='none';
-  document.getElementById('notifList').innerHTML = `<div class="empty-state" style="padding:30px 15px"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><h5>All caught up</h5><p>No new notifications.</p></div>`;
-  toast('All notifications marked as read.','ok');
-}
+// NOTIFS/renderNotifs()/clearNotifs() removed — these were a static, fake
+// activity feed unrelated to real data (audit fix, see chat: "the
+// notification is not connected"). The bell now shows the same real,
+// computed Production Alerts as the dashboard card, via renderAlertCard()
+// and renderNotifBell(), both called from refreshDashboard().
 
 let activeRowMenuId = null;
 function openRowMenu(id, btnEl, ev){
@@ -1503,15 +1569,51 @@ document.addEventListener('keydown', e=>{
 
 /* WAC RATES declared earlier (top of script) so makeBatch() can use them too. */
 
-/* ── Batch Standards — from spec §14.5 seed data ── */
-const BATCH_STD = {
+/* ── Batch Standards — target material/yield benchmarks per batch type.
+   Loaded live from the batch_standards table (editable — see
+   openBatchStandards()) rather than a fixed constant. Falls back to the
+   §14.5 seed values only if the table can't be reached. ── */
+const FALLBACK_BATCH_STD = {
   Normal:  { blend: 60.00, corn: 15.00, gomen: 5.00, count: 300 },
   Special: { blend: 80.00, corn: 20.00, gomen: 8.00, count: 400 }
 };
+let BATCH_STD = { ...FALLBACK_BATCH_STD };
 
-/* Daily overhead for May 2026: spec says monthly_total / days_in_month.
-   May overhead from seed data: 633 × 31 days = 19,623 ETB/month ÷ 31 = 633.00/day */
-const DAILY_OVERHEAD = 633.00;
+async function loadBatchStandards(){
+  if(!db) return;
+  try{
+    const { data, error } = await db.from('batch_standards').select('*');
+    if(error) throw error;
+    const byType = { normal:'Normal', special:'Special' };
+    data.forEach(row=>{
+      const label = byType[row.batch_type];
+      if(!label) return;
+      BATCH_STD[label] = {
+        blend: Number(row.target_blend_kg),
+        corn: Number(row.target_corn_kg),
+        gomen: Number(row.target_gomen_kg),
+        count: Number(row.target_injera_count)
+      };
+    });
+  }catch(e){
+    console.error('loadBatchStandards error', e);
+    toast('Could not load Batch Standards — using default targets.','info');
+  }
+}
+
+async function saveBatchStandard(batchTypeKey, payload){
+  if(!db){ toast('Not connected to the database.','err'); return false; }
+  const { error } = await db.from('batch_standards')
+    .update({
+      target_blend_kg: payload.blend,
+      target_corn_kg: payload.corn,
+      target_gomen_kg: payload.gomen,
+      target_injera_count: payload.count
+    })
+    .eq('batch_type', batchTypeKey);
+  if(error){ console.error('saveBatchStandard error', error); toast('Could not save Batch Standards.','err'); return false; }
+  return true;
+}
 
 /* ── Add / Edit Production Modal — spec §11.4 layout ── */
 function openAddModal(editId){
@@ -1957,6 +2059,7 @@ function refreshDashboard(){
   renderCostBreakdown();
   renderMaterialConsumption();
   renderRanking();
+  renderAlertCard();
   renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
 }
 
@@ -2054,24 +2157,71 @@ function openViewModal(id){
   `);
 }
 
-/* ── Batch Standards ── */
+/* ── Batch Standards — editable, saved to Supabase ── */
 function openBatchStandards(){
+  const n = BATCH_STD.Normal, s = BATCH_STD.Special;
   openModal(`
     <div class="modal-hd"><h3>Batch Standards</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-bd">
-      <p style="font-size:12.5px;color:var(--tm);margin-bottom:12px">Target material consumption and yield benchmarks per batch type, used to flag Production Alerts.</p>
-      <table class="det-tbl">
-        <thead><tr><th>Batch Type</th><th>Blend Range</th><th>Target Qty</th><th>Target Cost/Injera</th><th>Target Yield</th></tr></thead>
-        <tbody>
-          <tr><td><span class="tag tag-normal">Normal</span></td><td>53–61 kg</td><td>1,650–2,200 pcs</td><td>≤ 4.95 ETB</td><td>≥ 90%</td></tr>
-          <tr><td><span class="tag tag-special">Special</span></td><td>61–67 kg</td><td>2,100–2,520 pcs</td><td>≤ 5.20 ETB</td><td>≥ 92%</td></tr>
-        </tbody>
-      </table>
-      <p style="font-size:11px;color:var(--tl);margin-top:14px">Overhead is allocated at a flat 633.00 ETB/batch-day and excluded from yield calculations per current COGS policy.</p>
+      <p style="font-size:12.5px;color:var(--tm);margin-bottom:14px">Target material consumption and yield benchmarks per batch type, used to flag Production Alerts and the "vs Standard" comparison on the batch form. Changes save to the database and apply immediately.</p>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="tag tag-normal">Normal</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+          <div class="f-field"><label>Blend (kg)</label><input type="number" step="0.01" min="0" id="std_n_blend" value="${n.blend}"></div>
+          <div class="f-field"><label>Corn (kg)</label><input type="number" step="0.01" min="0" id="std_n_corn" value="${n.corn}"></div>
+          <div class="f-field"><label>Gomen (kg)</label><input type="number" step="0.01" min="0" id="std_n_gomen" value="${n.gomen}"></div>
+          <div class="f-field"><label>Target Qty (pcs)</label><input type="number" step="1" min="1" id="std_n_count" value="${n.count}"></div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="tag tag-special">Special</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+          <div class="f-field"><label>Blend (kg)</label><input type="number" step="0.01" min="0" id="std_s_blend" value="${s.blend}"></div>
+          <div class="f-field"><label>Corn (kg)</label><input type="number" step="0.01" min="0" id="std_s_corn" value="${s.corn}"></div>
+          <div class="f-field"><label>Gomen (kg)</label><input type="number" step="0.01" min="0" id="std_s_gomen" value="${s.gomen}"></div>
+          <div class="f-field"><label>Target Qty (pcs)</label><input type="number" step="1" min="1" id="std_s_count" value="${s.count}"></div>
+        </div>
+      </div>
+
+      <p style="font-size:11px;color:var(--tl)">Overhead is allocated per day from Monthly Overhead ÷ days in the month (currently ${fmt2(DAILY_OVERHEAD)} ETB/batch-day this period) and excluded from yield calculations per current COGS policy.</p>
     </div>
-    <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveStdBtn" onclick="saveBatchStandardsForm()">Save Standards</button>
+    </div>
   `);
 }
+
+async function saveBatchStandardsForm(){
+  const read = (id)=>parseFloat(document.getElementById(id).value||'0');
+  const normal  = { blend: read('std_n_blend'), corn: read('std_n_corn'), gomen: read('std_n_gomen'), count: Math.round(read('std_n_count')) };
+  const special = { blend: read('std_s_blend'), corn: read('std_s_corn'), gomen: read('std_s_gomen'), count: Math.round(read('std_s_count')) };
+
+  for(const [label, v] of [['Normal',normal],['Special',special]]){
+    if(v.blend<0||v.corn<0||v.gomen<0||v.count<=0){
+      toast(`${label} standard values must be positive (target quantity must be at least 1).`,'err');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('saveStdBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  const [okN, okS] = await Promise.all([
+    saveBatchStandard('normal', normal),
+    saveBatchStandard('special', special)
+  ]);
+  if(btn){ btn.disabled=false; btn.textContent='Save Standards'; }
+  if(!okN || !okS) return; // saveBatchStandard already toasted the error
+
+  BATCH_STD.Normal = normal;
+  BATCH_STD.Special = special;
+  toast('Batch Standards updated.','ok');
+  closeModal();
+  refreshDashboard(); // alert counts / ranking depend on standards, recompute
+}
+
 
 /* ── Production Report ── */
 function openProductionReport(){
@@ -2177,37 +2327,133 @@ function openFullCalendar(){
 }
 
 /* ── Alerts ── */
+/* ════════════════════════════════════════════════════════
+   PRODUCTION ALERTS — computed directly from real batch data
+   and Batch Standards, not from the user-editable status field
+   (a manually-picked status isn't a real "detection" of a
+   problem). Four categories, matching the dashboard card,
+   the notification bell, and the "View All" modal — all three
+   now read from this single function so they can never drift
+   out of sync with each other (audit fix, see chat).
+   ════════════════════════════════════════════════════════ */
+function computeAlerts(){
+  const rows = getBatches();
+  const alerts = { material:[], yield:[], cost:[], missing:[] };
+  if(!rows.length) return alerts;
+
+  const { normalAvg, specialAvg, rate } = typeRateAverages(rows);
+
+  rows.forEach(r=>{
+    const std = BATCH_STD[r.type] || BATCH_STD.Normal;
+
+    // Missing Batch Data: required fields absent/zero in a way that
+    // shouldn't be possible for a properly-entered batch.
+    const isMissing = !r.date || !r.type || !r.qty || r.qty<=0 || (r.blend<=0 && r.corn<=0);
+    if(isMissing){ alerts.missing.push(r); return; } // don't double-flag an incomplete row elsewhere
+
+    // High Material Usage: total kg input exceeds this batch type's
+    // standard blend+corn+gomen by more than 10%.
+    const stdKg = std.blend + std.corn + std.gomen;
+    const actualKg = r.blend + r.corn + (r.gomen||0);
+    if(stdKg>0 && actualKg > stdKg*1.10) alerts.material.push(r);
+
+    // Low Yield: pcs-per-kg rate falls below 90% of this month's average
+    // for the same batch type (same threshold as the Yield Rate KPI card).
+    const typeAvg = r.type==='Special' ? specialAvg : normalAvg;
+    if(typeAvg>0 && rate(r) < 0.90*typeAvg) alerts.yield.push(r);
+
+    // Cost Above Target: cost/injera exceeds the standard's implied
+    // target (target kg cost proportional to target count — i.e. what
+    // the batch "should" cost per piece if it hit standard on both
+    // material use and yield).
+    if(std.count>0){
+      const targetCpi = ((std.blend*WAC.blend + std.corn*WAC.corn + std.gomen*WAC.gomen) + DAILY_OVERHEAD) / std.count;
+      if(targetCpi>0 && r.costPerInjera > targetCpi*1.05) alerts.cost.push(r);
+    }
+  });
+  return alerts;
+}
+
+function renderAlertCard(){
+  const alerts = computeAlerts();
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
+  set('alertCountMaterial', alerts.material.length);
+  set('alertCountYield', alerts.yield.length);
+  set('alertCountCost', alerts.cost.length);
+  set('alertCountMissing', alerts.missing.length);
+  const total = alerts.material.length+alerts.yield.length+alerts.cost.length+alerts.missing.length;
+  const bellBadge = document.getElementById('bellBadge');
+  if(bellBadge){
+    if(total>0){ bellBadge.textContent = total>9?'9+':total; bellBadge.style.display='flex'; }
+    else bellBadge.style.display='none';
+  }
+  renderNotifBell(alerts);
+}
+
+function renderNotifBell(alerts){
+  const list = document.getElementById('notifList');
+  if(!list) return;
+  const defs = [
+    { key:'material', label:'High Material Usage', sub:'exceeding material target', cls:'ai-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+    { key:'yield', label:'Low Yield', sub:'below 90% yield rate', cls:'ai-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    { key:'cost', label:'Cost Above Target', sub:'above target cost per injera', cls:'ai-o', icon:'<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>' },
+    { key:'missing', label:'Missing Batch Data', sub:'with incomplete information', cls:'ai-b', icon:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>' },
+  ];
+  const active = defs.filter(d=>alerts[d.key].length>0);
+  if(!active.length){
+    list.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--tl);font-size:12.5px">No production alerts right now.</div>`;
+    return;
+  }
+  list.innerHTML = active.map(d=>`
+    <div class="notif-item" onclick="closeAllDD(null);filterByAlert('${d.key}')">
+      <div class="al-ic ${d.cls}" style="width:32px;height:32px;flex-shrink:0"><svg viewBox="0 0 24 24">${d.icon}</svg></div>
+      <div class="al-bd"><h5>${d.label}</h5><p>${alerts[d.key].length} ${alerts[d.key].length===1?'batch':'batches'} ${d.sub}.</p></div>
+    </div>`).join('');
+}
+
 function filterByAlert(kind){
   document.getElementById('typeFilter').value='all';
   state.type='all';
-  document.querySelectorAll('#statusDD input').forEach(b=>b.checked=true);
+  document.querySelectorAll('#statusDD input').forEach(b=>{ b.checked=true; });
   state.statuses = new Set(['Completed','Review','Warning','Alert']);
   state.search='';
   document.getElementById('searchInput').value='';
+  document.getElementById('filterBtn').classList.remove('has-active');
 
-  const map = {
-    material:{statuses:['Alert'],label:'batches flagged for High Material Usage'},
-    yield:{statuses:['Warning'],label:'batches flagged for Low Yield'},
-    cost:{statuses:['Review'],label:'batches flagged for Cost Above Target'},
-    missing:{statuses:['Alert','Warning'],label:'batches with potential Missing Batch Data'}
+  const labels = {
+    material:'batches flagged for High Material Usage',
+    yield:'batches flagged for Low Yield',
+    cost:'batches flagged for Cost Above Target',
+    missing:'batches with Missing Batch Data'
   };
-  const cfg = map[kind];
-  state.statuses = new Set(cfg.statuses);
-  document.querySelectorAll('#statusDD input').forEach(b=>{ b.checked = cfg.statuses.includes(b.value); });
-  document.getElementById('filterBtn').classList.add('has-active');
+  state.alertFilter = kind;
   state.page=1;
   renderTable();
   document.querySelector('.tbl-wrap').scrollIntoView({behavior:'smooth',block:'center'});
-  toast(`Filtered to ${cfg.label}.`,'info');
+  const n = computeAlerts()[kind].length;
+  toast(n>0 ? `Showing ${n} ${labels[kind]}.` : `No ${labels[kind]} right now.`,'info');
+}
+function clearAlertFilter(){
+  state.alertFilter = null;
+  state.page=1;
+  renderTable();
 }
 function openAllAlerts(){
+  const alerts = computeAlerts();
+  const defs = [
+    { key:'material', label:'High Material Usage', sub:'batches exceeding material target — review blend ratios.', cls:'ai-r', cntCls:'ac-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+    { key:'yield', label:'Low Yield', sub:'batches below the 90% yield rate target.', cls:'ai-o', cntCls:'ac-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    { key:'cost', label:'Cost Above Target', sub:'batches with cost per injera above target.', cls:'ai-o', cntCls:'ac-o', icon:'<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>' },
+    { key:'missing', label:'Missing Batch Data', sub:'batches with incomplete field information.', cls:'ai-b', cntCls:'ac-b', icon:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>' },
+  ];
+  const rowsHtml = defs.map(d=>{
+    const n = alerts[d.key].length;
+    return `<div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('${d.key}')"><div class="al-ic ${d.cls}"><svg viewBox="0 0 24 24">${d.icon}</svg></div><div class="al-bd"><h5>${d.label}</h5><p>${n} ${n===1?'batch':'batches'} ${d.sub.replace(/^batches? /,'')}</p></div><div class="al-cnt ${d.cntCls}">${n}</div></div>`;
+  }).join('');
   openModal(`
     <div class="modal-hd"><h3>All Production Alerts</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
-      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('material')"><div class="al-ic ai-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div><div class="al-bd"><h5>High Material Usage</h5><p>2 batches exceeding material target — review blend ratios.</p></div><div class="al-cnt ac-r">2</div></div>
-      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('yield')"><div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="al-bd"><h5>Low Yield</h5><p>3 batches below the 90% yield rate target.</p></div><div class="al-cnt ac-o">3</div></div>
-      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('cost')"><div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div><div class="al-bd"><h5>Cost Above Target</h5><p>4 batches with cost per injera above target.</p></div><div class="al-cnt ac-o">4</div></div>
-      <div class="al" style="border:1px solid var(--border);border-radius:10px;cursor:pointer" onclick="closeModal();filterByAlert('missing')"><div class="al-ic ai-b"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div><div class="al-bd"><h5>Missing Batch Data</h5><p>1 batch with incomplete field information.</p></div><div class="al-cnt ac-b">1</div></div>
+      ${rowsHtml}
     </div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
   `);
@@ -2216,6 +2462,152 @@ function openAllAlerts(){
 /* ════════════════════════════════════════════════════════
    EXPORT CSV
    ════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   EXPORT DROPDOWN (PDF / Excel / CSV / Print)
+   Ported from pettycash.html's export pattern. The old
+   "Full Sheet (PDF)" html2canvas capture is intentionally
+   NOT included — it was fragile at full-page size; Print
+   (native window.print + @media print) replaces it.
+   ════════════════════════════════════════════════════════ */
+function closeExportMenus(){ document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open')); }
+function toggleExportMenu(evt, id){
+  evt.stopPropagation();
+  const menu = document.getElementById(id);
+  const willOpen = !menu.classList.contains('open');
+  closeExportMenus(); closeAllDD(null);
+  if(willOpen) menu.classList.add('open');
+}
+document.addEventListener('click', ()=>{ closeExportMenus(); });
+
+// ── PDF Report (jsPDF + autotable) ──────────────────────
+function exportPDF(){
+  if(typeof window.jspdf==='undefined'){ toast('PDF library did not load. Check your connection.','err'); return; }
+  const rows = filteredBatches();
+  if(!rows.length){ toast('No batches to export with the current filters.','err'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4', orientation:'landscape' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const green = [39,174,96], dark = [22,38,30], grey = [120,140,130];
+
+  doc.setFillColor(...green); doc.rect(0,0,pageW,64,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('Mena Injera & Derkosh',40,28);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+  doc.text('Business Management System — Production Report',40,44);
+  doc.setFontSize(9.5); doc.text(currentMonth(),pageW-40,28,{align:'right'});
+  doc.text('Generated '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),pageW-40,44,{align:'right'});
+
+  const totalQty = rows.reduce((s,r)=>s+r.qty,0);
+  const totalCost = rows.reduce((s,r)=>s+r.total,0);
+  const avgCpi = totalQty>0 ? totalCost/totalQty : 0;
+  const kpis = [['Total Batches',rows.length],['Injera Produced',fmt0(totalQty)+' pcs'],['Production Cost',fmt2(totalCost)+' ETB'],['Avg Cost/Injera',fmt2(avgCpi)+' ETB']];
+  const boxW = (pageW-80-3*10)/4;
+  kpis.forEach((k,i)=>{
+    const x = 40+i*(boxW+10);
+    doc.setFillColor(246,250,247); doc.setDrawColor(224,236,229);
+    doc.roundedRect(x,80,boxW,46,5,5,'FD');
+    doc.setTextColor(...grey); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    doc.text(String(k[0]).toUpperCase(),x+10,96);
+    doc.setTextColor(...dark); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+    doc.text(String(k[1]),x+10,112);
+  });
+
+  const body = rows.map(r=>[r.batchNo,r.date,r.type,fmt1(r.blend),fmt1(r.corn),fmt1(r.gomen),fmt0(r.qty),fmt2(r.material),fmt2(r.overhead),fmt2(r.other),fmt2(r.total),fmt2(r.costPerInjera),r.status]);
+  doc.autoTable({
+    startY: 142,
+    head: [['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Qty','Material','Overhead','Other','Total','Cost/Inj.','Status']],
+    body,
+    foot: [['','','','','','','','','','','TOTAL',fmt2(totalCost),'']],
+    theme: 'grid',
+    headStyles: { fillColor: green, textColor: 255, fontStyle:'bold', fontSize:8 },
+    footStyles: { fillColor:[246,250,247], textColor: dark, fontStyle:'bold', fontSize:8 },
+    bodyStyles: { fontSize:8, textColor: dark },
+    alternateRowStyles: { fillColor:[250,252,251] },
+    columnStyles: { 3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'},7:{halign:'right'},8:{halign:'right'},9:{halign:'right'},10:{halign:'right'},11:{halign:'right'} },
+    margin: { left:40, right:40 },
+    didDrawPage: function(){
+      const ph = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7.5); doc.setTextColor(...grey);
+      doc.text('Mena Injera & Derkosh BMS — Production Report — Page '+doc.internal.getNumberOfPages(),40,ph-20);
+    }
+  });
+
+  doc.save(`production-${monthLabelToPeriod(currentMonth())}.pdf`);
+  toast(`Exported ${rows.length} batches to PDF.`,'ok');
+}
+
+// ── Excel Workbook (SheetJS, 2 sheets) ──────────────────
+function exportExcelWorkbook(){
+  if(typeof XLSX==='undefined'){ toast('Excel library did not load. Check your connection.','err'); return; }
+  const rows = filteredBatches();
+  if(!rows.length){ toast('No batches to export with the current filters.','err'); return; }
+  const totalQty = rows.reduce((s,r)=>s+r.qty,0);
+  const totalCost = rows.reduce((s,r)=>s+r.total,0);
+
+  const wsData = [
+    ['Mena Injera & Derkosh — Production Batch List'],
+    [currentMonth()],
+    [],
+    ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material Cost (ETB)','Overhead (ETB)','Other Cost (ETB)','Total Cost (ETB)','Cost/Injera (ETB)','Status']
+  ];
+  rows.forEach(r=>wsData.push([r.batchNo,r.date,r.type,r.blend,r.corn,r.gomen,r.qty,r.material,r.overhead,r.other,r.total,r.costPerInjera,r.status]));
+  wsData.push([]);
+  wsData.push(['','','','','','','','','','','TOTAL',totalCost,'']);
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:18},{wch:12},{wch:9},{wch:11},{wch:10},{wch:11},{wch:11},{wch:14},{wch:12},{wch:12},{wch:13},{wch:12},{wch:11}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+
+  const avgCpi = totalQty>0 ? totalCost/totalQty : 0;
+  const sumData = [
+    ['Production Summary',''],
+    [currentMonth(),''],
+    [],
+    ['Total Batches', rows.length],
+    ['Injera Produced (pcs)', totalQty],
+    ['Total Production Cost (ETB)', totalCost],
+    ['Average Cost / Injera (ETB)', Math.round(avgCpi*100)/100],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(sumData);
+  ws2['!cols'] = [{wch:26},{wch:16}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+  XLSX.utils.book_append_sheet(wb, ws, 'Batches');
+  XLSX.writeFile(wb, `production-${monthLabelToPeriod(currentMonth())}.xlsx`);
+  toast(`Exported ${rows.length} batches as Excel workbook.`,'ok');
+}
+
+// ── Print (native browser print, not html2canvas) ───────
+let __printSavedPage = null;
+function printReport(){
+  const rows = filteredBatches();
+  if(!rows.length){ toast('No batches to print with the current filters.','err'); return; }
+  document.getElementById('printMonth').textContent = currentMonth();
+  document.getElementById('printGen').textContent = 'Generated '+new Date().toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  // Show every filtered row (not just the current page) for the printout,
+  // then restore normal pagination afterward.
+  __printSavedPage = state.page;
+  state.printAll = true;
+  renderTable();
+  closeExportMenus(); closeAllDD(null);
+  try{
+    window.print();
+  }catch(e){
+    console.error('[production] print failed:', e);
+    toast("Your browser blocked the print dialog. Try opening this page in its own tab and print again.",'err');
+  }
+  setTimeout(restorePrintState, 4000); // safety net if afterprint never fires
+}
+function restorePrintState(){
+  if(__printSavedPage!==null){
+    state.printAll = false;
+    state.page = __printSavedPage;
+    __printSavedPage = null;
+    renderTable();
+  }
+}
+window.addEventListener('afterprint', restorePrintState);
+
 function exportCSV(){
   const rows = filteredBatches();
   if(rows.length===0){ toast('No batches to export with the current filters.','err'); return; }
@@ -2373,8 +2765,8 @@ function renderCostBreakdown(){
 
   const data = [materials, overhead, other];
   if(costChart){
-    costChart.data.datasets[0].data = data;
-    costChart.update();
+    costChart.data.datasets[0].data = [...data];
+    costChart.update('none');
     return;
   }
   try {
@@ -2413,7 +2805,13 @@ function renderCostBreakdown(){
   } catch(e) { console.warn("Chart.js not loaded (CDN blocked in sandbox). Cost breakdown donut will appear in browser.", e.message); }
 }
 
-renderCostBreakdown();
+// NOTE: renderCostBreakdown() is intentionally NOT called here at parse time.
+// It used to be, which created the chart once with empty/zero data (before
+// Supabase had responded) and relied on Chart.js's .update() to fix it later —
+// on some browsers that first zero-data paint stuck. refreshDashboard() (called
+// from onMonthChange() at init) is the single correct place this now runs from,
+// always with real data already loaded. See chat: this was the root cause of
+// "the production chart is not connected."
 
 // Material Consumption card — kg used and cost always summed from getBatches()
 // at the live WAC constants, never hardcoded (audit fix, see chat).
@@ -2586,6 +2984,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     // else: guardAndPopulateSidebar() already redirected to login.html — no need to toast.
     return;
   }
+  await loadBatchStandards();
   await onMonthChange(); // loads the initially-selected month and renders everything (includes renderWeek via refreshDashboard)
 });
 </script>
