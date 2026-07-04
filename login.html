@@ -885,13 +885,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
 // ── Session / Auth ────────────────────────────────────────
 function loadSession(){
   try {
-    const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+    const raw = localStorage.getItem('bms_session') || sessionStorage.getItem('bms_session');
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 function clearSession(){
-  localStorage.removeItem('injera_session');
-  sessionStorage.removeItem('injera_session');
+  localStorage.removeItem('bms_session');
+  sessionStorage.removeItem('bms_session');
 }
 
 (function guardAndPopulateSidebar(){
