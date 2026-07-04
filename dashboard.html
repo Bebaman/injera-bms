@@ -4,6 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Mena Injera & Derkosh BMS</title>
+<script>
+/* ════ EARLY AUTH CHECK ════
+   Redirect-only pass so an expired/missing session bounces to login before any
+   CDN libraries or page content load. The fuller guard further down (which also
+   populates the sidebar/topbar with the real user) still runs later once the
+   DOM exists — this just closes the flash-of-content gap ahead of it. */
+(function(){
+  function loadSessionEarly(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  const s = loadSessionEarly();
+  if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
+    try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
+    window.location.replace('login.html');
+    throw new Error('No valid session — redirecting to login.');
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -722,9 +743,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.kc-sm-val,.healt
         <div class="qa-g">
           <a class="qa-b" href="production.html"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Add<br>Production</a>
           <a class="qa-b" href="sales.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>Add<br>Sale</a>
-          <a class="qa-b" href="purchases.html"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>Add<br>Purchase</a>
+          <a class="qa-b" href="purchases.html?new=1"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>Add<br>Purchase</a>
           <a class="qa-b" href="pettycash.html"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Petty<br>Cash</a>
-          <a class="qa-b" style="position:relative" href="expenses.html"><div class="qa-bdg">3</div><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Expense<br>Approval</a>
+          <a class="qa-b" style="position:relative" href="purchases.html?approvals=1"><div class="qa-bdg" id="qaApprovalBadge" style="display:none">0</div><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Expense<br>Approval</a>
           <a class="qa-b" href="reports.html"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>View<br>Reports</a>
         </div>
         <a class="exp-btn" href="reports.html">
@@ -1157,6 +1178,17 @@ async function refreshDashboard(){
       sbGet(`customer_profitability?select=*`)
     ]);
 
+    // ── Reflect the real pending-approvals count on the Quick Actions badge ──
+    const approvalBadgeEl = document.getElementById('qaApprovalBadge');
+    if(approvalBadgeEl){
+      if(pendingApprovals.length > 0){
+        approvalBadgeEl.textContent = pendingApprovals.length > 9 ? '9+' : String(pendingApprovals.length);
+        approvalBadgeEl.style.display = 'flex';
+      } else {
+        approvalBadgeEl.style.display = 'none';
+      }
+    }
+
     // ── PNL-derived KPIs ────────────────────────────────
     function zeroPnl(p){ return {period:p,total_revenue:0,total_overhead:0,total_raw_material:0,total_opex:0,petty_cash_total:0,bank_charges:0,interest_expense:0}; }
     const pnlCur  = pnlRows.find(r=>r.period===period) || zeroPnl(period);
@@ -1329,7 +1361,7 @@ async function refreshDashboard(){
       alerts.push({icon:'ai-r', svg:'warn', title:`${i.name} stock is below reorder level`, sub:`Current: ${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit}`});
     });
     pendingApprovals.slice(0,3).forEach(p=>{
-      alerts.push({icon:'ai-o', svg:'clock', title:'Expense approval pending', sub:`${p.expense_categories?.name || 'Expense'} — ${fmtETB(p.total_cost)} ETB`});
+      alerts.push({icon:'ai-o', svg:'clock', title:'Expense approval pending', sub:`${p.expense_categories?.name || 'Expense'} — ${fmtETB(p.total_cost)} ETB`, link:'purchases.html?approvals=1'});
     });
     loanSummaryRows.forEach(l=>{
       if(l.next_payment_due){
@@ -1404,12 +1436,19 @@ function renderAlerts(){
     users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
     check: '<polyline points="20 6 9 17 4 12"/>'
   };
-  wrap.innerHTML = LAST.alerts.slice(0,6).map((a,i,arr)=>`
-    <div class="al"${i===arr.length-1?' style="border-bottom:none"':''}>
+  wrap.innerHTML = LAST.alerts.slice(0,6).map((a,i,arr)=>{
+    const styles = [];
+    if(i===arr.length-1) styles.push('border-bottom:none');
+    if(a.link) styles.push('cursor:pointer');
+    const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
+    const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
+    return `
+    <div class="al"${styleAttr}${clickAttr}>
       <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${ICONS[a.svg]||ICONS.check}</svg></div>
       <div class="al-bd"><h5>${a.title}</h5><p>${a.sub}</p></div>
       <div class="al-t"></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderExpenseDonut(){
