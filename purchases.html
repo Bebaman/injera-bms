@@ -750,55 +750,22 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
       <div class="notif-wrap">
         <div class="bell" onclick="toggleNotifPanel(event)" id="bellBtn">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          <div class="bell-badge" id="bellBadge">2</div>
+          <div class="bell-badge" id="bellBadge" style="display:none">0</div>
         </div>
         <!-- ════ NOTIFICATION PANEL — floating dropdown anchored to the bell (not a
              fixed viewport-wide panel), capped height so it scrolls internally. ════ -->
         <div class="notif-panel" id="notifPanel">
           <div class="notif-hd">
-            <h3>Notifications <span style="background:#27ae60;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px" id="notifHdCount">2</span></h3>
+            <h3>Notifications <span style="background:#27ae60;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;display:none" id="notifHdCount">0</span></h3>
             <span class="notif-mark" onclick="markAllRead()">Mark all as read</span>
           </div>
           <div class="notif-list">
-            <div class="notif-item unread" style="position:relative">
-              <div class="notif-ic ni-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-              <div class="notif-txt">
-                <h5>Large Expense Pending Approval</h5>
-                <p>Yimaru Transport — Delivery Out — 1,800.00 ETB requires your approval</p>
-                <time>2 hours ago · May 23, 2026</time>
-              </div>
-            </div>
-            <div class="notif-item unread" style="position:relative">
-              <div class="notif-ic ni-r"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-              <div class="notif-txt">
-                <h5>Budget Threshold Reached</h5>
-                <p>Electricity spend has reached 90% of the May 2026 budget</p>
-                <time>5 hours ago · May 23, 2026</time>
-              </div>
-            </div>
-            <div class="notif-item">
-              <div class="notif-ic ni-g"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div class="notif-txt">
-                <h5>42 Purchases Recorded This Month</h5>
-                <p>Total purchases for May 2026 are on track vs. last month</p>
-                <time>Yesterday · May 22, 2026</time>
-              </div>
-            </div>
-            <div class="notif-item">
-              <div class="notif-ic ni-b"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-              <div class="notif-txt">
-                <h5>Export Complete</h5>
-                <p>April 2026 purchase report exported successfully</p>
-                <time>2 days ago · May 21, 2026</time>
-              </div>
-            </div>
-            <div class="notif-item">
-              <div class="notif-ic ni-g"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-              <div class="notif-txt">
-                <h5>New Supplier Added</h5>
-                <p>Abebe Grain Supplier was added to your supplier list</p>
-                <time>3 days ago · May 20, 2026</time>
-              </div>
+            <!-- Static demo notifications removed — this list is not yet wired to a real
+                 notifications table/query. Left empty rather than showing invented alerts.
+                 TODO: populate from Supabase (e.g. pending approvals, budget thresholds)
+                 once a notifications source exists. -->
+            <div class="notif-item" style="text-align:center;color:var(--tl);padding:24px 14px">
+              <p style="font-size:12px">No notifications yet</p>
             </div>
           </div>
           <div class="notif-ft"><a onclick="showToast('Full notification history coming soon')">View all notifications →</a></div>
@@ -1452,65 +1419,21 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 // purchase row too, purely as a display cache so the table doesn't need a join to render.
 function genId(){ return 'sup_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 
-let suppliers = [
-  {id:genId(), name:'Abebe Grain Supplier', category:'Grain', isActive:true},
-  {id:genId(), name:'Zemen Packaging', category:'Packaging', isActive:true},
-  {id:genId(), name:'Ethio Electric', category:'Utility', isActive:true},
-  {id:genId(), name:'Addis Water Utility', category:'Utility', isActive:true},
-  {id:genId(), name:'Yimaru Transport', category:'Logistics', isActive:true},
-  {id:genId(), name:'Berhan Bank', category:'Finance', isActive:true}
-];
+// Starts empty — populated exclusively by loadSuppliersFromSupabase() from the real
+// `suppliers` table. No demo/placeholder rows: an empty Supabase table should mean an
+// empty list on screen, not fake companies.
+let suppliers = [];
 function supplierByName(name){ return suppliers.find(s=>s.name===name); }
 function supplierById(id){ return suppliers.find(s=>s.id===id); }
 
-let purchases = [
-  {id:1, date:'2026-05-30', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'75kg', qty:75, unit:'kg', unitPrice:86, procCost:150, deliv:100, channel:'Bank', status:'Completed'},
-  {id:2, date:'2026-05-29', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'100pcs', qty:100, unit:'pcs', unitPrice:3.9, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:3, date:'2026-05-28', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'100kg', qty:100, unit:'kg', unitPrice:22, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:4, date:'2026-05-27', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026 bill', qty:1, unit:'ls', unitPrice:5300, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:5, date:'2026-05-26', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'200pcs', qty:200, unit:'pcs', unitPrice:1.8, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:6, date:'2026-05-25', supplier:'Addis Water Utility', type:'Expense', category:'Water', description:'May 2026 bill', qty:1, unit:'ls', unitPrice:1200, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:7, date:'2026-05-24', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'20kg', qty:20, unit:'kg', unitPrice:52, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:8, date:'2026-05-23', supplier:'Yimaru Transport', type:'Expense', category:'Delivery Out', description:'To shops', qty:1, unit:'ls', unitPrice:1800, procCost:0, deliv:0, channel:'Cash', status:'Pending'},
-  {id:9, date:'2026-05-22', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee', qty:1, unit:'ls', unitPrice:85, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:10, date:'2026-05-21', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'50kg', qty:50, unit:'kg', unitPrice:88, procCost:120, deliv:80, channel:'Bank', status:'Completed'},
-  {id:11, date:'2026-05-20', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'67pcs', qty:67, unit:'pcs', unitPrice:3.9, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:12, date:'2026-05-19', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'147pcs', qty:147, unit:'pcs', unitPrice:1.69, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:13, date:'2026-05-19', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'80kg', qty:80, unit:'kg', unitPrice:23.28, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:14, date:'2026-05-19', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'19kg', qty:19, unit:'kg', unitPrice:52.43, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:15, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'79kg', qty:79, unit:'kg', unitPrice:20.7, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:16, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'49kg', qty:49, unit:'kg', unitPrice:23.18, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:17, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'20kg', qty:20, unit:'kg', unitPrice:54.45, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:18, date:'2026-05-17', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'47kg', qty:47, unit:'kg', unitPrice:20.53, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:19, date:'2026-05-16', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'24kg', qty:24, unit:'kg', unitPrice:48.05, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:20, date:'2026-05-15', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'111pcs', qty:111, unit:'pcs', unitPrice:1.72, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:21, date:'2026-05-15', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'81pcs', qty:81, unit:'pcs', unitPrice:3.93, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:22, date:'2026-05-14', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'195pcs', qty:195, unit:'pcs', unitPrice:1.93, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:23, date:'2026-05-13', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'35kg', qty:35, unit:'kg', unitPrice:88.95, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:24, date:'2026-05-12', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'60kg', qty:60, unit:'kg', unitPrice:21.6, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:25, date:'2026-05-11', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'12kg', qty:12, unit:'kg', unitPrice:53.68, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:26, date:'2026-05-11', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'107pcs', qty:107, unit:'pcs', unitPrice:3.95, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:27, date:'2026-05-10', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'106pcs', qty:106, unit:'pcs', unitPrice:1.64, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:28, date:'2026-05-09', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'44kg', qty:44, unit:'kg', unitPrice:87.51, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:29, date:'2026-05-08', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'86pcs', qty:86, unit:'pcs', unitPrice:3.79, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:30, date:'2026-05-08', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'62kg', qty:62, unit:'kg', unitPrice:21.26, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:31, date:'2026-05-07', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'58kg', qty:58, unit:'kg', unitPrice:22.26, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:32, date:'2026-05-07', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'23kg', qty:23, unit:'kg', unitPrice:53.17, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:33, date:'2026-05-06', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'86kg', qty:86, unit:'kg', unitPrice:22.38, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:34, date:'2026-05-06', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee - May 2026', qty:1, unit:'ls', unitPrice:216.81, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:35, date:'2026-05-06', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1732.16, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:36, date:'2026-05-04', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee - May 2026', qty:1, unit:'ls', unitPrice:89.58, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:37, date:'2026-05-02', supplier:'Yimaru Transport', type:'Expense', category:'Delivery Out', description:'May 2026', qty:1, unit:'ls', unitPrice:1138.91, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:38, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1585.46, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:39, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:2376.68, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:40, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1776.89, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:41, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1662.11, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:42, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1618.2, procCost:0, deliv:0, channel:'Bank', status:'Completed'}
-];
+// Starts empty — populated exclusively by loadFromSupabase() from the real `purchases`
+// table. No demo/placeholder rows: an empty Supabase table should mean an empty page,
+// not 42 invented transactions.
+let purchases = [];
 // supplierId FK backfill happens here (suppliers is already defined above).
 // categoryId FK backfill happens later, after inventoryItems/expenseCategories are defined.
 purchases.forEach(p => { const s = supplierByName(p.supplier); if(s) p.supplierId = s.id; });
-let nextPurchaseId = 43;
+let nextPurchaseId = 1;
 
 let state = {page:1, perPage:10, sort:null};
 let typeChart, chanChart, trendChart;
@@ -2278,27 +2201,11 @@ function updateApprovalReadout(total){
 /* ════════════════ CATEGORY DATA — real FK tables, not text ════════════════ */
 // purchases.item_id → inventory_items.id (type='purchase')
 // purchases.expense_category_id → expense_category.id (type='expense')
-// These arrays are loaded from Supabase at startup (loadLookupsFromSupabase). The
-// literals below are the offline/first-paint fallback — identical to the live seed
-// data in injera_bms_COMPLETE.sql, grouped for the dropdown UI.
-let inventoryItems = [
-  { id:'local-inj', name:'Injera Blend', unit:'kg', group:'Raw Materials' },
-  { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
-  { id:'local-gomen', name:'Gomen Zere', unit:'kg', group:'Raw Materials' },
-  { id:'local-sbag', name:'Small Bags', unit:'pcs', group:'Packaging' },
-  { id:'local-lbag', name:'Large Bags', unit:'pcs', group:'Packaging' }
-];
-let expenseCategories = [
-  { id:'local-rent', name:'Rent', group:'Overhead (COGS)' },
-  { id:'local-elec', name:'Electricity', group:'Overhead (COGS)' },
-  { id:'local-water', name:'Water', group:'Overhead (COGS)' },
-  { id:'local-labor', name:'Labor', group:'Overhead (COGS)' },
-  { id:'local-maint', name:'Maintenance', group:'Overhead (COGS)' },
-  { id:'local-delivout', name:'Delivery Out', group:'Operating Expenses' },
-  { id:'local-mktg', name:'Marketing', group:'Operating Expenses' },
-  { id:'local-bankchg', name:'Bank Charges', group:'Operating Expenses' },
-  { id:'local-other', name:'Other', group:'Operating Expenses' }
-];
+// Start empty — populated exclusively by loadLookupsFromSupabase() from the real
+// `inventory_items` / `expense_categories` tables. If those tables are empty in
+// Supabase, these dropdowns will correctly show nothing rather than fake fallback data.
+let inventoryItems = [];
+let expenseCategories = [];
 function itemById(id){ return inventoryItems.find(i=>i.id===id); }
 function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
@@ -3268,7 +3175,7 @@ async function loadFromSupabase(){
           exchangeRate: r.exchange_rate != null ? parseFloat(r.exchange_rate) : null
         };
       }).sort((a,b) => new Date(b.date) - new Date(a.date));
-      nextPurchaseId = Math.max(...purchases.map(p=>Number(p.id)||0)) + 1;
+      nextPurchaseId = purchases.length ? Math.max(...purchases.map(p=>Number(p.id)||0)) + 1 : 1;
       showToast('Data loaded from database (' + purchases.length + ' records)');
     }
   } catch(err){
