@@ -7,11 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js'"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js'"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1032,6 +1032,7 @@ document.addEventListener('click',function(){
 // ── Count-up animation ───────────────────────────────────
 function animateCount(el){
   const target=parseFloat(el.dataset.target);
+  if(!isFinite(target)) return; // no valid target set yet (e.g. data still loading) — leave existing text as-is instead of showing NaN
   const dec=parseInt(el.dataset.decimals||'0',10);
   const dur=1100;
   const start=performance.now();
@@ -1419,14 +1420,20 @@ function renderExpenseDonut(){
     <div class="exp-r"><div class="exp-d" style="background:${d.EXP_COLORS[i%d.EXP_COLORS.length]}"></div><span class="exp-n">${name}</span><span class="exp-v">${fmtInt(val)}</span><span class="exp-p">${d.expenseTotal? (val/d.expenseTotal*100).toFixed(1):'0'}%</span></div>`).join('') || '<div class="exp-r"><span class="exp-n">No expenses recorded</span></div>';
   const labels = d.expenseEntries.map(([n])=>n), values = d.expenseEntries.map(([,v])=>v);
   const colors = labels.map((_,i)=>d.EXP_COLORS[i%d.EXP_COLORS.length]);
-  if(expChart){ expChart.data.labels=labels; expChart.data.datasets[0].data=values; expChart.data.datasets[0].backgroundColor=colors; expChart.update(); }
-  else{
-    expChart = new Chart(document.getElementById('expChart').getContext('2d'),{
-      type:'doughnut',
-      data:{labels, datasets:[{data:values, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:10, hoverBorderWidth:3}]},
-      options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:900,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}}}
-    });
-  }
+  // Chart drawing is isolated in its own try/catch: if Chart.js failed to load from the CDN,
+  // the numbers/legend above still render correctly and every other panel on the dashboard
+  // keeps loading normally — only this one chart silently skips.
+  try{
+    if(typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+    if(expChart){ expChart.data.labels=labels; expChart.data.datasets[0].data=values; expChart.data.datasets[0].backgroundColor=colors; expChart.update(); }
+    else{
+      expChart = new Chart(document.getElementById('expChart').getContext('2d'),{
+        type:'doughnut',
+        data:{labels, datasets:[{data:values, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:10, hoverBorderWidth:3}]},
+        options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:900,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}}}
+      });
+    }
+  }catch(err){ console.warn('Expense chart skipped:', err.message); }
 }
 
 function renderTopCustomers(){
@@ -1440,7 +1447,6 @@ function renderTopCustomers(){
 // ── Revenue Chart (trailing 12 months ending at selected period) ──
 let fullLabels = [], fullRevenue = [], fullProfit = [];
 async function renderRevenueChart(period){
-  Chart.register(ChartDataLabels);
   const periods = []; for(let i=11;i>=0;i--) periods.push(shiftPeriod(period, -i));
   const rows = await sbGet(`monthly_pnl?select=*&period=in.(${periods.join(',')})`);
   const byPeriod = {}; rows.forEach(r=>byPeriod[r.period]=r);
@@ -1453,35 +1459,52 @@ async function renderRevenueChart(period){
   });
   const n = parseInt(document.getElementById('rangeSel').value === 'ytd' ? 12 : document.getElementById('rangeSel').value, 10) || 6;
   const labels = fullLabels.slice(-n), rev = fullRevenue.slice(-n), prof = fullProfit.slice(-n);
-  if(revenueChart){
-    revenueChart.data.labels = labels;
-    revenueChart.data.datasets[0].data = rev;
-    revenueChart.data.datasets[1].data = prof;
-    revenueChart.update();
-    return;
-  }
-  const rc = document.getElementById('revChart').getContext('2d');
-  revenueChart = new Chart(rc,{
-    type:'line',
-    data:{ labels, datasets:[
-      {label:'Revenue (ETB)',data:rev,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,.07)',borderWidth:2.5,pointBackgroundColor:'#27ae60',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'top',anchor:'end',offset:8,color:'#16261e',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toLocaleString()}},
-      {label:'Net Profit (ETB)',data:prof,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.12)',borderWidth:2.5,pointBackgroundColor:'#f59e0b',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:8,color:'#9a7b0a',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toLocaleString()}}
-    ]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      layout:{padding:{top:28,bottom:16}},
-      interaction:{intersect:false,mode:'index'},
-      animation:{duration:900,easing:'easeOutQuart'},
-      plugins:{
-        legend:{display:false},
-        tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'},displayColors:true,boxPadding:4,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}
-      },
-      scales:{
-        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10},color:'#94a89f'}},
-        y:{grid:{color:'#eef3f0',lineWidth:1},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:10},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
-      }
+  // The data fetch/computation above always runs and always succeeds independently of Chart.js.
+  // Only the actual drawing is wrapped, so a missing Chart.js library can't stop the rest of
+  // refreshDashboard() (Inventory, Cash, Loans, Manufacturing, Business Health, Budgets) from rendering.
+  try{
+    if(typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+    if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+    if(revenueChart){
+      revenueChart.data.labels = labels;
+      revenueChart.data.datasets[0].data = rev;
+      revenueChart.data.datasets[1].data = prof;
+      revenueChart.update();
+      return;
     }
-  });
+    const rc = document.getElementById('revChart').getContext('2d');
+    revenueChart = new Chart(rc,{
+      type:'line',
+      data:{ labels, datasets:[
+        {label:'Revenue (ETB)',data:rev,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,.07)',borderWidth:2.5,pointBackgroundColor:'#27ae60',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'top',anchor:'end',offset:8,color:'#16261e',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toLocaleString()}},
+        {label:'Net Profit (ETB)',data:prof,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.12)',borderWidth:2.5,pointBackgroundColor:'#f59e0b',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:8,color:'#9a7b0a',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toLocaleString()}}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        layout:{padding:{top:28,bottom:16}},
+        interaction:{intersect:false,mode:'index'},
+        animation:{duration:900,easing:'easeOutQuart'},
+        plugins:{
+          legend:{display:false},
+          tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'},displayColors:true,boxPadding:4,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}
+        },
+        scales:{
+          x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10},color:'#94a89f'}},
+          y:{grid:{color:'#eef3f0',lineWidth:1},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:10},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+        }
+      }
+    });
+  }catch(err){
+    console.warn('Revenue chart skipped:', err.message);
+    const box = document.getElementById('revChart')?.parentElement;
+    if(box && !document.getElementById('revChartFallback')){
+      const note = document.createElement('div');
+      note.id = 'revChartFallback';
+      note.style.cssText = 'padding:10px 4px;font-size:11.5px;color:#94a89f;text-align:center';
+      note.textContent = 'Chart library failed to load — figures above are still live from Supabase.';
+      box.appendChild(note);
+    }
+  }
 }
 function updateRevenueChart(){
   const sel=document.getElementById('rangeSel').value;
@@ -1518,11 +1541,14 @@ function renderSecondaryPanels(){
     <div class="exp-r"><div class="exp-d" style="background:${typeColors[i]}"></div><span class="exp-n">${typeLabels[i]}</span><span class="exp-p">${t.pct.toFixed(0)}%</span></div>`).join('') || '<div class="exp-r"><span class="exp-n">No sales this month</span></div>';
   if(custTypeChart){ custTypeChart.data.labels=typeLabels; custTypeChart.data.datasets[0].data=typeVals; custTypeChart.data.datasets[0].backgroundColor=typeColors; custTypeChart.update(); }
   else{
-    custTypeChart = new Chart(document.getElementById('custTypeChart').getContext('2d'),{
-      type:'doughnut',
-      data:{labels:typeLabels, datasets:[{data:typeVals, backgroundColor:typeColors, borderWidth:2, borderColor:'#fff', hoverOffset:8, hoverBorderWidth:3}]},
-      options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:800,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed+'%'}}}}
-    });
+    try{
+      if(typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+      custTypeChart = new Chart(document.getElementById('custTypeChart').getContext('2d'),{
+        type:'doughnut',
+        data:{labels:typeLabels, datasets:[{data:typeVals, backgroundColor:typeColors, borderWidth:2, borderColor:'#fff', hoverOffset:8, hoverBorderWidth:3}]},
+        options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:800,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed+'%'}}}}
+      });
+    }catch(err){ console.warn('Customer type chart skipped:', err.message); }
   }
   document.getElementById('custStatTop').textContent = typeLabels[0] || '—';
   document.getElementById('custStatActive').textContent = d.activeAccounts;
