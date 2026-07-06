@@ -10,6 +10,7 @@
   :root{
     --green:#27ae60; --green-dark:#1a6b3c; --red:#e53935;
     --cream:#faf7f0; --td:#1a2e25; --tm:#5a6e65; --border:#e0eae5;
+    --bg:#f0f4f2; --fs-sm:11.5px;
   }
   body{
     font-family:'Nunito',sans-serif; background:var(--cream); color:var(--td);
@@ -17,7 +18,7 @@
   }
   h1,h2{font-family:'Quicksand',sans-serif}
   .wrap{max-width:760px; margin:0 auto}
-  .back{display:inline-block; margin-bottom:16px; color:var(--tm); text-decoration:none; font-size:14px}
+  .back{display:inline-block; color:var(--tm); text-decoration:none; font-size:14px}
   .back:hover{color:var(--green-dark)}
   .headrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px}
   h1{font-size:22px; font-weight:800}
@@ -89,21 +90,50 @@
   .toggle-btn.activate:hover{background:#e9f9ef}
   .toggle-btn:disabled{opacity:0.5; cursor:not-allowed}
 
-  .msg{
-    margin-bottom:16px; padding:12px 14px; border-radius:10px; font-size:13.5px; display:none; line-height:1.5;
-  }
-  .msg.error{display:block; background:#fdecea; color:var(--red); border:1px solid #f5c6c3}
-  .msg.success{display:block; background:#e9f9ef; color:var(--green-dark); border:1px solid #b7e4c7}
+  .topRow{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px}
   .denied{
     background:#fff; border:1px solid var(--border); border-radius:16px;
     padding:32px; text-align:center; color:var(--tm);
   }
   .loading{color:var(--tm); font-size:14px; padding:20px 0}
+
+  /* ══ Confirm modal + toast stack — borrowed from shared-shell.css so
+     the shared signOut()/toast() helpers from app-state.js render correctly
+     on this chrome-less page (no shared-shell.css / sidebar / topbar here). ══ */
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes popIn{0%{opacity:0;transform:scale(.9)}70%{transform:scale(1.02)}100%{opacity:1;transform:scale(1)}}
+  @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes toastOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(10px) scale(.96)}}
+
+  .cfm-ov{position:fixed;inset:0;background:rgba(16,39,26,.45);backdrop-filter:blur(2px);z-index:1000;display:none;align-items:center;justify-content:center;animation:fadeIn .15s ease}
+  .cfm-ov.show{display:flex}
+  .cfm-box{background:#fff;border-radius:16px;width:360px;max-width:90vw;padding:26px;box-shadow:0 20px 50px rgba(16,39,26,.25);animation:popIn .2s ease}
+  .cfm-ico{width:46px;height:46px;border-radius:50%;background:#fdecea;color:var(--red);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .cfm-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .cfm-box h3{font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:var(--td);margin-bottom:6px}
+  .cfm-box p{font-size:var(--fs-sm);color:var(--tm);line-height:1.5;margin-bottom:20px}
+  .cfm-actions{display:flex;gap:10px}
+  .cfm-btn{flex:1;padding:11px;border-radius:10px;border:none;font-family:'Nunito',sans-serif;font-weight:700;font-size:var(--fs-sm);cursor:pointer;transition:opacity .15s,transform .1s}
+  .cfm-btn:active{transform:scale(.97)}
+  .cfm-btn-cancel{background:var(--bg);color:var(--tm)}
+  .cfm-btn-cancel:hover{background:#e3ece7}
+  .cfm-btn-danger{background:var(--red);color:#fff}
+  .cfm-btn-danger:hover{opacity:.9}
+
+  .toast-stack{position:fixed;bottom:20px;right:20px;z-index:1200;display:flex;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:none}
+  .toast{display:flex;align-items:center;gap:10px;background:#16261e;color:#fff;padding:12px 16px;border-radius:10px;font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:toastIn .25s cubic-bezier(.22,.61,.36,1);max-width:320px;pointer-events:auto}
+  .toast.out{animation:toastOut .25s ease forwards}
+  .toast.success{background:#19733f}
+  .toast.error{background:#c1272d}
+  .toast-ic{width:18px;height:18px;flex-shrink:0;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a href="dashboard.html" class="back">← Back to Dashboard</a>
+  <div class="topRow">
+    <a href="dashboard.html" class="back">← Back to Dashboard</a>
+    <a href="#" class="back" id="signOutLink">Sign Out</a>
+  </div>
 
   <div id="mainCard" style="display:none">
     <div class="headrow">
@@ -138,7 +168,6 @@
       </form>
     </div>
 
-    <div class="msg" id="msgBox"></div>
     <div id="userList" class="loading">Loading users…</div>
   </div>
 
@@ -148,30 +177,30 @@
   </div>
 </div>
 
+<script src="/js/app-state.js"></script>
 <script>
-  const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
-
-  function loadSession(){
-    try {
-      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  }
+  // SB_URL, SB_KEY, loadSession(), sbGet/sbPatch, toast()/showToast(), and
+  // signOut() all now come from the shared /js/app-state.js loaded above.
 
   const session = loadSession();
   const mainCard = document.getElementById('mainCard');
   const deniedCard = document.getElementById('deniedCard');
   const userList = document.getElementById('userList');
-  const msgBox = document.getElementById('msgBox');
   const addFormCard = document.getElementById('addFormCard');
 
+  // app-state.js's earlyAuthCheck already redirects to login.html if there's
+  // no session at all — this just handles the "logged in but wrong role" case.
   if (!session || !session.access_token || !['owner','manager'].includes(session.role)){
     deniedCard.style.display = 'block';
   } else {
     mainCard.style.display = 'block';
     fetchUsers();
   }
+
+  document.getElementById('signOutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    signOut();
+  });
 
   // ---- Toggle the Add User form open/closed ----
   document.getElementById('toggleAddForm').addEventListener('click', () => {
@@ -182,12 +211,6 @@
     addFormCard.classList.remove('show');
     document.getElementById('addUserForm').reset();
   });
-
-  function showMsg(text, type){
-    msgBox.textContent = text;
-    msgBox.className = 'msg ' + type;
-    setTimeout(() => { msgBox.className = 'msg'; }, 4500);
-  }
 
   function initials(name){
     return name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
@@ -218,15 +241,15 @@
       const data = await res.json();
 
       if (!res.ok){
-        showMsg(data.error || 'Something went wrong.', 'error');
+        toast(data.error || 'Something went wrong.', 'error');
       } else {
-        showMsg(`${name} was created successfully as ${role}. Share their email and temporary password with them directly.`, 'success');
+        toast(`${name} was created successfully as ${role}. Share their email and temporary password with them directly.`, 'success');
         document.getElementById('addUserForm').reset();
         addFormCard.classList.remove('show');
         fetchUsers();
       }
     } catch (err) {
-      showMsg('Could not reach the server. Check your connection and try again.', 'error');
+      toast('Could not reach the server. Check your connection and try again.', 'error');
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Create User';
@@ -236,18 +259,11 @@
   // ---- List users ----
   async function fetchUsers(){
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=*&order=name.asc`, {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
-      if (!res.ok) throw new Error('Failed to load users');
-      const users = await res.json();
+      const users = await sbGet('users?select=*&order=name.asc');
       renderUsers(users);
     } catch (err) {
       userList.innerHTML = '';
-      showMsg('Could not load users. Please refresh and try again.', 'error');
+      toast('Could not load users. Please refresh and try again.', 'error');
     }
   }
 
@@ -295,28 +311,18 @@
     const newRole = sel.value;
 
     if (id === session.user_id && newRole !== 'owner'){
-      showMsg("You can't change your own role away from owner while logged in.", 'error');
+      toast("You can't change your own role away from owner while logged in.", 'error');
       sel.value = previousRole;
       return;
     }
 
     sel.disabled = true;
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ role: newRole })
-      });
-      if (!res.ok) throw new Error('Update failed');
+      await sbPatch(`users?id=eq.${id}`, { role: newRole });
       sel.dataset.current = newRole;
-      showMsg('Role updated.', 'success');
+      toast('Role updated.', 'success');
     } catch (err) {
-      showMsg('Could not update role. Please try again.', 'error');
+      toast('Could not update role. Please try again.', 'error');
       sel.value = previousRole;
     } finally {
       sel.disabled = false;
@@ -329,7 +335,7 @@
     const newState = !currentlyActive;
 
     if (id === session.user_id && currentlyActive){
-      showMsg("You can't deactivate your own account while logged in.", 'error');
+      toast("You can't deactivate your own account while logged in.", 'error');
       return;
     }
 
@@ -337,21 +343,11 @@
     btn.textContent = '…';
 
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ is_active: newState })
-      });
-      if (!res.ok) throw new Error('Update failed');
-      showMsg(newState ? 'User reactivated.' : 'User deactivated.', 'success');
+      await sbPatch(`users?id=eq.${id}`, { is_active: newState });
+      toast(newState ? 'User reactivated.' : 'User deactivated.', 'success');
       fetchUsers();
     } catch (err) {
-      showMsg('Could not update this user. Please try again.', 'error');
+      toast('Could not update this user. Please try again.', 'error');
       btn.disabled = false;
       btn.textContent = currentlyActive ? 'Deactivate' : 'Reactivate';
     }

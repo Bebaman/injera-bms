@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Customers — Mena Injera & Derkosh BMS</title>
+<script>
+/* ════ EARLY AUTH CHECK ════
+   Redirect-only pass so an expired/missing session bounces to login before any
+   CDN libraries or page content load. app-state.js (loaded later, near the end
+   of <body>) does its own early check too and also populates the sidebar/topbar
+   with the real user via populateUserChrome() — this one just closes the
+   flash-of-content gap ahead of it. */
+(function(){
+  function loadSessionEarly(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  const s = loadSessionEarly();
+  if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
+    try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
+    window.location.replace('login.html');
+    throw new Error('No valid session — redirecting to login.');
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+/* Reset, most :root vars, base body/heading/button rules now live in
+   shared-shell.css. --sh-hover is page-specific (KPI/card hover lift), kept. */
+:root{ --sh-hover:0 4px 14px rgba(20,40,30,.09); }
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* KEYFRAMES (fadeIn/pulseDot/ringPop now in shared-shell.css; bellShake was dead/unused) */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes riseUp{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes spinIn{from{opacity:0;transform:rotate(-120deg) scale(.6)}to{opacity:1;transform:rotate(0deg) scale(1)}}
+@keyframes slideLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+@keyframes spin360{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes rowFlash{0%{background:#dcf5e6}65%{background:#dcf5e6}100%{background:transparent}}
+@keyframes cardPop{0%{opacity:0;transform:translateY(14px) scale(.96)}70%{opacity:1;transform:translateY(-2px) scale(1.005)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes panelIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+
+/* ENTRY ANIMATIONS */
+.kc-anim{animation:riseUp .65s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d)*75ms)}
+.kc-ico.spin-ready{animation:spinIn .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--d)*75ms + .18s)}
+.sb-a{animation:slideLeft .4s ease both}
+.sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.cst-main>.card:nth-child(1){animation-delay:.05s}
+.cst-side .card{animation-delay:.1s}
+.cst-bottom .card:nth-child(1){animation-delay:.1s}
+.cst-bottom .card:nth-child(2){animation-delay:.18s}
+.cst-row3 .card:nth-child(1){animation-delay:.12s}
+.cst-row3 .card:nth-child(2){animation-delay:.2s}
+
+/* HOVER PRESS */
+.btn-add:active,.btn-tool:active,.btn-ghost:active,.btn-solid:active{transform:scale(.96)!important}
+.arr:active{transform:scale(.9)}
+.tbl-more:active{transform:scale(.88)}
+.view-exp:active{transform:scale(.98)}
+.kc:active{transform:translateY(0) scale(.99)!important}
+
+/* Sidebar, .logout-screen (full custom sign-out UI), .main, .topbar are
+   now provided by shared-shell.css + sidebar.js/header.js — the real
+   signOut() confirm-modal flow replaces the fake logout-screen entirely. */
+/* CONTENT — padding/flex now from shared-shell.css; min-width:0 is this
+   page's own addition (needed so wide tables can scroll inside flex kids) */
+.content{min-width:0}
+
+/* PAGE ACTIONS ROW */
+.page-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px}
+
+/* KPI ROW */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;padding-top:0}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s,transform .2s;cursor:pointer;overflow:hidden}
+.kc:hover{box-shadow:var(--sh-hover);transform:translateY(-2px)}
+.kc::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(39,174,96,.06),transparent 60%);pointer-events:none;opacity:0;transition:opacity .3s}
+.kc:hover::after{opacity:1}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.kc:hover .kc-ico{transform:scale(1.15) rotate(360deg)}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e3f6ec}.ic-g svg{stroke:#27ae60}
+.ic-o{background:#fef2e0}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdeaea}.ic-r svg{stroke:#e5484d}
+.ic-p{background:#f3e8fd}.ic-p svg{stroke:#8b5cf6}
+.ic-b{background:#e3edfd}.ic-b svg{stroke:#2563eb}
+.ic-y{background:#fdf3d8}.ic-y svg{stroke:#d4a017}
+.kc-lbl{font-size:11.5px;color:var(--tl);font-weight:600;display:block;margin-bottom:5px}
+.kc-val{font-size:20px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px;letter-spacing:.1px}
+.kc-val .u{font-size:11.5px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:11.5px;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.up{color:#27ae60}.dn{color:#e5484d}
+.vs{color:var(--tl);font-weight:500;font-size:10.5px;margin-left:2px}
+.kc-sub{font-size:11.5px;font-weight:600;margin-top:6px;color:#27ae60}
+.kc-sub2{font-size:10.5px;font-weight:600;color:var(--tl);margin-top:2px}
+.kc-plain{font-size:10.5px;color:var(--tl);margin-top:6px}
+
+/* CARD */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:visible;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--sh-hover)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;gap:10px;flex-wrap:wrap}
+.card-ttl{font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl .sub{font-size:11px;color:var(--tl);font-weight:500}
+.hd-actions{display:flex;align-items:center;gap:8px;position:relative}
+.btn-add{display:flex;align-items:center;gap:6px;background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:11.5px;font-weight:700;cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s}
+.btn-add:hover{background:#229954;transform:translateY(-1px);box-shadow:0 4px 12px rgba(39,174,96,.35)}
+.btn-add svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.btn-tool{display:flex;align-items:center;gap:6px;background:#fff;color:var(--tm);border:1px solid var(--border);border-radius:8px;padding:8px 13px;font-size:11.5px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s;position:relative}
+.btn-tool:hover{background:#f6faf7;border-color:#c5d6cd}
+.btn-tool svg{width:14px;height:14px;stroke:var(--tm);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-tool.excel svg{stroke:#27ae60}
+.btn-tool.pdf svg{stroke:#e5484d}
+.export-drop{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 32px rgba(20,40,30,.16);min-width:220px;z-index:130;overflow:hidden;animation:dropIn .16s ease;display:none}
+.export-drop.show{display:block}
+.export-drop button{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .13s,color .13s;font-family:'Nunito',sans-serif}
+.export-drop button:hover{background:#f6faf7;color:var(--td)}
+.export-drop button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:#27ae60}
+.export-drop button:not(:last-child){border-bottom:1px solid #f0f5f2}
+
+/* TOOLBAR (search + filters) */
+.cst-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search-box{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:0 10px;height:34px;background:#fff;min-width:190px;transition:border-color .15s}
+.search-box:focus-within{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.12)}
+.search-box svg{width:14px;height:14px;stroke:#a4b6ac;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.search-box input{border:none;outline:none;font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--td);width:100%;background:transparent}
+.search-box input::placeholder{color:#aabbb4}
+.sel-box{position:relative;display:flex;align-items:center}
+.sel-box select{appearance:none;-webkit-appearance:none;border:1px solid var(--border);border-radius:8px;padding:8px 26px 8px 12px;font-size:12px;font-weight:600;font-family:'Nunito',sans-serif;color:var(--td);background:#fff;cursor:pointer;height:34px;transition:border-color .15s}
+.sel-box select:hover{border-color:#c5d6cd}
+.sel-box::after{content:'';position:absolute;right:9px;width:8px;height:8px;border-right:2px solid #a4b6ac;border-bottom:2px solid #a4b6ac;transform:rotate(45deg) translateY(-3px);pointer-events:none}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:0}
+.tbl th{padding:9px 12px;text-align:left;font-size:10.5px;font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;line-height:1.5}
+.tbl td{padding:10px 12px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap;transition:background .15s}
+@media(max-width:1650px){
+  .tbl{font-size:11.6px}
+  .tbl th{padding:7px 5px;font-size:9.3px;letter-spacing:.1px}
+  .tbl td{padding:7px 5px}
+  .tbl-more{width:20px;height:20px}
+}
+.tbl tr{cursor:pointer}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl tr.sel td{background:#eaf8f0}
+.tbl tr.row-new td{animation:rowFlash 1.8s ease}
+.tbl .tot td{font-weight:700;background:#f6faf7;border-top:1.5px solid var(--border);border-bottom:none}
+.tbl .tot td.acc{color:#27ae60}
+.tbl-more{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);background:none;border:none;transition:background .15s,color .15s;position:relative}
+.tbl-more:hover{background:var(--bg);color:var(--td)}
+.tbl-more svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.row-menu{position:fixed;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(20,40,30,.16);min-width:150px;z-index:220;overflow:hidden;animation:dropIn .15s ease;display:none}
+.row-menu.show{display:block}
+.row-menu button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;background:none;border:none;font-size:11.5px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .15s}
+.row-menu button:hover{background:#f6faf7;color:var(--td)}
+.row-menu button.danger{color:#e5484d}
+.row-menu button.danger:hover{background:#fdeaea}
+.row-menu svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.type-tag{font-weight:700}
+.type-hotel{color:#2563eb}
+.type-restaurant{color:#8b5cf6}
+.type-wholesale{color:#0d9b7a}
+.type-retail{color:#e8891a}
+.amt-red{color:#e5484d;font-weight:700}
+.status-pill{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;display:inline-block}
+.status-active{background:#e3f6ec;color:#19733f}
+.status-inactive{background:#f0f2f1;color:#7c8a83}
+.status-unsettled{background:#fdeaea;color:#c1272d}
+.status-settled{background:#e3f6ec;color:#19733f}
+
+/* PAGINATION */
+.pg-row{display:flex;align-items:center;justify-content:space-between;padding:11px 17px 15px;flex-wrap:wrap;gap:10px}
+.pg-info{font-size:11.5px;color:var(--tl);font-weight:600}
+.pg-btns{display:flex;align-items:center;gap:5px}
+.pg-arrow,.pg-num{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11.5px;font-weight:700;color:var(--tm);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.pg-arrow:hover,.pg-num:hover{background:var(--bg);border-color:#c5d6cd}
+.pg-num.active{background:#27ae60;border-color:#27ae60;color:#fff}
+.pg-arrow.disabled{opacity:.4;pointer-events:none}
+
+/* PAGE LAYOUT */
+.cst-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.cst-main>.card{min-width:0}
+.cst-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.cst-bottom,.cst-row3{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.cst-bottom>.card,.cst-row3>.card{min-width:0}
+.chart-frame{position:relative;height:220px}
+
+/* CUSTOMER DETAIL PANEL */
+.det-panel{padding:15px 17px 17px;animation:panelIn .3s ease both}
+.det-top{display:flex;align-items:flex-start;gap:11px;margin-bottom:14px}
+.det-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(145deg,#34c97a,#27ae60);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0;letter-spacing:.3px}
+.det-name-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.det-name-row h3{font-size:14.5px;font-weight:700;color:var(--td)}
+.det-badge{font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:#e3edfd;color:#2563eb}
+.det-edit{margin-left:auto;background:#fff;border:1px solid var(--border);color:var(--tm);font-size:10.5px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s,border-color .15s}
+.det-edit:hover{background:var(--bg);border-color:#c5d6cd}
+.det-edit svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.det-contact{display:flex;flex-direction:column;gap:7px;margin-top:9px}
+.det-contact-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--tm);font-weight:600}
+.det-contact-row svg{width:13px;height:13px;stroke:#94a89f;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.det-divider{border-top:1px solid var(--border);margin:14px 0}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px 10px}
+.det-item h5{font-size:9.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.det-item .v{font-size:13px;font-weight:700;color:var(--td)}
+.det-item .v.red{color:#e5484d}
+.det-item .v.green{color:#19733f}
+.det-empty{padding:40px 20px;text-align:center;color:var(--tl);font-size:12px}
+
+/* AGING DONUT LEGEND */
+.aging-wrap{display:flex;align-items:center;gap:18px;padding:6px 17px 17px}
+.aging-chart-box{position:relative;width:150px;height:150px;flex-shrink:0}
+.aging-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.aging-center .val{font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:var(--td)}
+.aging-center .lbl{font-size:9px;color:var(--tl);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.aging-legend{flex:1;display:flex;flex-direction:column;gap:9px;min-width:0}
+.aging-row{display:flex;align-items:center;gap:8px;font-size:11.5px}
+.aging-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.aging-lbl{color:var(--tm);font-weight:600;flex:1}
+.aging-amt{font-weight:700;color:var(--td)}
+.aging-pct{color:var(--tl);font-weight:600;font-size:10.5px;width:44px;text-align:right}
+.aging-total-row{border-top:1px solid var(--border);margin-top:2px;padding-top:8px;font-weight:700}
+
+/* QUICK ACTIONS */
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 17px 17px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;gap:7px;background:#f6faf7;border:1px solid var(--border);border-radius:10px;padding:14px 8px;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.qa-btn:hover{background:#eaf8f0;border-color:#b5ddc5;transform:translateY(-2px)}
+.qa-btn svg{width:19px;height:19px;stroke:#27ae60;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-btn span{font-size:10.5px;font-weight:700;color:var(--tm);text-align:center;line-height:1.25}
+@media(max-width:620px){.qa-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(8,18,12,.58);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;animation:overlayIn .22s ease;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px;width:100%;max-width:560px;max-height:92vh;overflow:hidden;box-shadow:0 32px 90px rgba(8,18,12,.38),0 0 0 1px rgba(39,174,96,.12);display:flex;flex-direction:column;animation:modalIn .28s cubic-bezier(.22,.61,.36,1)}
+.modal>form{display:flex;flex-direction:column;min-height:0;flex:1}
+.modal-hdr{background:linear-gradient(135deg,#1d6b42 0%,#27ae60 100%);padding:22px 24px 20px;display:flex;align-items:center;gap:16px;position:relative;flex-shrink:0}
+.modal-hdr-ico{width:48px;height:48px;background:rgba(255,255,255,.15);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid rgba(255,255,255,.2)}
+.modal-hdr-ico svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modal-hdr-txt h3{font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2;letter-spacing:.1px}
+.modal-hdr-txt p{font-size:11px;color:rgba(255,255,255,.65);margin-top:3px}
+.modal-hdr-close{margin-left:auto;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,transform .2s}
+.modal-hdr-close:hover{background:rgba(255,255,255,.25);transform:rotate(90deg)}
+.modal-hdr-close svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.modal-body{flex:1;min-height:0;overflow-y:auto;padding:20px 24px 4px}
+.form-section{margin-bottom:18px}
+.form-section-ttl{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.fs-num{width:22px;height:22px;border-radius:50%;background:#27ae60;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fs-lbl{font-size:12px;font-weight:700;color:var(--td);letter-spacing:.2px}
+.form-grid{display:grid;gap:12px}
+.form-grid.g2{grid-template-columns:1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:10.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.5px}
+.fg-wrap{position:relative;display:flex;align-items:center}
+.fg input,.fg select,.fg textarea{width:100%;border:1.5px solid #dde8e2;border-radius:10px;padding:11px 13px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none;background:#fff;transition:border-color .18s,box-shadow .18s;-webkit-appearance:none;appearance:none;resize:vertical}
+.fg input:hover,.fg select:hover,.fg textarea:hover{border-color:#c5d6cd}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.13)}
+.fg input::placeholder,.fg textarea::placeholder{color:#b8c8c0}
+.fg input.pu{padding-right:42px}
+.fg-suf{position:absolute;right:12px;font-size:11px;font-weight:700;color:#aabbb4;pointer-events:none}
+.fg-hint{font-size:10px;color:var(--tl)}
+.modal-footer{display:flex;align-items:center;justify-content:flex-end;padding:14px 24px;border-top:1px solid var(--border);background:#fafcfb;gap:10px;flex-shrink:0}
+.btn-ghost{background:#fff;border:1.5px solid var(--border);color:var(--tm);font-weight:700;font-size:12px;padding:10px 18px;border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}
+.btn-ghost:hover{background:var(--bg);border-color:#c5d6cd}
+.btn-solid{background:linear-gradient(135deg,#2ebd6b,#1f9b53);border:none;color:#fff;font-weight:700;font-size:12px;padding:10px 22px;border-radius:10px;cursor:pointer;transition:opacity .15s,transform .15s,box-shadow .15s;display:flex;align-items:center;gap:7px;box-shadow:0 4px 14px rgba(39,174,96,.35)}
+.btn-solid:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(39,174,96,.45)}
+.btn-solid:active{transform:scale(.97)}
+.btn-solid svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.btn-solid.loading{pointer-events:none;opacity:.8}
+.btn-spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin360 .6s linear infinite;display:none}
+.btn-solid.loading .btn-spin{display:inline-block}
+.btn-solid.loading .btn-txt{display:none}
+.btn-solid.loading svg{display:none}
+@media(max-width:680px){
+  .modal{max-width:100%;border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;right:0;max-height:95vh}
+  .form-grid.g2{grid-template-columns:1fr}
+}
+
+/* .toast-stack/.toast (now identical to shared-shell.css's version) and
+   .footer removed — this page's own toast() JS function is also removed
+   below in favor of app-state.js's shared toast(). */
+
+/* RESPONSIVE (page-specific only — sidebar/topbar/toast responsive rules
+   now come from shared-shell.css. The old body.sb-pinned-open rules here
+   are removed entirely: sidebar.js toggles classes on #sidebar/.main
+   directly, not on <body>, so they were never going to fire again anyway.) */
+@media(max-width:1180px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .cst-main{grid-template-columns:1fr}
+  .cst-bottom,.cst-row3{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .cst-toolbar{width:100%}
+  .search-box{flex:1 1 100%}
+}
+@media(max-width:420px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kc-val{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+  <div class="content">
+    <!-- PAGE ACTIONS -->
+    <div class="page-actions">
+      <div class="btn-tool" id="expBtn" role="button" tabindex="0" onclick="toggleExpDrop(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleExpDrop(event);}">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke-width:3;stroke-linecap:round;margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="export-drop" id="expDrop">
+          <button onclick="event.stopPropagation();closeExpDrop();exportCSV()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
+          <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as PDF</button>
+          <button onclick="event.stopPropagation();closeExpDrop();exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (with charts)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kc kc-anim" style="--d:0">
+        <div class="kc-ico ic-g spin-ready" style="--d:0"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <span class="kc-lbl">Total Customers</span>
+        <div class="kc-val" id="kpiTotalCust"><span class="cnt" data-t="28" data-d="0">0</span></div>
+        <div class="kc-sub">Active</div>
+        <div class="kc-sub2" id="kpiInactive">2 Inactive</div>
+      </div>
+      <div class="kc kc-anim" style="--d:1">
+        <div class="kc-ico ic-g spin-ready" style="--d:1"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <span class="kc-lbl">Total Revenue <span style="font-weight:500">(May 2026)</span></span>
+        <div class="kc-val"><span class="cnt" data-t="109711" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg up">▲ 12.5%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:2">
+        <div class="kc-ico ic-p spin-ready" style="--d:2"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <span class="kc-lbl">Outstanding A/R</span>
+        <div class="kc-val"><span class="cnt" data-t="19712" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg dn">▼ 8.2%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:3">
+        <div class="kc-ico ic-o spin-ready" style="--d:3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <span class="kc-lbl">Avg Days to Pay</span>
+        <div class="kc-val"><span class="cnt" data-t="21.3" data-d="1">0.0</span><span class="u">Days</span></div>
+        <div class="kc-chg dn">▼ 2.1 Days<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:4">
+        <div class="kc-ico ic-b spin-ready" style="--d:4"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <span class="kc-lbl">Credit Sales <span style="font-weight:500">(May 2026)</span></span>
+        <div class="kc-val"><span class="cnt" data-t="17520" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg dn">▼ 5.4%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:5">
+        <div class="kc-ico ic-y spin-ready" style="--d:5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 000 20"/><line x1="8" y1="16" x2="16" y2="8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
+        <span class="kc-lbl">Credit Utilization</span>
+        <div class="kc-val"><span class="cnt" data-t="68.6" data-d="1">0.0</span><span class="u">%</span></div>
+        <div class="kc-plain">of total credit limit</div>
+      </div>
+    </div>
+
+    <!-- MAIN GRID: customer list + details -->
+    <div class="cst-main">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Customer List</div>
+          <div class="cst-toolbar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="searchInput" placeholder="Search customer..." oninput="applyFilters()">
+            </div>
+            <div class="sel-box">
+              <select id="typeFilter" onchange="applyFilters()">
+                <option value="">All Types</option>
+                <option value="Hotel">Hotel</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Wholesale">Wholesale</option>
+                <option value="Retail">Retail</option>
+              </select>
+            </div>
+            <div class="sel-box">
+              <select id="statusFilter" onchange="applyFilters()">
+                <option value="">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Customer Name</th><th>Type</th><th>Phone</th><th>Credit Limit (ETB)</th>
+                <th>Outstanding (ETB)</th><th>Last Purchase</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="custTbody"></tbody>
+          </table>
+        </div>
+        <div class="pg-row">
+          <div class="pg-info" id="pgInfo">Showing 1 to 5 of 28 customers</div>
+          <div class="pg-btns" id="pgBtns"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd" style="padding-bottom:0"><div class="card-ttl">Customer Details</div></div>
+        <div id="detailPanel"></div>
+      </div>
+    </div>
+
+    <!-- PROFITABILITY + AGING -->
+    <div class="cst-bottom">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Customer Profitability <span class="sub">(May 2026)</span></div>
+          <div class="hd-actions"><button class="btn-tool" onclick="toast('Full profitability report coming soon','info')">View Full Report</button></div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th>Customer</th><th>Total Revenue (ETB)</th><th>% of Total</th><th>Gross Profit (ETB)</th><th>Gross Margin %</th><th>Outstanding (ETB)</th><th>Avg Days to Pay</th></tr>
+            </thead>
+            <tbody id="profitTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-ttl">Aging of Receivables <span class="sub">(All Customers)</span></div></div>
+        <div class="aging-wrap">
+          <div class="aging-chart-box">
+            <canvas id="agingChart"></canvas>
+            <div class="aging-center"><span class="val">19,712</span><span class="lbl">ETB Total</span></div>
+          </div>
+          <div class="aging-legend">
+            <div class="aging-row"><div class="aging-dot" style="background:#27ae60"></div><div class="aging-lbl">0 - 30 Days</div><div class="aging-amt">12,450.00</div><div class="aging-pct">63.1%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#f5c542"></div><div class="aging-lbl">31 - 60 Days</div><div class="aging-amt">4,280.00</div><div class="aging-pct">21.7%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#f59e0b"></div><div class="aging-lbl">61 - 90 Days</div><div class="aging-amt">2,310.00</div><div class="aging-pct">11.7%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#e5484d"></div><div class="aging-lbl">Over 90 Days</div><div class="aging-amt">672.00</div><div class="aging-pct">3.4%</div></div>
+            <div class="aging-row aging-total-row"><div style="width:9px"></div><div class="aging-lbl">Total</div><div class="aging-amt">19,712.00</div><div class="aging-pct">100.0%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECENT TRANSACTIONS + QUICK ACTIONS -->
+    <div class="cst-row3">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Recent Transactions <span class="sub" id="txnSub">- Addis Hotel</span></div>
+          <div class="hd-actions"><button class="btn-tool" onclick="toast('Full transaction history coming soon','info')">View All Transactions</button></div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th>Date</th><th>Type</th><th>Product</th><th>Quantity</th><th>Unit Price (ETB)</th><th>Amount (ETB)</th><th>Payment Method</th><th>Status</th></tr>
+            </thead>
+            <tbody id="txnTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+        <div class="qa-grid">
+          <div class="qa-btn" onclick="openAddCustomerModal()"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg><span>Add New Customer</span></div>
+          <div class="qa-btn" onclick="openPaymentModal()"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>Record Payment</span></div>
+          <div class="qa-btn" onclick="toast('Customer statement coming soon','info')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Customer Statement</span></div>
+          <div class="qa-btn" onclick="toast('Credit limit adjustment coming soon','info')"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><span>Credit Limit Adjustment</span></div>
+          <div class="qa-btn" onclick="toast('Customer ledger coming soon','info')"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Customer Ledger</span></div>
+          <div class="qa-btn" onclick="toast('Profitability report coming soon','info')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>Profitability Report</span></div>
+          <div class="qa-btn" onclick="exportCSV()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export Customers</span></div>
+          <div class="qa-btn" onclick="toast('Import customers coming soon','info')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Import Customers</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</div>
+</div>
+
+<!-- ADD CUSTOMER MODAL -->
+<div class="modal-overlay" id="addCustModal">
+  <div class="modal">
+    <form id="addCustForm" onsubmit="saveNewCustomer(event)">
+      <div class="modal-hdr">
+        <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
+        <div class="modal-hdr-txt"><h3>Add New Customer</h3><p>Create a new customer record</p></div>
+        <button type="button" class="modal-hdr-close" onclick="closeModal('addCustModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-section">
+          <div class="form-section-ttl"><div class="fs-num">1</div><span class="fs-lbl">Basic Information</span></div>
+          <div class="form-grid g2">
+            <div class="fg"><label>Customer Name</label><input type="text" id="ncName" placeholder="e.g. Green Valley Hotel" required></div>
+            <div class="fg"><label>Type</label><select id="ncType" required>
+              <option value="Hotel">Hotel</option><option value="Restaurant">Restaurant</option>
+              <option value="Wholesale">Wholesale</option><option value="Retail">Retail</option>
+            </select></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-ttl"><div class="fs-num">2</div><span class="fs-lbl">Contact Details</span></div>
+          <div class="form-grid g2">
+            <div class="fg"><label>Phone</label><input type="text" id="ncPhone" placeholder="+251 9X XXX XXXX" required></div>
+            <div class="fg"><label>Email</label><input type="email" id="ncEmail" placeholder="contact@business.com"></div>
+          </div>
+          <div class="fg" style="margin-top:12px"><label>Address</label><input type="text" id="ncAddress" placeholder="e.g. Bole Road, Addis Ababa"></div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-ttl"><div class="fs-num">3</div><span class="fs-lbl">Credit Terms</span></div>
+          <div class="form-grid g2">
+            <div class="fg"><label>Credit Limit</label><div class="fg-wrap"><input type="number" id="ncLimit" class="pu" min="0" step="0.01" placeholder="0.00" value="0"><span class="fg-suf">ETB</span></div></div>
+            <div class="fg"><label>Payment Terms</label><div class="fg-wrap"><input type="number" id="ncTerms" class="pu" min="0" step="1" placeholder="30" value="30"><span class="fg-suf">Days</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('addCustModal')">Cancel</button>
+        <button type="submit" class="btn-solid" id="ncSaveBtn">
+          <span class="btn-spin"></span>
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="btn-txt">Save Customer</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- RECORD PAYMENT MODAL -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <form id="paymentForm" onsubmit="savePayment(event)">
+      <div class="modal-hdr">
+        <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <div class="modal-hdr-txt"><h3>Record Payment</h3><p id="payModalSub">Collect a credit payment from a customer</p></div>
+        <button type="button" class="modal-hdr-close" onclick="closeModal('paymentModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-section">
+          <div class="form-grid g2">
+            <div class="fg"><label>Customer</label><select id="payCustomer"></select></div>
+            <div class="fg"><label>Payment Method</label><select id="payMethod">
+              <option>Bank Transfer</option><option>Cash</option><option>Mobile Money</option>
+            </select></div>
+          </div>
+          <div class="form-grid g2" style="margin-top:12px">
+            <div class="fg"><label>Amount</label><div class="fg-wrap"><input type="number" id="payAmount" class="pu" min="0" step="0.01" placeholder="0.00" required><span class="fg-suf">ETB</span></div>
+              <span class="fg-hint" id="payHint">Current outstanding: —</span>
+            </div>
+            <div class="fg"><label>Date</label><input type="date" id="payDate" required></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeModal('paymentModal')">Cancel</button>
+        <button type="submit" class="btn-solid" id="paySaveBtn">
+          <span class="btn-spin"></span>
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="btn-txt">Record Payment</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Real sign-out (with confirm modal) now comes from app-state.js's signOut() —
+     the fake .logout-screen "you've been signed out" card is removed.
+     #toastStack is also created lazily by app-state.js's toast(), so the
+     static div here is no longer needed. -->
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+renderHeader({
+  title: 'Customers',
+  subtitle: 'Manage customers, credit and profitability',
+  showMonthPicker: true,
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+  selectedMonth: 'May 2026',
+  onMonthChange: () => { onMonthChange(); },
+  notifications: [
+    { type:'r', title:'Addis Hotel credit sale unsettled', sub:'30,000.00 ETB', time:'10 min ago' },
+    { type:'o', title:'Bole Restaurant approaching credit limit', sub:'27.1% used', time:'40 min ago' }
+  ]
+});
+
+/* ══ STATE: CUSTOMERS ═══════════════════════ */
+const TYPE_CLASS={Hotel:'type-hotel',Restaurant:'type-restaurant',Wholesale:'type-wholesale',Retail:'type-retail'};
+let customers=[
+  {id:'c1',name:'Addis Hotel',type:'Hotel',phone:'+251 91 123 4567',email:'contact@addishotel.com',address:'Bole Road, Addis Ababa',
+   creditLimit:30000,outstanding:8450,lastPurchase:'May 30, 2026',status:'Active',since:'Jan 12, 2025',avgDays:18.6,lastPayment:'May 20, 2026',
+   revenue:32450,grossMarginPct:30.3,
+   txns:[
+     {date:'May 30, 2026',type:'Sale',product:'Injera',qty:'3,000 pcs',unitPrice:10.00,amount:30000.00,method:'Credit',status:'Unsettled'},
+     {date:'May 28, 2026',type:'Sale',product:'Derkosh',qty:'80 kg',unitPrice:120.00,amount:9600.00,method:'Credit',status:'Unsettled'},
+     {date:'May 20, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:12000.00,method:'Bank Transfer',status:'Settled'},
+     {date:'May 15, 2026',type:'Sale',product:'Injera',qty:'2,000 pcs',unitPrice:10.00,amount:20000.00,method:'Credit',status:'Unsettled'},
+     {date:'May 10, 2026',type:'Sale',product:'Derkosh',qty:'50 kg',unitPrice:120.00,amount:6000.00,method:'Cash',status:'Settled'}
+   ]},
+  {id:'c2',name:'Bole Restaurant',type:'Restaurant',phone:'+251 91 345 6789',email:'info@bolerestaurant.com',address:'Bole Medhanealem, Addis Ababa',
+   creditLimit:25000,outstanding:6780,lastPurchase:'May 28, 2026',status:'Active',since:'Mar 4, 2025',avgDays:24.2,lastPayment:'May 12, 2026',
+   revenue:18750,grossMarginPct:28.9,
+   txns:[
+     {date:'May 28, 2026',type:'Sale',product:'Injera',qty:'1,800 pcs',unitPrice:10.00,amount:18000.00,method:'Credit',status:'Unsettled'},
+     {date:'May 22, 2026',type:'Sale',product:'Derkosh',qty:'35 kg',unitPrice:120.00,amount:4200.00,method:'Credit',status:'Unsettled'},
+     {date:'May 12, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:9000.00,method:'Bank Transfer',status:'Settled'},
+     {date:'May 5, 2026',type:'Sale',product:'Injera',qty:'1,200 pcs',unitPrice:10.00,amount:12000.00,method:'Cash',status:'Settled'}
+   ]},
+  {id:'c3',name:'Lucy Wholesale',type:'Wholesale',phone:'+251 90 456 7890',email:'orders@lucywholesale.com',address:'Merkato, Addis Ababa',
+   creditLimit:20000,outstanding:2320,lastPurchase:'May 27, 2026',status:'Active',since:'Jun 18, 2025',avgDays:15.3,lastPayment:'May 22, 2026',
+   revenue:15300,grossMarginPct:29.1,
+   txns:[
+     {date:'May 27, 2026',type:'Sale',product:'Injera',qty:'2,500 pcs',unitPrice:9.50,amount:23750.00,method:'Credit',status:'Unsettled'},
+     {date:'May 22, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:21430.00,method:'Bank Transfer',status:'Settled'}
+   ]},
+  {id:'c4',name:'Yeka Retail Shop',type:'Retail',phone:'+251 91 567 8901',email:'yekaretail@gmail.com',address:'Yeka, Addis Ababa',
+   creditLimit:5000,outstanding:1250,lastPurchase:'May 30, 2026',status:'Active',since:'Sep 2, 2025',avgDays:12.1,lastPayment:'May 18, 2026',
+   revenue:11200,grossMarginPct:28.7,
+   txns:[
+     {date:'May 30, 2026',type:'Sale',product:'Injera',qty:'400 pcs',unitPrice:10.50,amount:4200.00,method:'Credit',status:'Unsettled'},
+     {date:'May 18, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:2950.00,method:'Mobile Money',status:'Settled'}
+   ]},
+  {id:'c5',name:'Meskel Cafe',type:'Restaurant',phone:'+251 90 678 9012',email:'meskelcafe@gmail.com',address:'Meskel Flower, Addis Ababa',
+   creditLimit:15000,outstanding:900,lastPurchase:'May 26, 2026',status:'Active',since:'Nov 10, 2025',avgDays:17.8,lastPayment:'May 19, 2026',
+   revenue:8450,grossMarginPct:27.3,
+   txns:[
+     {date:'May 26, 2026',type:'Sale',product:'Derkosh',qty:'25 kg',unitPrice:120.00,amount:3000.00,method:'Credit',status:'Unsettled'},
+     {date:'May 19, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:2100.00,method:'Cash',status:'Settled'}
+   ]},
+  {id:'c6',name:'Hilton Addis',type:'Hotel',phone:'+251 91 789 0123',email:'procurement@hiltonaddis.com',address:'Menelik II Ave, Addis Ababa',
+   creditLimit:40000,outstanding:3200,lastPurchase:'May 24, 2026',status:'Active',since:'Feb 1, 2025',avgDays:14.4,lastPayment:'May 16, 2026',
+   revenue:9600,grossMarginPct:31.2,
+   txns:[{date:'May 24, 2026',type:'Sale',product:'Injera',qty:'900 pcs',unitPrice:10.00,amount:9000.00,method:'Credit',status:'Unsettled'},
+         {date:'May 16, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:5800.00,method:'Bank Transfer',status:'Settled'}]},
+  {id:'c7',name:'Zewditu Wholesale',type:'Wholesale',phone:'+251 91 890 1234',email:'zewditu.wh@gmail.com',address:'Piassa, Addis Ababa',
+   creditLimit:22000,outstanding:0,lastPurchase:'May 19, 2026',status:'Active',since:'Jul 22, 2025',avgDays:9.8,lastPayment:'May 19, 2026',
+   revenue:7100,grossMarginPct:26.5,
+   txns:[{date:'May 19, 2026',type:'Sale',product:'Injera',qty:'700 pcs',unitPrice:9.50,amount:6650.00,method:'Cash',status:'Settled'}]},
+  {id:'c8',name:'Kids Corner Retail',type:'Retail',phone:'+251 90 901 2345',email:'kidscorner@gmail.com',address:'CMC, Addis Ababa',
+   creditLimit:4000,outstanding:500,lastPurchase:'May 21, 2026',status:'Active',since:'Oct 30, 2025',avgDays:11.0,lastPayment:'May 11, 2026',
+   revenue:3900,grossMarginPct:27.0,
+   txns:[{date:'May 21, 2026',type:'Sale',product:'Injera',qty:'250 pcs',unitPrice:10.50,amount:2625.00,method:'Credit',status:'Unsettled'}]},
+  {id:'c9',name:'Sunshine Restaurant',type:'Restaurant',phone:'+251 91 012 3456',email:'sunshine.rest@gmail.com',address:'Kazanchis, Addis Ababa',
+   creditLimit:18000,outstanding:1800,lastPurchase:'May 23, 2026',status:'Active',since:'Apr 14, 2025',avgDays:19.5,lastPayment:'May 9, 2026',
+   revenue:6200,grossMarginPct:28.0,
+   txns:[{date:'May 23, 2026',type:'Sale',product:'Derkosh',qty:'20 kg',unitPrice:120.00,amount:2400.00,method:'Credit',status:'Unsettled'}]},
+  {id:'c10',name:'Merkato Traders',type:'Wholesale',phone:'+251 90 123 4567',email:'merkatotraders@gmail.com',address:'Merkato, Addis Ababa',
+   creditLimit:26000,outstanding:4200,lastPurchase:'May 25, 2026',status:'Active',since:'May 5, 2025',avgDays:22.0,lastPayment:'May 8, 2026',
+   revenue:5400,grossMarginPct:26.8,
+   txns:[{date:'May 25, 2026',type:'Sale',product:'Injera',qty:'1,000 pcs',unitPrice:9.00,amount:9000.00,method:'Credit',status:'Unsettled'}]},
+  {id:'c11',name:'Green Valley Hotel',type:'Hotel',phone:'+251 91 234 5678',email:'gvh@greenvalley.com',address:'Sarbet, Addis Ababa',
+   creditLimit:15000,outstanding:2100,lastPurchase:'Mar 2, 2026',status:'Inactive',since:'Aug 8, 2024',avgDays:35.0,lastPayment:'Mar 10, 2026',
+   revenue:1600,grossMarginPct:24.0,
+   txns:[{date:'Mar 2, 2026',type:'Sale',product:'Injera',qty:'150 pcs',unitPrice:10.00,amount:1500.00,method:'Credit',status:'Unsettled'}]},
+  {id:'c12',name:'Old Town Cafe',type:'Restaurant',phone:'+251 90 345 6789',email:'oldtowncafe@gmail.com',address:'Piassa, Addis Ababa',
+   creditLimit:8000,outstanding:0,lastPurchase:'Jan 14, 2026',status:'Inactive',since:'Dec 1, 2024',avgDays:20.0,lastPayment:'Jan 20, 2026',
+   revenue:900,grossMarginPct:25.0,
+   txns:[{date:'Jan 14, 2026',type:'Sale',product:'Derkosh',qty:'8 kg',unitPrice:120.00,amount:960.00,method:'Cash',status:'Settled'}]}
+];
+let selectedId='c1';
+let filtered=[...customers];
+let curPage=1;
+const PAGE_SIZE=5;
+const f=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const initials=name=>name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+/* ══ TABLE RENDER ═══════════════════════════ */
+function applyFilters(){
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  const ty=document.getElementById('typeFilter').value;
+  const st=document.getElementById('statusFilter').value;
+  filtered=customers.filter(c=>{
+    if(q && !(c.name.toLowerCase().includes(q)||c.phone.toLowerCase().includes(q)))return false;
+    if(ty && c.type!==ty)return false;
+    if(st && c.status!==st)return false;
+    return true;
+  });
+  curPage=1;
+  renderTable();
+}
+function renderTable(){
+  const tb=document.getElementById('custTbody');
+  const start=(curPage-1)*PAGE_SIZE;
+  const pageItems=filtered.slice(start,start+PAGE_SIZE);
+  tb.innerHTML=pageItems.map(c=>`
+    <tr class="${c.id===selectedId?'sel':''}" onclick="selectCustomer('${c.id}')">
+      <td style="font-weight:700">${c.name}</td>
+      <td><span class="type-tag ${TYPE_CLASS[c.type]}">${c.type}</span></td>
+      <td>${c.phone}</td>
+      <td>${f(c.creditLimit)}</td>
+      <td class="${c.outstanding>0?'amt-red':''}">${f(c.outstanding)}</td>
+      <td>${c.lastPurchase}</td>
+      <td><span class="status-pill ${c.status==='Active'?'status-active':'status-inactive'}">${c.status}</span></td>
+      <td onclick="event.stopPropagation()">
+        <button class="tbl-more" onclick="toggleRowMenu(event,'${c.id}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></button>
+      </td>
+    </tr>
+  `).join('') || `<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:24px">No customers match your filters.</td></tr>`;
+  renderPagination();
+}
+function renderPagination(){
+  const total=filtered.length;
+  const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(curPage>totalPages)curPage=totalPages;
+  const start=total===0?0:(curPage-1)*PAGE_SIZE+1;
+  const end=Math.min(curPage*PAGE_SIZE,total);
+  document.getElementById('pgInfo').textContent=`Showing ${start} to ${end} of ${total} customers`;
+  let btns=`<div class="pg-arrow ${curPage<=1?'disabled':''}" onclick="gotoPage(${curPage-1})">&#8249;</div>`;
+  for(let i=1;i<=totalPages;i++){
+    btns+=`<div class="pg-num ${i===curPage?'active':''}" onclick="gotoPage(${i})">${i}</div>`;
+  }
+  btns+=`<div class="pg-arrow ${curPage>=totalPages?'disabled':''}" onclick="gotoPage(${curPage+1})">&#8250;</div>`;
+  document.getElementById('pgBtns').innerHTML=btns;
+}
+function gotoPage(p){
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  if(p<1||p>totalPages)return;
+  curPage=p;
+  renderTable();
+}
+
+/* ══ ROW MENU ═══════════════════════════════ */
+let rowMenuEl=null;
+function toggleRowMenu(e,id){
+  e.stopPropagation();
+  closeRowMenu();
+  const btn=e.currentTarget;
+  const rect=btn.getBoundingClientRect();
+  const menu=document.createElement('div');
+  menu.className='row-menu show';
+  menu.style.top=(rect.bottom+6)+'px';
+  menu.style.left=Math.max(8,rect.right-150)+'px';
+  menu.innerHTML=`
+    <button onclick="selectCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Details</button>
+    <button onclick="openPaymentModal('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Record Payment</button>
+    <button onclick="toast('Edit customer coming soon','info');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Customer</button>
+    <button class="danger" onclick="toast('Customer deactivated','success');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</button>
+  `;
+  document.body.appendChild(menu);
+  rowMenuEl=menu;
+}
+function closeRowMenu(){ if(rowMenuEl){rowMenuEl.remove();rowMenuEl=null;} }
+document.addEventListener('click',closeRowMenu);
+
+/* ══ SELECT CUSTOMER → DETAIL PANEL + TXNS ═══ */
+function selectCustomer(id){
+  selectedId=id;
+  renderTable();
+  renderDetail();
+  renderTxns();
+}
+function renderDetail(){
+  const c=customers.find(x=>x.id===selectedId);
+  const panel=document.getElementById('detailPanel');
+  if(!c){ panel.innerHTML='<div class="det-empty">Select a customer to view details</div>'; return; }
+  const util=c.creditLimit>0?((c.outstanding/c.creditLimit)*100).toFixed(1):'0.0';
+  panel.innerHTML=`
+    <div class="det-panel">
+      <div class="det-top">
+        <div class="det-avatar">${initials(c.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="det-name-row">
+            <h3>${c.name}</h3>
+            <span class="det-badge">${c.type}</span>
+          </div>
+        </div>
+        <button class="det-edit" onclick="toast('Edit customer coming soon','info')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</button>
+      </div>
+      <div class="det-contact">
+        <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.81.3 1.6.54 2.36a2 2 0 01-.45 2.11L8.09 9.31a16 16 0 006.6 6.6l1.12-1.11a2 2 0 012.11-.45c.76.24 1.55.42 2.36.54A2 2 0 0122 16.92z"/></svg>${c.phone}</div>
+        <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${c.email||'—'}</div>
+        <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>${c.address||'—'}</div>
+      </div>
+      <div class="det-divider"></div>
+      <div class="det-grid">
+        <div class="det-item"><h5>Credit Limit</h5><div class="v">${f(c.creditLimit)} ETB</div></div>
+        <div class="det-item"><h5>Outstanding A/R</h5><div class="v ${c.outstanding>0?'red':''}">${f(c.outstanding)} ETB</div></div>
+        <div class="det-item"><h5>Payment Terms</h5><div class="v">${c.creditLimit>0?'30 Days':'—'}</div></div>
+        <div class="det-item"><h5>Credit Utilization</h5><div class="v">${util}%</div></div>
+        <div class="det-item"><h5>Customer Since</h5><div class="v">${c.since}</div></div>
+        <div class="det-item"><h5>Avg Days to Pay</h5><div class="v">${c.avgDays} Days</div></div>
+        <div class="det-item"><h5>Status</h5><div class="v ${c.status==='Active'?'green':''}">${c.status}</div></div>
+        <div class="det-item"><h5>Last Payment</h5><div class="v">${c.lastPayment}</div></div>
+      </div>
+    </div>
+  `;
+}
+function renderTxns(){
+  const c=customers.find(x=>x.id===selectedId);
+  document.getElementById('txnSub').textContent='- '+(c?c.name:'');
+  const tb=document.getElementById('txnTbody');
+  if(!c||!c.txns||!c.txns.length){
+    tb.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">No transactions yet.</td></tr>`;
+    return;
+  }
+  tb.innerHTML=c.txns.map(t=>`
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.type}</td>
+      <td>${t.product}</td>
+      <td>${t.qty}</td>
+      <td>${t.unitPrice!==null?f(t.unitPrice):'-'}</td>
+      <td>${f(t.amount)}</td>
+      <td>${t.method}</td>
+      <td><span class="status-pill ${t.status==='Settled'?'status-settled':'status-unsettled'}">${t.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+/* ══ PROFITABILITY TABLE ════════════════════ */
+function renderProfitability(){
+  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
+  const top5=[...customers].sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+  const tb=document.getElementById('profitTbody');
+  let sumRev=0,sumGP=0,sumOut=0,sumDaysWeighted=0;
+  tb.innerHTML=top5.map(c=>{
+    const pct=(c.revenue/totalRevAll*100);
+    const gp=c.revenue*(c.grossMarginPct/100);
+    sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;sumDaysWeighted+=c.avgDays*c.revenue;
+    return `<tr>
+      <td style="font-weight:700">${c.name}</td>
+      <td>${f(c.revenue)}</td>
+      <td>${pct.toFixed(1)}%</td>
+      <td>${f(gp)}</td>
+      <td>${c.grossMarginPct.toFixed(1)}%</td>
+      <td class="${c.outstanding>0?'amt-red':''}">${f(c.outstanding)}</td>
+      <td>${c.avgDays.toFixed(1)}</td>
+    </tr>`;
+  }).join('') + `<tr class="tot">
+      <td>Total</td>
+      <td class="acc">${f(sumRev)}</td>
+      <td class="acc">${(sumRev/totalRevAll*100).toFixed(1)}%</td>
+      <td class="acc">${f(sumGP)}</td>
+      <td class="acc">${(sumGP/sumRev*100).toFixed(1)}%</td>
+      <td class="acc">${f(sumOut)}</td>
+      <td class="acc">${(sumDaysWeighted/sumRev).toFixed(1)}</td>
+    </tr>`;
+}
+
+/* ══ KPI COUNT-UP ═══════════════════════════ */
+function animateCounts(){
+  document.querySelectorAll('.cnt').forEach(el=>{
+    const target=parseFloat(el.dataset.t);
+    const dec=parseInt(el.dataset.d||'2');
+    let cur=0;
+    const dur=900;const start=performance.now();
+    function step(now){
+      const p=Math.min(1,(now-start)/dur);
+      const eased=1-Math.pow(1-p,3);
+      cur=target*eased;
+      el.textContent=f(cur,dec);
+      if(p<1)requestAnimationFrame(step);else el.textContent=f(target,dec);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+/* ══ AGING DONUT CHART ══════════════════════ */
+let agingChart;
+function initAgingChart(){
+  const ctx=document.getElementById('agingChart').getContext('2d');
+  agingChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['0-30 Days','31-60 Days','61-90 Days','Over 90 Days'],
+      datasets:[{data:[12450,4280,2310,672],backgroundColor:['#27ae60','#f5c542','#f59e0b','#e5484d'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}},
+      animation:{duration:1000,easing:'easeOutQuart'}}
+  });
+}
+
+/* toggleSb/closeSb (sidebar.js), toggleSbPin (sidebar.js's pinned-open),
+   and chgM (header.js's built-in month-step arrows) now live in the shared
+   files. onMonthChange() is kept — it's page-specific (just a toast) and is
+   wired through renderHeader()'s onMonthChange config above. */
+function onMonthChange(){
+  const m=document.getElementById('msel').value;
+  toast('Showing data for '+m,'info');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#expBtn')) closeExpDrop();
+});
+
+/* ══ EXPORT DROPDOWN ═════════════════════════ */
+function toggleExpDrop(e){
+  e.stopPropagation();
+  const d=document.getElementById('expDrop');
+  const was=d.classList.contains('show');
+  document.querySelectorAll('.export-drop.show').forEach(x=>x.classList.remove('show'));
+  d.classList.toggle('show',!was);
+}
+function closeExpDrop(){
+  document.getElementById('expDrop').classList.remove('show');
+}
+/* markAllRead() now comes from header.js (manages the real shared
+   #notifPanel/#bellBadge). The old .sb-a click handler that faked
+   navigation with a toast is removed — sidebar.js's nav links now go to
+   real pages, so intercepting clicks here would have broken navigation.
+   handleLogout()/handleSignInAgain() (the fake "signed out" screen) are
+   removed too — signOut() from app-state.js (wired automatically by
+   sidebar.js's .sb-logout and header.js's userPanelSignOut) does the real
+   thing: confirm modal, session clear, redirect to login.html. */
+
+/* ══ MODALS ═════════════════════════════════ */
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function openAddCustomerModal(){
+  document.getElementById('addCustForm').reset();
+  openModal('addCustModal');
+}
+function saveNewCustomer(e){
+  e.preventDefault();
+  const btn=document.getElementById('ncSaveBtn');
+  btn.classList.add('loading');
+  const name=document.getElementById('ncName').value.trim();
+  const type=document.getElementById('ncType').value;
+  const phone=document.getElementById('ncPhone').value.trim();
+  const email=document.getElementById('ncEmail').value.trim();
+  const address=document.getElementById('ncAddress').value.trim();
+  const limit=parseFloat(document.getElementById('ncLimit').value)||0;
+  const terms=parseInt(document.getElementById('ncTerms').value)||30;
+  setTimeout(()=>{
+    const id='c'+(customers.length+1)+'_'+Date.now();
+    customers.unshift({
+      id,name,type,phone,email,address,
+      creditLimit:limit,outstanding:0,
+      lastPurchase:'—',status:'Active',
+      since:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+      avgDays:0,lastPayment:'—',revenue:0,grossMarginPct:0,txns:[]
+    });
+    btn.classList.remove('loading');
+    closeModal('addCustModal');
+    applyFilters();
+    updateTotalCustKpi();
+    toast(name+' added as a new customer','success');
+  },600);
+}
+function openPaymentModal(id){
+  const cid=id||selectedId;
+  const sel=document.getElementById('payCustomer');
+  sel.innerHTML=customers.map(c=>`<option value="${c.id}" ${c.id===cid?'selected':''}>${c.name}</option>`).join('');
+  updatePayHint();
+  sel.onchange=updatePayHint;
+  document.getElementById('payDate').value=new Date().toISOString().slice(0,10);
+  openModal('paymentModal');
+}
+function updatePayHint(){
+  const c=customers.find(x=>x.id===document.getElementById('payCustomer').value);
+  document.getElementById('payHint').textContent='Current outstanding: '+(c?f(c.outstanding)+' ETB':'—');
+  document.getElementById('payModalSub').textContent=c?('Collecting payment from '+c.name):'Collect a credit payment from a customer';
+}
+function savePayment(e){
+  e.preventDefault();
+  const btn=document.getElementById('paySaveBtn');
+  btn.classList.add('loading');
+  const cid=document.getElementById('payCustomer').value;
+  const amount=parseFloat(document.getElementById('payAmount').value)||0;
+  const method=document.getElementById('payMethod').value;
+  const date=document.getElementById('payDate').value;
+  setTimeout(()=>{
+    const c=customers.find(x=>x.id===cid);
+    if(c&&amount>0){
+      c.outstanding=Math.max(0,c.outstanding-amount);
+      c.lastPayment=new Date(date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      c.txns.unshift({date:c.lastPayment,type:'Payment',product:'-',qty:'-',unitPrice:null,amount,method,status:'Settled'});
+    }
+    btn.classList.remove('loading');
+    closeModal('paymentModal');
+    applyFilters();
+    renderDetail();
+    renderTxns();
+    toast('Payment of '+f(amount)+' ETB recorded','success');
+  },600);
+}
+function updateTotalCustKpi(){
+  const active=customers.filter(c=>c.status==='Active').length;
+  const inactive=customers.length-active;
+  document.querySelector('#kpiTotalCust .cnt').textContent=customers.length;
+  document.getElementById('kpiInactive').textContent=inactive+' Inactive';
+}
+
+/* ══ EXPORT EXCEL (real .xlsx via SheetJS) ═══════════════════════ */
+function exportCSV(retryCount){
+  retryCount = retryCount || 0;
+  const month = document.getElementById('msel').value.replace(' ','_');
+  if(typeof XLSX === 'undefined'){
+    if(retryCount < 6){
+      setTimeout(()=>exportCSV(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing Excel file…','info');
+      return;
+    }
+    exportCSVFallback(month);
+    return;
+  }
+  try{
+    const hdr=['Customer Name','Type','Phone','Email','Address','Credit Limit (ETB)','Outstanding (ETB)','Credit Utilization %','Last Purchase','Avg Days to Pay','Status'];
+    const data=[hdr];
+    let sums={limit:0,out:0};
+    customers.forEach(c=>{
+      const util=c.creditLimit?(c.outstanding/c.creditLimit*100):0;
+      data.push([c.name,c.type,c.phone,c.email||'—',c.address||'—',c.creditLimit,c.outstanding,util,c.lastPurchase,c.avgDays,c.status]);
+      sums.limit+=c.creditLimit; sums.out+=c.outstanding;
+    });
+    const totalRowIdx=data.length;
+    const totUtil=sums.limit?(sums.out/sums.limit*100):0;
+    data.push(['TOTAL','—','—','—','—',sums.limit,sums.out,totUtil,'—','—','—']);
+
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:22},{wch:12},{wch:16},{wch:24},{wch:26},{wch:16},{wch:15},{wch:16},{wch:14},{wch:14},{wch:10}];
+    ws['!rows']=[{hpt:22}];
+    ws['!freeze']={xSplit:0,ySplit:1};
+
+    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
+    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+    const numCols=[5,6,7];
+
+    for(let r=0;r<data.length;r++){
+      for(let c=0;c<hdr.length;c++){
+        const addr=XLSX.utils.encode_cell({r,c});
+        if(!ws[addr]) continue;
+        const isHeader=r===0;
+        const isTotal=r===totalRowIdx;
+        let numFmt;
+        if(!isHeader && numCols.includes(c)) numFmt=(c===7)?'0.0"%"':'#,##0.00';
+        ws[addr].s={
+          font:{bold:isHeader||isTotal,color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')},sz:10},
+          fill:{fgColor:{rgb:isHeader?'1D6B42':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))}},
+          alignment:{vertical:'center',horizontal:(c<=4)?'left':'right'},
+          border:borderAll
+        };
+        if(numFmt) ws[addr].z=numFmt;
+      }
+    }
+
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Customers');
+    XLSX.writeFile(wb,'Customers_'+month+'.xlsx');
+    toast('Downloaded Customers_'+month+'.xlsx ✓','success');
+  } catch(err){
+    console.error('Excel export failed:', err);
+    exportCSVFallback(month);
+  }
+}
+function csvField(v){
+  const s=String(v);
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function exportCSVFallback(month){
+  const hdr=['Customer Name','Type','Phone','Email','Address','Credit Limit (ETB)','Outstanding (ETB)','Credit Utilization %','Last Purchase','Avg Days to Pay','Status'];
+  const lines=[hdr.map(csvField).join(',')];
+  let sums={limit:0,out:0};
+  customers.forEach(c=>{
+    const util=c.creditLimit?(c.outstanding/c.creditLimit*100):0;
+    lines.push([c.name,c.type,c.phone,c.email||'—',c.address||'—',f(c.creditLimit),f(c.outstanding),util.toFixed(1),c.lastPurchase,c.avgDays,c.status].map(csvField).join(','));
+    sums.limit+=c.creditLimit; sums.out+=c.outstanding;
+  });
+  const totUtil=sums.limit?(sums.out/sums.limit*100):0;
+  lines.push(['TOTAL','—','—','—','—',f(sums.limit),f(sums.out),totUtil.toFixed(1),'—','—','—'].map(csvField).join(','));
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='Customers_'+month+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('Excel engine unavailable — downloaded as CSV instead','info');
+}
+
+/* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ═════════════════ */
+function exportPDF(retryCount){
+  retryCount = retryCount || 0;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
+    if(retryCount < 6){
+      setTimeout(()=>exportPDF(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing PDF…','info');
+      return;
+    }
+    toast('Could not load the PDF engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+  const { jsPDF } = window.jspdf;
+  const month = document.getElementById('msel').value;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 32;
+
+  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+  const active=customers.filter(c=>c.status==='Active').length;
+  const totalOut=customers.reduce((s,c)=>s+c.outstanding,0);
+  const totalLimit=customers.reduce((s,c)=>s+c.creditLimit,0);
+  const totalRev=customers.reduce((s,c)=>s+c.revenue,0);
+  const avgDays=customers.reduce((s,c)=>s+c.avgDays,0)/customers.length;
+  const util=totalLimit?(totalOut/totalLimit*100):0;
+
+  function drawHeader(){
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(marginX,18,38,38,9,9,'F');
+    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text('MI', marginX+19, 42, {align:'center'});
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text('Customer List Report', marginX+52, 34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+  }
+  function drawKpiStrip(y){
+    const kpis=[
+      {lbl:'TOTAL CUSTOMERS',val:String(customers.length),unit:active+' active'},
+      {lbl:'TOTAL REVENUE',val:f(totalRev),unit:'ETB'},
+      {lbl:'OUTSTANDING A/R',val:f(totalOut),unit:'ETB'},
+      {lbl:'AVG DAYS TO PAY',val:avgDays.toFixed(1),unit:'days'},
+      {lbl:'CREDIT UTILIZATION',val:util.toFixed(1),unit:'%'}
+    ];
+    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=52;
+    kpis.forEach((k,i)=>{
+      const x=marginX+i*(cardW+gap);
+      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+      doc.text(k.lbl, x+10, y+16, {charSpace:0.3});
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(14.5);
+      doc.text(k.val, x+10, y+36);
+      const valW=doc.getTextWidth(k.val);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...textMid);
+      doc.text(k.unit, x+10+valW+4, y+36);
+    });
+    return y+cardH;
+  }
+
+  drawHeader();
+  const kpiBottom = drawKpiStrip(94);
+
+  const head=[['Customer','Type','Phone','Credit Limit\n(ETB)','Outstanding\n(ETB)','Last Purchase','Avg Days\nto Pay','Status']];
+  const body=customers.map(c=>[c.name,c.type,c.phone,f(c.creditLimit),f(c.outstanding),c.lastPurchase,c.avgDays.toFixed(1),c.status]);
+  const foot=[['TOTAL','—','—',f(totalLimit),f(totalOut),'—',avgDays.toFixed(1),'—']];
+
+  doc.autoTable({
+    head, body, foot,
+    startY: kpiBottom+18,
+    margin:{left:marginX,right:marginX,bottom:46},
+    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]},
+    columnStyles:{0:{fontStyle:'bold'},4:{textColor:[197,36,41],fontStyle:'bold'}},
+    didDrawPage: function(){
+      if(doc.internal.getCurrentPageInfo().pageNumber > 1) drawHeader();
+    }
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setDrawColor(...border);
+    doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+    doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
+    doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+  }
+
+  const safeMonth = month.replace(' ','_');
+  doc.save('Customers_Report_'+safeMonth+'.pdf');
+  toast('Downloaded Customers_Report_'+safeMonth+'.pdf ✓','success');
+  } catch(err){
+    console.error('PDF export failed:', err);
+    toast('PDF export failed — please try again','error');
+  }
+}
+
+/* ══ EXPORT FULL PDF WITH CHARTS (landscape, multi-page) ══════════
+   Companion to exportPDF(): captures the Aging of Receivables donut
+   chart as an image and lays out KPIs + chart on page 1, the full
+   customer list on page 2, profitability on page 3, and the selected
+   customer's recent transactions on page 4. */
+function exportFullPDF(retryCount){
+  retryCount = retryCount || 0;
+  const chartReady = typeof agingChart !== 'undefined' && agingChart;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartReady){
+    if(retryCount < 8){
+      setTimeout(()=>exportFullPDF(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing full report PDF…','info');
+      return;
+    }
+    toast('Could not load the PDF/chart engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+  const { jsPDF } = window.jspdf;
+  const month = document.getElementById('msel').value;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 32;
+
+  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+  const active=customers.filter(c=>c.status==='Active').length;
+  const totalOut=customers.reduce((s,c)=>s+c.outstanding,0);
+  const totalLimit=customers.reduce((s,c)=>s+c.creditLimit,0);
+  const totalRev=customers.reduce((s,c)=>s+c.revenue,0);
+  const avgDays=customers.reduce((s,c)=>s+c.avgDays,0)/customers.length;
+  const util=totalLimit?(totalOut/totalLimit*100):0;
+
+  function drawHeader(subtitle){
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(marginX,18,38,38,9,9,'F');
+    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text('MI', marginX+19, 42, {align:'center'});
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text('Customer Full Report'+(subtitle?' — '+subtitle:''), marginX+52, 34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+  }
+  function drawFooter(){
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setDrawColor(...border);
+      doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
+      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
+    }
+  }
+  function drawKpiStrip(y){
+    const kpis=[
+      {lbl:'TOTAL CUSTOMERS',val:String(customers.length),unit:active+' active'},
+      {lbl:'TOTAL REVENUE',val:f(totalRev),unit:'ETB'},
+      {lbl:'OUTSTANDING A/R',val:f(totalOut),unit:'ETB'},
+      {lbl:'AVG DAYS TO PAY',val:avgDays.toFixed(1),unit:'days'},
+      {lbl:'CREDIT UTILIZATION',val:util.toFixed(1),unit:'%'}
+    ];
+    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
+    kpis.forEach((k,i)=>{
+      const x=marginX+i*(cardW+gap);
+      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+      doc.text(k.lbl, x+10, y+15, {charSpace:0.3});
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
+      doc.text(k.val, x+10, y+34);
+      const valW=doc.getTextWidth(k.val);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
+      doc.text(k.unit, x+10+valW+4, y+34);
+    });
+    return y+cardH;
+  }
+  function drawChartTile(img,x,y,w,h,title){
+    doc.setFillColor(255,255,255); doc.setDrawColor(...border);
+    doc.roundedRect(x,y,w,h,7,7,'FD');
+    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+    doc.text(title, x+12, y+18);
+    const imgPad=10, imgY=y+26;
+    const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
+    try{ doc.addImage(img,'PNG',x+imgPad,imgY,imgW,imgH,undefined,'FAST'); }catch(e){}
+  }
+
+  /* ---- PAGE 1: KPI strip + aging donut chart ---- */
+  drawHeader();
+  const kpiBottom = drawKpiStrip(94);
+  const gY = kpiBottom+16;
+  const imgAging = agingChart.toBase64Image();
+  const tileW = pageW-marginX*2;
+  const tileH = pageH-gY-30;
+  drawChartTile(imgAging, marginX, gY, tileW, tileH, 'Aging of Receivables (All Customers)');
+
+  /* ---- PAGE 2: Customer list table ---- */
+  doc.addPage();
+  drawHeader('Customer List');
+  const custHead=[['Customer','Type','Phone','Credit Limit\n(ETB)','Outstanding\n(ETB)','Last Purchase','Avg Days\nto Pay','Status']];
+  const custBody=customers.map(c=>[c.name,c.type,c.phone,f(c.creditLimit),f(c.outstanding),c.lastPurchase,c.avgDays.toFixed(1),c.status]);
+  const custFoot=[['TOTAL','—','—',f(totalLimit),f(totalOut),'—',avgDays.toFixed(1),'—']];
+  doc.autoTable({
+    head:custHead, body:custBody, foot:custFoot, startY:94,
+    margin:{left:marginX,right:marginX,bottom:44},
+    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]},
+    columnStyles:{0:{fontStyle:'bold'},4:{textColor:[197,36,41],fontStyle:'bold'}}
+  });
+
+  /* ---- PAGE 3: Customer profitability table ---- */
+  doc.addPage();
+  drawHeader('Customer Profitability');
+  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
+  const top5=[...customers].sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+  let sumRev=0,sumGP=0,sumOut=0;
+  const profBody=top5.map(c=>{
+    const pct=(c.revenue/totalRevAll*100);
+    const gp=c.revenue*(c.grossMarginPct/100);
+    sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;
+    return [c.name,f(c.revenue),pct.toFixed(1)+'%',f(gp),c.grossMarginPct.toFixed(1)+'%',f(c.outstanding),c.avgDays.toFixed(1)];
+  });
+  const profFoot=[['TOTAL',f(sumRev),(sumRev/totalRevAll*100).toFixed(1)+'%',f(sumGP),(sumGP/sumRev*100).toFixed(1)+'%',f(sumOut),avgDays.toFixed(1)]];
+  doc.autoTable({
+    head:[['Customer','Total Revenue\n(ETB)','% of Total','Gross Profit\n(ETB)','Gross Margin %','Outstanding\n(ETB)','Avg Days\nto Pay']],
+    body:profBody, foot:profFoot, startY:94,
+    margin:{left:marginX,right:marginX,bottom:44},
+    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
+    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]},
+    columnStyles:{0:{fontStyle:'bold'}}
+  });
+
+  /* ---- PAGE 4: Selected customer's recent transactions ---- */
+  const sel=customers.find(c=>c.id===selectedId) || customers[0];
+  doc.addPage();
+  drawHeader('Recent Transactions — '+sel.name);
+  doc.autoTable({
+    head:[['Date','Type','Product','Quantity','Unit Price (ETB)','Amount (ETB)','Payment Method','Status']],
+    body:(sel.txns||[]).map(t=>[t.date,t.type,t.product,t.qty,t.unitPrice!==null?f(t.unitPrice):'-',f(t.amount),t.method,t.status]),
+    startY:94,
+    margin:{left:marginX,right:marginX,bottom:44},
+    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  drawFooter();
+  const safeMonth = month.replace(' ','_');
+  doc.save('Customers_Full_Report_'+safeMonth+'.pdf');
+  toast('Downloaded Customers_Full_Report_'+safeMonth+'.pdf ✓','success');
+  } catch(err){
+    console.error('Full PDF export failed:', err);
+    toast('Full report PDF export failed — please try again','error');
+  }
+}
+
+/* toast(msg,type) now comes from app-state.js — same toastStack pattern,
+   same success/error/info types, so nothing else here needed to change. */
+
+/* ══ INIT ════════════════════════════════════ */
+applyFilters();
+renderDetail();
+renderTxns();
+renderProfitability();
+animateCounts();
+if(typeof Chart!=='undefined')initAgingChart();
+</script>
+</body>
+</html>

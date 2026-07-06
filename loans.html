@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loans — Mena Injera &amp; Derkosh BMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const db = createClient(
+  'https://mfxkkaavgzyttasgqnmw.supabase.co',
+  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
+);
+</script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+/* ══ CARD ═══════════════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px}
+.card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-sub{font-size:11px;color:var(--tl);font-weight:500;margin-top:2px}
+.card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vall{font-size:12px;font-weight:600;color:#27ae60;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:3px}
+
+/* ══ TABLE ══════════════════════════════════════════ */
+.tbl-pl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:auto}
+.tbl-pl th{padding:9px 10px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.tbl-pl td{padding:10px 10px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl-pl tr:hover td{background:#f7fbf9}
+.tbl-pl tr.hl-row td{background:#fef8ec}
+.tbl-pl tr.hl-row:hover td{background:#fdf3de}
+
+/* ══ STATUS PILLS ═══════════════════════════════════ */
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
+.pill-sm{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.pill-active{background:#e5f5ed;color:#1a6b3c}
+.pill-paidoff{background:#eef1f0;color:#5a6e65}
+.pill-overdue{background:#fdecea;color:#b3261e}
+.pill-upcoming{background:#fef3e2;color:#9a6a0a}
+.pill-scheduled{background:#eef1f0;color:#5a6e65}
+.pill-paid{background:#e5f5ed;color:#1a6b3c}
+
+/* ══ LIST HEADER (Loan Register) ═════════════════════ */
+.pl-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;flex-wrap:wrap;gap:10px}
+.pl-hd-l{display:flex;align-items:center;gap:8px}
+.pl-hd-l .card-ttl-ic{width:30px;height:30px;border-radius:8px;background:#e5f5ed;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pl-hd-l .card-ttl-ic svg{width:16px;height:16px;stroke:#27ae60;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pl-hd-l-txt h3{font-family:'Quicksand',sans-serif;font-size:14.5px;font-weight:700;color:var(--td)}
+.pl-hd-l-txt p{font-size:11px;color:var(--tl);margin-top:1px}
+.btn-new{display:flex;align-items:center;gap:6px;background:#1d5c38;color:#fff;font-size:12.5px;font-weight:700;padding:0 16px;height:34px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;transition:background .12s}
+.btn-new:hover{background:#164a2d}
+.btn-new svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.fsel{border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none;height:34px}
+.reg-search{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:0 11px;height:34px;background:#fff;width:200px}
+.reg-search svg{width:14px;height:14px;stroke:#aab8b2;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.reg-search input{border:none;outline:none;font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--td);background:transparent;width:100%}
+.reg-search input::placeholder{color:var(--tl)}
+
+/* ══ PAGINATION ═══════════════════════════════════════ */
+.pg{display:flex;align-items:center;justify-content:space-between;padding:12px 17px;border-top:1px solid var(--border)}
+.pg-info{font-size:12px;color:var(--tl)}
+.pg-ctrl{display:flex;align-items:center;gap:5px}
+.pg-b{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--tm);cursor:pointer}
+.pg-b:hover{background:var(--bg)}
+.pg-b.act{background:#27ae60;color:#fff;border-color:#27ae60}
+.pg-b svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.pg-b[disabled]{opacity:.4;cursor:default}
+.pg-b[disabled]:hover{background:#fff}
+
+/* ══ ACTIONS DOTS ═══════════════════════════════════ */
+.act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px;position:relative}
+.act-dots:hover{background:var(--bg);color:var(--tm)}
+.act-dots svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.row-menu{position:absolute;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:60;min-width:170px;overflow:hidden;animation:popIn .12s ease both;right:0;top:28px}
+.row-menu-item{padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer;display:flex;align-items:center;gap:8px}
+.row-menu-item:hover{background:var(--bg)}
+.row-menu-item.danger{color:#e53935}
+.row-menu-item svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* ══ REPAYMENT SCHEDULE ═══════════════════════════════ */
+.rs-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;flex-wrap:wrap;gap:10px}
+.rs-sel-wrap{display:flex;align-items:center;gap:8px}
+.rs-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0 17px 14px;background:#f7fbf9;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.rs-strip-cell{padding:12px 16px;border-right:1px solid var(--border)}
+.rs-strip-cell:last-child{border-right:none}
+.rs-strip-cell span{display:block;font-size:10.5px;color:var(--tl);font-weight:600;margin-bottom:4px}
+.rs-strip-cell strong{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:700;color:var(--td)}
+.rs-strip-cell strong.red{color:#e53935}
+
+/* ══ SUMMARY LIST (right column) ══════════════════════ */
+.sum-list{padding:2px 17px 14px}
+.sum-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f5f2}
+.sum-row:last-child{border-bottom:none}
+.sum-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sum-ic svg{width:15px;height:15px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sum-lbl{font-size:12px;font-weight:600;color:var(--tm);flex:1}
+.sum-val{font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;color:var(--td);white-space:nowrap}
+.sum-val .u{font-size:10.5px;font-weight:600;color:var(--tm);margin-left:2px}
+.sum-val.red{color:#e53935}
+.sum-val.green{color:#27ae60}
+
+/* ══ QUICK ACTIONS ════════════════════════════════════ */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:6px 17px 17px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);border-radius:10px;padding:14px 8px;background:#fff;cursor:pointer;transition:all .15s}
+.qa-btn:hover{background:var(--bg);border-color:#cdd9d3}
+.qa-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.qa-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-btn span{font-size:11px;font-weight:700;color:var(--td);text-align:center;line-height:1.25}
+
+/* ══ MODAL ═══════════════════════════════════════════ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,27,21,.55);z-index:500;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease both}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:slideUp .25s cubic-bezier(.22,1,.36,1) both;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-lg{max-width:800px}
+.modal-sm{max-width:420px}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:2}
+.modal-hd h3{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td)}
+.modal-x{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tm);background:var(--bg)}
+.modal-x:hover{background:#e5ece8}
+.modal-x svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.modal-bd{padding:20px 22px}
+.modal-ft{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.f-grp{display:flex;flex-direction:column;gap:5px}
+.f-grp label{font-size:11.5px;font-weight:700;color:var(--tm)}
+.f-grp input,.f-grp select,.f-grp textarea{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none;background:#fff;width:100%}
+.f-grp input:focus,.f-grp select:focus,.f-grp textarea:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.12)}
+.btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
+.btn-pri:hover{background:#164a2d}
+.btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
+.btn-sec:hover{background:var(--bg)}
+.btn-danger{background:#fdecea;color:#b3261e;font-size:12px;font-weight:700;padding:7px 13px;border-radius:7px;border:1px solid #f6cdc9;cursor:pointer}
+.btn-danger:hover{background:#fbdedb}
+.info-box{background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 13px;font-size:12px;color:var(--tm);margin-bottom:14px}
+.info-box strong{color:#1a6b3c}
+
+.empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
+
+/* ══ ANIMATIONS ═════════════════════════════════════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.card{animation:fadeUp .5s ease both}
+.row-anim{animation:fadeIn .3s ease both}
+.pg-b,.btn-new,.vall,.act-dots,.qa-btn{transition:all .15s ease}
+.btn-new:active,.pg-b:active,.qa-btn:active{transform:scale(.96)}
+
+@media (max-width:900px){
+  .bot2{display:flex;flex-direction:column}
+  .card{overflow:hidden;min-width:0;max-width:100%}
+  .tbl-pl{font-size:10px;white-space:nowrap}
+  .tbl-pl th{padding:6px 5px;font-size:8px}
+  .tbl-pl td{padding:6px 5px}
+  .rs-strip{grid-template-columns:1fr 1fr}
+  .qa-grid{grid-template-columns:1fr 1fr}
+  .pg{flex-wrap:wrap;gap:8px}
+}
+@media (max-width:480px){
+  .rs-strip{grid-template-columns:1fr}
+  .rs-strip-cell{border-right:none;border-bottom:1px solid var(--border)}
+}
+</style>
+</head>
+<body>
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="bot2" style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- LOAN REGISTER -->
+        <div class="card">
+          <div class="pl-hd">
+            <div class="pl-hd-l">
+              <div class="pl-hd-l-txt">
+                <h3>Loan Register</h3>
+                <p>All active and paid-off loans</p>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div class="reg-search">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="searchInput" placeholder="Search loans..." oninput="renderRegister()">
+              </div>
+              <button class="btn-new" onclick="openLoanModal()">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add New Loan
+              </button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="tbl-pl">
+            <thead>
+              <tr>
+                <th>Lender</th><th>Principal (ETB)</th><th>Interest Rate (Annual)</th><th>Term (Months)</th>
+                <th>Disbursement Date</th><th>Monthly Payment (ETB)</th><th>Outstanding Balance (ETB)</th>
+                <th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="regBody"></tbody>
+          </table>
+          </div>
+          <div class="pg">
+            <div class="pg-info" id="pgInfo">Showing 1 to 4 of 4 loans</div>
+            <div class="pg-ctrl" id="pgCtrl"></div>
+          </div>
+        </div>
+
+        <!-- REPAYMENT SCHEDULE -->
+        <div class="card">
+          <div class="rs-hd">
+            <div class="pl-hd-l-txt">
+              <h3 style="font-family:'Quicksand',sans-serif;font-size:14.5px;font-weight:700;color:var(--td)">Repayment Schedule</h3>
+            </div>
+            <div class="rs-sel-wrap">
+              <select class="fsel" id="scheduleLoanSel" onchange="renderSchedule()"></select>
+              <button class="btn-sec" style="height:34px;padding:0 14px;font-size:12.5px" onclick="openLoanDetails()">View Loan Details</button>
+            </div>
+          </div>
+          <div class="rs-strip" id="rsStrip"></div>
+          <div style="overflow-x:auto">
+          <table class="tbl-pl">
+            <thead>
+              <tr>
+                <th>#</th><th>Due Date</th><th>Payment</th><th>Interest Portion</th><th>Principal Portion</th>
+                <th>Total Payment</th><th>Balance After Payment</th><th>Status</th><th>Actual Payment Date</th>
+              </tr>
+            </thead>
+            <tbody id="schedBody"></tbody>
+          </table>
+          </div>
+          <div style="padding:14px 17px;text-align:center;border-top:1px solid var(--border)">
+            <button class="btn-sec" style="padding:9px 20px;font-size:12.5px" onclick="openFullScheduleModal()">View Full Schedule</button>
+          </div>
+        </div>
+
+      </div><!-- /left column -->
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- LOAN SUMMARY -->
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Loan Summary <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(All Active Loans)</span></div></div>
+          <div class="sum-list" id="summaryList"></div>
+        </div>
+
+        <!-- UPCOMING PAYMENTS -->
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Upcoming Payments</div></div>
+          <div style="overflow-x:auto">
+          <table class="tbl-pl">
+            <thead><tr><th>Lender</th><th>Due Date</th><th>Total Payment (ETB)</th><th>Status</th></tr></thead>
+            <tbody id="upcomingBody"></tbody>
+          </table>
+          </div>
+          <div style="padding:12px 17px;text-align:center;border-top:1px solid var(--border)">
+            <a class="vall" style="justify-content:center;cursor:pointer" onclick="showToast('Full payment calendar coming soon')">View All Payments</a>
+          </div>
+        </div>
+
+        <!-- QUICK ACTIONS -->
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+          <div class="qa-grid">
+            <div class="qa-btn" onclick="openLoanModal()">
+              <div class="qa-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+              <span>Add New Loan</span>
+            </div>
+            <div class="qa-btn" onclick="openPaymentModal()">
+              <div class="qa-ic" style="background:#e0effe"><svg viewBox="0 0 24 24" style="stroke:#2563eb"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+              <span>Record Payment</span>
+            </div>
+            <div class="qa-btn" onclick="exportLoanReportExcel()">
+              <div class="qa-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span>Loan Report (Excel)</span>
+            </div>
+            <div class="qa-btn" onclick="exportLoanReportPdf()">
+              <div class="qa-ic" style="background:#fdecea"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span>Loan Report (PDF)</span>
+            </div>
+            <div class="qa-btn" onclick="openFullScheduleModal()">
+              <div class="qa-ic" style="background:#fef3e2"><svg viewBox="0 0 24 24" style="stroke:#f59e0b"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <span>Repayment Schedule</span>
+            </div>
+            <div class="qa-btn" onclick="exportAllLoans()">
+              <div class="qa-ic" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+              <span>Export All Loans</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right column -->
+    </div><!-- /two-column area -->
+  </div><!-- /content -->
+  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- ════ ADD / EDIT LOAN MODAL ════ -->
+<div class="modal-overlay" id="loanModalOverlay" onclick="if(event.target===this)closeLoanModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="loanModalTitle">Add New Loan</h3>
+      <div class="modal-x" onclick="closeLoanModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <input type="hidden" id="lId">
+      <div class="f-row">
+        <div class="f-grp" style="grid-column:1/-1">
+          <label>Lender Name</label>
+          <input type="text" id="lLender" placeholder="e.g. Dashen Bank">
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp">
+          <label>Principal Amount (ETB)</label>
+          <input type="number" id="lPrincipal" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="f-grp">
+          <label>Interest Rate (Annual %)</label>
+          <input type="number" id="lRate" placeholder="0.00" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp">
+          <label>Term (Months)</label>
+          <input type="number" id="lTerm" placeholder="0" step="1" min="1">
+        </div>
+        <div class="f-grp">
+          <label>Disbursement Date</label>
+          <input type="date" id="lDate">
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp">
+          <label>Disbursement Channel</label>
+          <select id="lChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+        </div>
+        <div class="f-grp">
+          <label>Status</label>
+          <select id="lStatus"><option>Active</option><option>Paid Off</option><option>Defaulted</option></select>
+        </div>
+      </div>
+      <div class="f-grp" style="margin-bottom:4px">
+        <label>Notes</label>
+        <textarea id="lNotes" rows="2" placeholder="Optional notes about this loan"></textarea>
+      </div>
+      <div class="info-box" id="lPmtPreview" style="margin-top:14px">Estimated monthly payment will be calculated automatically from principal, rate and term.</div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeLoanModal()">Cancel</button>
+      <button class="btn-pri" onclick="saveLoan()">Save Loan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RECORD PAYMENT MODAL ════ -->
+<div class="modal-overlay" id="paymentModalOverlay" onclick="if(event.target===this)closePaymentModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <h3>Record Payment</h3>
+      <div class="modal-x" onclick="closePaymentModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="f-grp" style="margin-bottom:14px">
+        <label>Loan</label>
+        <select id="pyLoanSel" onchange="refreshPaymentPreview()"></select>
+      </div>
+      <div class="info-box" id="pyPreview">—</div>
+      <div class="f-grp" style="margin-top:14px">
+        <label>Actual Payment Date</label>
+        <input type="date" id="pyDate">
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closePaymentModal()">Cancel</button>
+      <button class="btn-pri" onclick="confirmPayment()">Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ LOAN DETAILS MODAL ════ -->
+<div class="modal-overlay" id="detailsModalOverlay" onclick="if(event.target===this)closeDetailsModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <h3>Loan Details</h3>
+      <div class="modal-x" onclick="closeDetailsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" id="detailsBody"></div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeDetailsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ FULL SCHEDULE MODAL ════ -->
+<div class="modal-overlay" id="fullSchedModalOverlay" onclick="if(event.target===this)closeFullScheduleModal()">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h3 id="fullSchedTitle">Full Repayment Schedule</h3>
+      <div class="modal-x" onclick="closeFullScheduleModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" style="padding:0">
+      <div style="overflow-x:auto;max-height:60vh">
+      <table class="tbl-pl">
+        <thead>
+          <tr>
+            <th>#</th><th>Due Date</th><th>Payment</th><th>Interest Portion</th><th>Principal Portion</th>
+            <th>Total Payment</th><th>Balance After Payment</th><th>Status</th><th>Actual Payment Date</th>
+          </tr>
+        </thead>
+        <tbody id="fullSchedBody"></tbody>
+      </table>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeFullScheduleModal()">Close</button>
+      <button class="btn-pri" onclick="exportLoanReportPdf()">Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+/* ════════════════ REFERENCE DATE (for "days until due" calcs) ════════════════ */
+const TODAY = new Date('2026-06-01T00:00:00');
+
+/* ════════════════ DATA ════════════════ */
+let nextLoanId = 5;
+let loans = [
+  { id:1, lender:'Awash Bank', principal:100000, rate:12, term:24, disbDate:'2025-01-15', channel:'Bank',
+    monthlyPayment:4674.20, outstanding:53077.60, status:'Active', paidCount:4,
+    scheduleFixed:[
+      {n:1, due:'Feb 15, 2025', payment:4674.20, interest:1000.00, principal:3674.20, balance:96325.80, status:'Paid', actual:'Feb 15, 2025'},
+      {n:2, due:'Mar 15, 2025', payment:4674.20, interest:963.26, principal:3710.94, balance:92614.86, status:'Paid', actual:'Mar 15, 2025'},
+      {n:3, due:'Apr 15, 2025', payment:4674.20, interest:926.15, principal:3748.05, balance:88866.81, status:'Paid', actual:'Apr 15, 2025'},
+      {n:4, due:'May 15, 2025', payment:4674.20, interest:888.67, principal:3785.53, balance:85081.28, status:'Paid', actual:'May 15, 2025'},
+      {n:5, due:'Jun 15, 2026', payment:4674.20, interest:850.81, principal:3823.39, balance:81257.89, status:'Upcoming', actual:'-'},
+      {n:6, due:'Jul 15, 2026', payment:4674.20, interest:812.58, principal:3861.62, balance:77396.27, status:'Scheduled', actual:'-'},
+      {n:7, due:'Aug 15, 2026', payment:4674.20, interest:773.96, principal:3900.24, balance:73496.03, status:'Scheduled', actual:'-'}
+    ]
+  },
+  { id:2, lender:'Cooperative Bank', principal:50000, rate:14, term:18, disbDate:'2025-03-10', channel:'Bank',
+    monthlyPayment:3193.90, outstanding:15969.50, status:'Active', paidCount:1 },
+  { id:3, lender:'Abay Microfinance', principal:30000, rate:18, term:12, disbDate:'2025-06-05', channel:'Mobile Money',
+    monthlyPayment:2797.18, outstanding:27971.80, status:'Active', paidCount:1 },
+  { id:4, lender:'Commercial Bank', principal:80000, rate:11, term:36, disbDate:'2024-09-01', channel:'Bank',
+    monthlyPayment:2598.99, outstanding:0, status:'Paid Off', paidCount:36 }
+];
+
+/* Cumulative to-date totals — shown in Loan Summary, updated when a payment is recorded */
+let totals = { interestPaid:12456.70, principalRepaid:70524.40 };
+
+let upcomingPayments = [
+  { lender:'Awash Bank', due:'Jun 15, 2026', amount:4674.20 },
+  { lender:'Cooperative Bank', due:'Jun 10, 2026', amount:3193.90 },
+  { lender:'Abay Microfinance', due:'Jun 05, 2026', amount:2797.18 }
+];
+
+let state = { page:1, perPage:10 };
+let openRowMenuEl = null;
+
+/* ════════════════ FORMATTERS ════════════════ */
+function fmt(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function daysUntil(dateLabel){
+  const d = new Date(dateLabel);
+  const diff = Math.round((d-TODAY)/86400000);
+  if(diff<0) return {txt:`${Math.abs(diff)} days overdue`, cls:'pill-overdue'};
+  if(diff===0) return {txt:'Due today', cls:'pill-upcoming'};
+  return {txt:`Due in ${diff} days`, cls:'pill-upcoming'};
+}
+function loanById(id){ return loans.find(l=>l.id===Number(id)); }
+
+/* ════════════════ AMORTIZATION ENGINE ════════════════ */
+function amortize(loan){
+  // Use the fixed, hand-verified schedule for rows already defined (keeps the visible
+  // rows identical to the approved reference), then continue the same recurrence
+  // (fixed monthly payment, declining balance) for the remaining term.
+  const rows = [];
+  const monthlyRate = loan.rate/100/12;
+  let balance, startIdx, lastDateStr;
+  if(loan.scheduleFixed && loan.scheduleFixed.length){
+    loan.scheduleFixed.forEach(r=>rows.push({...r}));
+    balance = rows[rows.length-1].balance;
+    startIdx = rows.length;
+    lastDateStr = rows[rows.length-1].due;
+  } else {
+    balance = loan.principal;
+    startIdx = 0;
+    lastDateStr = null;
+  }
+  let d = lastDateStr ? new Date(lastDateStr) : new Date(loan.disbDate+'T00:00:00');
+  for(let i=startIdx+1;i<=loan.term;i++){
+    d = new Date(d);
+    d.setMonth(d.getMonth()+1);
+    const interest = balance*monthlyRate;
+    let principalPortion = loan.monthlyPayment - interest;
+    let payment = loan.monthlyPayment;
+    if(i===loan.term || principalPortion>balance){
+      principalPortion = balance;
+      payment = principalPortion+interest;
+    }
+    const closing = Math.max(0, balance - principalPortion);
+    rows.push({
+      n:i,
+      due: d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+      payment, interest, principal:principalPortion, balance:closing,
+      status: loan.status==='Paid Off' ? 'Paid' : 'Scheduled',
+      actual: loan.status==='Paid Off' ? d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-'
+    });
+    balance = closing;
+  }
+  // Apply paidCount / status overrides consistently
+  rows.forEach((r,idx)=>{
+    if(loan.status==='Paid Off'){ r.status='Paid'; if(r.actual==='-') r.actual=r.due; }
+    else if(idx < loan.paidCount){ r.status='Paid'; if(r.actual==='-'||!r.actual) r.actual=r.due; }
+    else if(idx === loan.paidCount){ r.status='Upcoming'; r.actual='-'; }
+    else { r.status='Scheduled'; r.actual='-'; }
+  });
+  return rows;
+}
+
+/* ════════════════ STATUS PILLS ════════════════ */
+function statusPill(status){
+  const map = {
+    'Active':'pill-active','Paid Off':'pill-paidoff','Defaulted':'pill-overdue',
+    'Paid':'pill-paid','Upcoming':'pill-upcoming','Scheduled':'pill-scheduled','Overdue':'pill-overdue'
+  };
+  return `<span class="pill-sm ${map[status]||'pill-scheduled'}">${status}</span>`;
+}
+
+/* ════════════════ LOAN REGISTER RENDER ════════════════ */
+function getFilteredLoans(){
+  const q = (document.getElementById('searchInput').value||'').toLowerCase().trim();
+  if(!q) return loans;
+  return loans.filter(l=>l.lender.toLowerCase().includes(q) || l.status.toLowerCase().includes(q));
+}
+
+function renderRegister(){
+  const list = getFilteredLoans();
+  const per = state.perPage;
+  const totalPages = Math.max(1, Math.ceil(list.length/per));
+  if(state.page>totalPages) state.page = totalPages;
+  const startIdx = (state.page-1)*per;
+  const pageItems = list.slice(startIdx, startIdx+per);
+  const body = document.getElementById('regBody');
+
+  if(!pageItems.length){
+    body.innerHTML = `<tr class="empty-row"><td colspan="9">No loans found.</td></tr>`;
+  } else {
+    body.innerHTML = pageItems.map(l=>`
+      <tr class="row-anim">
+        <td style="font-weight:700">${l.lender}</td>
+        <td>${fmt(l.principal)}</td>
+        <td>${l.rate.toFixed(2)}%</td>
+        <td>${l.term}</td>
+        <td>${fmtDate(l.disbDate)}</td>
+        <td>${fmt(l.monthlyPayment)}</td>
+        <td style="${l.status==='Paid Off' ? 'color:var(--tl)':'color:#e53935;font-weight:700'}">${l.status==='Paid Off' ? '—' : fmt(l.outstanding)}</td>
+        <td>${statusPill(l.status==='Paid Off' ? 'Paid Off' : 'Active')}</td>
+        <td>
+          <div class="act-dots" onclick="toggleRowMenu(event, ${l.id})">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+            <div class="row-menu" id="rowMenu-${l.id}" style="display:none">
+              <div class="row-menu-item" onclick="viewScheduleFor(${l.id})">
+                <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>View Schedule
+              </div>
+              <div class="row-menu-item" onclick="openPaymentModal(${l.id})">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Record Payment
+              </div>
+              <div class="row-menu-item" onclick="editLoan(${l.id})">
+                <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Loan
+              </div>
+              ${l.status!=='Paid Off' ? `<div class="row-menu-item" onclick="markPaidOff(${l.id})">
+                <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Mark Paid Off
+              </div>` : ''}
+              <div class="row-menu-item danger" onclick="deleteLoan(${l.id})">
+                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Delete Loan
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('pgInfo').textContent =
+    list.length ? `Showing ${startIdx+1} to ${Math.min(startIdx+per,list.length)} of ${list.length} loans` : 'No loans found';
+
+  const ctrl = document.getElementById('pgCtrl');
+  let ctrlHtml = `<div class="pg-b" ${state.page<=1?'disabled':''} onclick="gotoPage(${state.page-1})"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>`;
+  for(let p=1;p<=totalPages;p++){
+    ctrlHtml += `<div class="pg-b ${p===state.page?'act':''}" onclick="gotoPage(${p})">${p}</div>`;
+  }
+  ctrlHtml += `<div class="pg-b" ${state.page>=totalPages?'disabled':''} onclick="gotoPage(${state.page+1})"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>`;
+  ctrl.innerHTML = ctrlHtml;
+
+  populateLoanSelects();
+  renderSummary();
+  renderUpcoming();
+}
+function gotoPage(p){ state.page=p; renderRegister(); }
+
+/* ════════════════ ROW MENU (dots) ════════════════ */
+function toggleRowMenu(ev, id){
+  ev.stopPropagation();
+  const menu = document.getElementById('rowMenu-'+id);
+  const isOpen = menu.style.display==='block';
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+  menu.style.display = isOpen ? 'none' : 'block';
+  openRowMenuEl = isOpen ? null : menu;
+}
+document.addEventListener('click', ()=>{
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+});
+
+/* ════════════════ SELECT DROPDOWN SYNC ════════════════ */
+function populateLoanSelects(){
+  const schedSel = document.getElementById('scheduleLoanSel');
+  const pySel = document.getElementById('pyLoanSel');
+  const prevSched = schedSel.value;
+  schedSel.innerHTML = loans.map(l=>`<option value="${l.id}">${l.lender} Loan</option>`).join('');
+  if([...schedSel.options].some(o=>o.value===prevSched)) schedSel.value = prevSched;
+  const activeLoans = loans.filter(l=>l.status==='Active');
+  pySel.innerHTML = activeLoans.map(l=>`<option value="${l.id}">${l.lender} Loan</option>`).join('');
+}
+
+/* ════════════════ REPAYMENT SCHEDULE RENDER ════════════════ */
+function renderSchedule(){
+  const sel = document.getElementById('scheduleLoanSel');
+  if(!sel.value) return;
+  const loan = loanById(sel.value);
+  if(!loan) return;
+  const rows = amortize(loan);
+
+  document.getElementById('rsStrip').innerHTML = `
+    <div class="rs-strip-cell"><span>Principal Amount</span><strong>${fmt(loan.principal)} <span style="font-size:11px;color:var(--tm)">ETB</span></strong></div>
+    <div class="rs-strip-cell"><span>Interest Rate (Annual)</span><strong>${loan.rate.toFixed(2)}%</strong></div>
+    <div class="rs-strip-cell"><span>Term</span><strong>${loan.term} Months</strong></div>
+    <div class="rs-strip-cell"><span>Outstanding Balance</span><strong class="${loan.status==='Paid Off'?'':'red'}">${loan.status==='Paid Off'?'0.00':fmt(loan.outstanding)} <span style="font-size:11px;color:var(--tm)">ETB</span></strong></div>
+  `;
+
+  // show only first 7 rows inline (matches reference); full 24 available via "View Full Schedule"
+  const visible = rows.slice(0,7);
+  document.getElementById('schedBody').innerHTML = visible.map(r=>`
+    <tr class="${r.status==='Upcoming'?'hl-row':''}">
+      <td>${r.n}</td>
+      <td style="${r.status==='Upcoming'?'color:#e53935;font-weight:700':''}">${r.due}</td>
+      <td>${fmt(r.payment)}</td>
+      <td>${fmt(r.interest)}</td>
+      <td>${fmt(r.principal)}</td>
+      <td>${fmt(r.payment)}</td>
+      <td>${fmt(r.balance)}</td>
+      <td style="${r.status==='Upcoming'?'color:#e53935;font-weight:700':(r.status==='Paid'?'color:#1a6b3c;font-weight:700':'color:var(--tl)')}">${r.status}</td>
+      <td>${r.actual}</td>
+    </tr>
+  `).join('');
+}
+function viewScheduleFor(id){
+  document.getElementById('scheduleLoanSel').value = id;
+  renderSchedule();
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+  document.querySelector('.rs-hd').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ════════════════ FULL SCHEDULE MODAL ════════════════ */
+function openFullScheduleModal(){
+  const sel = document.getElementById('scheduleLoanSel');
+  const loan = loanById(sel.value);
+  if(!loan) return;
+  document.getElementById('fullSchedTitle').textContent = `Full Repayment Schedule — ${loan.lender}`;
+  const rows = amortize(loan);
+  document.getElementById('fullSchedBody').innerHTML = rows.map(r=>`
+    <tr class="${r.status==='Upcoming'?'hl-row':''}">
+      <td>${r.n}</td><td>${r.due}</td><td>${fmt(r.payment)}</td><td>${fmt(r.interest)}</td>
+      <td>${fmt(r.principal)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.balance)}</td>
+      <td>${statusPill(r.status)}</td><td>${r.actual}</td>
+    </tr>
+  `).join('');
+  document.getElementById('fullSchedModalOverlay').classList.add('show');
+}
+function closeFullScheduleModal(){ document.getElementById('fullSchedModalOverlay').classList.remove('show'); }
+
+/* ════════════════ LOAN SUMMARY (right column) ════════════════ */
+function renderSummary(){
+  const active = loans.filter(l=>l.status==='Active');
+  const paidOff = loans.filter(l=>l.status==='Paid Off');
+  const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
+  const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
+  const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
+  const nextDue = upcomingPayments.length ? upcomingPayments.slice().sort((a,b)=>new Date(a.due)-new Date(b.due))[0] : null;
+
+  const rows = [
+    { ic:'#e5f5ed', stroke:'#27ae60', path:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>', label:'Total Principal Borrowed', val:fmt(totalPrincipal), unit:'ETB' },
+    { ic:'#fdecea', stroke:'#e53935', path:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>', label:'Total Outstanding Balance', val:fmt(totalOutstanding), unit:'ETB', cls:'red' },
+    { ic:'#fef3e2', stroke:'#f59e0b', path:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>', label:'Total Interest Paid (To Date)', val:fmt(totals.interestPaid), unit:'ETB' },
+    { ic:'#e0effe', stroke:'#2563eb', path:'<path d="M20 12V8H6a2 2 0 010-4h12v4"/><path d="M4 6v12a2 2 0 002 2h14v-4"/><path d="M18 12a2 2 0 000 4h4v-4z"/>', label:'Total Principal Repaid (To Date)', val:fmt(totals.principalRepaid), unit:'ETB' },
+    { ic:'#f3e8fd', stroke:'#8b5cf6', path:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', label:'Monthly Payments (All Loans)', val:fmt(totalMonthly), unit:'ETB' },
+    { ic:'#e0f5fa', stroke:'#0891b2', path:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', label:'Next Payment Due (All Loans)', val: nextDue ? nextDue.due : '—' },
+    { ic:'#e5f5ed', stroke:'#27ae60', path:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', label:'Active Loans', val: active.length },
+    { ic:'#eef1f0', stroke:'#5a6e65', path:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>', label:'Paid Off Loans', val: paidOff.length }
+  ];
+
+  document.getElementById('summaryList').innerHTML = rows.map(r=>`
+    <div class="sum-row">
+      <div class="sum-ic" style="background:${r.ic}"><svg viewBox="0 0 24 24" style="stroke:${r.stroke}">${r.path}</svg></div>
+      <div class="sum-lbl">${r.label}</div>
+      <div class="sum-val ${r.cls||''}">${r.val}${r.unit?` <span class="u">${r.unit}</span>`:''}</div>
+    </div>
+  `).join('');
+}
+
+/* ════════════════ UPCOMING PAYMENTS ════════════════ */
+function renderUpcoming(){
+  document.getElementById('upcomingBody').innerHTML = upcomingPayments.map(p=>{
+    const d = daysUntil(p.due);
+    return `
+      <tr>
+        <td style="font-weight:700">${p.lender}</td>
+        <td style="color:#e53935;font-weight:700">${p.due}</td>
+        <td>${fmt(p.amount)}</td>
+        <td><span class="pill-sm ${d.cls}">${d.txt}</span></td>
+      </tr>
+    `;
+  }).join('') || `<tr class="empty-row"><td colspan="4">No upcoming payments.</td></tr>`;
+}
+
+/* ════════════════ ADD / EDIT LOAN MODAL ════════════════ */
+function openLoanModal(){
+  document.getElementById('loanModalTitle').textContent = 'Add New Loan';
+  document.getElementById('lId').value = '';
+  document.getElementById('lLender').value = '';
+  document.getElementById('lPrincipal').value = '';
+  document.getElementById('lRate').value = '';
+  document.getElementById('lTerm').value = '';
+  document.getElementById('lDate').value = '';
+  document.getElementById('lChannel').value = 'Bank';
+  document.getElementById('lStatus').value = 'Active';
+  document.getElementById('lNotes').value = '';
+  updatePmtPreview();
+  document.getElementById('loanModalOverlay').classList.add('show');
+}
+function editLoan(id){
+  const l = loanById(id);
+  if(!l) return;
+  document.getElementById('loanModalTitle').textContent = 'Edit Loan';
+  document.getElementById('lId').value = l.id;
+  document.getElementById('lLender').value = l.lender;
+  document.getElementById('lPrincipal').value = l.principal;
+  document.getElementById('lRate').value = l.rate;
+  document.getElementById('lTerm').value = l.term;
+  document.getElementById('lDate').value = l.disbDate;
+  document.getElementById('lChannel').value = l.channel;
+  document.getElementById('lStatus').value = l.status;
+  document.getElementById('lNotes').value = l.notes||'';
+  updatePmtPreview();
+  document.getElementById('loanModalOverlay').classList.add('show');
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+}
+function closeLoanModal(){ document.getElementById('loanModalOverlay').classList.remove('show'); }
+function calcMonthlyPayment(principal, rate, term){
+  const i = rate/100/12;
+  if(i===0) return principal/term;
+  return principal*i/(1-Math.pow(1+i,-term));
+}
+function updatePmtPreview(){
+  const p = parseFloat(document.getElementById('lPrincipal').value)||0;
+  const r = parseFloat(document.getElementById('lRate').value)||0;
+  const t = parseInt(document.getElementById('lTerm').value)||0;
+  const box = document.getElementById('lPmtPreview');
+  if(p>0 && r>=0 && t>0){
+    const pmt = calcMonthlyPayment(p,r,t);
+    box.innerHTML = `Estimated monthly payment: <strong>${fmt(pmt)} ETB</strong> over ${t} months`;
+  } else {
+    box.textContent = 'Estimated monthly payment will be calculated automatically from principal, rate and term.';
+  }
+}
+['lPrincipal','lRate','lTerm'].forEach(id=>{
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById(id).addEventListener('input', updatePmtPreview);
+  });
+});
+function saveLoan(){
+  const id = document.getElementById('lId').value;
+  const lender = document.getElementById('lLender').value.trim();
+  const principal = parseFloat(document.getElementById('lPrincipal').value);
+  const rate = parseFloat(document.getElementById('lRate').value);
+  const term = parseInt(document.getElementById('lTerm').value);
+  const disbDate = document.getElementById('lDate').value;
+  const channel = document.getElementById('lChannel').value;
+  const status = document.getElementById('lStatus').value;
+  const notes = document.getElementById('lNotes').value;
+
+  if(!lender || !principal || !rate || !term || !disbDate){
+    showToast('Please fill in all required fields');
+    return;
+  }
+  const monthlyPayment = calcMonthlyPayment(principal, rate, term);
+
+  if(id){
+    const l = loanById(id);
+    Object.assign(l, { lender, principal, rate, term, disbDate, channel, status, notes, monthlyPayment });
+    if(status==='Paid Off'){ l.outstanding = 0; l.paidCount = l.term; }
+    showToast('Loan updated successfully');
+  } else {
+    loans.push({
+      id: nextLoanId++, lender, principal, rate, term, disbDate, channel, status, notes,
+      monthlyPayment, outstanding: principal, paidCount: 0
+    });
+    showToast('New loan added successfully');
+  }
+  saveLoanToSupabase({lender, principal, rate, term, disbDate, channel, status, notes});
+  closeLoanModal();
+  renderRegister();
+  renderSchedule();
+}
+function markPaidOff(id){
+  const l = loanById(id);
+  if(!l) return;
+  if(!confirm(`Mark the ${l.lender} loan as fully Paid Off?`)) return;
+  l.status = 'Paid Off';
+  l.outstanding = 0;
+  l.paidCount = l.term;
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+  showToast(`${l.lender} loan marked as Paid Off`);
+  renderRegister();
+  renderSchedule();
+}
+function deleteLoan(id){
+  const l = loanById(id);
+  if(!l) return;
+  if(!confirm(`Delete the ${l.lender} loan? This cannot be undone.`)) return;
+  loans = loans.filter(x=>x.id!==id);
+  upcomingPayments = upcomingPayments.filter(p=>p.lender!==l.lender);
+  showToast(`${l.lender} loan deleted`);
+  renderRegister();
+  renderSchedule();
+}
+
+/* ════════════════ RECORD PAYMENT MODAL ════════════════ */
+function openPaymentModal(id){
+  populateLoanSelects();
+  const sel = document.getElementById('pyLoanSel');
+  if(id) sel.value = id;
+  document.getElementById('pyDate').value = new Date().toISOString().slice(0,10);
+  refreshPaymentPreview();
+  document.getElementById('paymentModalOverlay').classList.add('show');
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+}
+function closePaymentModal(){ document.getElementById('paymentModalOverlay').classList.remove('show'); }
+function refreshPaymentPreview(){
+  const sel = document.getElementById('pyLoanSel');
+  const box = document.getElementById('pyPreview');
+  const loan = loanById(sel.value);
+  if(!loan){ box.textContent = 'No active loans available.'; return; }
+  const rows = amortize(loan);
+  const next = rows[loan.paidCount];
+  if(!next){ box.textContent = 'This loan has no remaining scheduled payments.'; return; }
+  box.innerHTML = `Next payment for <strong>${loan.lender}</strong>: due ${next.due} — <strong>${fmt(next.payment)} ETB</strong> (Interest ${fmt(next.interest)} + Principal ${fmt(next.principal)})`;
+}
+function confirmPayment(){
+  const sel = document.getElementById('pyLoanSel');
+  const loan = loanById(sel.value);
+  if(!loan){ showToast('Select a loan first'); return; }
+  const rows = amortize(loan);
+  const next = rows[loan.paidCount];
+  if(!next){ showToast('No remaining payments for this loan'); return; }
+  const actualDate = document.getElementById('pyDate').value || new Date().toISOString().slice(0,10);
+
+  loan.paidCount += 1;
+  loan.outstanding = Math.max(0, loan.outstanding - next.principal);
+  totals.interestPaid += next.interest;
+  totals.principalRepaid += next.principal;
+  if(loan.paidCount>=loan.term || loan.outstanding<=0.01){
+    loan.status = 'Paid Off';
+    loan.outstanding = 0;
+  }
+  upcomingPayments = upcomingPayments.filter(p=>p.lender!==loan.lender);
+  const rows2 = amortize(loan);
+  const followUp = rows2[loan.paidCount];
+  if(followUp && loan.status==='Active'){
+    upcomingPayments.push({ lender:loan.lender, due:followUp.due, amount:followUp.payment });
+  }
+
+  savePaymentToSupabase(loan, next, actualDate);
+  closePaymentModal();
+  showToast(`Payment recorded for ${loan.lender}`);
+  renderRegister();
+  renderSchedule();
+}
+
+/* ════════════════ LOAN DETAILS MODAL ════════════════ */
+function openLoanDetails(){
+  const sel = document.getElementById('scheduleLoanSel');
+  const loan = loanById(sel.value);
+  if(!loan) return;
+  const rows = amortize(loan);
+  const paid = rows.filter(r=>r.status==='Paid').length;
+  document.getElementById('detailsBody').innerHTML = `
+    <div class="sum-row"><div class="sum-lbl">Lender</div><div class="sum-val">${loan.lender}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Principal Amount</div><div class="sum-val">${fmt(loan.principal)} <span class="u">ETB</span></div></div>
+    <div class="sum-row"><div class="sum-lbl">Interest Rate (Annual)</div><div class="sum-val">${loan.rate.toFixed(2)}%</div></div>
+    <div class="sum-row"><div class="sum-lbl">Term</div><div class="sum-val">${loan.term} Months</div></div>
+    <div class="sum-row"><div class="sum-lbl">Disbursement Date</div><div class="sum-val">${fmtDate(loan.disbDate)}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Disbursement Channel</div><div class="sum-val">${loan.channel}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Monthly Payment</div><div class="sum-val">${fmt(loan.monthlyPayment)} <span class="u">ETB</span></div></div>
+    <div class="sum-row"><div class="sum-lbl">Outstanding Balance</div><div class="sum-val red">${fmt(loan.outstanding)} <span class="u">ETB</span></div></div>
+    <div class="sum-row"><div class="sum-lbl">Payments Made</div><div class="sum-val">${paid} of ${loan.term}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Status</div><div class="sum-val">${loan.status}</div></div>
+    ${loan.notes ? `<div class="sum-row" style="align-items:flex-start"><div class="sum-lbl">Notes</div><div class="sum-val" style="text-align:right;font-weight:600;font-size:12px;color:var(--tm)">${loan.notes}</div></div>` : ''}
+  `;
+  document.getElementById('detailsModalOverlay').classList.add('show');
+}
+function closeDetailsModal(){ document.getElementById('detailsModalOverlay').classList.remove('show'); }
+
+/* ════════════════ EXPORTS ════════════════ */
+function exportAllLoans(){
+  let csv = 'Lender,Principal (ETB),Interest Rate (%),Term (Months),Disbursement Date,Monthly Payment (ETB),Outstanding Balance (ETB),Status\n';
+  loans.forEach(l=>{
+    csv += [l.lender, l.principal.toFixed(2), l.rate.toFixed(2), l.term, fmtDate(l.disbDate), l.monthlyPayment.toFixed(2), l.status==='Paid Off'?'0.00':l.outstanding.toFixed(2), l.status].join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'loans_register_may_2026.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Exported '+loans.length+' loans to CSV');
+}
+function exportLoanReportExcel(){
+  let csv = 'Lender,Principal (ETB),Interest Rate (%),Term (Months),Disbursement Date,Monthly Payment (ETB),Outstanding Balance (ETB),Status\n';
+  loans.forEach(l=>{
+    csv += [l.lender, l.principal.toFixed(2), l.rate.toFixed(2), l.term, fmtDate(l.disbDate), l.monthlyPayment.toFixed(2), l.status==='Paid Off'?'0.00':l.outstanding.toFixed(2), l.status].join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'loan_report.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Loan Report (Excel/CSV) downloaded');
+}
+function exportLoanReportPdf(){
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Mena Injera & Derkosh — Loan Report', 14, 18);
+    doc.setFontSize(10);
+    doc.text('Generated: ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), 14, 25);
+
+    let y = 38;
+    doc.setFontSize(12);
+    doc.text('Loan Register', 14, y); y+=8;
+    doc.setFontSize(9);
+    loans.forEach(l=>{
+      const line = `${l.lender} — Principal ${fmt(l.principal)} ETB — ${l.rate.toFixed(2)}% / ${l.term}mo — Monthly ${fmt(l.monthlyPayment)} ETB — Outstanding ${l.status==='Paid Off'?'0.00':fmt(l.outstanding)} ETB — ${l.status}`;
+      doc.text(line, 14, y);
+      y += 7;
+    });
+
+    y += 6;
+    doc.setFontSize(12);
+    doc.text('Loan Summary', 14, y); y+=8;
+    doc.setFontSize(9);
+    const active = loans.filter(l=>l.status==='Active');
+    const paidOff = loans.filter(l=>l.status==='Paid Off');
+    const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
+    const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
+    const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
+    [
+      `Total Principal Borrowed: ${fmt(totalPrincipal)} ETB`,
+      `Total Outstanding Balance: ${fmt(totalOutstanding)} ETB`,
+      `Total Interest Paid (To Date): ${fmt(totals.interestPaid)} ETB`,
+      `Total Principal Repaid (To Date): ${fmt(totals.principalRepaid)} ETB`,
+      `Monthly Payments (All Loans): ${fmt(totalMonthly)} ETB`,
+      `Active Loans: ${active.length}`,
+      `Paid Off Loans: ${paidOff.length}`
+    ].forEach(line=>{ doc.text(line, 14, y); y+=7; });
+
+    doc.save('loan_report.pdf');
+    showToast('Loan Report (PDF) downloaded');
+  } catch(err){
+    console.log('PDF export failed:', err.message);
+    showToast('PDF export failed — try Export (CSV) instead');
+  }
+}
+
+/* ════════════════ SUPABASE (best-effort persistence) ════════════════
+   Schema per Injera BMS v37 spec §3.12 / §6.9:
+   loans(id, lender_name, principal_amount, interest_rate_pct, term_months,
+         disbursement_date, disbursement_channel, status)
+   loan_repayment_schedule(loan_id, payment_number, due_date, interest_portion,
+         principal_portion, actual_payment_date, status)
+   If Supabase is unreachable or the tables don't exist yet, the page silently
+   falls back to the local mock data above — same pattern as purchases.html. */
+async function loadLoansFromSupabase(){
+  try{
+    const { data, error } = await db.from('loans').select('*').eq('is_deleted', false);
+    if(error) throw error;
+    if(data && data.length){
+      const channelMap = {bank:'Bank', cash:'Cash', mobile:'Mobile Money'};
+      loans = data.map(r=>({
+        id: r.id, _dbId: r.id, lender: r.lender_name,
+        principal: parseFloat(r.principal_amount||0),
+        rate: parseFloat(r.interest_rate_pct||0),
+        term: parseInt(r.term_months||0),
+        disbDate: r.disbursement_date || '2025-01-01',
+        channel: channelMap[r.disbursement_channel] || 'Bank',
+        monthlyPayment: parseFloat(r.monthly_payment||0) || calcMonthlyPayment(parseFloat(r.principal_amount||0), parseFloat(r.interest_rate_pct||0), parseInt(r.term_months||1)),
+        outstanding: parseFloat(r.outstanding_balance ?? r.principal_amount ?? 0),
+        status: r.status==='paid_off'?'Paid Off':(r.status==='defaulted'?'Defaulted':'Active'),
+        paidCount: 0
+      }));
+      nextLoanId = Math.max(...loans.map(l=>Number(l.id)||0), 4) + 1;
+      showToast('Loan data loaded from database');
+    }
+  } catch(err){
+    console.log('Supabase unavailable for loans, using local mock data:', err.message);
+  }
+  renderRegister();
+  renderSchedule();
+}
+async function saveLoanToSupabase(l){
+  try{
+    const channelMap = {'Bank':'bank','Cash':'cash','Mobile Money':'mobile'};
+    const statusMap = {'Active':'active','Paid Off':'paid_off','Defaulted':'defaulted'};
+    const row = {
+      lender_name: l.lender,
+      principal_amount: l.principal,
+      interest_rate_pct: l.rate,
+      term_months: l.term,
+      disbursement_date: l.disbDate,
+      disbursement_channel: channelMap[l.channel]||'bank',
+      status: statusMap[l.status]||'active'
+    };
+    const { error } = await db.from('loans').insert(row);
+    if(error) throw error;
+  } catch(err){
+    console.log('Supabase save failed (local only):', err.message);
+  }
+}
+async function savePaymentToSupabase(loan, row, actualDate){
+  try{
+    if(!loan._dbId) return;
+    await db.from('loan_repayment_schedule').update({
+      status:'paid', actual_payment_date: actualDate
+    }).eq('loan_id', loan._dbId).eq('payment_number', loan.paidCount);
+  } catch(err){
+    console.log('Supabase payment save failed (local only):', err.message);
+  }
+}
+
+/* ════════════════ INIT ════════════════ */
+renderHeader({
+  title: 'Loans',
+  subtitle: 'Manage loans, repayment schedules and balances',
+  showMonthPicker: true,
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+  selectedMonth: 'May 2026',
+  showExport: true,
+  onExportPdf: exportLoanReportPdf,
+  onExportXlsx: exportLoanReportExcel,
+  notifications: [
+    { type:'o', title:'Loan Payment Due Soon', sub:'Awash Bank — 4,674.20 ETB due Jun 15, 2026 (in 14 days)', time:'2 hours ago' },
+    { type:'r', title:'Payment Due — Abay Microfinance', sub:'2,797.18 ETB due Jun 05, 2026 (in 4 days)', time:'5 hours ago' },
+    { type:'g', title:'Commercial Bank Loan Paid Off', sub:'The 80,000.00 ETB loan has been fully repaid', time:'Yesterday' },
+    { type:'b', title:'Export Complete', sub:'Loan register exported successfully', time:'2 days ago' }
+  ]
+});
+document.getElementById('scheduleLoanSel').addEventListener('change', renderSchedule);
+document.getElementById('lPrincipal').addEventListener('input', updatePmtPreview);
+document.getElementById('lRate').addEventListener('input', updatePmtPreview);
+document.getElementById('lTerm').addEventListener('input', updatePmtPreview);
+populateLoanSelects();
+document.getElementById('scheduleLoanSel').value = '1';
+renderRegister();
+renderSchedule();
+loadLoansFromSupabase();
+</script>
+</body>
+</html>

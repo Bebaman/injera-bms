@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petty Cash — Mena Injera & Derkosh BMS</title>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<script src="/js/app-state.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#f59e0b;
+  --sh-hover:0 4px 14px rgba(20,40,30,.09);
+}
+body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:var(--fs-base);line-height:1.45;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+html{overflow-x:hidden}
+h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif;letter-spacing:.1px}
+
+/* KEYFRAMES */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{0%{opacity:0;transform:scale(.88)}70%{transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(39,174,96,.18)}50%{box-shadow:0 0 0 7px rgba(39,174,96,.08)}}
+@keyframes ringPop{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}70%{box-shadow:0 0 0 7px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+@keyframes modalSlide{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+@keyframes rowFlash{0%{background:#d4f1e3}100%{background:transparent}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bounceIn{0%{transform:scale(0)}60%{transform:scale(1.12)}80%{transform:scale(.95)}100%{transform:scale(1)}}
+
+/* ANIMATION CLASSES */
+.kc-anim{animation:fadeUp .55s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d,0)*70ms)}
+/* Force entrance animations to their finished state during PDF capture — otherwise a card that's
+   still mid-fade-in (e.g. if export is clicked right after page load) gets rasterized half-transparent,
+   which is what caused the "fading out" look around the Remaining Cash card. */
+.pdf-capture .kc-anim,.pdf-capture .dnut canvas,.pdf-capture .bar-fill{animation:none!important;transition:none!important}
+.card{animation:fadeIn .5s ease both}
+.dnut canvas{animation:popIn .65s cubic-bezier(.34,1.56,.64,1) both;animation-delay:.12s}
+
+/* PRESS STATES */
+.btn:active{transform:scale(.97)!important}
+.arr:active{transform:scale(.90)!important}
+.bell:active{transform:scale(.93)!important}
+.qa-b:active{transform:scale(.95)!important}
+.pg-b:active{transform:scale(.93)!important}
+.row-act:active{transform:scale(.90)!important}
+
+/* OFFLINE BANNER */
+.offline-bar{display:none;background:#fef2e0;border-bottom:1px solid #f7c56a;padding:7px 20px;font-size:var(--fs-sm);font-weight:600;color:#92400e;align-items:center;gap:8px}
+.offline-bar svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+body.offline .offline-bar{display:flex}
+
+/* CONTENT */
+.content{padding:18px 20px;flex:1}
+
+/* KPI ROW */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kc{background:#fff;border-radius:12px;padding:16px 16px 15px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .22s,transform .22s,border-color .22s;cursor:default}
+.kc:hover{box-shadow:var(--sh-hover);transform:translateY(-2px)}
+.kc.hl{border-color:#b5ddc5;box-shadow:0 4px 18px rgba(39,174,96,.14)}
+.kc-top{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.kc-ico{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.kc:hover .kc-ico{transform:scale(1.15) rotate(-6deg)}
+.kc-ico svg{width:19px;height:19px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e3f6ec}.ic-g svg{stroke:#27ae60}
+.ic-t{background:#dff3ee}.ic-t svg{stroke:#0d9b7a}
+.ic-o{background:#fef2e0}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdeaea}.ic-r svg{stroke:#e5484d}
+.ic-b{background:#dfeefe}.ic-b svg{stroke:#2563eb}
+.ic-c{background:#dff4f9}.ic-c svg{stroke:#0891b2}
+.ic-p{background:#fce3eb}.ic-p svg{stroke:#e91e63}
+.kc-lbl{font-size:12.5px;color:var(--td);font-weight:700;display:block;line-height:1.3}
+.kc-lbl .sub{display:block;font-size:9.5px;color:var(--tl);font-weight:600;opacity:.85;margin-top:1px}
+.kc-val{font-size:var(--fs-xl);font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px;letter-spacing:.1px}
+.kc-val .u{font-size:var(--fs-sm);font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:var(--fs-sm);font-weight:600;margin-top:6px;display:flex;align-items:center;gap:3px;flex-wrap:wrap;min-height:18px}
+.up{color:#27ae60}.dn{color:#e5484d}.flat{color:var(--tl)}
+.vs{color:var(--tl);font-weight:500;font-size:var(--fs-xs);margin-left:2px}
+
+/* CARDS */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .22s}
+.card:hover{box-shadow:var(--sh-hover)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;gap:10px;flex-wrap:wrap}
+.card-ttl{font-size:var(--fs-md);font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.card-sub{font-size:11px;color:var(--tl);font-weight:500;margin-left:3px}
+.vall{font-size:var(--fs-sm);font-weight:600;color:#27ae60;cursor:pointer;transition:color .15s;text-decoration:none}
+.vall:hover{color:#1f8c4d;text-decoration:underline}
+.hd-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* GRID */
+.pc-grid{display:grid;grid-template-columns:1fr 400px;gap:14px;margin-bottom:14px;align-items:start}
+.pc-grid>*,.bot-grid>*,.kpi-row>*{min-width:0}
+.bot-grid{display:grid;grid-template-columns:1fr 1fr 360px;gap:14px;margin-bottom:14px;align-items:start}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;font-family:'Nunito',sans-serif;font-size:var(--fs-sm);font-weight:700;padding:9px 15px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s,transform .12s,box-shadow .15s;white-space:nowrap;user-select:none}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.btn:hover svg{transform:scale(1.15) rotate(-4deg)}
+.btn-primary{background:#27ae60;color:#fff;box-shadow:0 2px 6px rgba(39,174,96,.28)}
+.btn-primary:hover{background:#229a54;box-shadow:0 4px 12px rgba(39,174,96,.38)}
+.btn-outline{background:#fff;border-color:var(--border);color:var(--tm)}
+.btn-outline:hover{background:#f6faf7;border-color:#c5d6cd;color:var(--td)}
+.btn-outline.g{color:#27ae60;border-color:#bcdece;background:#eef8f2}
+.btn-outline.g:hover{background:#ddf1e5}
+.btn-danger{background:#fdeaea;border-color:#f5b8b8;color:#c1272d}
+.btn-danger:hover{background:#fbd0d0}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-base);min-width:680px}
+.tbl th{padding:9px 14px;text-align:left;font-size:var(--fs-xs);font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s,background .15s}
+.tbl th:hover{color:var(--td);background:#eef5f0}
+.sort-arrow{opacity:.3;margin-left:4px;font-size:9px}
+.th-asc .sort-arrow::after{content:'▲';opacity:1}
+.th-desc .sort-arrow::after{content:'▼';opacity:1}
+.tbl th:not(.th-asc):not(.th-desc) .sort-arrow::after{content:'⬍'}
+.th-asc .sort-arrow,.th-desc .sort-arrow{opacity:1}
+.tbl td{padding:10px 14px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl tr td{transition:background .15s}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl .tot td{font-weight:700;background:#f6faf7;border-top:1.5px solid var(--border);border-bottom:none}
+.tbl .tot td.green{color:#27ae60}
+.row-new td{animation:rowFlash .9s ease}
+.cat-pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.2px}
+.cat-comm{background:#dfeefe;color:#1d4ed8}
+.cat-pack{background:#f3e8ff;color:#7e22ce}
+.cat-tran{background:#fef2e0;color:#b45309}
+.cat-refr{background:#fce3eb;color:#be185d}
+.cat-main{background:#fdeaea;color:#c1272d}
+.cat-off{background:#dff4f9;color:#0e7490}
+.cat-oth{background:#eef3f0;color:#5e7268}
+.chan-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--tm)}
+.chan-dot{width:7px;height:7px;border-radius:50%;background:#27ae60;flex-shrink:0}
+.row-actions{display:flex;gap:4px;justify-content:flex-end}
+.row-act{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);transition:background .15s,color .15s,transform .12s}
+.row-act:hover{background:var(--bg);color:var(--td)}
+.row-act.del:hover{background:#fdeaea;color:#e5484d}
+.row-act svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* PAGINATION */
+.pg-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 17px 14px;gap:10px;flex-wrap:wrap}
+.pg-info{font-size:var(--fs-sm);color:var(--tl)}
+.pg-btns{display:flex;align-items:center;gap:5px}
+.pg-b{min-width:28px;height:28px;border:1px solid var(--border);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;font-size:var(--fs-sm);font-weight:600;color:var(--tm);transition:all .15s;padding:0 8px;user-select:none}
+.pg-b:hover{background:var(--bg);border-color:#c5d6cd}
+.pg-b.active{background:#27ae60;border-color:#27ae60;color:#fff}
+.pg-b.dis{opacity:.4;cursor:default;pointer-events:none}
+
+/* BALANCE CARD */
+.bal-list{padding:4px 17px}
+.bal-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f5f2}
+.bal-row:last-child{border-bottom:none}
+.bal-lbl{font-size:var(--fs-base);color:var(--tm);font-weight:600}
+.bal-amt{font-size:var(--fs-base);font-weight:700;color:var(--td)}
+.bal-amt.green{color:#27ae60}.bal-amt.red{color:#e5484d}
+.bal-row.strong .bal-lbl{color:var(--td);font-weight:700}
+.bal-row.strong .bal-amt{font-size:15px;color:#27ae60}
+.bal-divider{height:1.5px;background:var(--border);margin:0 17px}
+
+/* CHART */
+.chart-box{padding:0 17px 16px;position:relative;min-height:210px}
+
+/* BARS */
+.bar-list{padding:4px 17px 10px}
+.bar-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.bar-name{width:112px;flex-shrink:0;font-size:var(--fs-base);font-weight:600;color:var(--tm)}
+.bar-track{flex:1;height:18px;background:#eef3f0;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;width:0;transition:width 1.1s cubic-bezier(.22,.61,.36,1)}
+.bar-val{font-size:11px;font-weight:700;color:var(--td);white-space:nowrap;width:150px;text-align:right;flex-shrink:0}
+
+/* DONUT */
+.exp-bd{padding:8px 17px 6px;display:flex;align-items:center;gap:12px}
+.dnut{position:relative;flex-shrink:0}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:78px}
+.dnut-lbl span{font-size:var(--fs-2xs);color:var(--tl);font-weight:600;display:block;line-height:1.2}
+.dnut-lbl strong{font-size:var(--fs-sm);font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
+.exp-leg{font-size:var(--fs-xs);flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.exp-r{display:flex;flex-direction:column;gap:1px;border-radius:5px;transition:transform .15s;cursor:default;min-width:0}
+.exp-r-top{display:flex;align-items:center;gap:6px;min-width:0}
+.exp-r:hover{transform:translateX(2px)}
+.exp-r:hover .exp-d{transform:scale(1.35)}
+.exp-d{width:8px;height:8px;border-radius:2px;flex-shrink:0;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.exp-n{color:var(--td);flex:1;min-width:0;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exp-p{color:var(--tl);font-size:10px;font-weight:700;flex-shrink:0}
+.exp-v{color:var(--tl);font-size:10px;margin-left:14px}
+
+/* QUICK ACTIONS */
+.qa-g{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:10px 17px 14px}
+.qa-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 6px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-size:var(--fs-sm);font-weight:700;color:var(--tm);background:#fff;text-align:center;line-height:1.3;transition:all .18s ease;text-decoration:none;user-select:none}
+.qa-b:hover{background:#eaf8f0;border-color:#b5ddc5;color:#19733f;transform:translateY(-2px);box-shadow:0 4px 10px rgba(39,174,96,.14)}
+.qa-b svg{width:22px;height:22px;stroke:#27ae60;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.qa-b:hover svg{transform:scale(1.2) rotate(-6deg)}
+
+/* INFO STRIP */
+.info-strip{display:flex;align-items:flex-start;gap:10px;margin:0 17px 14px;padding:11px 13px;background:#eaf3fc;border:1px solid #c7e0f7;border-radius:9px}
+.info-strip svg{width:15px;height:15px;stroke:#2563eb;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;margin-top:1px}
+.info-strip p{font-size:var(--fs-sm);color:#2c4a6b;line-height:1.45}
+
+/* FILTER PANEL */
+.filter-panel{display:none;padding:0 17px 14px;border-bottom:1px solid var(--border);background:#fafcfb}
+.filter-panel.open{display:block;animation:fadeUp .25s ease}
+
+/* EXPORT DROPDOWN */
+.export-wrap{position:relative;display:inline-flex}
+.export-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 30px rgba(16,38,26,.16);min-width:190px;z-index:500;overflow:hidden;padding:6px}
+.export-menu.open{display:block;animation:fadeUp .18s ease}
+.export-menu.left{right:auto;left:0}
+.exp-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--td);transition:background .13s}
+.exp-item:hover{background:#f6faf7}
+.exp-item .exp-ico{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.exp-item .exp-ico svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.exp-item.sheet .exp-ico{background:#eef0fd;color:#4338ca}
+.exp-item.pdf .exp-ico{background:#fdeaea;color:#e5484d}
+.exp-item.xlsx .exp-ico{background:#e3f6ec;color:#1f8c4d}
+.exp-item.csv .exp-ico{background:#dfeefe;color:#2563eb}
+.exp-item span small{display:block;font-size:9.5px;font-weight:600;color:var(--tl);margin-top:1px}
+
+/* NOTIFICATIONS */
+.notif-wrap{position:relative;display:inline-flex}
+.notif-panel{display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:400px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(16,38,26,.18);z-index:500}
+.notif-panel.open{display:block;animation:fadeUp .18s ease}
+.notif-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff}
+.notif-hd h4{font-size:var(--fs-base);font-weight:700;color:var(--td)}
+.notif-hd span{font-size:10.5px;color:var(--tl);font-weight:600}
+.notif-item{display:flex;gap:10px;padding:11px 15px;border-bottom:1px solid #f0f5f2;cursor:pointer;transition:background .13s}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:#f7fbf9}
+.notif-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.notif-ico svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.notif-item.sev-warn .notif-ico{background:#fef2e0;color:#b45309}
+.notif-item.sev-danger .notif-ico{background:#fdeaea;color:#c1272d}
+.notif-item.sev-info .notif-ico{background:#dfeefe;color:#1d4ed8}
+.notif-bd{flex:1;min-width:0}
+.notif-bd strong{font-size:12.5px;font-weight:700;color:var(--td);display:block;line-height:1.3}
+.notif-bd p{font-size:11px;color:var(--tm);margin-top:2px;line-height:1.4}
+.notif-empty{padding:30px 15px;text-align:center;color:var(--tl);font-size:var(--fs-sm)}
+.notif-empty svg{width:30px;height:30px;stroke:#b5ccc3;fill:none;stroke-width:1.5;margin:0 auto 8px;display:block}
+.bell-badge.zero{display:none}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(16,38,26,.48);z-index:1000;align-items:center;justify-content:center;padding:16px;animation:overlayIn .2s ease}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(16,38,26,.28);animation:modalSlide .26s cubic-bezier(.22,.61,.36,1) both}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:1}
+.modal-hd h3{font-size:15px;font-weight:700;color:var(--td)}
+.modal-x{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);transition:background .15s,color .15s,transform .15s}
+.modal-x:hover{background:var(--bg);color:var(--td);transform:rotate(90deg)}
+.modal-x svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modal-bd{padding:18px 20px}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.f-grp{display:flex;flex-direction:column;gap:6px}
+.f-grp.full{grid-column:1/-1}
+.f-grp label{font-size:11.5px;font-weight:700;color:var(--tm)}
+.req{color:#e5484d;margin-left:2px}
+.f-grp input,.f-grp select,.f-grp textarea{font-family:'Nunito',sans-serif;font-size:13px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;color:var(--td);outline:none;transition:border-color .15s,box-shadow .15s;background:#fff;width:100%}
+.f-grp input:focus,.f-grp select:focus,.f-grp textarea:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.1)}
+.f-grp input.err,.f-grp select.err{border-color:#e5484d;box-shadow:0 0 0 3px rgba(229,72,77,.09)}
+.err-msg{font-size:10.5px;color:#e5484d;display:none;margin-top:2px}
+.err-msg.show{display:block}
+.hint{font-size:10.5px;color:var(--tl)}
+.f-grp textarea{resize:vertical;min-height:68px}
+.modal-ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff}
+.total-box{background:#f6faf7;border:1px solid #d0e9d8;border-radius:9px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.total-box span{font-size:11.5px;font-weight:700;color:var(--tm)}
+.total-box strong{font-size:17px;font-weight:700;color:#19733f}
+.warn-date{display:none;font-size:10.5px;color:#92400e;background:#fef2e0;border:1px solid #f7c56a;border-radius:7px;padding:7px 9px;margin-top:4px;gap:6px;align-items:flex-start}
+.warn-date.show{display:flex}
+.warn-date svg{width:13px;height:13px;stroke:#92400e;fill:none;stroke-width:2;flex-shrink:0;margin-top:1px;stroke-linecap:round;stroke-linejoin:round}
+
+/* TOAST */
+.toast-stack{position:fixed;bottom:24px;right:24px;z-index:2000;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--border);border-radius:11px;padding:12px 16px;box-shadow:0 6px 24px rgba(0,0,0,.12);min-width:260px;max-width:340px;pointer-events:auto;animation:toastIn .3s cubic-bezier(.22,.61,.36,1) both}
+.toast.out{animation:toastOut .25s ease forwards}
+.toast-ico{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.toast-ico svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.t-success .toast-ico{background:#e3f6ec;color:#27ae60}
+.t-error .toast-ico{background:#fdeaea;color:#e5484d}
+.t-warn .toast-ico{background:#fef2e0;color:#f59e0b}
+.t-info .toast-ico{background:#dfeefe;color:#2563eb}
+.toast-bd{flex:1;min-width:0}
+.toast-bd strong{font-size:var(--fs-sm);font-weight:700;color:var(--td);display:block;line-height:1.3}
+.toast-bd p{font-size:var(--fs-xs);color:var(--tl);margin-top:2px}
+.toast-close{cursor:pointer;color:var(--tl);transition:color .15s;flex-shrink:0;margin-top:1px}
+.toast-close:hover{color:var(--td)}
+.toast-close svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* DELETE MODAL */
+.del-ico{width:52px;height:52px;background:#fdeaea;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;animation:bounceIn .45s cubic-bezier(.34,1.56,.64,1) both}
+.del-ico svg{width:24px;height:24px;stroke:#e5484d;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* LOADING / EMPTY */
+.spin-icon{display:inline-block;animation:spin .7s linear infinite}
+.spin-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.5}
+.loading-cell{text-align:center;padding:30px;color:var(--tl);font-size:var(--fs-sm)}
+.empty-state{text-align:center;padding:36px 20px}
+.empty-state svg{width:38px;height:38px;stroke:#b5ccc3;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin:0 auto 12px;display:block}
+.empty-state h4{font-size:var(--fs-base);font-weight:700;color:var(--tm);margin-bottom:5px}
+.empty-state p{font-size:var(--fs-sm);color:var(--tl);max-width:240px;margin:0 auto 14px}
+
+/* FOOTER */
+.footer{text-align:center;padding:13px;font-size:var(--fs-xs);color:var(--tl);border-top:1px solid var(--border);background:#fff}
+
+/* RESPONSIVE */
+@media(max-width:1180px){.kpi-row{grid-template-columns:repeat(3,1fr)}.bot-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){.pc-grid{grid-template-columns:1fr}}
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}.bot-grid{grid-template-columns:1fr}.qa-g{grid-template-columns:repeat(2,1fr)}
+  .stat-pill{display:none}.uchip-txt{display:none}.tb-ttl p{display:none}
+}
+@media(max-width:640px){
+  .kpi-row{grid-template-columns:1fr 1fr}.bot-grid{grid-template-columns:1fr}.f-row{grid-template-columns:1fr}
+  .content{padding:12px 14px}.topbar{padding:0 14px;gap:8px}
+  .qa-g{grid-template-columns:repeat(2,1fr)}.hd-actions .btn span{display:none}.hd-actions .btn{padding:8px 10px}
+  .pc-grid{grid-template-columns:1fr}
+}
+.print-hd{display:none}
+@media print{
+  .sb,.topbar,.toast-stack,.modal-overlay,.qa-g,.hd-actions,.pg-bar,.row-actions,.export-menu,.notif-panel,.filter-panel,.info-strip{display:none!important}
+  .main{margin-left:0!important}
+  .content{padding:10px}
+  body{overflow-x:visible}
+  .print-hd{display:block;text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #27ae60}
+  .print-hd h1{font-size:19px;color:#163a26;margin-bottom:3px}
+  .print-hd p{font-size:11.5px;color:#556;margin-bottom:6px}
+  .print-hd-meta{display:flex;justify-content:center;gap:18px;font-size:10.5px;color:#778;font-weight:600}
+  .kc,.card,.pc-grid>*,.bot-grid>*{page-break-inside:avoid;break-inside:avoid}
+  .tbl-wrap{overflow:visible}
+  .tbl{min-width:0}
+  .tbl td,.tbl th{white-space:normal}
+}
+</style>
+</head>
+<body>
+<div class="toast-stack" id="toastStack"></div>
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div class="offline-bar" id="offlineBar">
+    <svg viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
+    Working offline — data will sync when connection returns.
+  </div>
+  <header class="topbar">
+    <div class="tb-ham" onclick="toggleSidebar()" title="Toggle sidebar">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </div>
+    <div class="tb-ttl"><h1>Petty Cash</h1><p>Track small daily expenses and petty cash management</p></div>
+    <div class="tb-mid">
+      <div class="mpick">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <select id="msel" onchange="onMonthChange()">
+          <option value="2026-01">Jan 2026</option><option value="2026-02">Feb 2026</option>
+          <option value="2026-03">Mar 2026</option><option value="2026-04">Apr 2026</option>
+          <option value="2026-05" selected>May 2026</option><option value="2026-06">Jun 2026</option>
+          <option value="2026-07">Jul 2026</option><option value="2026-08">Aug 2026</option>
+          <option value="2026-09">Sep 2026</option><option value="2026-10">Oct 2026</option>
+          <option value="2026-11">Nov 2026</option><option value="2026-12">Dec 2026</option>
+        </select>
+        <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:#aab8b2;stroke-width:3"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="arr" onclick="shiftMonth(-1)">&#8249;</div>
+      <div class="arr" onclick="shiftMonth(1)">&#8250;</div>
+    </div>
+    <div class="tb-right">
+      <div class="notif-wrap">
+        <div class="bell" onclick="toggleNotifPanel(event)" title="Notifications">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="bell-badge zero" id="bellBadge">0</div>
+        </div>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-hd"><h4>Notifications</h4><span id="notifCount">0 alerts</span></div>
+          <div id="notifList"></div>
+        </div>
+      </div>
+      <div class="stat-pill"><div class="stat-dot"></div><span id="syncLabel">Data is up to date</span></div>
+      <div class="notif-wrap">
+        <div class="uchip" onclick="toggleUserMenu(event)">
+          <div class="av av-lg">EM</div>
+          <div class="uchip-txt"><h4>Eyasu Mesfin</h4><span>Owner</span></div>
+          <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="export-menu" id="userMenu">
+          <div class="exp-item" onclick="closeUserMenu();openModal('logoutModal')"><div class="exp-ico" style="background:#fdeaea;color:#c1272d"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><span>Sign Out<small>End your session</small></span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="content">
+    <div class="print-hd" id="printHd">
+      <h1>Mena Injera &amp; Derkosh</h1>
+      <p>Business Management System — Petty Cash Report</p>
+      <div class="print-hd-meta">
+        <span id="printMonth"></span>
+        <span id="printGen"></span>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kc kc-anim hl" style="--d:0">
+        <div class="kc-top"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+          <span class="kc-lbl">Petty Cash Spent<span class="sub">(This Month)</span></div></span>
+        <div class="kc-val"><span id="k-spent">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="k-spent-c"><span class="flat">—</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:1">
+        <div class="kc-top"><div class="kc-ico ic-p"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+          <span class="kc-lbl">Daily Avg. Spent<span class="sub">(This Month)</span></div></span>
+        <div class="kc-val"><span id="k-avg">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="k-avg-c"><span class="flat">—</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:2">
+        <div class="kc-top"><div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></div>
+          <span class="kc-lbl">Transactions<span class="sub">(This Month)</span></div></span>
+        <div class="kc-val"><span id="k-txn">0</span></div>
+        <div class="kc-chg" id="k-txn-c"><span class="flat">—</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:3">
+        <div class="kc-top"><div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+          <span class="kc-lbl">Remaining Cash<span class="sub">(On Hand)</span></div></span>
+        <div class="kc-val"><span id="k-bal">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg"><span class="flat" id="k-bal-note">—</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:4">
+        <div class="kc-top"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/><line x1="12" y1="2" x2="12" y2="20"/></svg></div>
+          <span class="kc-lbl">Largest Expense<span class="sub">(This Month)</span></div></span>
+        <div class="kc-val"><span id="k-max">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg"><span class="flat" id="k-max-cat">—</span></div>
+      </div>
+      <div class="kc kc-anim" style="--d:5">
+        <div class="kc-top"><div class="kc-ico ic-r"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+          <span class="kc-lbl">vs Last Month<span class="sub">(Spending)</span></div></span>
+        <div class="kc-val" id="k-vs-wrap"><span id="k-vs">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="k-vs-c"><span class="flat">—</span></div>
+      </div>
+    </div>
+
+    <div class="pc-grid">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Petty Cash Transactions <span class="card-sub" id="tbl-period">(May 2026)</span></div>
+          <div class="hd-actions">
+            <button class="btn btn-primary" onclick="openAddModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Add Petty Cash Entry</span>
+            </button>
+            <div class="export-wrap">
+              <button class="btn btn-outline g" onclick="toggleExportMenu(event,'exportMenu1')">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Export</span>
+              </button>
+              <div class="export-menu" id="exportMenu1">
+                <div class="exp-item sheet" onclick="exportFullSheetPDF();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><span>Full Sheet (PDF)<small>Everything on screen, incl. charts</small></span></div>
+                <div class="exp-item pdf" onclick="exportPDF();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>PDF Report<small>Formatted summary + table</small></span></div>
+                <div class="exp-item xlsx" onclick="exportExcel();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg></div><span>Excel Workbook<small>.xlsx, 2 sheets</small></span></div>
+                <div class="exp-item csv" onclick="exportCSV();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>CSV File<small>Raw data</small></span></div>
+              </div>
+            </div>
+            <button class="btn btn-outline" onclick="toggleFilter()" id="filterBtn">
+              <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span>Filter</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-panel" id="filterPanel">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end">
+            <div class="f-grp"><label>Category</label>
+              <select id="fCat" onchange="applyFilter()">
+                <option value="">All Categories</option>
+                <option>Transport</option><option>Communication</option><option>Packaging</option>
+                <option>Refreshments</option><option>Maintenance</option><option>Office Supplies</option><option>Other</option>
+              </select>
+            </div>
+            <div class="f-grp"><label>From Date</label><input type="date" id="fFrom" onchange="applyFilter()"></div>
+            <div class="f-grp"><label>To Date</label><input type="date" id="fTo" onchange="applyFilter()"></div>
+          </div>
+          <div style="margin-top:10px"><button class="btn btn-outline" style="font-size:11px;padding:6px 12px" onclick="clearFilter()">Clear Filter</button></div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th onclick="sortTable('date')" class="th-desc">Date<span class="sort-arrow"></span></th>
+                <th onclick="sortTable('description')">Description<span class="sort-arrow"></span></th>
+                <th onclick="sortTable('category')">Category<span class="sort-arrow"></span></th>
+                <th onclick="sortTable('amount')">Amount (ETB)<span class="sort-arrow"></span></th>
+                <th>Receipt Ref.</th>
+                <th>Channel</th>
+                <th>Created By</th>
+                <th style="width:70px"></th>
+              </tr>
+            </thead>
+            <tbody id="pcBody">
+              <tr><td colspan="8" class="loading-cell"><span class="spin-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></span> Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pg-bar">
+          <span class="pg-info" id="pgInfo">—</span>
+          <div class="pg-btns" id="pgBtns"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Petty Cash Balance <span class="card-sub" id="bal-period">(May 2026)</span></div></div>
+          <div class="bal-list">
+            <div class="bal-row"><span class="bal-lbl">Opening Balance</span><span class="bal-amt" id="b-open">0.00 ETB</span></div>
+            <div class="bal-row"><span class="bal-lbl">Total Spent This Month</span><span class="bal-amt red" id="b-spent">0.00 ETB</span></div>
+            <div class="bal-row"><span class="bal-lbl">Total Replenished</span><span class="bal-amt green" id="b-rep">0.00 ETB</span></div>
+          </div>
+          <div class="bal-divider"></div>
+          <div class="bal-list">
+            <div class="bal-row strong"><span class="bal-lbl">Remaining Balance</span><span class="bal-amt" id="b-rem">0.00 ETB</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Daily Spending Trend <span class="card-sub" id="trend-period">(May 2026)</span></div></div>
+          <div class="chart-box"><canvas id="trendChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bot-grid">
+      <div class="card">
+        <div class="card-hd"><div class="card-ttl">Spending by Category <span class="card-sub">(This Month)</span></div></div>
+        <div class="bar-list" id="catBars"><div style="text-align:center;padding:20px;color:var(--tl);font-size:12px">Loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Recent Petty Cash Entries</div>
+          <span class="vall" onclick="openAddModal()">+ Add New</span>
+        </div>
+        <table class="tbl" style="min-width:0">
+          <thead><tr><th>Date</th><th>Description</th><th>Amount (ETB)</th></tr></thead>
+          <tbody id="recentBody"><tr><td colspan="3" class="loading-cell">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-ttl">Top Spending Categories <span class="card-sub">(This Month)</span></div></div>
+        <div class="exp-bd">
+          <div class="dnut">
+            <canvas id="topCatChart" width="120" height="120"></canvas>
+            <div class="dnut-lbl"><span>Total Spent</span><strong id="donut-total">0.00<br>ETB</strong></div>
+          </div>
+          <div class="exp-leg" id="donutLeg"></div>
+        </div>
+        <div style="height:10px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0">
+      <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+      <div class="qa-g">
+        <div class="qa-b" onclick="openAddModal()">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Add<br>Petty Cash Entry
+        </div>
+        <div class="export-wrap" style="width:100%">
+          <div class="qa-b" style="width:100%" onclick="toggleExportMenu(event,'exportMenu2')">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export<br>Data
+          </div>
+          <div class="export-menu" id="exportMenu2" style="top:auto;bottom:calc(100% + 6px)">
+            <div class="exp-item pdf" onclick="exportPDF();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>PDF Report<small>Formatted summary + table</small></span></div>
+            <div class="exp-item xlsx" onclick="exportExcel();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg></div><span>Excel Workbook<small>.xlsx, 2 sheets</small></span></div>
+            <div class="exp-item csv" onclick="exportCSV();closeExportMenus()"><div class="exp-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span>CSV File<small>Raw data</small></span></div>
+          </div>
+        </div>
+        <div class="qa-b" onclick="openReplenishModal()">
+          <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+          Replenish<br>Petty Cash
+        </div>
+        <div class="qa-b" onclick="printReport()">
+          <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print<br>Report
+        </div>
+      </div>
+      <div class="info-strip">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <p>Petty cash entries are recorded immediately and affect <strong>Cash Flow Operating Payments</strong> and <strong>P&amp;L Operating Expenses</strong>. No approval workflow is required below the daily limit set in Settings.</p>
+      </div>
+    </div>
+  </div>
+  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="modalTitle">New Petty Cash Entry</h3>
+      <div class="modal-x" onclick="closeModal('entryModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <input type="hidden" id="f-id">
+      <div class="f-row">
+        <div class="f-grp">
+          <label>Date<span class="req">*</span></label>
+          <input type="date" id="f-date" oninput="checkFutureDate(this)">
+          <div class="warn-date" id="warnDate"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Date is more than 30 days in the future. Confirm?</div>
+          <div class="err-msg" id="err-date">This field is required.</div>
+        </div>
+        <div class="f-grp">
+          <label>Category<span class="req">*</span></label>
+          <select id="f-cat">
+            <option value="">Select category</option>
+            <option>Transport</option><option>Communication</option><option>Packaging</option>
+            <option>Refreshments</option><option>Maintenance</option><option>Office Supplies</option><option>Other</option>
+          </select>
+          <div class="err-msg" id="err-cat">This field is required.</div>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp full">
+          <label>Description<span class="req">*</span></label>
+          <input type="text" id="f-desc" placeholder="e.g. Transport fare to supplier" maxlength="200">
+          <div class="err-msg" id="err-desc">This field is required.</div>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp">
+          <label>Amount (ETB)<span class="req">*</span></label>
+          <input type="number" id="f-amt" placeholder="0.00" step="0.01" min="0.01" oninput="updateTotal()">
+          <div class="err-msg" id="err-amt">Enter a valid amount greater than zero.</div>
+        </div>
+        <div class="f-grp">
+          <label>Payment Channel</label>
+          <select disabled style="opacity:.6;cursor:not-allowed"><option>Cash on Hand</option></select>
+          <span class="hint">Petty cash is always Cash on Hand.</span>
+        </div>
+      </div>
+      <div class="f-row" style="margin-bottom:8px">
+        <div class="f-grp">
+          <label>Receipt Reference</label>
+          <input type="text" id="f-ref" placeholder="Auto-generated if blank" maxlength="50">
+        </div>
+        <div class="f-grp">
+          <label>Created By</label>
+          <input type="text" id="f-by-display" disabled style="opacity:.6;cursor:not-allowed">
+        </div>
+      </div>
+      <div class="total-box"><span>Entry Amount</span><strong id="totalPrev">0.00 ETB</strong></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('entryModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">
+        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Entry
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- REPLENISH MODAL -->
+<div class="modal-overlay" id="repModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>Replenish Petty Cash</h3>
+      <div class="modal-x" onclick="closeModal('repModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="f-row">
+        <div class="f-grp"><label>Date<span class="req">*</span></label><input type="date" id="r-date"><div class="err-msg" id="err-rdate">Required.</div></div>
+        <div class="f-grp"><label>Amount (ETB)<span class="req">*</span></label><input type="number" id="r-amt" placeholder="0.00" step="0.01" min="0.01" oninput="updateRepTotal()"><div class="err-msg" id="err-ramt">Enter valid amount.</div></div>
+      </div>
+      <div class="f-row" style="margin-bottom:8px">
+        <div class="f-grp"><label>Source Channel</label><select id="r-src" onchange="onSourceChange()"><option value="bank">Bank Account</option><option value="mobile">Mobile Money</option><option value="capital">Owner Capital</option></select></div>
+        <div class="f-grp"><label>Notes</label><input type="text" id="r-notes" placeholder="Optional" maxlength="150"></div>
+      </div>
+      <div class="f-row" id="r-shareholder-row" style="display:none;margin-bottom:8px">
+        <div class="f-grp full"><label>Shareholder<span class="req">*</span></label><select id="r-shareholder"><option value="">Select shareholder</option></select><div class="err-msg" id="err-rshare">Required for owner capital.</div></div>
+      </div>
+      <div class="total-box"><span>Replenishment Amount</span><strong id="repPrev">0.00 ETB</strong></div>
+      <div class="info-strip" style="margin:0 0 4px">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <p>Moves funds from source into Cash on Hand and increases your petty cash balance.</p>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('repModal')">Cancel</button>
+      <button class="btn btn-primary" id="repBtn" onclick="saveReplenishment()">
+        <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/></svg>
+        Save Replenishment
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-bd" style="text-align:center;padding:28px 20px 20px">
+      <div class="del-ico"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
+      <h3 style="font-size:16px;margin-bottom:8px">Delete Entry?</h3>
+      <p style="font-size:var(--fs-sm);color:var(--tl);line-height:1.55" id="delDesc">This entry will be permanently deleted and cannot be undone.</p>
+    </div>
+    <div class="modal-ft" style="justify-content:center;gap:12px">
+      <button class="btn btn-outline" onclick="closeModal('delModal')">Cancel</button>
+      <button class="btn btn-danger" id="delBtn" onclick="confirmDelete()">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="logoutModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-bd" style="text-align:center;padding:28px 20px 20px">
+      <div class="del-ico" style="background:#eef5f0;color:#1e6240"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+      <h3 style="font-size:16px;margin-bottom:8px">Sign Out?</h3>
+      <p style="font-size:var(--fs-sm);color:var(--tl);line-height:1.55">You'll be signed out of the Mena Injera &amp; Derkosh BMS on this device.</p>
+    </div>
+    <div class="modal-ft" style="justify-content:center;gap:12px">
+      <button class="btn btn-outline" onclick="closeModal('logoutModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="doSignOut()">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+// ══ SUPABASE (fetch-only REST) ─────────────────────────────
+// Uses window.SB_URL / window.SB_KEY from app-state.js. This page's helpers
+// take (table, rows/id) rather than app-state.js's sbPost/sbPatch(path, body),
+// so they're kept here rather than replaced — the two aren't interchangeable
+// without rewriting every call site below.
+//
+// Auth fix: sends the logged-in user's session access_token (falling back to
+// the public anon key only if there's no session), same as app-state.js's
+// authHeaders(). Needed so requests carry the user's identity once RLS
+// policies are enabled — previously this always sent the anon key, which
+// would silently return empty results / permission-denied once RLS is on.
+async function sbFetch(method,path,body,extraHeaders){
+  const session=(typeof loadSession==='function')?loadSession():null;
+  const token=(session&&session.access_token)||window.SB_KEY;
+  const res=await fetch(`${window.SB_URL}/${path}`,{
+    method,
+    headers:{apikey:window.SB_KEY,Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(extraHeaders||{})},
+    body:body!==undefined?JSON.stringify(body):undefined
+  });
+  if(!res.ok){
+    let detail='';try{detail=(await res.json()).message||'';}catch(e){}
+    throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
+  }
+  if(res.status===204)return null;
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+function sbGet(path){return sbFetch('GET',path);}
+function sbInsert(table,rows){return sbFetch('POST',table,rows,{Prefer:'return=representation'});}
+function sbUpsert(table,rows,onConflict){return sbFetch('POST',`${table}?on_conflict=${onConflict}`,rows,{Prefer:`resolution=merge-duplicates,return=representation`});}
+function sbUpdate(table,id,patch){return sbFetch('PATCH',`${table}?id=eq.${id}`,patch,{Prefer:'return=representation'});}
+function sbDelete(table,id){return sbFetch('DELETE',`${table}?id=eq.${id}`,undefined,{Prefer:'return=minimal'});}
+function num(v){return v===null||v===undefined||v===''?0:Number(v);}
+function sum(rows,field){return (rows||[]).reduce((s,r)=>s+num(r[field]),0);}
+
+// ══ SESSION (loadSession/clearSession now come from app-state.js) ─────────
+let SESSION=loadSession();
+
+// ══ CONSTANTS ─────────────────────────────────────────────
+const CATS   = ['Transport','Communication','Packaging','Refreshments','Maintenance','Office Supplies','Other'];
+const COLORS = ['#27ae60','#3b82f6','#f59e0b','#8b5cf6','#e5484d','#06b6d4','#94a3b8'];
+const CPILLS = {Transport:'cat-tran',Communication:'cat-comm',Packaging:'cat-pack',Refreshments:'cat-refr',Maintenance:'cat-main','Office Supplies':'cat-off',Other:'cat-oth'};
+const DAILY_LIMIT = 500;      // single-entry limit before it should be flagged for review (Settings-configurable)
+const LOW_BALANCE_PCT = 0.20; // alert when remaining balance falls below 20% of opening balance
+const LARGE_TXN_MULT = 2;     // flag entries that are 2x+ the category's usual size
+
+// ══ STATE ─────────────────────────────────────────────────
+let allData=[], filtered=[], page=1, PER=8, sortCol='date', sortDir=-1;
+function currentPeriod(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+let curMonth=currentPeriod(), editId=null, delId=null, repTotal=0;
+let PREV_SPENT=0, OPENING_BAL=0; // pulled live from Supabase in loadAll() — no demo data
+let tChart=null, dChart=null;
+
+// ══ LOOKUP CACHES (expense_categories) ────────────────────
+let categoryMap={};      // name -> id
+let categoryNamesById={};// id -> name
+let lookupsReady=false;
+
+async function ensureLookups(){
+  if(lookupsReady)return;
+  try{
+    // Make sure every petty-cash category used by this UI exists in expense_categories
+    await sbUpsert('expense_categories',CATS.map(name=>({name})),'name');
+    const cats=await sbGet('expense_categories?select=id,name');
+    (cats||[]).forEach(c=>{categoryMap[c.name]=c.id;categoryNamesById[c.id]=c.name;});
+  }catch(e){console.error('[pettycash] category lookup failed',e);}
+  lookupsReady=true;
+}
+async function getOrCreateCategoryId(name){
+  if(categoryMap[name])return categoryMap[name];
+  const rows=await sbUpsert('expense_categories',[{name}],'name');
+  const row=rows&&rows[0];
+  if(!row)throw new Error('Could not resolve category');
+  categoryMap[row.name]=row.id;categoryNamesById[row.id]=row.name;
+  return row.id;
+}
+function prevMonth(ym){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+
+// ── Opening balance: exact seed row for this period if one exists; else
+//    roll forward from the nearest earlier seed row using the same cash
+//    movements the schema's own `monthly_cash_flow` view accounts for
+//    (sales received in cash, AR collected in cash, purchases/payroll paid
+//    from cash, petty cash spend, and any other cash_flow_entries).
+async function getOpeningBalance(period){
+  try{
+    const exact=await sbGet(`channel_opening_balances?select=opening_balance&channel=eq.cash&period=eq.${period}`);
+    if(exact&&exact.length)return num(exact[0].opening_balance);
+    const anchor=await sbGet(`channel_opening_balances?select=period,opening_balance&channel=eq.cash&period=lte.${period}&order=period.desc&limit=1`);
+    if(!anchor||!anchor.length)return 0;
+    const base=anchor[0];
+    let bal=num(base.opening_balance);
+    const range=`period=gt.${base.period}&period=lt.${period}`;
+    const[sales,credits,purchases,payroll,petty,flows]=await Promise.all([
+      sbGet(`sales?select=revenue&payment_method=eq.cash&is_deleted=eq.false&${range}`),
+      sbGet(`credit_payments?select=amount_paid&channel=eq.cash&${range}`),
+      sbGet(`purchases?select=total_cost&payment_channel=eq.cash&type=in.(purchase,expense)&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&${range}`),
+      sbGet(`payroll_detail?select=net_pay&payment_channel=eq.cash&${range}`),
+      sbGet(`petty_cash?select=amount&${range}`),
+      sbGet(`cash_flow_entries?select=direction,amount&channel=eq.cash&${range}`)
+    ]);
+    bal+=sum(sales,'revenue')+sum(credits,'amount_paid')-sum(purchases,'total_cost')-sum(payroll,'net_pay')-sum(petty,'amount');
+    (flows||[]).forEach(f=>{bal+=(f.direction==='in'?1:-1)*num(f.amount);});
+    return bal;
+  }catch(e){console.error('[pettycash] opening balance calc failed',e);return 0;}
+}
+async function getPrevMonthSpent(period){
+  try{
+    const data=await sbGet(`petty_cash?select=amount&period=eq.${prevMonth(period)}`);
+    return sum(data,'amount');
+  }catch(e){return 0;}
+}
+
+// ══ OFFLINE ───────────────────────────────────────────────
+function syncStatus(){
+  const on=navigator.onLine;
+  document.body.classList.toggle('offline',!on);
+  const lbl=document.getElementById('syncLabel');
+  lbl.textContent=on?'Data is up to date':'Working offline';
+  document.getElementById('offlineBar').style.display=on?'none':'flex';
+}
+window.addEventListener('online',()=>{syncStatus();loadAll();});
+window.addEventListener('offline',()=>syncStatus());
+syncStatus();
+
+// ══ MONTH NAV ─────────────────────────────────────────────
+function shiftMonth(d){const s=document.getElementById('msel');const i=s.selectedIndex+d;if(i>=0&&i<s.options.length){s.selectedIndex=i;onMonthChange();}}
+function onMonthChange(){
+  curMonth=document.getElementById('msel').value;
+  const lbl=document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
+  ['tbl-period','bal-period','trend-period'].forEach(id=>{ const el=document.getElementById(id);if(el)el.textContent='('+lbl+')'; });
+  loadAll();
+}
+
+// ══ LOAD ──────────────────────────────────────────────────
+async function loadAll(){
+  showLoading();
+  try{
+    await ensureLookups();
+    const[rows,flowsIn,openBal,prevSpent]=await Promise.all([
+      sbGet(`petty_cash?select=*,expense_categories(name),users(name)&period=eq.${curMonth}&order=date.desc`),
+      sbGet(`cash_flow_entries?select=amount&channel=eq.cash&direction=eq.in&period=eq.${curMonth}`),
+      getOpeningBalance(curMonth),
+      getPrevMonthSpent(curMonth)
+    ]);
+    OPENING_BAL=openBal;PREV_SPENT=prevSpent;
+    repTotal=sum(flowsIn,'amount');
+    allData=(rows||[]).map(mapRow); // real data only — empty month shows empty, no fallback
+  }catch(e){
+    console.error('[pettycash] loadAll failed',e);
+    allData=[];OPENING_BAL=0;PREV_SPENT=0;repTotal=0;
+    showToast('error','Connection Error',e.message||'Could not reach the database.');
+  }
+  syncStatus();
+  applyFilter();
+}
+
+function mapRow(r){return{id:r.id,date:r.date,description:r.description||'',category:(r.expense_categories&&r.expense_categories.name)||categoryNamesById[r.category_id]||'Other',amount:num(r.amount),receipt_ref:r.receipt_reference||autoRef(r.date),created_by:(r.users&&r.users.name)||'—',created_by_id:r.created_by||null};}
+function monthEnd(ym){const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).toISOString().split('T')[0];}
+function autoRef(d){const s=d?d.replace(/-/g,'').slice(2):'000000';return 'PC-'+s+'-01';}
+function showLoading(){document.getElementById('pcBody').innerHTML='<tr><td colspan="8" class="loading-cell"><span class="spin-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></span> Loading…</td></tr>';}
+
+// ══ FILTER ────────────────────────────────────────────────
+let filterOpen=false;
+function toggleFilter(){
+  filterOpen=!filterOpen;
+  const p=document.getElementById('filterPanel');
+  p.classList.toggle('open',filterOpen);
+  const btn=document.getElementById('filterBtn');
+  btn.className=filterOpen?'btn btn-primary':'btn btn-outline';
+}
+function applyFilter(){
+  const cat=document.getElementById('fCat').value;
+  const fr=document.getElementById('fFrom').value;
+  const to=document.getElementById('fTo').value;
+  filtered=allData.filter(e=>{
+    if(cat&&e.category!==cat)return false;
+    if(fr&&e.date<fr)return false;
+    if(to&&e.date>to)return false;
+    return true;
+  });
+  page=1;
+  safeRun(renderTable);
+  safeRun(renderCharts);
+  safeRun(renderKPIs);
+  safeRun(updateBalance);
+  safeRun(renderNotifications);
+}
+function safeRun(fn){
+  try{ fn(); }
+  catch(e){
+    console.error(`[pettycash] ${fn.name} failed:`, e);
+    if(!window.__degradedWarned){
+      window.__degradedWarned=true;
+      showToast('warn','Some features unavailable','A component failed to load (likely a blocked script). Core data and exports should still work — try refreshing.');
+    }
+  }
+}
+function clearFilter(){['fCat','fFrom','fTo'].forEach(id=>document.getElementById(id).value='');applyFilter();}
+
+// ══ SORT ──────────────────────────────────────────────────
+function sortTable(col){
+  if(sortCol===col)sortDir*=-1; else{sortCol=col;sortDir=col==='date'?-1:1;}
+  document.querySelectorAll('.tbl th').forEach(th=>{th.classList.remove('th-asc','th-desc');});
+  const thIdx={date:0,description:1,category:2,amount:3};
+  const ths=document.querySelectorAll('#pcBody').item(0)?.closest('table')?.querySelectorAll('th');
+  if(ths&&thIdx[col]!==undefined){ths[thIdx[col]].classList.add(sortDir===1?'th-asc':'th-desc');}
+  filtered.sort((a,b)=>{let av=a[col],bv=b[col];if(col==='amount'){av=+av;bv=+bv;}return av<bv?-1*sortDir:av>bv?1*sortDir:0;});
+  renderTable();
+}
+
+// ══ RENDER TABLE ──────────────────────────────────────────
+function renderTable(){
+  const tbody=document.getElementById('pcBody');
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h4>No entries found</h4><p>Add your first petty cash entry or adjust your filters.</p><button class="btn btn-primary" onclick="openAddModal()" style="margin:0 auto"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Entry</button></div></td></tr>`;
+    renderPagination(0);return;
+  }
+  const total=filtered.length, start=(page-1)*PER, pageData=filtered.slice(start,start+PER);
+  const grand=filtered.reduce((s,e)=>s+e.amount,0);
+  tbody.innerHTML=pageData.map(e=>`<tr>
+    <td>${fDate(e.date)}</td>
+    <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis" title="${x(e.description)}">${x(e.description)}</td>
+    <td><span class="cat-pill ${CPILLS[e.category]||'cat-oth'}">${x(e.category)}</span></td>
+    <td style="font-weight:700">${fmt(e.amount)}</td>
+    <td style="color:var(--tl);font-size:11px">${x(e.receipt_ref||'—')}</td>
+    <td><span class="chan-pill"><span class="chan-dot"></span>Cash on Hand</span></td>
+    <td style="color:var(--tl)">${x(e.created_by||'—')}</td>
+    <td><div class="row-actions">
+      <div class="row-act" onclick="openEdit('${e.id}')" title="Edit"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <div class="row-act del" onclick="openDel('${e.id}','${x(e.description)}')" title="Delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
+    </div></td>
+  </tr>`).join('')+`<tr class="tot"><td colspan="3">TOTAL (${total} entries)</td><td class="green">${fmt(grand)}</td><td colspan="4"></td></tr>`;
+  renderPagination(total);renderRecent();
+}
+
+function renderPagination(total){
+  const pages=Math.ceil(total/PER);
+  document.getElementById('pgInfo').textContent=total?`Showing ${(page-1)*PER+1}–${Math.min(page*PER,total)} of ${total} entries`:'No entries';
+  const btns=document.getElementById('pgBtns');
+  if(pages<=1){btns.innerHTML='';return;}
+  let h=`<div class="pg-b${page===1?' dis':''}" onclick="gp(${page-1})">&#8249;</div>`;
+  for(let i=1;i<=pages;i++){
+    if(pages>7&&i>2&&i<pages-1&&Math.abs(i-page)>1){if(i===3||i===pages-2)h+=`<div class="pg-b dis" style="border:none;background:none;min-width:20px">…</div>`;continue;}
+    h+=`<div class="pg-b${i===page?' active':''}" onclick="gp(${i})">${i}</div>`;
+  }
+  h+=`<div class="pg-b${page===pages?' dis':''}" onclick="gp(${page+1})">&#8250;</div>`;
+  btns.innerHTML=h;
+}
+function gp(p){const pages=Math.ceil(filtered.length/PER);if(p<1||p>pages)return;page=p;renderTable();document.querySelector('.card-hd').scrollIntoView({behavior:'smooth',block:'nearest'});}
+
+function renderRecent(){
+  const recent=[...allData].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const total=recent.reduce((s,e)=>s+e.amount,0);
+  const tbody=document.getElementById('recentBody');
+  if(!recent.length){tbody.innerHTML='<tr><td colspan="3" class="loading-cell">No entries yet</td></tr>';return;}
+  tbody.innerHTML=recent.map(e=>`<tr><td>${fDate(e.date)}</td><td style="max-width:130px;overflow:hidden;text-overflow:ellipsis" title="${x(e.description)}">${x(e.description)}</td><td style="font-weight:700">${fmt(e.amount)}</td></tr>`).join('')+`<tr class="tot"><td colspan="2">TOTAL</td><td class="green">${fmt(total)}</td></tr>`;
+}
+
+// ══ KPI ───────────────────────────────────────────────────
+function renderKPIs(){
+  const spent=allData.reduce((s,e)=>s+e.amount,0);
+  const txn=allData.length;
+  const daysInMo=new Date(+curMonth.split('-')[0],+curMonth.split('-')[1],0).getDate();
+  const avg=spent/daysInMo;
+  const maxE=allData.length?allData.reduce((a,b)=>b.amount>a.amount?b:a,allData[0]):null;
+  const bal=OPENING_BAL+repTotal-spent;
+  const diff=spent-PREV_SPENT;
+  const pct=PREV_SPENT?Math.abs(diff/PREV_SPENT*100).toFixed(1):'0.0';
+
+  countUp('k-spent',spent);countUp('k-avg',avg);countUpInt('k-txn',txn);
+  countUp('k-bal',bal);countUp('k-max',maxE?maxE.amount:0);countUp('k-vs',Math.abs(diff));
+
+  document.getElementById('k-max-cat').textContent=maxE?maxE.category:'—';
+  document.getElementById('k-bal-note').textContent=bal>=0?'Available for use':'Depleted';
+  setChg('k-spent-c',diff,`${diff>=0?'▲ +':'▼ -'}${pct}%`,'vs prev month');
+  setChg('k-avg-c',diff,`${diff>=0?'▲':'▼'} ${pct}%`,'vs prev month');
+  setChg('k-txn-c',txn-29,`${txn>=29?'+':''}${txn-29} entries`,'vs prev month');
+  setChg('k-vs-c',diff,diff>=0?`▲ Higher by ${pct}%`:`▼ Lower by ${pct}%`,'');
+  document.getElementById('k-vs-wrap').style.color=diff>=0?'#27ae60':'#e5484d';
+}
+function setChg(id,val,label,suf){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.innerHTML=`<span class="${val>=0?'up':'dn'}">${label}</span>${suf?`<span class="vs">${suf}</span>`:''}`;
+}
+
+// ══ BALANCE CARD ──────────────────────────────────────────
+function updateBalance(){
+  const spent=allData.reduce((s,e)=>s+e.amount,0);
+  const bal=OPENING_BAL+repTotal-spent;
+  const lbl=document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
+  document.getElementById('bal-period').textContent='('+lbl+')';
+  bCountUp('b-open',OPENING_BAL);bCountUp('b-spent',spent);bCountUp('b-rep',repTotal);bCountUp('b-rem',bal);
+}
+function bCountUp(id,val){
+  const el=document.getElementById(id); if(!el)return;
+  const dur=900,start=performance.now();
+  function ease(t){return 1-Math.pow(2,-10*t);}
+  function tick(now){const p=Math.min((now-start)/dur,1);el.textContent=fmt(val*ease(p))+' ETB';if(p<1)requestAnimationFrame(tick);else el.textContent=fmt(val)+' ETB';}
+  requestAnimationFrame(tick);
+}
+
+// ══ COUNT-UP ──────────────────────────────────────────────
+function countUp(id,target){
+  const el=document.getElementById(id);if(!el)return;
+  const dur=900,start=performance.now();
+  function ease(t){return 1-Math.pow(2,-10*t);}
+  function tick(now){const p=Math.min((now-start)/dur,1);el.textContent=fmt(target*ease(p));if(p<1)requestAnimationFrame(tick);else el.textContent=fmt(target);}
+  requestAnimationFrame(tick);
+}
+function countUpInt(id,target){
+  const el=document.getElementById(id);if(!el)return;
+  const dur=700,start=performance.now();
+  function ease(t){return 1-Math.pow(2,-10*t);}
+  function tick(now){const p=Math.min((now-start)/dur,1);el.textContent=Math.round(target*ease(p));if(p<1)requestAnimationFrame(tick);else el.textContent=target;}
+  requestAnimationFrame(tick);
+}
+
+// ══ CHARTS ────────────────────────────────────────────────
+if(typeof Chart!=='undefined'&&typeof ChartDataLabels!=='undefined') Chart.register(ChartDataLabels);
+function renderCharts(){
+  if(typeof Chart==='undefined'){
+    ['trendChart','donutChart','barsChart'].forEach(id=>{
+      const c=document.getElementById(id);
+      const box=c&&c.closest('.chart-box, .card');
+      if(box&&!box.querySelector('.chart-fallback')){
+        const msg=document.createElement('div');
+        msg.className='chart-fallback';
+        msg.style.cssText='padding:30px 10px;text-align:center;color:var(--tl);font-size:var(--fs-sm)';
+        msg.textContent='Chart library unavailable — data below is still accurate.';
+        box.appendChild(msg);
+      }
+    });
+    return;
+  }
+  safeRun(renderTrend);safeRun(renderDonut);safeRun(renderBars);
+}
+
+function renderTrend(){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  const buckets={};
+  const moLabel=()=>document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text.split(' ')[0];
+  allData.forEach(e=>{const d=new Date(e.date).getDate();let b;if(d<=7)b='1 '+moLabel();else if(d<=14)b='8 '+moLabel();else if(d<=21)b='15 '+moLabel();else if(d<=28)b='22 '+moLabel();else b='29+ '+moLabel();buckets[b]=(buckets[b]||0)+e.amount;});
+  const labels=Object.keys(buckets),data=Object.values(buckets);
+  if(tChart)tChart.destroy();
+  tChart=new Chart(ctx,{
+    type:'line',data:{labels,datasets:[{label:'Spend (ETB)',data,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,.08)',borderWidth:2.5,pointBackgroundColor:'#27ae60',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:5,pointHoverRadius:9,fill:true,tension:.38,
+      datalabels:{align:'top',anchor:'end',offset:8,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v>0?v.toLocaleString():''}}]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:28,bottom:8}},animation:{duration:1000,easing:'easeOutQuart'},interaction:{intersect:false,mode:'index'},
+      plugins:{legend:{display:false},datalabels:{display:true},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5},displayColors:false,callbacks:{label:c=>' '+fmt(c.parsed.y)+' ETB'}}},
+      scales:{x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}},y:{min:0,beginAtZero:true,grid:{color:'#eef3f0'},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}}}}
+  });
+}
+
+function catTotals(){const t={};CATS.forEach(c=>t[c]=0);allData.forEach(e=>{if(t[e.category]!==undefined)t[e.category]+=e.amount;});return t;}
+
+function renderDonut(){
+  const ctx=document.getElementById('topCatChart').getContext('2d');
+  const totals=catTotals();
+  const labels=CATS.filter(c=>totals[c]>0),data=labels.map(c=>totals[c]),total=data.reduce((s,v)=>s+v,0);
+  document.getElementById('donut-total').innerHTML=fmt(total)+'<br>ETB';
+  if(dChart)dChart.destroy();
+  dChart=new Chart(ctx,{
+    type:'doughnut',data:{labels,datasets:[{data,backgroundColor:labels.map(l=>COLORS[CATS.indexOf(l)]),borderWidth:2,borderColor:'#fff',hoverOffset:10,hoverBorderWidth:3}]},
+    options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:950,easing:'easeOutQuart'},
+      plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5},callbacks:{label:c=>' '+c.label+': '+fmt(c.parsed)+' ETB'}}}}
+  });
+  document.getElementById('donutLeg').innerHTML=labels.map((l,i)=>{const pct=total>0?(data[i]/total*100).toFixed(1):'0.0';return`<div class="exp-r"><div class="exp-r-top"><div class="exp-d" style="background:${COLORS[CATS.indexOf(l)]}"></div><span class="exp-n">${l}</span><span class="exp-p">${pct}%</span></div><span class="exp-v">${fmt(data[i])} ETB</span></div>`;}).join('');
+}
+
+function renderBars(){
+  const totals=catTotals();const max=Math.max(...Object.values(totals),1);
+  const totalSpent=Object.values(totals).reduce((s,v)=>s+v,0);
+  const sorted=CATS.filter(c=>totals[c]>0).sort((a,b)=>totals[b]-totals[a]);
+  document.getElementById('catBars').innerHTML=sorted.map((cat)=>{
+    const v=totals[cat],pct=(v/max*100).toFixed(1),spct=totalSpent>0?(v/totalSpent*100).toFixed(1):'0.0';
+    return`<div class="bar-row"><span class="bar-name">${cat}</span><div class="bar-track"><div class="bar-fill" data-w="${pct}%" style="background:${COLORS[CATS.indexOf(cat)]}"></div></div><span class="bar-val">${fmt(v)} ETB (${spct}%)</span></div>`;
+  }).join('');
+  requestAnimationFrame(()=>setTimeout(()=>{ document.querySelectorAll('.bar-fill').forEach(b=>{b.style.width=b.dataset.w;}); },80));
+}
+
+// ══ ADD / EDIT MODAL ──────────────────────────────────────
+function openAddModal(){
+  editId=null;
+  document.getElementById('modalTitle').textContent='New Petty Cash Entry';
+  document.getElementById('saveBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Entry';
+  clearForm();
+  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-by-display').value=SESSION?.name||'—';
+  openModal('entryModal');
+}
+function openEdit(id){
+  const e=allData.find(r=>r.id===id);if(!e)return;
+  editId=id;
+  document.getElementById('modalTitle').textContent='Edit Entry';
+  document.getElementById('saveBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Entry';
+  document.getElementById('f-id').value=e.id;
+  document.getElementById('f-date').value=e.date;
+  document.getElementById('f-cat').value=e.category;
+  document.getElementById('f-desc').value=e.description;
+  document.getElementById('f-amt').value=e.amount;
+  document.getElementById('f-ref').value=e.receipt_ref||'';
+  document.getElementById('f-by-display').value=e.created_by||'—';
+  document.getElementById('totalPrev').textContent=fmt(e.amount)+' ETB';
+  clearErrs();openModal('entryModal');
+}
+function clearForm(){['f-id','f-date','f-cat','f-desc','f-amt','f-ref'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('totalPrev').textContent='0.00 ETB';document.getElementById('warnDate').classList.remove('show');clearErrs();ensureLookups();}
+function clearErrs(){document.querySelectorAll('.err-msg').forEach(e=>e.classList.remove('show'));document.querySelectorAll('.f-grp input,.f-grp select').forEach(e=>e.classList.remove('err'));}
+function updateTotal(){const v=parseFloat(document.getElementById('f-amt').value)||0;document.getElementById('totalPrev').textContent=fmt(v)+' ETB';}
+function updateRepTotal(){const v=parseFloat(document.getElementById('r-amt').value)||0;document.getElementById('repPrev').textContent=fmt(v)+' ETB';}
+function checkFutureDate(el){if(!el.value)return;const d=(new Date(el.value)-new Date())/86400000;document.getElementById('warnDate').classList.toggle('show',d>30);}
+
+function validateEntry(){
+  let ok=true;clearErrs();
+  [['f-date','err-date'],['f-cat','err-cat'],['f-desc','err-desc'],['f-amt','err-amt']].forEach(([fId,eId])=>{
+    const el=document.getElementById(fId);if(!el.value.trim()){el.classList.add('err');document.getElementById(eId).classList.add('show');ok=false;}
+  });
+  const amt=parseFloat(document.getElementById('f-amt').value);
+  if(!amt||amt<=0){document.getElementById('f-amt').classList.add('err');document.getElementById('err-amt').classList.add('show');ok=false;}
+  return ok;
+}
+async function saveEntry(){
+  if(!validateEntry())return;
+  const btn=document.getElementById('saveBtn');btn.disabled=true;
+  btn.innerHTML='<span class="spin-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></span> Saving…';
+  const date=document.getElementById('f-date').value,category=document.getElementById('f-cat').value,description=document.getElementById('f-desc').value.trim();
+  const amount=parseFloat(document.getElementById('f-amt').value),receipt_reference=document.getElementById('f-ref').value.trim()||autoRef(date);
+  try{
+    const category_id=await getOrCreateCategoryId(category);
+    if(editId){
+      const payload={date,category_id,description,amount,receipt_reference}; // creator stays the original — not overwritten on edit
+      const rows=await sbUpdate('petty_cash',editId,payload);
+      const idx=allData.findIndex(e=>e.id===editId);
+      if(idx>=0)allData[idx]={...allData[idx],date,category,description,amount,receipt_ref:receipt_reference};
+      showToast('success','Entry Updated','Petty cash entry updated successfully.');
+    } else {
+      const created_by=SESSION?.user_id||null;
+      const payload={date,category_id,description,amount,receipt_reference,created_by};
+      const rows=await sbInsert('petty_cash',[payload]);
+      const row=rows&&rows[0];
+      allData.unshift({id:row.id,date,category,description,amount,receipt_ref:receipt_reference,created_by:SESSION?.name||'—',created_by_id:created_by});
+      showToast('success','Entry Saved','Petty cash entry saved successfully.');
+    }
+  }catch(e){
+    console.error('[pettycash] saveEntry failed',e);
+    showToast('error','Save Error',e.message||'Could not save. Check your connection.');
+  }
+  closeModal('entryModal');applyFilter();btn.disabled=false;
+}
+
+// ══ DELETE ────────────────────────────────────────────────
+function openDel(id,desc){delId=id;document.getElementById('delDesc').textContent=`Delete "${desc}"? This action cannot be undone.`;openModal('delModal');}
+async function confirmDelete(){
+  if(!delId)return;const btn=document.getElementById('delBtn');btn.disabled=true;btn.textContent='Deleting…';
+  try{
+    await sbDelete('petty_cash',delId);
+    allData=allData.filter(e=>e.id!==delId);showToast('success','Deleted','Entry deleted successfully.');
+  }catch(e){showToast('error','Delete Error',e.message||'Could not delete.');}
+  closeModal('delModal');applyFilter();btn.disabled=false;delId=null;
+  btn.innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg> Delete';
+}
+
+// ══ REPLENISH ─────────────────────────────────────────────
+function openReplenishModal(){
+  document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
+  ['r-amt','r-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('repPrev').textContent='0.00 ETB';
+  document.getElementById('r-src').value='bank';
+  document.getElementById('r-shareholder-row').style.display='none';
+  ['err-rdate','err-ramt','err-rshare'].forEach(id=>document.getElementById(id)?.classList.remove('show'));
+  ensureShareholders();
+  openModal('repModal');
+}
+function onSourceChange(){
+  const src=document.getElementById('r-src').value;
+  document.getElementById('r-shareholder-row').style.display=src==='capital'?'':'none';
+}
+let shareholdersReady=false;
+async function ensureShareholders(){
+  if(shareholdersReady)return;
+  try{
+    const sh=await sbGet('shareholders?select=name&order=name');
+    const sel=document.getElementById('r-shareholder');
+    sel.innerHTML='<option value="">Select shareholder</option>'+(sh||[]).map(s=>`<option value="${x(s.name)}">${x(s.name)}</option>`).join('');
+    shareholdersReady=true;
+  }catch(e){console.error('[pettycash] shareholder lookup failed',e);}
+}
+async function saveReplenishment(){
+  let ok=true;const dateEl=document.getElementById('r-date'),amtEl=document.getElementById('r-amt');
+  if(!dateEl.value){document.getElementById('err-rdate').classList.add('show');ok=false;}
+  const amt=parseFloat(amtEl.value);if(!amt||amt<=0){document.getElementById('err-ramt').classList.add('show');ok=false;}
+  const src=document.getElementById('r-src').value;
+  const shareholder=document.getElementById('r-shareholder')?.value||'';
+  if(src==='capital'&&!shareholder){document.getElementById('err-rshare')?.classList.add('show');ok=false;}
+  if(!ok)return;
+  const btn=document.getElementById('repBtn');btn.disabled=true;btn.textContent='Saving…';
+  const notes=document.getElementById('r-notes').value.trim();
+  const created_by=SESSION?.user_id||null;
+  try{
+    if(src==='capital'){
+      // capital_injections has a DB trigger that auto-creates the matching cash_flow_entries 'in' row
+      await sbInsert('capital_injections',[{date:dateEl.value,shareholder_name:shareholder,amount:amt,channel:'cash',notes,created_by}]);
+    } else {
+      const srcLabel=src==='bank'?'Bank Account':'Mobile Money';
+      await sbInsert('cash_flow_entries',[
+        {date:dateEl.value,channel:src,direction:'out',category:'operating',entry_type:'transfer_to_petty_cash',description:'Transfer to petty cash'+(notes?': '+notes:''),amount:amt,created_by},
+        {date:dateEl.value,channel:'cash',direction:'in',category:'operating',entry_type:'transfer_from_'+src,description:'Petty cash replenishment from '+srcLabel+(notes?': '+notes:''),amount:amt,created_by}
+      ]);
+    }
+    if(dateEl.value.slice(0,7)===curMonth) repTotal+=amt;
+    showToast('success','Replenished',`${fmt(amt)} ETB added to petty cash.`);
+  }catch(e){
+    console.error('[pettycash] saveReplenishment failed',e);
+    showToast('error','Replenish Error',e.message||'Could not save. Check your connection.');
+  }
+  closeModal('repModal');updateBalance();renderKPIs();renderNotifications();
+  btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/></svg> Save Replenishment';
+}
+
+// ══ FULL SHEET (VISUAL) PDF EXPORT ───────────────────────
+async function exportFullSheetPDF(){
+  if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){
+    showToast('error','Export Failed','PDF/canvas library did not load. Check your connection.');return;
+  }
+  if(!filtered.length){showToast('warn','No Data','No entries to export.');return;}
+  showToast('info','Preparing PDF','Capturing the full sheet — this can take a few seconds…');
+
+  // Temporarily expand the table to show every row, and reveal the print header for capture
+  __printSavedPer=PER;__printSavedPage=page;
+  PER=filtered.length||1;page=1;renderTable();
+  document.getElementById('printMonth').textContent=monthLabel();
+  document.getElementById('printGen').textContent='Generated '+new Date().toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const hd=document.getElementById('printHd');
+  const hdWasHidden=hd.style.display!=='block';
+  hd.style.display='block';
+
+  // Hide interactive chrome that shouldn't appear in a document export
+  const hideSelectors=['.sb','.topbar','.qa-g','.hd-actions','.pg-bar','.row-actions','.toast-stack','.info-strip'];
+  const restoreList=[];
+  hideSelectors.forEach(sel=>document.querySelectorAll(sel).forEach(el=>{restoreList.push([el,el.style.display]);el.style.display='none';}));
+  document.querySelector('.main').style.marginLeft='0';
+
+  // Force every entrance animation to its finished state so nothing gets rasterized mid-fade
+  // (this is what caused KPI cards — e.g. Remaining Cash — to look faded if exported soon after load)
+  document.querySelectorAll('.bar-fill').forEach(b=>{b.style.width=b.dataset.w;}); // JS-driven width transition, not pure CSS
+  const target0=document.querySelector('.content');
+  target0.classList.add('pdf-capture');
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); // let the style flush before we measure/capture
+
+  try{
+    const target=document.querySelector('.content');
+    // Measure card/KPI boundaries BEFORE capture so we know where it's safe to cut a page.
+    // The transactions card itself is excluded from the "must fit whole" list — it's allowed
+    // to start on a page and flow into the next one, since its individual rows are protected
+    // below. Otherwise the whole card gets pushed to the next page, leaving a big empty gap.
+    const targetRect=target.getBoundingClientRect();
+    const bigTableCard=document.getElementById('pcBody')?document.getElementById('pcBody').closest('.card'):null;
+    const atomicEls=Array.from(target.querySelectorAll('.kc, .card, .print-hd')).filter(el=>el!==bigTableCard);
+    const rowEls=Array.from(target.querySelectorAll('.tbl thead tr, #pcBody tr'));
+    const blocksCss=[...atomicEls,...rowEls].map(el=>{
+      const r=el.getBoundingClientRect();
+      return {top:r.top-targetRect.top, bottom:r.bottom-targetRect.top};
+    }).filter(b=>b.bottom>b.top).sort((a,b)=>a.top-b.top);
+
+    const canvas=await html2canvas(target,{scale:2,useCORS:true,backgroundColor:'#f6f9f7'});
+    const scaleY=canvas.height/targetRect.height;
+    const blocksPx=blocksCss.map(b=>({top:b.top*scaleY,bottom:b.bottom*scaleY}));
+
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'pt',format:'a4',orientation:'landscape'});
+    const MARGIN=24;
+    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+    const usableW=pageW-MARGIN*2, usableH=pageH-MARGIN*2-18; // reserve a little room for the footer
+    const imgW=usableW;
+    const pxPerPt=canvas.width/imgW;
+    const pageBudgetPx=usableH*pxPerPt;
+
+    // Pull a proposed page-end back to just above any card it would otherwise slice through
+    function findSafeBreak(start,end){
+      let best=end;
+      for(const b of blocksPx){
+        if(b.top>start+1 && b.top<end && b.bottom>end) best=Math.min(best,b.top);
+      }
+      return best>start+40?best:end; // fall back to a hard cut only if nothing else fits
+    }
+
+    let offsetPx=0, pageNum=0;
+    while(offsetPx<canvas.height-0.5){
+      if(pageNum>0)doc.addPage();
+      const breakPx=findSafeBreak(offsetPx,Math.min(offsetPx+pageBudgetPx,canvas.height));
+      const sliceHeightPx=breakPx-offsetPx;
+      const sliceCanvas=document.createElement('canvas');
+      sliceCanvas.width=canvas.width;
+      sliceCanvas.height=sliceHeightPx;
+      const ctx=sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas,0,offsetPx,canvas.width,sliceHeightPx,0,0,canvas.width,sliceHeightPx);
+      doc.addImage(sliceCanvas.toDataURL('image/jpeg',0.92),'JPEG',MARGIN,MARGIN,imgW,sliceHeightPx/pxPerPt);
+      offsetPx=breakPx;
+      pageNum++;
+      if(pageNum>25)break; // safety cap
+    }
+    const totalPages=doc.internal.getNumberOfPages();
+    for(let i=1;i<=totalPages;i++){
+      doc.setPage(i);
+      doc.setFontSize(7.5);doc.setTextColor(130,140,135);
+      doc.text('Mena Injera & Derkosh — Petty Cash Full Sheet — '+monthLabel(),MARGIN,pageH-10);
+      doc.text('Page '+i+' of '+totalPages,pageW-MARGIN,pageH-10,{align:'right'});
+    }
+    doc.save(`petty-cash-full-sheet-${curMonth}.pdf`);
+    showToast('success','Exported','Full sheet PDF downloaded (landscape).');
+  }catch(e){
+    console.error('[pettycash] full sheet export failed:',e);
+    showToast('error','Export Failed','Could not capture the full sheet. Try the standard PDF Report instead.');
+  }finally{
+    restoreList.forEach(([el,disp])=>{el.style.display=disp;});
+    document.querySelector('.main').style.marginLeft='';
+    document.querySelector('.content').classList.remove('pdf-capture');
+    if(hdWasHidden)hd.style.display='none';
+    if(__printSavedPer!==null){PER=__printSavedPer;page=__printSavedPage;__printSavedPer=null;renderTable();}
+  }
+}
+
+// ══ PRINT REPORT ──────────────────────────────────────────
+let __printSavedPer=null, __printSavedPage=null;
+function printReport(){
+  if(!filtered.length){showToast('warn','No Data','No entries to print.');return;}
+  document.getElementById('printMonth').textContent=monthLabel();
+  document.getElementById('printGen').textContent='Generated '+new Date().toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  __printSavedPer=PER;__printSavedPage=page;
+  PER=filtered.length||1;page=1;renderTable();
+  closeExportMenus();closeNotifPanel();closeUserMenu();
+  // Call print() synchronously in the same user-gesture stack as the click —
+  // deferring via setTimeout can silently drop the browser's print permission
+  // inside iframes/webviews, which is why this sometimes appeared to "do nothing".
+  try{
+    window.print();
+  }catch(e){
+    console.error('[pettycash] print failed:',e);
+    showToast('error','Print Failed','Your browser blocked the print dialog. Try opening this page in its own tab (not an embedded preview) and print again.');
+  }
+  // Safety net: some embedded/sandboxed contexts never fire 'afterprint'.
+  // Restore pagination after a few seconds regardless, so the table doesn't get stuck.
+  setTimeout(()=>{
+    if(__printSavedPer!==null){PER=__printSavedPer;page=__printSavedPage;__printSavedPer=null;renderTable();}
+  },4000);
+}
+window.addEventListener('afterprint',()=>{
+  if(__printSavedPer!==null){PER=__printSavedPer;page=__printSavedPage;__printSavedPer=null;renderTable();}
+});
+
+// ══ EXPORT DROPDOWNS ──────────────────────────────────────
+function closeExportMenus(){document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));}
+function toggleExportMenu(evt,id){
+  evt.stopPropagation();
+  const menu=document.getElementById(id);
+  const willOpen=!menu.classList.contains('open');
+  closeExportMenus();closeNotifPanel();
+  if(willOpen)menu.classList.add('open');
+}
+document.addEventListener('click',()=>{closeExportMenus();});
+
+function monthLabel(){return document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;}
+
+// ══ CSV EXPORT ────────────────────────────────────────────
+function exportCSV(){
+  if(!filtered.length){showToast('warn','No Data','No entries to export.');return;}
+  const hdr=['Date','Description','Category','Amount (ETB)','Receipt Ref','Channel','Created By'];
+  const rows=filtered.map(e=>[e.date,`"${e.description.replace(/"/g,'""')}"`,e.category,e.amount.toFixed(2),e.receipt_ref||'','Cash on Hand',e.created_by||'']);
+  const csv=[hdr,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download=`petty-cash-${curMonth}.csv`;a.click();
+  showToast('success','Exported',`${filtered.length} entries exported as CSV.`);
+}
+
+// ══ EXCEL EXPORT ──────────────────────────────────────────
+function exportExcel(){
+  if(typeof XLSX==='undefined'){showToast('error','Export Failed','Excel library did not load. Check your connection.');return;}
+  if(!filtered.length){showToast('warn','No Data','No entries to export.');return;}
+  const spent=filtered.reduce((s,e)=>s+e.amount,0);
+  const bal=OPENING_BAL+repTotal-(allData.reduce((s,e)=>s+e.amount,0));
+
+  const wsData=[
+    ['Mena Injera & Derkosh — Petty Cash Register'],
+    [monthLabel()],
+    [],
+    ['Date','Description','Category','Amount (ETB)','Receipt Ref','Channel','Created By']
+  ];
+  filtered.forEach(e=>wsData.push([e.date,e.description,e.category,e.amount,e.receipt_ref||'', 'Cash on Hand',e.created_by||'']));
+  wsData.push([]);
+  wsData.push(['','','TOTAL',spent,'','','']);
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:12},{wch:34},{wch:16},{wch:14},{wch:16},{wch:14},{wch:16}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];
+
+  const sumData=[
+    ['Petty Cash Summary',''],
+    [monthLabel(),''],
+    [],
+    ['Opening Balance',OPENING_BAL],
+    ['Total Spent This Month',spent],
+    ['Total Replenished',repTotal],
+    ['Remaining Balance',bal],
+    [],
+    ['Category Breakdown','Amount (ETB)']
+  ];
+  const totals=catTotals();
+  CATS.filter(c=>totals[c]>0).sort((a,b)=>totals[b]-totals[a]).forEach(c=>sumData.push([c,totals[c]]));
+  const ws2=XLSX.utils.aoa_to_sheet(sumData);
+  ws2['!cols']=[{wch:26},{wch:16}];
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws2,'Summary');
+  XLSX.utils.book_append_sheet(wb,ws,'Transactions');
+  XLSX.writeFile(wb,`petty-cash-${curMonth}.xlsx`);
+  showToast('success','Exported',`${filtered.length} entries exported as Excel workbook.`);
+}
+
+// ══ PDF EXPORT ────────────────────────────────────────────
+function exportPDF(){
+  if(typeof window.jspdf==='undefined'){showToast('error','Export Failed','PDF library did not load. Check your connection.');return;}
+  if(!filtered.length){showToast('warn','No Data','No entries to export.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'a4'});
+  const pageW=doc.internal.pageSize.getWidth();
+  const green=[39,174,96], dark=[22,38,30], grey=[120,140,130];
+
+  // Header band
+  doc.setFillColor(...green);doc.rect(0,0,pageW,64,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(15);
+  doc.text('Mena Injera & Derkosh',40,28);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+  doc.text('Business Management System — Petty Cash Report',40,44);
+  doc.setFontSize(9.5);doc.text(monthLabel(),pageW-40,28,{align:'right'});
+  doc.text('Generated '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),pageW-40,44,{align:'right'});
+
+  // KPI summary boxes
+  const spent=filtered.reduce((s,e)=>s+e.amount,0);
+  const allSpent=allData.reduce((s,e)=>s+e.amount,0);
+  const bal=OPENING_BAL+repTotal-allSpent;
+  const kpis=[['Opening Balance',OPENING_BAL],['Total Spent',spent],['Replenished',repTotal],['Remaining Balance',bal]];
+  const boxW=(pageW-80-3*10)/4;
+  kpis.forEach((k,i)=>{
+    const x=40+i*(boxW+10);
+    doc.setFillColor(246,250,247);doc.setDrawColor(224,236,229);
+    doc.roundedRect(x,80,boxW,46,5,5,'FD');
+    doc.setTextColor(...grey);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text(k[0].toUpperCase(),x+10,96);
+    doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(12.5);
+    doc.text(fmt(k[1])+' ETB',x+10,112);
+  });
+
+  // Table
+  const rows=filtered.map(e=>[fDate(e.date),e.description,e.category,fmt(e.amount),e.receipt_ref||'—',e.created_by||'—']);
+  doc.autoTable({
+    startY:142,
+    head:[['Date','Description','Category','Amount (ETB)','Receipt Ref','Created By']],
+    body:rows,
+    foot:[['','','TOTAL',fmt(spent),'','']],
+    theme:'grid',
+    headStyles:{fillColor:green,textColor:255,fontStyle:'bold',fontSize:8.5},
+    footStyles:{fillColor:[246,250,247],textColor:dark,fontStyle:'bold',fontSize:8.5},
+    bodyStyles:{fontSize:8.5,textColor:dark},
+    alternateRowStyles:{fillColor:[250,252,251]},
+    columnStyles:{3:{halign:'right'}},
+    margin:{left:40,right:40},
+    didDrawPage:function(data){
+      const ph=doc.internal.pageSize.getHeight();
+      doc.setFontSize(7.5);doc.setTextColor(...grey);
+      doc.text('Mena Injera & Derkosh BMS — Petty Cash Report — Page '+doc.internal.getNumberOfPages(),40,ph-20);
+    }
+  });
+
+  doc.save(`petty-cash-${curMonth}.pdf`);
+  showToast('success','Exported',`${filtered.length} entries exported as PDF report.`);
+}
+
+// ══ MODAL HELPERS ─────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
+function closeModal(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)closeModal(ov.id);}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(ov=>closeModal(ov.id));});
+
+// ══ NOTIFICATIONS ─────────────────────────────────────────
+const NOTIF_ICONS={
+  warn:'<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  danger:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+};
+function computeAlerts(){
+  const alerts=[];
+  const spent=allData.reduce((s,e)=>s+e.amount,0);
+  const bal=OPENING_BAL+repTotal-spent;
+
+  if(bal<0){
+    alerts.push({sev:'danger',title:'Petty cash is overdrawn',msg:`Balance is ${fmt(bal)} ETB. Replenish immediately.`,action:()=>{closeNotifPanel();openReplenishModal();}});
+  } else if(bal<OPENING_BAL*LOW_BALANCE_PCT){
+    alerts.push({sev:'warn',title:'Petty cash balance is low',msg:`Only ${fmt(bal)} ETB remaining (below ${(LOW_BALANCE_PCT*100).toFixed(0)}% of opening balance). Consider replenishing.`,action:()=>{closeNotifPanel();openReplenishModal();}});
+  }
+
+  const overLimit=allData.filter(e=>e.amount>DAILY_LIMIT);
+  if(overLimit.length){
+    const top=overLimit.sort((a,b)=>b.amount-a.amount)[0];
+    alerts.push({sev:'warn',title:`${overLimit.length} entr${overLimit.length>1?'ies':'y'} above the ${fmt(DAILY_LIMIT,0)} ETB limit`,msg:`Largest: "${top.description}" — ${fmt(top.amount)} ETB. These may need owner approval per policy.`,action:null});
+  }
+
+  const dupMap={};
+  allData.forEach(e=>{const k=e.date+'|'+e.amount.toFixed(2);dupMap[k]=(dupMap[k]||0)+1;});
+  const dupKey=Object.keys(dupMap).find(k=>dupMap[k]>1);
+  if(dupKey){
+    alerts.push({sev:'info',title:'Possible duplicate entry',msg:`More than one entry on ${fDate(dupKey.split('|')[0])} for ${fmt(parseFloat(dupKey.split('|')[1]))} ETB. Worth a quick check.`,action:null});
+  }
+
+  const today=new Date().toISOString().split('T')[0];
+  if(curMonth===today.slice(0,7)){
+    const daysElapsed=new Date().getDate();
+    const projected=daysElapsed>0?(spent/daysElapsed)*new Date(+curMonth.split('-')[0],+curMonth.split('-')[1],0).getDate():0;
+    if(PREV_SPENT&&projected>PREV_SPENT*1.25){
+      alerts.push({sev:'info',title:'Spending pace is up this month',msg:`Projected month-end spend ≈ ${fmt(projected)} ETB, ${(((projected/PREV_SPENT)-1)*100).toFixed(0)}% above last month.`,action:null});
+    }
+  }
+
+  return alerts;
+}
+function renderNotifications(){
+  const alerts=computeAlerts();
+  const badge=document.getElementById('bellBadge');
+  badge.textContent=alerts.length;
+  badge.classList.toggle('zero',alerts.length===0);
+  document.getElementById('notifCount').textContent=`${alerts.length} alert${alerts.length===1?'':'s'}`;
+  const list=document.getElementById('notifList');
+  if(!alerts.length){
+    list.innerHTML='<div class="notif-empty"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>All clear — no alerts right now.</div>';
+    return;
+  }
+  list.innerHTML=alerts.map((a,i)=>`<div class="notif-item sev-${a.sev}" onclick="fireNotifAction(${i})"><div class="notif-ico">${NOTIF_ICONS[a.sev]}</div><div class="notif-bd"><strong>${x(a.title)}</strong><p>${x(a.msg)}</p></div></div>`).join('');
+  window.__notifAlerts=alerts;
+}
+function fireNotifAction(i){const a=window.__notifAlerts&&window.__notifAlerts[i];if(a&&a.action)a.action();else closeNotifPanel();}
+function toggleNotifPanel(evt){
+  evt.stopPropagation();
+  const panel=document.getElementById('notifPanel');
+  const willOpen=!panel.classList.contains('open');
+  closeExportMenus();closeNotifPanel();
+  if(willOpen)panel.classList.add('open');
+}
+function closeNotifPanel(){document.getElementById('notifPanel').classList.remove('open');}
+document.addEventListener('click',()=>{closeNotifPanel();});
+document.getElementById('notifPanel').addEventListener('click',e=>e.stopPropagation());
+document.querySelectorAll('.export-menu').forEach(m=>m.addEventListener('click',e=>e.stopPropagation()));
+
+function toggleUserMenu(evt){
+  evt.stopPropagation();
+  const menu=document.getElementById('userMenu');
+  const willOpen=!menu.classList.contains('open');
+  closeExportMenus();closeNotifPanel();
+  if(willOpen)menu.classList.add('open');
+}
+function closeUserMenu(){document.getElementById('userMenu').classList.remove('open');}
+document.addEventListener('click',()=>{closeUserMenu();});
+document.getElementById('userMenu').addEventListener('click',e=>e.stopPropagation());
+
+function doSignOut(){
+  try{clearSession();}catch(e){}
+  closeModal('logoutModal');
+  showToast('success','Signed Out','Redirecting to login…');
+  setTimeout(()=>{ window.location.href='login.html'; },700);
+}
+
+// ══ TOAST ─────────────────────────────────────────────────
+const ICONS={success:'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',error:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',warn:'<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'};
+function showToast(type,title,msg){
+  const t=document.createElement('div');t.className=`toast t-${type}`;
+  t.innerHTML=`<div class="toast-ico">${ICONS[type]||ICONS.info}</div><div class="toast-bd"><strong>${title}</strong>${msg?`<p>${msg}</p>`:''}</div><div class="toast-close" onclick="killToast(this.parentElement)"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>`;
+  document.getElementById('toastStack').appendChild(t);
+  setTimeout(()=>killToast(t),4500);
+}
+function killToast(el){if(!el||!el.parentElement)return;el.classList.add('out');setTimeout(()=>el.remove(),280);}
+
+// ══ FORMAT HELPERS ────────────────────────────────────────
+function fmt(v,d=2){return parseFloat(v||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fDate(d){if(!d)return'—';const[y,m,day]=d.split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${mn[+m-1]} ${+day}, ${y}`;}
+function x(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ══ INIT ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('msel');
+  if(sel){
+    const opt=[...sel.options].find(o=>o.value===curMonth);
+    if(opt) sel.value=curMonth; else curMonth=sel.value; // fall back to whatever the markup offers
+    const lbl=sel.options[sel.selectedIndex].text;
+    ['tbl-period','bal-period','trend-period'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='('+lbl+')';});
+  }
+  loadAll();
+});
+</script>
+</body>
+</html>

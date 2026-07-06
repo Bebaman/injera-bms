@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suppliers — Mena Injera & Derkosh BMS</title>
+<script>
+/* ════ EARLY AUTH CHECK ════
+   Redirect-only pass so an expired/missing session bounces to login before any
+   CDN libraries or page content load. app-state.js (loaded later, near the end
+   of <body>) does its own early check too and also populates the sidebar/topbar
+   with the real user via populateUserChrome() — this one just closes the
+   flash-of-content gap ahead of it. */
+(function(){
+  function loadSessionEarly(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  const s = loadSessionEarly();
+  if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
+    try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
+    window.location.replace('login.html');
+    throw new Error('No valid session — redirecting to login.');
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const { createClient } = supabase;
+const db = createClient(
+  'https://mfxkkaavgzyttasgqnmw.supabase.co',
+  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
+);
+</script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+/* Reset, :root vars, base body/heading font rules now live in shared-shell.css. */
+.kc-val{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
+
+
+/* ══ KPI ROW ════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;padding-top:4px}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e5f5ed}.ic-g svg{stroke:#27ae60}
+.ic-p{background:#f3e8fd}.ic-p svg{stroke:#8b5cf6}
+.ic-o{background:#fef3e2}.ic-o svg{stroke:#f59e0b}
+.ic-b{background:#e0effe}.ic-b svg{stroke:#2563eb}
+.kc-lbl{font-size:11px;color:var(--tl);font-weight:600;display:block;margin-bottom:4px;white-space:nowrap}
+.kc-val{font-family:'Quicksand',sans-serif;font-size:19px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px}
+.kc-val .u{font-size:11px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:11px;font-weight:600;margin-top:5px;display:flex;align-items:center;gap:2px}
+.up{color:#27ae60}.dn{color:#e53935}
+.vs{color:var(--tl);font-weight:500;font-size:10.5px;margin-left:2px}
+.kc-sub{font-size:11px;font-weight:600;margin-top:5px;color:var(--tl)}
+.kc-sub2{font-size:10.5px;font-weight:600;margin-top:2px;color:var(--tl)}
+
+/* ══ CARD ═══════════════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px}
+.card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vall{font-size:12px;font-weight:600;color:#27ae60;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:3px;border:none;background:none;font-family:'Nunito',sans-serif}
+.rsel{border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none}
+
+/* ══ TABLE ══════════════════════════════════════════ */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{padding:8px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.tbl td{padding:10px 14px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl tr.sel td{background:#eef8f2}
+.tbl .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none}
+.tbl .tot td:nth-child(2){color:#27ae60}
+.sup-row{cursor:pointer}
+
+/* ══ CATEGORY / STATUS PILLS ════════════════════════ */
+.pill-sm{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px}
+.cat-grain{background:#e5f5ed;color:#1a6b3c}
+.cat-packaging{background:#f3e8fd;color:#7c3aed}
+.cat-services{background:#fef3e2;color:#9a6a0a}
+.cat-utilities{background:#e0effe;color:#2563eb}
+.cat-general{background:#eef1ee;color:#5a6e65}
+.pill-done{background:#e5f5ed;color:#1a6b3c}
+.pill-rej{background:#fdecea;color:#b3261e}
+.chg-up{color:#e53935}.chg-dn{color:#27ae60}
+
+/* ══ LIST CARD HEADER ════════════════════════════════ */
+.pl-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;flex-wrap:wrap;gap:10px}
+.pl-hd-l{display:flex;align-items:center;gap:8px}
+.pl-hd-l .card-ttl-ic{width:30px;height:30px;border-radius:8px;background:#e5f5ed;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pl-hd-l .card-ttl-ic svg{width:16px;height:16px;stroke:#27ae60;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fsel{border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none;height:34px}
+.btn-new{display:flex;align-items:center;gap:6px;background:#1d5c38;color:#fff;font-size:12.5px;font-weight:700;padding:0 16px;height:34px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;transition:background .12s}
+.btn-new:hover{background:#164a2d}
+.btn-new svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.sup-search{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:0 11px;height:34px;background:#fff;width:190px}
+.sup-search svg{width:13px;height:13px;stroke:#aab8b2;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sup-search input{border:none;outline:none;font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--td);background:transparent;width:100%}
+
+/* ══ PAGINATION ══════════════════════════════════════ */
+.pg{display:flex;align-items:center;justify-content:space-between;padding:12px 17px;border-top:1px solid var(--border)}
+.pg-info{font-size:12px;color:var(--tl)}
+.pg-ctrl{display:flex;align-items:center;gap:5px}
+.pg-b{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--tm);cursor:pointer}
+.pg-b:hover{background:var(--bg)}
+.pg-b.act{background:#27ae60;color:#fff;border-color:#27ae60}
+.pg-b svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ ACTION DOTS + DROPDOWN ══════════════════════════ */
+.act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px;position:relative}
+.act-dots:hover{background:var(--bg);color:var(--tm)}
+.act-dots svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.row-menu{position:absolute;top:26px;right:0;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:50;min-width:150px;display:none;overflow:hidden}
+.row-menu.show{display:block}
+.row-menu a{display:block;padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer;white-space:nowrap}
+.row-menu a:hover{background:#f7fbf9}
+.row-menu a.danger{color:#e53935}
+
+/* ══ EXPORT BUTTONS (Supplier Details) ═══════════════ */
+.exp-mini{display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:7px;padding:0 10px;height:29px;font-size:11px;font-weight:700;cursor:pointer;background:#fff;white-space:nowrap}
+.exp-mini svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.exp-xls{color:#1a6b3c;border-color:#b5ddc5}.exp-xls:hover{background:#eef8f2}
+.exp-pdf{color:#b3261e;border-color:#f3c6c1}.exp-pdf:hover{background:#fdecea}
+
+/* ══ SUPPLIER DETAILS CARD ═══════════════════════════ */
+.sd-top{display:flex;align-items:flex-start;gap:13px;padding:4px 17px 14px}
+.sd-av{width:52px;height:52px;border-radius:50%;background:#eef1ee;color:#5a6e65;display:flex;align-items:center;justify-content:center;font-family:'Quicksand',sans-serif;font-weight:700;font-size:16px;flex-shrink:0}
+.sd-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sd-name h3{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:700;color:var(--td)}
+.sd-tag{background:#e0effe;color:#2563eb;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.sd-contact{margin-top:7px;display:flex;flex-direction:column;gap:5px}
+.sd-contact div{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--tm)}
+.sd-contact svg{width:12px;height:12px;stroke:#9aada5;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sd-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)}
+.sd-cell{padding:11px 17px;border-bottom:1px solid var(--border)}
+.sd-cell:nth-child(odd){border-right:1px solid var(--border)}
+.sd-cell label{display:block;font-size:9.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.sd-cell span{font-size:12.5px;font-weight:700;color:var(--td)}
+
+/* ══ PRICE TREND ═════════════════════════════════════ */
+.pt-foot{display:flex;justify-content:space-between;padding:10px 17px 15px;font-size:11.5px;color:var(--tm);border-top:1px solid #f0f5f2;margin-top:4px}
+.pt-foot b{color:var(--td)}
+
+/* ══ QUICK ACTIONS ════════════════════════════════════ */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:6px 17px 17px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);border-radius:10px;padding:14px 6px;cursor:pointer;background:#fff;transition:all .12s;text-align:center}
+.qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
+.qa-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.qa-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-btn span{font-size:11px;font-weight:700;color:var(--td);line-height:1.25}
+
+/* ══ BOTTOM ROW ═════════════════════════════════════ */
+.bot2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+
+/* .footer rule now in shared-shell.css */
+
+/* ══ MODAL ════════════════════════════════════════════ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,27,21,.55);z-index:500;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease both}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;animation:popIn .2s ease both}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:2}
+.modal-hd h3{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td)}
+.modal-x{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl)}
+.modal-x:hover{background:var(--bg)}
+.modal-x svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.modal-bd{padding:20px 22px}
+.modal-ft{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border);position:sticky;bottom:0;background:#fff}
+.frm-row{display:flex;gap:12px;margin-bottom:14px}
+.frm-grp{flex:1;display:flex;flex-direction:column;gap:5px}
+.frm-grp label{font-size:11px;font-weight:700;color:var(--tm)}
+.frm-grp input,.frm-grp select{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none}
+.frm-grp input:focus,.frm-grp select:focus{border-color:#27ae60}
+.btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
+.btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
+
+/* fadeIn/popIn now come from shared-shell.css; fadeUp is page-specific */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card,.kc{animation:fadeUp .3s ease both}
+
+/* ══ TOAST ════════════════════════════════════════════
+   Renamed .toast → .sup-toast: shared-shell.css already defines a `.toast`
+   class (for the stacked toast system in app-state.js's toast()/showToast()).
+   This page keeps its own single-message toast + showToast() implementation
+   (used throughout the supplier CRUD/export flows below), so the class is
+   renamed to avoid colliding with the shared one. */
+.sup-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a2e25;color:#fff;font-size:13px;font-weight:600;padding:12px 20px;border-radius:10px;display:flex;align-items:center;gap:8px;z-index:600;opacity:0;pointer-events:none;transition:all .25s ease;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.sup-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.sup-toast svg{width:16px;height:16px;stroke:#2ecc71;fill:none;stroke-width:2.5;stroke-linecap:round}
+
+/* Notification/profile panel CSS, .sb-overlay removed — header.js/sidebar.js
+   now render #notifPanel/#userPanel/#sbOverlay using shared-shell.css's own
+   (dropdown-style) versions of these, not this page's slide-in-from-right design. */
+
+@media (max-width:900px){
+  .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .kc{min-width:180px;flex-shrink:0;scroll-snap-align:start}
+  .bot2{display:flex;flex-direction:column}
+  .card{overflow:hidden;min-width:0;max-width:100%}
+  .pg{flex-wrap:wrap;gap:8px}
+  table.tbl{display:block;overflow-x:auto;white-space:nowrap}
+}
+@media (max-width:480px){
+  .kc{min-width:160px}
+  .qa-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+  <div class="content">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row" id="kpiRow">
+      <div class="kc">
+        <div class="kc-ico ic-g">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <span class="kc-lbl">Total Suppliers</span>
+        <div class="kc-val"><span id="kpiTotal" data-target="16" data-decimals="0">0</span></div>
+        <div class="kc-sub">Active</div>
+        <div class="kc-sub2" id="kpiInactive">1 Inactive</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-g">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+        </div>
+        <span class="kc-lbl" id="kpiPurchLbl">Total Purchases (May 2026)</span>
+        <div class="kc-val"><span id="kpiPurch" data-target="88842">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg dn">▼ 6.3%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-p">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <span class="kc-lbl">Avg. Purchase Price (Blend)</span>
+        <div class="kc-val"><span id="kpiAvgPrice" data-target="916.67">0.00</span> <span class="u">ETB / kg</span></div>
+        <div class="kc-chg up">▲ 1.8%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-o">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <span class="kc-lbl">Suppliers This Month</span>
+        <div class="kc-val"><span id="kpiActiveMonth" data-target="7" data-decimals="0">0</span></div>
+        <div class="kc-sub">Placed orders</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-b">
+          <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <span class="kc-lbl" id="kpiPaidLbl">Amount Paid (May 2026)</span>
+        <div class="kc-val"><span id="kpiPaid" data-target="88842">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg dn">▼ 6.3%<span class="vs">vs Apr 2026</span></div>
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN AREA -->
+    <div class="bot2">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Supplier List -->
+        <div class="card">
+          <div class="pl-hd">
+            <div class="pl-hd-l">
+              <div class="card-ttl-ic">
+                <svg viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+              <div class="card-ttl">Supplier List</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div class="sup-search">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="supSearch" placeholder="Search supplier..." oninput="curPage=1;renderSupplierList()">
+              </div>
+              <select class="fsel" id="fCat" onchange="curPage=1;renderSupplierList()">
+                <option>All Categories</option>
+                <option>Grain</option><option>Packaging</option><option>Services</option><option>Utilities</option>
+              </select>
+              <select class="fsel" id="fStat" onchange="curPage=1;renderSupplierList()">
+                <option>All Statuses</option><option>Active</option><option>Inactive</option>
+              </select>
+              <button class="btn-new" onclick="openAddSupplierModal()">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add New Supplier
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Supplier Name</th><th>Category</th><th>Phone</th>
+              <th>Total Purchase (All Time)</th><th id="thMonth">This Month (May 2026)</th>
+              <th>Last Purchase</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="supTbody"></tbody>
+          </table>
+          </div>
+
+          <div class="pg">
+            <div class="pg-info" id="pgInfo">Showing 1 to 5 of 16 suppliers</div>
+            <div class="pg-ctrl" id="pgCtrl"></div>
+          </div>
+        </div>
+
+        <!-- Supplier Performance -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Supplier Performance <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px" id="perfMonthLbl">(May 2026)</span>
+            </div>
+            <button class="vall" onclick="showToast('Full supplier performance report coming soon')">View Full Report</button>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Supplier</th><th>Total Purchases (ETB)</th><th>% of Total</th>
+              <th>Avg. Price - Blend (ETB/kg)</th><th>Vs. Market Avg.</th>
+              <th>Orders This Month</th><th>On-Time Delivery</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>Awash Grain Suppliers</td><td>51,040.00</td><td>57.4%</td><td>916.67</td><td class="chg-dn">▼ 1.8%</td><td>2</td><td>100%</td></tr>
+              <tr><td>Ethiopia Milling PLC</td><td>31,450.00</td><td>35.4%</td><td>925.00</td><td class="chg-up">▲ 0.5%</td><td>1</td><td>100%</td></tr>
+              <tr><td>Adama Grain Traders</td><td>4,200.00</td><td>4.7%</td><td>930.00</td><td class="chg-up">▲ 1.0%</td><td>1</td><td>100%</td></tr>
+              <tr><td>Other Suppliers</td><td>2,152.00</td><td>2.5%</td><td>—</td><td>—</td><td>3</td><td>66.7%</td></tr>
+              <tr class="tot"><td>Total</td><td>88,842.00</td><td>100%</td><td>916.67</td><td class="chg-dn">▼ 1.8%</td><td>7</td><td>95.2%</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Supplier Details -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Supplier Details</div>
+            <div style="display:flex;gap:7px">
+              <div class="exp-mini exp-xls" onclick="exportSupplierExcel()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (Excel)
+              </div>
+              <div class="exp-mini exp-pdf" onclick="exportSupplierPDF()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (PDF)
+              </div>
+            </div>
+          </div>
+
+          <div id="supplierDetailsBody"></div>
+        </div>
+
+        <!-- Price Trend -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
+            <select class="rsel" id="ptRange" onchange="renderPriceTrend()">
+              <option>Last 6 Months</option><option>Last 12 Months</option>
+            </select>
+          </div>
+          <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
+          <div class="pt-foot">
+            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
+            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+          <div class="qa-grid">
+            <div class="qa-btn" onclick="openAddSupplierModal()">
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <span>Add New Supplier</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Opening supplier ledger...')">
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
+              <span>Supplier Ledger</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Generating purchase report...')">
+              <div class="qa-ic" style="background:#eef1ee"><svg viewBox="0 0 24 24" style="stroke:#5a6e65"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <span>Purchase Report</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Opening price comparison...')">
+              <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-4-4L3 15.6"/></svg></div>
+              <span>Price Comparison</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Opening supplier performance...')">
+              <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+              <span>Supplier Performance</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Opening top suppliers report...')">
+              <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+              <span>Top Suppliers Report</span>
+            </div>
+            <div class="qa-btn" onclick="exportAllSuppliersExcel()">
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span>Export Suppliers (Excel)</span>
+            </div>
+            <div class="qa-btn" onclick="exportAllSuppliersPDF()">
+              <div class="qa-ic" style="background:#fdecea"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span>Export Suppliers (PDF)</span>
+            </div>
+            <div class="qa-btn" onclick="showToast('Import Suppliers coming soon')">
+              <div class="qa-ic" style="background:#e0f5fa"><svg viewBox="0 0 24 24" style="stroke:#0891b2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+              <span>Import Suppliers</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</div>
+</div>
+
+<!-- #notifPanel / #userPanel now rendered by header.js -->
+
+<!-- ════ ADD/EDIT SUPPLIER MODAL ════ -->
+<div class="modal-overlay" id="supplierModalOverlay" onclick="if(event.target===this)closeAddSupplierModal()">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="supModalTitle">Add New Supplier</h3>
+      <div class="modal-x" onclick="closeAddSupplierModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <input type="hidden" id="supEditId">
+      <div class="frm-row">
+        <div class="frm-grp"><label>Supplier Name *</label><input type="text" id="supName" placeholder="e.g. Awash Grain Suppliers"></div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Category *</label>
+          <select id="supCategory"><option>Grain</option><option>Packaging</option><option>Services</option><option>Utilities</option><option>General</option></select>
+        </div>
+        <div class="frm-grp"><label>Status</label>
+          <select id="supStatus"><option>Active</option><option>Inactive</option></select>
+        </div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Phone</label><input type="text" id="supPhone" placeholder="+251 91 123 4111"></div>
+        <div class="frm-grp"><label>Email</label><input type="text" id="supEmail" placeholder="info@supplier.com"></div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Address</label><input type="text" id="supAddress" placeholder="Merkato, Addis Ababa, Ethiopia"></div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Payment Terms</label>
+          <select id="supTerms"><option>Cash on Delivery</option><option>Net 7 days</option><option>Net 15 days</option><option>Net 30 days</option></select>
+        </div>
+        <div class="frm-grp"><label>Preferred Currency</label>
+          <select id="supCurrency"><option>ETB</option><option>USD</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeAddSupplierModal()">Cancel</button>
+      <button class="btn-pri" onclick="saveSupplier()">Save Supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ TOAST ════ -->
+<div class="sup-toast" id="toast">
+  <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+renderHeader({
+  title: 'Suppliers',
+  subtitle: 'Manage suppliers and purchase history',
+  showMonthPicker: true,
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+  selectedMonth: 'May 2026',
+  onMonthChange: () => { renderAll(); },
+  notifications: [
+    { type:'g', title:'New Supplier Added', sub:'Adama Grain Traders was added to your supplier list', time:'2 hours ago' },
+    { type:'o', title:'Price Increase Alert', sub:'Ethiopia Milling PLC raised Injera Blend price by 0.5%', time:'1 day ago' }
+  ]
+});
+
+/* ════════════════ DATA MODEL ════════════════
+   Mirrors spec §5 TABLE 44 `suppliers`: id, name, category, contact_phone,
+   contact_email, address, payment_terms, is_active. Purchase-derived figures
+   (allTime / month / lastPurchase / priceHistory) are computed from the
+   `purchases` table in production; seeded here with figures matching the
+   reference design so the module renders identically before Supabase is live. */
+let suppliers = [
+  {id:'s1', name:'Awash Grain Suppliers', category:'Grain', phone:'+251 91 123 4111', email:'info@awashgrain.com', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:142350.00, month:51040.00, lastPurchase:'2026-05-29', unit:'kg', avgPriceBlend:916.67, vsMarketPct:-1.8,
+    priceHistory:[935.00,938.33,930.00,928.33,933.33,916.67]},
+  {id:'s2', name:'Ethiopia Milling PLC', category:'Grain', phone:'+251 91 234 2222', email:'sales@ethiomilling.com', address:'Kaliti, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:98600.00, month:31450.00, lastPurchase:'2026-05-28', unit:'kg', avgPriceBlend:925.00, vsMarketPct:0.5,
+    priceHistory:[940.00,936.00,922.00,918.00,927.50,925.00]},
+  {id:'s3', name:'Alemu Packaging', category:'Packaging', phone:'+251 91 234 3333', email:'orders@alemupack.com', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:37820.00, month:5800.00, lastPurchase:'2026-05-27', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[3.60,3.65,3.70,3.75,3.80,3.90]},
+  {id:'s4', name:'Habesha Transport', category:'Services', phone:'+251 91 234 4444', email:'dispatch@habeshatransport.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:18750.00, month:2100.00, lastPurchase:'2026-05-26', unit:'trip', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[1900,1950,2000,2050,2080,2100]},
+  {id:'s5', name:'Tigray Water Supply', category:'Utilities', phone:'+251 91 234 5555', email:'info@tigraywater.com', address:'Piassa, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:12550.00, month:850.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[780,800,820,830,840,850]},
+  {id:'s6', name:'Adama Grain Traders', category:'Grain', phone:'+251 91 234 6666', email:'contact@adamagrain.com', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+    allTime:29400.00, month:4200.00, lastPurchase:'2026-05-24', unit:'kg', avgPriceBlend:930.00, vsMarketPct:1.0,
+    priceHistory:[918,920,924,926,928,930]},
+  {id:'s7', name:'Berhan Bank', category:'Services', phone:'+251 11 551 7171', email:'support@berhanbank.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:4820.00, month:306.39, lastPurchase:'2026-05-06', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[210,180,240,190,220,306]},
+  {id:'s8', name:'Ethio Electric', category:'Utilities', phone:'+251 11 552 0202', email:'billing@ethioelectric.gov.et', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:21300.00, month:7052.30, lastPurchase:'2026-05-06', unit:'month', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[1732,2376,1776,1662,1618,7052]},
+  {id:'s9', name:'Yimaru Transport', category:'Services', phone:'+251 91 234 7777', email:'info@yimarutransport.com', address:'Gerji, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:9840.00, month:1138.91, lastPurchase:'2026-05-02', unit:'trip', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[1800,1650,1400,1200,1100,1139]},
+  {id:'s10', name:'Zemen Packaging', category:'Packaging', phone:'+251 91 234 8888', email:'sales@zemenpack.com', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:15680.00, month:1876.40, lastPurchase:'2026-05-15', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[1.70,1.75,1.80,1.85,1.90,1.93]},
+  {id:'s11', name:'Addis Water Utility', category:'Utilities', phone:'+251 11 553 0303', email:'billing@addiswater.gov.et', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:6600.00, month:1200.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[900,950,1000,1100,1150,1200]},
+  {id:'s12', name:'Bole Feed Co', category:'Grain', phone:'+251 91 234 9999', email:'info@bolefeed.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+    allTime:22150.00, month:0, lastPurchase:'2026-04-18', unit:'kg', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[905,908,910,912,915,0]},
+  {id:'s13', name:'Merkato Sacks Ltd', category:'Packaging', phone:'+251 91 235 1111', email:'sales@merkatosacks.com', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:8900.00, month:0, lastPurchase:'2026-04-11', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[3.50,3.55,3.60,3.62,3.65,0]},
+  {id:'s14', name:'Nile Cleaning Services', category:'Services', phone:'+251 91 235 2222', email:'contact@nileclean.com', address:'Lideta, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:5400.00, month:0, lastPurchase:'2026-04-09', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[400,420,440,450,460,0]},
+  {id:'s15', name:'Kaleb Maintenance', category:'Services', phone:'+251 91 235 3333', email:'kaleb.maint@gmail.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:3200.00, month:0, lastPurchase:'2026-03-22', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[300,310,320,0,0,0]},
+  {id:'s16', name:'Sunrise Grain Depot', category:'Grain', phone:'+251 91 235 4444', email:'info@sunrisegrain.com', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:false,
+    allTime:11400.00, month:0, lastPurchase:'2026-01-14', unit:'kg', avgPriceBlend:null, vsMarketPct:null,
+    priceHistory:[895,900,905,0,0,0]}
+];
+const priceMonths = ['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
+let selectedSupplierId = 's1';
+let curPage = 1;
+const PAGE_SIZE = 5;
+let priceChart = null;
+
+function supplierById(id){ return suppliers.find(s=>s.id===id); }
+function fmt(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function catClass(cat){
+  return {Grain:'cat-grain',Packaging:'cat-packaging',Services:'cat-services',Utilities:'cat-utilities'}[cat] || 'cat-general';
+}
+function initials(name){
+  return name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+
+/* ════════════════ SUPPLIER LIST + PAGINATION ════════════════ */
+function filteredSuppliers(){
+  const q = (document.getElementById('supSearch').value||'').toLowerCase();
+  const cat = document.getElementById('fCat').value;
+  const stat = document.getElementById('fStat').value;
+  return suppliers.filter(s=>{
+    if(cat!=='All Categories' && s.category!==cat) return false;
+    if(stat==='Active' && !s.isActive) return false;
+    if(stat==='Inactive' && s.isActive) return false;
+    if(q){
+      const hay = (s.name+' '+s.category+' '+s.phone).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderSupplierList(){
+  const list = filteredSuppliers();
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if(curPage > totalPages) curPage = totalPages;
+  const start = (curPage-1) * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+
+  const tbody = document.getElementById('supTbody');
+  if(pageItems.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:24px">No suppliers match your filters.</td></tr>`;
+  } else {
+    tbody.innerHTML = pageItems.map(s => `
+      <tr class="sup-row ${s.id===selectedSupplierId?'sel':''}" onclick="selectSupplier('${s.id}')">
+        <td style="font-weight:700">${s.name}</td>
+        <td><span class="pill-sm ${catClass(s.category)}">${s.category}</span></td>
+        <td>${s.phone||'—'}</td>
+        <td>${fmt(s.allTime)}</td>
+        <td style="font-weight:700;color:#27ae60">${fmt(s.month)}</td>
+        <td>${fmtDate(s.lastPurchase)}</td>
+        <td><span class="pill-sm ${s.isActive?'pill-done':'pill-rej'}">${s.isActive?'Active':'Inactive'}</span></td>
+        <td onclick="event.stopPropagation()">
+          <div class="act-dots" onclick="toggleRowMenu(event,'${s.id}')">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg>
+            <div class="row-menu" id="menu-${s.id}">
+              <a onclick="editSupplier('${s.id}')">Edit</a>
+              <a onclick="selectSupplier('${s.id}');closeAllRowMenus()">View Details</a>
+              <a onclick="toggleSupplierActive('${s.id}')">${s.isActive?'Deactivate':'Reactivate'}</a>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('pgInfo').textContent =
+    list.length===0 ? 'No suppliers found' :
+    `Showing ${start+1} to ${Math.min(start+PAGE_SIZE,list.length)} of ${list.length} suppliers`;
+
+  const ctrl = document.getElementById('pgCtrl');
+  let html = `<div class="pg-b" onclick="gotoPage(${curPage-1})"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>`;
+  for(let p=1; p<=totalPages; p++){
+    html += `<div class="pg-b ${p===curPage?'act':''}" onclick="gotoPage(${p})">${p}</div>`;
+  }
+  html += `<div class="pg-b" onclick="gotoPage(${curPage+1})"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>`;
+  ctrl.innerHTML = html;
+}
+function gotoPage(p){
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers().length / PAGE_SIZE));
+  if(p<1||p>totalPages) return;
+  curPage = p;
+  renderSupplierList();
+}
+
+/* ════════════════ ROW ACTIONS MENU ════════════════ */
+function toggleRowMenu(ev, id){
+  ev.stopPropagation();
+  const menu = document.getElementById('menu-'+id);
+  const isOpen = menu.classList.contains('show');
+  closeAllRowMenus();
+  menu.classList.toggle('show', !isOpen);
+}
+function closeAllRowMenus(){
+  document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
+}
+document.addEventListener('click', closeAllRowMenus);
+
+function toggleSupplierActive(id){
+  const s = supplierById(id);
+  s.isActive = !s.isActive;
+  saveSupplierToSupabase(s);
+  renderSupplierList();
+  renderKPIs();
+  if(id===selectedSupplierId) renderDetails(s);
+  showToast(s.isActive ? 'Supplier reactivated' : 'Supplier deactivated');
+}
+
+/* ════════════════ SUPPLIER DETAILS PANEL ════════════════ */
+function selectSupplier(id){
+  selectedSupplierId = id;
+  renderSupplierList();
+  renderDetails(supplierById(id));
+  renderPriceTrend();
+}
+
+function renderDetails(s){
+  const html = `
+    <div class="sd-top">
+      <div class="sd-av">${initials(s.name)}</div>
+      <div style="min-width:0">
+        <div class="sd-name">
+          <h3>${s.name}</h3>
+          <span class="sd-tag">${s.category} Supplier</span>
+        </div>
+        <div class="sd-contact">
+          <div><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.34 1.9.62 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.28 1.85.49 2.81.62A2 2 0 0122 16.92z"/></svg>${s.phone||'—'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${s.email||'—'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>${s.address||'—'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="sd-grid">
+      <div class="sd-cell"><label>Category</label><span>${s.category} Supplier</span></div>
+      <div class="sd-cell"><label>Total Purchases (All Time)</label><span>${fmt(s.allTime)} ETB</span></div>
+      <div class="sd-cell"><label>Payment Terms</label><span>${s.terms}</span></div>
+      <div class="sd-cell"><label>This Month</label><span>${fmt(s.month)} ETB</span></div>
+      <div class="sd-cell"><label>Preferred Currency</label><span>${s.currency}</span></div>
+      <div class="sd-cell"><label>Last Purchase</label><span>${fmtDate(s.lastPurchase)}</span></div>
+      <div class="sd-cell"><label>Status</label><span>${s.isActive?'Active':'Inactive'}</span></div>
+      <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
+    </div>
+  `;
+  document.getElementById('supplierDetailsBody').innerHTML = html;
+}
+
+/* ════════════════ PRICE TREND CHART ════════════════ */
+function renderPriceTrend(){
+  const s = supplierById(selectedSupplierId);
+  const unitLbl = s.category==='Grain' ? 'ETB / kg' : (s.unit==='pcs' ? 'ETB / pc' : 'ETB');
+  document.getElementById('ptTitle').innerHTML = `Price Trend (${s.category==='Grain' ? 'Injera Blend' : s.name})<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">${unitLbl}</span>`;
+
+  const data = s.priceHistory;
+  const lastVal = data[data.length-1];
+  const prevVal = data[data.length-2] || lastVal;
+  const marketAvg = s.category==='Grain' ? 933.33 : lastVal;
+  const vsMarket = s.vsMarketPct;
+
+  document.getElementById('ptMarketAvg').innerHTML = s.category==='Grain'
+    ? `Market Average (May 2026): <b>${fmt(marketAvg)} ETB/kg</b>`
+    : `Latest recorded price: <b>${fmt(lastVal)} ${unitLbl}</b>`;
+  document.getElementById('ptYouPay').innerHTML = s.category==='Grain'
+    ? `You Pay: <b>${fmt(lastVal)} ETB/kg</b> <span class="${vsMarket<0?'chg-dn':'chg-up'}">${vsMarket<0?'▼':'▲'} ${Math.abs(vsMarket)}%</span>`
+    : `Change vs prior month: <span class="${lastVal<prevVal?'chg-dn':'chg-up'}">${lastVal<prevVal?'▼':'▲'} ${prevVal? Math.abs(((lastVal-prevVal)/prevVal)*100).toFixed(1):'0.0'}%</span>`;
+
+  const ctx = document.getElementById('priceTrendChart').getContext('2d');
+  if(priceChart) priceChart.destroy();
+  priceChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: priceMonths,
+      datasets:[{
+        data: data,
+        borderColor:'#27ae60',
+        backgroundColor:'rgba(39,174,96,.08)',
+        borderWidth:2.5,
+        pointRadius:4,
+        pointBackgroundColor:'#27ae60',
+        pointBorderColor:'#fff',
+        pointBorderWidth:2,
+        tension:.35,
+        fill:true
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>fmt(c.parsed.y)+' '+unitLbl}} },
+      scales:{
+        y:{ grid:{color:'#f0f5f2'}, ticks:{font:{size:10},color:'#9aada5'} },
+        x:{ grid:{display:false}, ticks:{font:{size:10},color:'#9aada5'} }
+      }
+    }
+  });
+}
+
+/* ════════════════ KPI ANIMATIONS ════════════════ */
+function animateCount(el, decimals){
+  const target = parseFloat(el.getAttribute('data-target'));
+  const dur = 900; const start = performance.now();
+  function step(now){
+    const p = Math.min(1, (now-start)/dur);
+    const eased = 1 - Math.pow(1-p, 3);
+    el.textContent = (target*eased).toLocaleString('en-US',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function renderKPIs(){
+  const inactiveCount = suppliers.filter(s=>!s.isActive).length;
+  document.getElementById('kpiTotal').setAttribute('data-target', suppliers.length);
+  document.getElementById('kpiInactive').textContent = inactiveCount + (inactiveCount===1?' Inactive':' Inactive');
+  document.querySelectorAll('[data-target]').forEach(el=>{
+    const decimals = el.getAttribute('data-decimals')==='0' ? 0 : 2;
+    animateCount(el, decimals);
+  });
+}
+
+/* ════════════════ MONTH LABEL SYNC ════════════════
+   Stepping the month select is now handled by header.js's built-in prev/next
+   arrows, which call onMonthChange (wired to renderAll() above) after moving
+   the selection — chgM() is no longer needed. */
+function renderAll(){
+  const m = document.getElementById('msel').value;
+  document.getElementById('kpiPurchLbl').textContent = `Total Purchases (${m})`;
+  document.getElementById('kpiPaidLbl').textContent = `Amount Paid (${m})`;
+  document.getElementById('thMonth').textContent = `This Month (${m})`;
+  document.getElementById('perfMonthLbl').textContent = `(${m})`;
+  renderSupplierList();
+  renderDetails(supplierById(selectedSupplierId));
+  renderPriceTrend();
+}
+/* ════════════════ ADD / EDIT SUPPLIER MODAL ════════════════ */
+function openAddSupplierModal(){
+  document.getElementById('supModalTitle').textContent = 'Add New Supplier';
+  document.getElementById('supEditId').value = '';
+  document.getElementById('supName').value = '';
+  document.getElementById('supCategory').value = 'Grain';
+  document.getElementById('supStatus').value = 'Active';
+  document.getElementById('supPhone').value = '';
+  document.getElementById('supEmail').value = '';
+  document.getElementById('supAddress').value = '';
+  document.getElementById('supTerms').value = 'Cash on Delivery';
+  document.getElementById('supCurrency').value = 'ETB';
+  document.getElementById('supplierModalOverlay').classList.add('show');
+}
+function editSupplier(id){
+  closeAllRowMenus();
+  const s = supplierById(id);
+  document.getElementById('supModalTitle').textContent = 'Edit Supplier';
+  document.getElementById('supEditId').value = s.id;
+  document.getElementById('supName').value = s.name;
+  document.getElementById('supCategory').value = s.category;
+  document.getElementById('supStatus').value = s.isActive ? 'Active' : 'Inactive';
+  document.getElementById('supPhone').value = s.phone||'';
+  document.getElementById('supEmail').value = s.email||'';
+  document.getElementById('supAddress').value = s.address||'';
+  document.getElementById('supTerms').value = s.terms||'Cash on Delivery';
+  document.getElementById('supCurrency').value = s.currency||'ETB';
+  document.getElementById('supplierModalOverlay').classList.add('show');
+}
+function closeAddSupplierModal(){
+  document.getElementById('supplierModalOverlay').classList.remove('show');
+}
+function saveSupplier(){
+  const name = document.getElementById('supName').value.trim();
+  if(!name){ showToast('Enter a supplier name'); return; }
+  const editId = document.getElementById('supEditId').value;
+  const dupe = suppliers.some(s=>s.name.toLowerCase()===name.toLowerCase() && s.id!==editId);
+  if(dupe){ showToast('Supplier already exists'); return; }
+
+  const fields = {
+    name,
+    category: document.getElementById('supCategory').value,
+    isActive: document.getElementById('supStatus').value==='Active',
+    phone: document.getElementById('supPhone').value.trim(),
+    email: document.getElementById('supEmail').value.trim(),
+    address: document.getElementById('supAddress').value.trim(),
+    terms: document.getElementById('supTerms').value,
+    currency: document.getElementById('supCurrency').value
+  };
+
+  let s;
+  if(editId){
+    s = supplierById(editId);
+    Object.assign(s, fields);
+  } else {
+    s = Object.assign({
+      id: 's'+Date.now(),
+      allTime:0, month:0, lastPurchase:new Date().toISOString().slice(0,10),
+      unit:'kg', avgPriceBlend:null, vsMarketPct:null,
+      priceHistory:[0,0,0,0,0,0]
+    }, fields);
+    suppliers.push(s);
+  }
+  saveSupplierToSupabase(s);
+  closeAddSupplierModal();
+  renderSupplierList();
+  renderKPIs();
+  showToast(editId ? 'Supplier updated' : 'Supplier added');
+}
+
+/* ════════════════ EXPORT (Excel = CSV, PDF = html2canvas+jsPDF) ════════════════ */
+function exportAllSuppliersExcel(){
+  let csv = 'Name,Category,Phone,Email,Address,Payment Terms,Total Purchases (All Time),This Month,Last Purchase,Status\n';
+  suppliers.forEach(s=>{
+    csv += [s.name,s.category,s.phone,s.email,s.address,s.terms,s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
+      .map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',') + '\n';
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'suppliers.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported '+suppliers.length+' suppliers to Excel (CSV)');
+}
+function exportSupplierExcel(){
+  const s = supplierById(selectedSupplierId);
+  let csv = 'Field,Value\n';
+  csv += `Name,"${s.name}"\n Category,"${s.category}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = s.name.replace(/\s+/g,'_')+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported '+s.name+' to Excel (CSV)');
+}
+async function exportSupplierPDF(){
+  showToast('Generating PDF...');
+  const card = document.getElementById('supplierDetailsBody');
+  try{
+    const canvas = await html2canvas(card, {scale:3, backgroundColor:'#ffffff'});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const imgW = pageW - 60;
+    const imgH = canvas.height * (imgW / canvas.width);
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(14);
+    pdf.text('Supplier Details — ' + supplierById(selectedSupplierId).name, 30, 34);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 30, 48, imgW, imgH);
+    pdf.save(supplierById(selectedSupplierId).name.replace(/\s+/g,'_')+'.pdf');
+    showToast('PDF exported');
+  }catch(err){
+    showToast('PDF export failed: '+err.message);
+  }
+}
+async function exportAllSuppliersPDF(){
+  showToast('Generating PDF...');
+  try{
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(15);
+    pdf.text('Supplier List — Mena Injera & Derkosh BMS', 30, 34);
+    pdf.setFontSize(9); pdf.setFont('helvetica','normal');
+    let y = 58;
+    const cols = [30,180,260,360,430,500,570,650];
+    const heads = ['Name','Category','Phone','All Time','This Month','Last Purchase','Status'];
+    pdf.setFont('helvetica','bold');
+    heads.forEach((h,i)=>pdf.text(h, cols[i], y));
+    pdf.setFont('helvetica','normal');
+    y += 16;
+    suppliers.forEach(s=>{
+      if(y > 560){ pdf.addPage(); y = 40; }
+      pdf.text(s.name.slice(0,22), cols[0], y);
+      pdf.text(s.category, cols[1], y);
+      pdf.text(s.phone||'—', cols[2], y);
+      pdf.text(fmt(s.allTime), cols[3], y);
+      pdf.text(fmt(s.month), cols[4], y);
+      pdf.text(fmtDate(s.lastPurchase), cols[5], y);
+      pdf.text(s.isActive?'Active':'Inactive', cols[6], y);
+      y += 15;
+    });
+    pdf.save('suppliers.pdf');
+    showToast('PDF exported');
+  }catch(err){
+    showToast('PDF export failed: '+err.message);
+  }
+}
+
+/* ════════════════ TOAST ════════════════ */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* toggleSidebar/closeSidebar (sidebar.js) and the notif/user panel toggles
+   (header.js) now live in the shared files; this page no longer defines them. */
+
+/* ════════════════ SUPABASE WIRING ════════════════
+   suppliers table per spec §5 TABLE 44. Falls back silently to the seeded
+   local data above if the table/columns aren't present yet or the network
+   is unavailable — the module stays fully usable either way. */
+const SUPPLIERS_TABLE = 'suppliers';
+
+async function loadSuppliersFromSupabase(){
+  try{
+    const { data, error } = await db.from(SUPPLIERS_TABLE).select('*').order('name');
+    if(error) throw error;
+    if(data && data.length > 0){
+      suppliers = data.map(r=>{
+        const existing = suppliers.find(s=>s.name===r.name) || {};
+        return {
+          id: r.id,
+          _dbId: r.id,
+          name: r.name,
+          category: r.category || 'General',
+          phone: r.contact_phone || existing.phone || '',
+          email: r.contact_email || existing.email || '',
+          address: r.address || existing.address || '',
+          terms: r.payment_terms || existing.terms || 'Cash on Delivery',
+          currency: existing.currency || 'ETB',
+          isActive: r.is_active !== false,
+          allTime: existing.allTime || 0,
+          month: existing.month || 0,
+          lastPurchase: existing.lastPurchase || new Date().toISOString().slice(0,10),
+          unit: existing.unit || 'kg',
+          avgPriceBlend: existing.avgPriceBlend ?? null,
+          vsMarketPct: existing.vsMarketPct ?? null,
+          priceHistory: existing.priceHistory || [0,0,0,0,0,0]
+        };
+      });
+      if(!suppliers.some(s=>s.id===selectedSupplierId)) selectedSupplierId = suppliers[0].id;
+      showToast('Supplier list loaded from database ('+suppliers.length+' records)');
+    }
+  }catch(err){
+    console.log('Supabase suppliers unavailable, using local seed data:', err.message);
+  }
+}
+
+async function saveSupplierToSupabase(s){
+  try{
+    const row = {
+      name: s.name,
+      category: s.category,
+      contact_phone: s.phone || null,
+      contact_email: s.email || null,
+      address: s.address || null,
+      payment_terms: s.terms || null,
+      is_active: s.isActive !== false
+    };
+    if(s._dbId){
+      const { error } = await db.from(SUPPLIERS_TABLE).update(row).eq('id', s._dbId);
+      if(error) throw error;
+    } else {
+      const { data, error } = await db.from(SUPPLIERS_TABLE).insert(row).select().single();
+      if(error) throw error;
+      if(data){ s._dbId = data.id; s.id = data.id; }
+    }
+  }catch(err){
+    console.log('Supabase supplier save failed (local only):', err.message);
+    showToast('⚠ Could not save to database — kept locally. '+err.message);
+  }
+}
+
+/* Aggregates real purchase history per supplier from the `purchases` table
+   (spec §5) when available — overrides the seeded totals/price history above
+   with live figures, keyed by supplier_id FK. */
+async function loadPurchaseAggregatesFromSupabase(){
+  try{
+    const { data, error } = await db.from('purchases').select('supplier_id,date,quantity,unit_price,total_cost,item_id').eq('is_deleted', false);
+    if(error) throw error;
+    if(!data || data.length===0) return;
+    suppliers.forEach(s=>{
+      const dbId = s._dbId || s.id;
+      const rows = data.filter(r=>r.supplier_id===dbId);
+      if(rows.length===0) return;
+      s.allTime = rows.reduce((sum,r)=>sum+parseFloat(r.total_cost||0), 0);
+      const sorted = rows.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+      s.lastPurchase = sorted[0].date;
+      const monthKey = sorted[0].date.slice(0,7);
+      const monthRows = rows.filter(r=>r.date.slice(0,7)===monthKey);
+      s.month = monthRows.reduce((sum,r)=>sum+parseFloat(r.total_cost||0), 0);
+    });
+  }catch(err){
+    console.log('Supabase purchases aggregation unavailable, using seed data:', err.message);
+  }
+}
+
+/* ════════════════ INIT ════════════════ */
+async function init(){
+  await loadSuppliersFromSupabase();
+  await loadPurchaseAggregatesFromSupabase();
+  renderKPIs();
+  renderSupplierList();
+  renderDetails(supplierById(selectedSupplierId));
+  renderPriceTrend();
+}
+init();
+</script>
+</body>
+</html>

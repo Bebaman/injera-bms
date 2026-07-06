@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory — Mena Injera &amp; Derkosh BMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script>
+const { createClient } = supabase;
+const db = createClient(
+  'https://mfxkkaavgzyttasgqnmw.supabase.co',
+  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
+);
+</script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
+
+/* ══ KPI ROW ════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;padding-top:4px}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e5f5ed}.ic-g svg{stroke:#27ae60}
+.ic-t{background:#e0f2ee}.ic-t svg{stroke:#0d9b7a}
+.ic-o{background:#fef3e2}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdecea}.ic-r svg{stroke:#e53935}
+.ic-b{background:#e0effe}.ic-b svg{stroke:#2563eb}
+.ic-c{background:#e0f5fa}.ic-c svg{stroke:#0891b2}
+.ic-p{background:#f3e8fd}.ic-p svg{stroke:#8b5cf6}
+.kc-lbl{font-size:11px;color:var(--tl);font-weight:600;display:block;margin-bottom:4px;white-space:nowrap}
+.kc-val{font-family:'Quicksand',sans-serif;font-size:19px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px}
+.kc-val .u{font-size:11px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:11px;font-weight:600;margin-top:5px;display:flex;align-items:center;gap:2px}
+.up{color:#27ae60}.dn{color:#e53935}
+.vs{color:var(--tl);font-weight:500;font-size:10.5px;margin-left:2px}
+.kc-sub{font-size:11px;font-weight:600;margin-top:5px;color:var(--tl)}
+.kc-pend{font-size:11px;font-weight:700;margin-top:5px;color:#f59e0b}
+
+/* ══ CARD ═══════════════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;flex-wrap:wrap;gap:10px}
+.card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.info-ic{width:14px;height:14px;border-radius:50%;border:1.4px solid var(--tl);color:var(--tl);font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;cursor:default}
+.vall{font-size:12px;font-weight:600;color:#27ae60;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:3px}
+.vall svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.rsel{border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none}
+.chart-box{padding:0 17px 16px}
+.leg{display:flex;gap:16px;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--tm)}
+.leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* ══ TABS (Monthly / All-Time / Price History) ══════ */
+.inv-tabs{display:flex;gap:6px;padding:0 17px 12px;flex-wrap:wrap}
+.inv-tab{font-size:12.5px;font-weight:700;padding:8px 15px;border-radius:8px;cursor:pointer;color:var(--tm);background:#f0f4f2;border:1px solid transparent;white-space:nowrap;transition:all .12s}
+.inv-tab.active{background:#1d5c38;color:#fff}
+.inv-tab:hover:not(.active){background:#e5ece8}
+.exp-btns{display:flex;gap:8px}
+.exp-btn{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:0 13px;height:32px;font-size:12px;font-weight:700;cursor:pointer;background:#fff;white-space:nowrap;transition:background .12s}
+.exp-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.exp-btn.xls{color:#1a6b3c;border-color:#bcdece}
+.exp-btn.xls:hover{background:#eef8f2}
+.exp-btn.pdf{color:#b3261e;border-color:#f6cdc9}
+.exp-btn.pdf:hover{background:#fdecea}
+
+/* ══ TABLE ══════════════════════════════════════════ */
+.tbl-inv{width:100%;border-collapse:collapse;font-size:12px}
+.tbl-inv th{padding:9px 13px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.tbl-inv td{padding:10px 13px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl-inv tr:hover td{background:#f7fbf9}
+.tbl-inv .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none;color:#27ae60}
+.tbl-inv .tot td:first-child{color:#27ae60}
+.wac-note{font-size:11px;color:var(--tl);padding:10px 17px 14px}
+
+/* Small history-table used for Price History / Recent Purchases sidebars */
+.tbl-sb2{width:100%;border-collapse:collapse;font-size:12px}
+.tbl-sb2 th{padding:7px 12px;text-align:left;font-size:9px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px}
+.tbl-sb2 td{padding:8px 12px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+.tbl-sb2 tr:hover td{background:#f7fbf9}
+
+/* ══ STATUS PILLS ═══════════════════════════════════ */
+.pill-sm{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px}
+.pill-ok{background:#e5f5ed;color:#1a6b3c}
+.pill-low{background:#fef3e2;color:#9a6a0a}
+.pill-reorder{background:#fdecea;color:#b3261e}
+.pill-expiring{background:#f3e8fd;color:#6d28d9}
+
+/* ══ BOTTOM ROW ═════════════════════════════════════ */
+.bot2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:16px}
+
+/* ══ PRICE HISTORY CARD ══════════════════════════════ */
+.ph-hd-ctrl{display:flex;gap:8px}
+.ph-body{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:0 17px 6px}
+.ph-note{margin:6px 17px 14px;background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:9px 13px;font-size:11.5px;color:var(--tm)}
+
+/* ══ STOCK ALERTS ═══════════════════════════════════ */
+.alert-row{display:flex;align-items:flex-start;gap:11px;padding:11px 17px;border-bottom:1px solid #f0f5f2}
+.alert-row:last-child{border-bottom:none}
+.alert-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.alert-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.al-r{background:#fdecea;color:#e53935}
+.al-o{background:#fef3e2;color:#f59e0b}
+.al-p{background:#f3e8fd;color:#8b5cf6}
+.alert-txt{flex:1;min-width:0}
+.alert-txt h5{font-size:12px;font-weight:700;color:var(--td);margin-bottom:2px}
+.alert-txt p{font-size:11px;color:var(--tm);line-height:1.4}
+.alert-pill-wrap{flex-shrink:0}
+
+/* ══ DONUT ══════════════════════════════════════════ */
+.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;gap:14px}
+.dnut{position:relative;flex-shrink:0}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:80px}
+.dnut-lbl span{font-size:9px;color:var(--tl);font-weight:600;display:block;line-height:1.2}
+.dnut-lbl strong{font-family:'Quicksand',sans-serif;font-size:11.5px;font-weight:700;color:var(--td);display:block;line-height:1.3}
+.exp-leg{font-size:10px;flex:1;display:flex;flex-direction:column;gap:6px}
+.exp-r{display:flex;align-items:center;gap:5px}
+.exp-d{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.exp-n{color:var(--tm);flex:1}
+.exp-v{font-weight:700;color:var(--td)}
+.exp-p{color:var(--tl);margin-left:2px}
+
+/* ══ QUICK ACTIONS ══════════════════════════════════ */
+.qa-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;padding:6px 17px 17px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:14px 6px;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:pointer;transition:all .12s;text-align:center}
+.qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
+.qa-ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.qa-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-lbl{font-size:10.5px;font-weight:700;color:var(--td)}
+
+/* ══ ANIMATIONS (page-specific card/KPI entrance) ══════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.kc{animation:fadeUp .45s ease both}
+.kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
+.kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
+.card{animation:fadeUp .5s ease both}
+.kc{transition:transform .15s ease,box-shadow .15s ease}
+.kc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
+.exp-btn,.inv-tab,.qa-btn{transition:all .15s ease}
+
+@media (max-width:900px){
+  .content{padding:12px;max-width:100vw;overflow-x:hidden}
+  .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .kc{min-width:180px;flex-shrink:0;scroll-snap-align:start}
+  .bot2{display:flex;flex-direction:column}
+  .card{overflow:hidden;min-width:0;max-width:100%}
+  .ph-body{grid-template-columns:1fr}
+  div[style*="grid-template-columns:1fr 330px"]{display:flex !important;flex-direction:column}
+  div[style*="grid-template-columns:1.4fr 1fr"]{display:flex !important;flex-direction:column}
+  .qa-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:480px){
+  .kc{min-width:160px}
+}
+</style>
+</head>
+<body>
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+  <div class="content">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row" id="kpiRow">
+      <div class="kc">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+        <span class="kc-lbl">Total Items</span>
+        <div class="kc-val"><span id="kpiItems" data-target="8" data-decimals="0">0</span></div>
+        <div class="kc-sub">Active Items</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+        <span class="kc-lbl">Total Stock Value</span>
+        <div class="kc-val"><span id="kpiValue" data-target="63214">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg up">▲ 4.2%<span class="vs">vs Apr 2026</span></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
+        <span class="kc-lbl">Total Qty in Stock</span>
+        <div class="kc-val"><span id="kpiQty" data-target="432.50">0.00</span></div>
+        <div class="kc-sub">All Units</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <span class="kc-lbl">Low Stock Items</span>
+        <div class="kc-val"><span id="kpiLow" data-target="2" data-decimals="0">0</span></div>
+        <div class="kc-sub">Need Attention</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-r"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <span class="kc-lbl">Reorder Now Items</span>
+        <div class="kc-val"><span id="kpiReorder" data-target="1" data-decimals="0">0</span></div>
+        <div class="kc-sub">Urgent Reorder</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-p"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <span class="kc-lbl">Expiring Soon</span>
+        <div class="kc-val"><span id="kpiExpiring" data-target="2" data-decimals="0">0</span></div>
+        <div class="kc-sub">Within 7 Days</div>
+      </div>
+    </div>
+
+    <!-- INVENTORY OVERVIEW -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd">
+        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(May 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
+        <div class="exp-btns">
+          <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
+          <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
+        </div>
+      </div>
+
+      <div class="inv-tabs">
+        <div class="inv-tab active" id="tabMonthly" onclick="switchTab('monthly')">Monthly View</div>
+        <div class="inv-tab" id="tabAllTime" onclick="switchTab('alltime')">All-Time Perpetual</div>
+        <div class="inv-tab" id="tabPrice" onclick="switchTab('price')">Price History</div>
+      </div>
+
+      <div style="overflow-x:auto" id="invTableWrap">
+        <!-- table injected by renderInvTable() -->
+      </div>
+      <div class="wac-note" id="wacNote">WAC = Weighted Average Cost</div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN AREA -->
+    <div style="display:grid;grid-template-columns:1fr 330px;gap:14px;align-items:start">
+
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
+          <!-- Price History -->
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-ttl">Price History <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px">(Weighted Average Cost per Unit)</span></div>
+              <div class="ph-hd-ctrl">
+                <select class="rsel" id="phItemSel" onchange="renderPriceHistory()">
+                  <option value="Injera Blend" data-unit="kg" selected>Injera Blend (kg)</option>
+                  <option value="Corn" data-unit="kg">Corn (kg)</option>
+                  <option value="Gomen Zere" data-unit="kg">Gomen Zere (kg)</option>
+                  <option value="Small Bags" data-unit="pcs">Small Bags (pcs)</option>
+                  <option value="Large Bags" data-unit="pcs">Large Bags (pcs)</option>
+                </select>
+                <select class="rsel" id="phRangeSel" onchange="renderPriceHistory()">
+                  <option>Last 6 Months</option><option>Last 3 Months</option><option>This Year</option>
+                </select>
+              </div>
+            </div>
+            <div class="ph-body">
+              <div style="overflow-y:auto;max-height:230px">
+                <table class="tbl-sb2">
+                  <thead><tr><th>Month</th><th id="phColHdr">WAC (ETB/kg)</th></tr></thead>
+                  <tbody id="phTblBody"></tbody>
+                </table>
+              </div>
+              <div style="position:relative;min-height:230px">
+                <canvas id="priceChart"></canvas>
+              </div>
+            </div>
+            <div class="ph-note" id="phNote">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
+          </div>
+
+          <!-- Recent Purchases -->
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-ttl">Recent Purchases</div>
+              <a class="vall" onclick="window.location.href='purchases.html'">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="tbl-sb2">
+                <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total Cost</th></tr></thead>
+                <tbody id="recentPurchasesBody"></tbody>
+              </table>
+            </div>
+            <div style="padding:12px 17px">
+              <button class="qa-btn" style="width:100%;flex-direction:row;padding:9px 0" onclick="window.location.href='purchases.html'">
+                <span class="qa-lbl" style="font-size:12.5px">View All Purchases</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /left column -->
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Stock Alerts -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Stock Alerts</div>
+            <a class="vall" onclick="showToast('Full alerts history coming soon')">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+          </div>
+          <div id="stockAlertsList"></div>
+        </div>
+
+        <!-- Inventory Valuation -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Inventory Valuation <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="valMonthLbl">(May 31, 2026)</span></div>
+          </div>
+          <div class="exp-bd">
+            <div class="dnut">
+              <canvas id="valChart" width="110" height="110"></canvas>
+              <div class="dnut-lbl">
+                <span>Total Value</span>
+                <strong id="valTotalLbl">63,214.00<br>ETB</strong>
+              </div>
+            </div>
+            <div class="exp-leg" id="valLegend"></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Quick Actions</div>
+          </div>
+          <div class="qa-grid">
+            <div class="qa-btn" onclick="showToast('Add Stock — coming soon')"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span class="qa-lbl">Add Stock</span></div>
+            <div class="qa-btn" onclick="showToast('Record Usage — coming soon')"><div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg></div><span class="qa-lbl">Record Usage</span></div>
+            <div class="qa-btn" onclick="showToast('Adjust Stock — coming soon')"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div><span class="qa-lbl">Adjust Stock</span></div>
+
+            <div class="qa-btn" onclick="showToast('Stock Transfer — coming soon')"><div class="qa-ic ic-c"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div><span class="qa-lbl">Stock Transfer</span></div>
+            <div class="qa-btn" onclick="showToast('Expiry Report — coming soon')"><div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="qa-lbl">Expiry Report</span></div>
+            <div class="qa-btn" onclick="showToast('Reorder Report — coming soon')"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="qa-lbl">Reorder Report</span></div>
+
+            <div class="qa-btn" onclick="showToast('Inventory Report — coming soon')"><div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="qa-lbl">Inventory Report</span></div>
+            <div class="qa-btn" onclick="exportExcel()"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (Excel)</span></div>
+            <div class="qa-btn" onclick="exportPDF()"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (PDF)</span></div>
+
+            <div class="qa-btn" style="grid-column:1/2" onclick="showToast('Import Inventory — coming soon')"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><span class="qa-lbl">Import Inventory</span></div>
+          </div>
+        </div>
+
+      </div><!-- /right column -->
+
+    </div><!-- /two-column area -->
+
+  </div><!-- /content -->
+  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+/* ════════════════ DEMO DATA — matches May 2026 reference screenshot exactly ════════════════
+   inventory_items master fields per spec §14.3: name, unit, reorder_level, shelf_life_days.
+   Monthly movement figures (opening/purchased/used/closing/WAC/value) follow §3.3 Monthly View
+   formulas — computed server-side from purchases + production/derkosh usage in the live system.
+   Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
+const invItems = [
+  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK' },
+  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW' },
+  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK' },
+  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW' },
+  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER' },
+  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK' },
+  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK' },
+  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK' }
+];
+
+const recentPurchases = [
+  { date:'2026-05-29', item:'Injera Blend', qty:'50 kg',  unitPrice:920.00, total:46000.00 },
+  { date:'2026-05-28', item:'Corn',         qty:'40 kg',  unitPrice:260.00, total:10400.00 },
+  { date:'2026-05-27', item:'Small Bags',   qty:'200 pcs',unitPrice:23.00,  total:4600.00 },
+  { date:'2026-05-26', item:'Large Bags',   qty:'100 pcs',unitPrice:35.00,  total:3500.00 },
+  { date:'2026-05-25', item:'Gomen Zere',   qty:'10 kg',  unitPrice:800.00, total:8000.00 }
+];
+
+const stockAlerts = [
+  { icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:'Large Bags', text:'Closing stock 220 pcs is below 50% of reorder level. Reorder level: 200 pcs.' },
+  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Corn', text:'Closing stock 60 kg is below reorder level. Reorder level: 60 kg.' },
+  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Small Bags', text:'Closing stock 520 pcs is below reorder level. Reorder level: 500 pcs.' },
+  { icon:'al-p', pill:'pill-expiring', pillText:'EXPIRING SOON', title:'Injera Blend', text:'Lot #IB-2026-05-15 expires in 5 days (Jun 2, 2026).' },
+  { icon:'al-p', pill:'pill-expiring', pillText:'EXPIRING SOON', title:'Gomen Zere', text:'Lot #GZ-2026-05-18 expires in 6 days (Jun 3, 2026).' }
+];
+
+const priceHistoryByItem = {
+  'Injera Blend': { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[880.00,892.50,915.00,910.00,901.67,916.67] },
+  'Corn':         { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[235.00,240.00,255.00,250.00,248.00,260.00] },
+  'Gomen Zere':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[720.00,740.00,760.00,780.00,790.00,800.00] },
+  'Small Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[20.00,20.50,21.00,22.00,22.50,23.00] },
+  'Large Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[31.00,32.00,33.00,34.00,34.50,35.00] }
+};
+
+function fmt(n){ return (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function dash(v){ return (v===null || v===undefined) ? '-' : fmt(v); }
+function fmtDateLong(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+
+/* ════════════════ HEADER MONTH CHANGE ════════════════ */
+function onMonthChange(m){
+  document.getElementById('ovMonthLbl').textContent = '('+m+')';
+  toast('Loaded inventory for '+m);
+}
+
+/* ════════════════ COUNT-UP ANIMATION ════════════════ */
+function animateCount(el, decimals){
+  const target = parseFloat(el.getAttribute('data-target'));
+  const dur = 1100;
+  const start = performance.now();
+  function step(now){
+    const p = Math.min((now-start)/dur, 1);
+    const eased = 1 - Math.pow(1-p, 3);
+    const val = target * eased;
+    el.textContent = decimals===0 ? Math.round(val).toLocaleString('en-US') : fmt(val);
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent = decimals===0 ? Math.round(target).toLocaleString('en-US') : fmt(target);
+  }
+  requestAnimationFrame(step);
+}
+function runKpiAnimations(){
+  document.querySelectorAll('[data-target]').forEach(el=>{
+    const decimals = el.getAttribute('data-decimals')==='0' ? 0 : 2;
+    animateCount(el, decimals);
+  });
+}
+
+/* ════════════════ INVENTORY OVERVIEW TABLE ════════════════ */
+let currentTab = 'monthly';
+function pillFor(status){
+  if(status==='OK') return '<span class="pill-sm pill-ok">OK</span>';
+  if(status==='LOW') return '<span class="pill-sm pill-low">LOW</span>';
+  return '<span class="pill-sm pill-reorder">REORDER</span>';
+}
+function renderMonthlyTable(){
+  let rows = invItems.map(it=>`
+    <tr>
+      <td style="font-weight:600">${it.name}</td>
+      <td>${it.unit}</td>
+      <td>${dash(it.opening)}</td>
+      <td>${dash(it.purchased)}</td>
+      <td>${dash(it.used)}</td>
+      <td>${dash(it.closing)}</td>
+      <td>${fmt(it.wac)}</td>
+      <td>${dash(it.value)}</td>
+      <td>${fmt(it.reorder)}</td>
+      <td>${pillFor(it.status)}</td>
+    </tr>`).join('');
+  const totOpen = invItems.reduce((s,i)=>s+(i.opening||0),0);
+  const totPurch = invItems.reduce((s,i)=>s+(i.purchased||0),0);
+  const totUsed = invItems.reduce((s,i)=>s+(i.used||0),0);
+  const totClose = invItems.reduce((s,i)=>s+(i.closing||0),0);
+  const totVal = invItems.reduce((s,i)=>s+(i.value||0),0);
+  rows += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td>${fmt(totVal)}</td><td></td><td></td></tr>`;
+  document.getElementById('invTableWrap').innerHTML = `
+    <table class="tbl-inv">
+      <thead><tr>
+        <th>Item</th><th>Unit</th><th>Opening Stock<br>May 1, 2026</th><th>Purchased<br>(This Month)</th>
+        <th>Used / Sold<br>(This Month)</th><th>Closing Stock<br>May 31, 2026</th><th>Monthly WAC<br>(ETB / Unit)</th>
+        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Status</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('wacNote').textContent = 'WAC = Weighted Average Cost';
+}
+function renderAllTimeTable(){
+  let rows = invItems.map(it=>{
+    const totalIn = (it.opening||0)+(it.purchased||0);
+    const totalOut = it.used||0;
+    return `<tr>
+      <td style="font-weight:600">${it.name}</td>
+      <td>${it.unit}</td>
+      <td>${dash(totalIn)}</td>
+      <td>${dash(totalOut)}</td>
+      <td>${dash(it.closing)}</td>
+      <td>${fmt(it.wac)}</td>
+      <td>${dash(it.value)}</td>
+      <td>${pillFor(it.status)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('invTableWrap').innerHTML = `
+    <table class="tbl-inv">
+      <thead><tr><th>Item</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('wacNote').textContent = 'All-Time Perpetual shows the running stock balance since system start. WAC = Weighted Average Cost.';
+}
+function renderPriceHistoryTable(){
+  let rows = recentPurchases.map(p=>`<tr>
+      <td>${fmtDateLong(p.date)}</td><td style="font-weight:600">${p.item}</td><td>${p.qty}</td><td>${fmt(p.unitPrice)}</td><td>${fmt(p.total)}</td>
+    </tr>`).join('');
+  document.getElementById('invTableWrap').innerHTML = `
+    <table class="tbl-inv">
+      <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit Price (ETB)</th><th>Total Cost (ETB)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('wacNote').textContent = 'Every purchase is logged with its unit price and date to build the price trend timeline below.';
+}
+function switchTab(tab){
+  currentTab = tab;
+  document.getElementById('tabMonthly').classList.toggle('active', tab==='monthly');
+  document.getElementById('tabAllTime').classList.toggle('active', tab==='alltime');
+  document.getElementById('tabPrice').classList.toggle('active', tab==='price');
+  if(tab==='monthly') renderMonthlyTable();
+  else if(tab==='alltime') renderAllTimeTable();
+  else renderPriceHistoryTable();
+}
+
+/* ════════════════ RECENT PURCHASES ════════════════ */
+function renderRecentPurchases(){
+  document.getElementById('recentPurchasesBody').innerHTML = recentPurchases.map(p=>`
+    <tr><td>${fmtDateLong(p.date)}</td><td style="font-weight:600">${p.item}</td><td>${p.qty}</td><td>${fmt(p.unitPrice)}</td><td>${fmt(p.total)}</td></tr>
+  `).join('');
+}
+
+/* ════════════════ STOCK ALERTS ════════════════ */
+function renderStockAlerts(){
+  document.getElementById('stockAlertsList').innerHTML = stockAlerts.map(a=>`
+    <div class="alert-row">
+      <div class="alert-ic ${a.icon}">
+        ${a.icon==='al-r' ? '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+          : a.icon==='al-o' ? '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+          : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'}
+      </div>
+      <div class="alert-txt">
+        <h5>${a.title}</h5>
+        <p>${a.text}</p>
+      </div>
+      <div class="alert-pill-wrap"><span class="pill-sm ${a.pill}">${a.pillText}</span></div>
+    </div>`).join('');
+}
+
+/* ════════════════ INVENTORY VALUATION DONUT ════════════════ */
+let valChart;
+function renderValuationDonut(){
+  const top5 = invItems.filter(i=>i.value!=null).slice(0,5);
+  const others = invItems.filter(i=>i.value!=null).slice(5).reduce((s,i)=>s+i.value,0);
+  const labels = top5.map(i=>i.name).concat(others>0 ? ['Others'] : []);
+  const data = top5.map(i=>i.value).concat(others>0 ? [others] : []);
+  const colors = ['#27ae60','#f59e0b','#8b5cf6','#2563eb','#0d9b7a','#94a3b8'];
+  const total = data.reduce((s,v)=>s+v,0);
+
+  if(valChart) valChart.destroy();
+  const ctx = document.getElementById('valChart').getContext('2d');
+  valChart = new Chart(ctx,{
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:colors.slice(0,data.length), borderWidth:2, borderColor:'#fff', hoverOffset:3 }] },
+    options:{
+      responsive:false, cutout:'68%', animation:{animateRotate:true,duration:900,easing:'easeOutCubic'},
+      plugins:{ legend:{display:false}, datalabels:{display:false},
+        tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}} }
+    }
+  });
+  document.getElementById('valLegend').innerHTML = labels.map((l,i)=>{
+    const pct = total>0 ? (data[i]/total*100).toFixed(1) : '0.0';
+    return `<div class="exp-r"><div class="exp-d" style="background:${colors[i]}"></div><span class="exp-n">${l}</span><span class="exp-v">${fmt(data[i])}</span><span class="exp-p">(${pct}%)</span></div>`;
+  }).join('') + `<div style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px;font-weight:700;color:var(--td)">Total &nbsp; ${fmt(total)} <span style="color:var(--tl);font-weight:500">(100%)</span></div>`;
+  document.getElementById('valTotalLbl').innerHTML = fmt(total)+'<br>ETB';
+}
+
+/* ════════════════ PRICE HISTORY CHART ════════════════ */
+let priceChart;
+function renderPriceHistory(){
+  const itemSel = document.getElementById('phItemSel');
+  const itemName = itemSel.value;
+  const unit = itemSel.selectedOptions[0].getAttribute('data-unit');
+  const rangeSel = document.getElementById('phRangeSel').value;
+  const series = priceHistoryByItem[itemName];
+
+  let months = series.months, vals = series.vals;
+  if(rangeSel === 'Last 3 Months'){ months = months.slice(-3); vals = vals.slice(-3); }
+
+  document.getElementById('phColHdr').textContent = 'WAC (ETB/'+unit+')';
+  document.getElementById('phTblBody').innerHTML = months.map((m,i)=>`<tr><td>${m}</td><td>${fmt(vals[i])}</td></tr>`).join('');
+
+  const curr = vals[vals.length-1];
+  const prev = vals.length>1 ? vals[vals.length-2] : curr;
+  const chg = prev>0 ? ((curr-prev)/prev*100) : 0;
+  const arrow = chg>=0 ? '▲' : '▼';
+  const color = chg>=0 ? '#27ae60' : '#e53935';
+  document.getElementById('phNote').innerHTML = `Current WAC (May 2026): <strong>${fmt(curr)} ETB / ${unit}</strong> <span style="color:${color};font-weight:700">${arrow} ${Math.abs(chg).toFixed(2)}%</span> vs Apr 2026`;
+
+  if(priceChart) priceChart.destroy();
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  priceChart = new Chart(ctx,{
+    type:'line',
+    data:{ labels:months, datasets:[{
+      label:'WAC (ETB/'+unit+')', data:vals, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,0.07)',
+      borderWidth:2.5, pointBackgroundColor:'#27ae60', pointRadius:4, pointHoverRadius:6, fill:true, tension:0.35,
+      datalabels:{ align:'top',anchor:'end',offset:8,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>fmt(v)}
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:26,bottom:6}},
+      animation:{duration:1200, easing:'easeOutCubic'},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.y)+' ETB/'+unit}} },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}},
+        y:{grid:{color:'#eef3f0',lineWidth:1},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'},beginAtZero:false}
+      }
+    }
+  });
+}
+
+/* ════════════════ EXPORT — EXCEL (SheetJS) ════════════════ */
+function exportExcel(){
+  const btn = document.getElementById('xlsLbl');
+  const original = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span>';
+  setTimeout(()=>{
+    const rows = invItems.map(it=>({
+      'Item': it.name, 'Unit': it.unit,
+      'Opening Stock (May 1, 2026)': it.opening ?? '', 'Purchased (This Month)': it.purchased ?? '',
+      'Used / Sold (This Month)': it.used ?? '', 'Closing Stock (May 31, 2026)': it.closing ?? '',
+      'Monthly WAC (ETB/Unit)': it.wac, 'Total Value (ETB)': it.value ?? '', 'Reorder Level': it.reorder, 'Status': it.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory May 2026');
+    XLSX.writeFile(wb, 'Inventory_May_2026.xlsx');
+    btn.textContent = original;
+    showToast('Exported inventory to Excel');
+  }, 500);
+}
+
+/* ════════════════ EXPORT — PDF (jsPDF + autotable) ════════════════ */
+function exportPDF(){
+  const btn = document.getElementById('pdfLbl');
+  const original = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span>';
+  setTimeout(()=>{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape' });
+    doc.setFontSize(14);
+    doc.text('Mena Injera & Derkosh — Inventory Overview (May 2026)', 14, 15);
+    doc.autoTable({
+      startY: 22,
+      head: [['Item','Unit','Opening','Purchased','Used/Sold','Closing','Monthly WAC','Total Value','Reorder','Status']],
+      body: invItems.map(it=>[it.name, it.unit, dash(it.opening), dash(it.purchased), dash(it.used), dash(it.closing), fmt(it.wac), dash(it.value), fmt(it.reorder), it.status]),
+      styles:{ fontSize:9 }, headStyles:{ fillColor:[29,92,56] }
+    });
+    doc.save('Inventory_May_2026.pdf');
+    btn.textContent = original;
+    showToast('Exported inventory to PDF');
+  }, 500);
+}
+
+/* ════════════════ SUPABASE LOAD (best-effort) ════════════════
+   Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
+   schema §14.3 to keep names/units/reorder levels in sync with the live database.
+   Monthly movement figures continue to use the local snapshot above until the
+   inventory_balance / price_history views (§6.5 / §6.6) are wired up for this page. */
+async function loadFromSupabase(){
+  try {
+    const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true);
+    if(!error && data && data.length){
+      data.forEach(row=>{
+        const match = invItems.find(i=>i.name.toLowerCase() === (row.name||'').toLowerCase());
+        if(match && row.reorder_level != null) match.reorder = parseFloat(row.reorder_level);
+      });
+      showToast('Inventory items synced from database');
+    }
+  } catch(err){
+    console.log('Supabase unavailable, using local data:', err.message);
+  }
+  renderAll();
+}
+
+function renderAll(){
+  renderMonthlyTable();
+  renderRecentPurchases();
+  renderStockAlerts();
+  renderValuationDonut();
+  renderPriceHistory();
+  runKpiAnimations();
+}
+
+/* ════════════════ HEADER ════════════════ */
+const ALERT_ICON_TO_NOTIF_TYPE = { 'al-r':'r', 'al-o':'o', 'al-p':'p' };
+renderHeader({
+  title: 'Inventory',
+  subtitle: 'Track stock levels, costs, and price history',
+  showMonthPicker: true,
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+  selectedMonth: 'May 2026',
+  onMonthChange: onMonthChange,
+  showExport: true,
+  onExportPdf: exportPDF,
+  onExportXlsx: exportExcel,
+  notifications: stockAlerts.map(a => ({
+    type: ALERT_ICON_TO_NOTIF_TYPE[a.icon] || 'g',
+    title: a.title + ' — ' + a.pillText,
+    sub: a.text,
+    time: ''
+  }))
+});
+
+loadFromSupabase();
+</script>
+</body>
+</html>

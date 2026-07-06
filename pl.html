@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<script src="/js/app-state.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ══ CONTENT ════════════════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--sh-md)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 9px}
+.card-ttl{font-size:var(--fs-md);font-weight:700;color:var(--td);display:flex;align-items:center;gap:6px}
+.card-ttl-sub{font-size:var(--fs-xs);font-weight:600;color:var(--tl)}
+
+/* ══ P&L LAYOUT ═════════════════════════════════════════ */
+.pl-layout{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
+.pl-side{display:flex;flex-direction:column;gap:16px}
+@media(max-width:1100px){.pl-layout{grid-template-columns:1fr}}
+
+.pl-card-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 22px 16px;border-bottom:1px solid var(--border)}
+.pl-card-hd h2{font-size:16px;font-weight:700;color:var(--td)}
+.pl-card-hd p{font-size:var(--fs-xs);color:var(--tl);margin-top:3px}
+.pl-currency{font-size:var(--fs-xs);font-weight:700;color:var(--tm);white-space:nowrap;padding-top:3px}
+.demo-badge{display:none;align-items:center;gap:4px;background:#fef2e0;color:#92620a;border:1px solid #f0d9a8;padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-top:6px}
+.demo-badge svg{width:10px;height:10px;stroke:#92620a;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+.pl-table-wrap{overflow-x:auto}
+.pl-table{width:100%;border-collapse:collapse;font-size:var(--fs-base);min-width:620px}
+.pl-table th{padding:11px 22px;text-align:right;font-size:var(--fs-xs);font-weight:700;color:var(--tl);border-bottom:1px solid var(--border);white-space:nowrap}
+.pl-table th:first-child{text-align:left}
+.pl-th-sub{display:block;font-size:9px;font-weight:600;color:var(--tl);margin-top:2px}
+.pl-table td{padding:8px 22px;color:var(--td);text-align:right;white-space:nowrap}
+.pl-table td:first-child{text-align:left;color:var(--tm);white-space:normal}
+.pl-table tr.pl-row:hover td{background:#f7fbf9}
+.pl-section td{padding:16px 22px 6px;font-weight:700;color:#1e8a4f;font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.4px}
+.pl-pct{color:var(--tl);font-size:var(--fs-xs)}
+.pl-total td{font-weight:700;background:#eaf8f0;border-top:1.5px solid #bcdece;border-bottom:1.5px solid #bcdece;color:var(--td)}
+.pl-total td:nth-child(2),.pl-total td:nth-child(4){color:#19733f}
+.pl-gross td{font-weight:700;background:#eaf8f0;color:var(--td)}
+.pl-gross td:nth-child(2),.pl-gross td:nth-child(4){color:#19733f}
+.pl-spacer td{padding:6px 0;border:none}
+.pl-net td{font-weight:800;font-size:15px;border-top:2px solid var(--td);padding-top:15px;padding-bottom:15px;color:var(--td)}
+.pl-net td:nth-child(2),.pl-net td:nth-child(4){color:#19733f}
+
+/* Profit Summary */
+.ps-item{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid #f0f5f2}
+.ps-item:last-child{border-bottom:none}
+.ps-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ps-ico svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e3f6ec}.ic-g svg{stroke:var(--green)}
+.ic-o{background:#fef2e0}.ic-o svg{stroke:var(--amber)}
+.ic-r{background:#fdeaea}.ic-r svg{stroke:var(--red)}
+.ic-pu{background:#ede9fe}.ic-pu svg{stroke:#7c3aed}
+.ps-mid{flex:1;min-width:0}
+.ps-lbl{font-size:var(--fs-xs);color:var(--tl);font-weight:600;margin-bottom:2px}
+.ps-val{font-size:15px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:3px}
+.ps-val .u{font-size:9.5px;font-weight:600;color:var(--tm)}
+.ps-chg{text-align:right;font-size:9.5px;font-weight:600;white-space:nowrap;flex-shrink:0}
+.up{color:var(--green)}.dn{color:var(--red)}
+.vs{color:var(--tl);font-weight:500;margin-left:2px;display:block}
+
+/* YTD Summary */
+.ytd-row{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid #f0f5f2;font-size:var(--fs-sm)}
+.ytd-row:last-child{border-bottom:none}
+.ytd-row .yl{color:var(--tm);font-weight:600}
+.ytd-row .yv{font-weight:700;color:var(--td)}
+.ytd-row.bold .yl{color:var(--td);font-weight:700}
+.ytd-row.bold .yv{font-weight:800}
+.ytd-row.green .yv{color:#19733f}
+
+/* Quick Actions (reused button grid) */
+.qa-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 13px 13px}
+.qa-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:14px 5px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-size:var(--fs-xs);font-weight:700;color:var(--tm);background:#fff;text-align:center;line-height:1.3;transition:all .15s}
+.qa-b:hover{background:#eaf8f0;border-color:#b5ddc5;color:#19733f;transform:translateY(-1px);box-shadow:0 3px 8px rgba(39,174,96,.12)}
+.qa-b:active{transform:translateY(0) scale(.96)}
+.qa-b svg{width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.qa-b:hover svg{transform:scale(1.15)}
+
+/* ══ PRINT ═════════════════════════════════════════════ */
+@media print{
+  .sb,.topbar,.pl-side,.footer,.exp-loading{display:none!important}
+  .main{margin-left:0!important}
+  .content{padding:0!important}
+  .pl-layout{display:block}
+  .card{box-shadow:none;border:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+
+  <div class="content">
+    <div class="pl-layout">
+
+      <!-- P&L TABLE CARD -->
+      <div class="card pl-card">
+        <div class="pl-card-hd">
+          <div>
+            <h2>Profit &amp; Loss Statement</h2>
+            <p id="plDateLbl">For the month ended May 31, 2026</p>
+          </div>
+          <div style="text-align:right">
+            <div class="pl-currency">Currency: ETB</div>
+            <div class="demo-badge" id="demoBadge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Demo Data</div>
+          </div>
+        </div>
+        <div class="pl-table-wrap">
+          <table class="pl-table">
+            <thead>
+              <tr>
+                <th>Particulars</th>
+                <th>This Month<span class="pl-th-sub" id="thMonthLbl">May 2026</span></th>
+                <th>% of Revenue</th>
+                <th>Year to Date<span class="pl-th-sub" id="thYtdLbl">May 2026</span></th>
+                <th>% of Revenue</th>
+              </tr>
+            </thead>
+            <tbody id="plBody">
+              <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tl)">Loading live figures…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE -->
+      <div class="pl-side">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Profit Summary <span class="card-ttl-sub" id="psPeriodLbl">(May 2026)</span></div></div>
+          <div id="psBody">
+            <div class="ps-item"><div class="ps-mid"><div class="ps-lbl">Loading…</div></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Year to Date Summary <span class="card-ttl-sub" id="ytdPeriodLbl2">(Jan–May 2026)</span></div></div>
+          <div id="ytdBody">
+            <div class="ytd-row"><span class="yl">Loading…</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+          <div class="qa-g">
+            <div class="qa-b" onclick="exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Export P&amp;L<br>(Excel)</div>
+            <div class="qa-b" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export P&amp;L<br>(PDF)</div>
+            <div class="qa-b" onclick="printStatement()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print<br>Statement</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- Export loading overlay -->
+<div class="exp-loading" id="exportLoading">
+  <div class="exp-spinner"></div>
+  <p id="exportLoadingText">Building your export…</p>
+</div>
+
+<!-- Toast notifications -->
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+// ── SUPABASE CONFIG & HELPERS ────────────────────────────
+// ══════════════════════════════════════════════════════════
+// sbGet(path) now comes from app-state.js (same 1-arg signature this page
+// already used, just with session-aware auth headers instead of the raw key).
+function num(v){ return v===null || v===undefined || v==='' ? 0 : Number(v); }
+function fmtETB(n){ return num(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function pctOf(v, total){ return total ? (v/total*100) : 0; }
+function approved(status){ return ['auto_approved','approved'].includes(status); }
+
+const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function labelToPeriod(label){
+  const [mon, yr] = label.trim().split(' ');
+  const mi = MONTH_NAMES.indexOf(mon) + 1;
+  return `${yr}-${String(mi).padStart(2,'0')}`;
+}
+function periodToLabel(period){
+  const [yr, mo] = period.split('-');
+  return `${MONTH_NAMES[parseInt(mo,10)-1]} ${yr}`;
+}
+function shiftPeriod(period, delta){
+  const [yr, mo] = period.split('-').map(Number);
+  const d = new Date(yr, mo - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function periodEndDate(period){
+  const [y,m]=period.split('-').map(Number);
+  const d = new Date(y, m, 0);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDateLong(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return `${MONTH_FULL[m-1]} ${d}, ${y}`;
+}
+function pctChangeStr(cur, prev, invert){
+  if(!prev) return '<span class="vs">no prior data</span>';
+  const chg = ((cur-prev)/Math.abs(prev))*100;
+  const isUp = invert ? chg < 0 : chg >= 0;
+  const cls = isUp ? 'up' : 'dn';
+  const arrow = chg >= 0 ? '▲' : '▼';
+  return `<span class="${cls}">${arrow} ${Math.abs(chg).toFixed(1)}%</span><span class="vs">vs ${periodToLabel(PREV_PERIOD)}</span>`;
+}
+function ppChangeStr(cur, prev){
+  if(prev===null||prev===undefined) return '<span class="vs">no prior data</span>';
+  const diff = cur-prev;
+  const cls = diff>=0?'up':'dn';
+  const arrow = diff>=0?'▲':'▼';
+  return `<span class="${cls}">${arrow} ${Math.abs(diff).toFixed(1)}pp</span><span class="vs">vs ${periodToLabel(PREV_PERIOD)}</span>`;
+}
+
+let PREV_PERIOD = '';
+let LAST = null;
+let INV_ITEMS_MAP = {};
+
+async function loadInvItems(){
+  try{
+    const items = await sbGet(`inventory_items?select=id,name`);
+    INV_ITEMS_MAP = {};
+    items.forEach(i=>INV_ITEMS_MAP[i.id]=i);
+  }catch(e){ console.error('Failed to load inventory items', e); }
+}
+
+async function fetchPeriodSet(filterClause){
+  const [sales, purchases, overhead, petty, lrs] = await Promise.all([
+    sbGet(`sales?select=product_type,revenue&${filterClause}&is_deleted=eq.false`),
+    sbGet(`purchases?select=type,total_cost,approval_status,item_id,expense_categories(name)&${filterClause}&is_deleted=eq.false`),
+    sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
+    sbGet(`petty_cash?select=amount,expense_categories(name)&${filterClause}`),
+    sbGet(`loan_repayment_schedule?select=interest_portion,status&${filterClause}`)
+  ]);
+  return {sales, purchases, overhead, petty, lrs};
+}
+
+// ── Core P&L aggregation (IAS 2 basis: overhead lives in COGS, never OpEx) ──
+// Shared derivation: turns raw category totals (revenue lines, COGS lines,
+// opex lines, interest) into the full figure set used everywhere on this
+// page. Both live Supabase data and the demo dataset below flow through
+// this same function, so the two paths can never disagree on formulas.
+function deriveTotals(cat){
+  const totalRevenue = cat.injeraRevenue + cat.derkoshRevenue;
+  const totalCOGS = cat.injeraBlend+cat.corn+cat.gomenZere+cat.packaging+cat.labor+cat.electricity+cat.water+cat.rent+cat.maintenance+cat.otherOverhead;
+  const grossProfit = totalRevenue - totalCOGS;
+  const grossMargin = pctOf(grossProfit, totalRevenue);
+  const totalOpex = cat.deliveryOut + cat.marketing + cat.otherOperatingExpenses;
+  const totalExpensesCard = totalOpex + cat.interestExpense;
+  const netProfit = grossProfit - totalOpex - cat.interestExpense;
+  const netMargin = pctOf(netProfit, totalRevenue);
+  return { ...cat, totalRevenue, totalCOGS, grossProfit, grossMargin, totalOpex, totalExpensesCard, netProfit, netMargin };
+}
+
+function calcFigures(d){
+  const injeraRevenue = d.sales.filter(s=>s.product_type==='injera').reduce((s,r)=>s+num(r.revenue),0);
+  const derkoshRevenue = d.sales.filter(s=>s.product_type==='derkosh').reduce((s,r)=>s+num(r.revenue),0);
+
+  const itemMap = {};
+  d.purchases.filter(p=>p.type==='purchase' && approved(p.approval_status)).forEach(p=>{
+    const name = INV_ITEMS_MAP[p.item_id]?.name || 'Other';
+    itemMap[name] = (itemMap[name]||0) + num(p.total_cost);
+  });
+  const injeraBlend = itemMap['Injera Blend']||0;
+  const corn = itemMap['Corn']||0;
+  const gomenZere = itemMap['Gomen Zere']||0;
+  const packaging = (itemMap['Small Bags']||0) + (itemMap['Large Bags']||0);
+
+  const ohMap = {};
+  d.overhead.forEach(o=>{
+    const name = o.overhead_categories?.name || 'Other Overhead';
+    ohMap[name] = (ohMap[name]||0) + num(o.amount);
+  });
+  const labor = ohMap['Labor/Wages']||0;
+  const electricity = ohMap['Electricity']||0;
+  const water = ohMap['Water']||0;
+  const rent = ohMap['Rent']||0;
+  const maintenance = ohMap['Maintenance']||0;
+  const otherOverhead = ohMap['Other Overhead']||0;
+
+  const expMap = {};
+  d.purchases.filter(p=>p.type==='expense' && approved(p.approval_status)).forEach(p=>{
+    const name = p.expense_categories?.name || 'Other';
+    expMap[name] = (expMap[name]||0) + num(p.total_cost);
+  });
+  d.petty.forEach(pc=>{
+    const name = pc.expense_categories?.name || 'Other';
+    expMap[name] = (expMap[name]||0) + num(pc.amount);
+  });
+  const deliveryOut = expMap['Delivery Out']||0;
+  const marketing = expMap['Marketing']||0;
+  const otherOperatingExpenses = (expMap['Bank Charges']||0) + (expMap['Other']||0);
+
+  const interestExpense = d.lrs.filter(l=>l.status==='paid').reduce((s,l)=>s+num(l.interest_portion),0);
+
+  return deriveTotals({ injeraRevenue, derkoshRevenue,
+    injeraBlend, corn, gomenZere, packaging, labor, electricity, water, rent, maintenance, otherOverhead,
+    deliveryOut, marketing, otherOperatingExpenses, interestExpense });
+}
+
+// ── Demo data (fallback) ──────────────────────────────────
+// Used only when a month has no live Supabase records yet (e.g. before
+// real transactions are entered) or if the API is unreachable. Numbers
+// below are seeded from the original May 2026 mockup, with Jan–Apr backed
+// out from its stated Year-to-Date figures so the demo YTD column matches
+// that mockup exactly. June is a modest projected continuation.
+const DEMO_CATEGORIES = {
+  '2026-01': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
+  '2026-02': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
+  '2026-03': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
+  '2026-04': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
+  '2026-05': {injeraRevenue:95321.00,derkoshRevenue:14390.00,injeraBlend:38965.00,corn:10230.00,gomenZere:1845.00,packaging:2840.00,labor:15000.00,electricity:1250.00,water:850.00,rent:1500.00,maintenance:750.00,otherOverhead:0,deliveryOut:3200.00,marketing:750.00,otherOperatingExpenses:862.00,interestExpense:2000.00},
+  '2026-06': {injeraRevenue:100087.00,derkoshRevenue:15253.00,injeraBlend:40524.00,corn:10537.00,gomenZere:1900.00,packaging:2982.00,labor:15000.00,electricity:1300.00,water:867.00,rent:1500.00,maintenance:788.00,otherOverhead:0,deliveryOut:3360.00,marketing:825.00,otherOperatingExpenses:879.00,interestExpense:2000.00}
+};
+const DEMO_CAT_KEYS = ['injeraRevenue','derkoshRevenue','injeraBlend','corn','gomenZere','packaging','labor','electricity','water','rent','maintenance','otherOverhead','deliveryOut','marketing','otherOperatingExpenses','interestExpense'];
+function demoCatFor(period){ return DEMO_CATEGORIES[period] || DEMO_CATEGORIES['2026-05']; }
+function demoFiguresForMonth(period){ return deriveTotals(demoCatFor(period)); }
+function demoFiguresForYTD(period){
+  const [yr, mo] = period.split('-').map(Number);
+  const sum = {}; DEMO_CAT_KEYS.forEach(k=>sum[k]=0);
+  for(let m=1; m<=mo; m++){
+    const cat = demoCatFor(`${yr}-${String(m).padStart(2,'0')}`);
+    DEMO_CAT_KEYS.forEach(k=>sum[k]+=cat[k]);
+  }
+  return deriveTotals(sum);
+}
+function setDemoBadge(show){
+  const el = document.getElementById('demoBadge');
+  if(el) el.style.display = show ? 'inline-flex' : 'none';
+}
+
+// ── Shared row builder (used by both the table render and Excel export) ──
+function buildPLRows(cur, ytd){
+  const rows = [];
+  rows.push({type:'section', label:'Revenue'});
+  rows.push({type:'row', label:'Injera Sales', curV:cur.injeraRevenue, ytdV:ytd.injeraRevenue});
+  rows.push({type:'row', label:'Derkosh Sales', curV:cur.derkoshRevenue, ytdV:ytd.derkoshRevenue});
+  rows.push({type:'total', label:'Total Revenue', curV:cur.totalRevenue, ytdV:ytd.totalRevenue, cls:'pl-total'});
+
+  rows.push({type:'section', label:'Cost of Goods Sold'});
+  rows.push({type:'row', label:'Injera Blend', curV:cur.injeraBlend, ytdV:ytd.injeraBlend});
+  rows.push({type:'row', label:'Corn', curV:cur.corn, ytdV:ytd.corn});
+  rows.push({type:'row', label:'Gomen Zere', curV:cur.gomenZere, ytdV:ytd.gomenZere});
+  rows.push({type:'row', label:'Packaging (Small & Large Bags)', curV:cur.packaging, ytdV:ytd.packaging});
+  rows.push({type:'row', label:'Labor / Wages', curV:cur.labor, ytdV:ytd.labor});
+  rows.push({type:'row', label:'Electricity', curV:cur.electricity, ytdV:ytd.electricity});
+  rows.push({type:'row', label:'Water', curV:cur.water, ytdV:ytd.water});
+  rows.push({type:'row', label:'Rent', curV:cur.rent, ytdV:ytd.rent});
+  rows.push({type:'row', label:'Maintenance', curV:cur.maintenance, ytdV:ytd.maintenance});
+  if(cur.otherOverhead || ytd.otherOverhead) rows.push({type:'row', label:'Other Overhead', curV:cur.otherOverhead, ytdV:ytd.otherOverhead});
+  rows.push({type:'total', label:'Total COGS', curV:cur.totalCOGS, ytdV:ytd.totalCOGS, cls:'pl-total'});
+
+  rows.push({type:'total', label:'Gross Profit', curV:cur.grossProfit, ytdV:ytd.grossProfit, cls:'pl-gross'});
+  rows.push({type:'pctonly', label:'Gross Margin %', curPct:cur.grossMargin, ytdPct:ytd.grossMargin, cls:'pl-gross'});
+
+  rows.push({type:'section', label:'Operating Expenses'});
+  rows.push({type:'row', label:'Delivery Out & Transport', curV:cur.deliveryOut, ytdV:ytd.deliveryOut});
+  rows.push({type:'row', label:'Marketing', curV:cur.marketing, ytdV:ytd.marketing});
+  rows.push({type:'row', label:'Other Operating Expenses', curV:cur.otherOperatingExpenses, ytdV:ytd.otherOperatingExpenses});
+  rows.push({type:'total', label:'Total Operating Expenses', curV:cur.totalOpex, ytdV:ytd.totalOpex, cls:'pl-total'});
+
+  rows.push({type:'spacer'});
+  rows.push({type:'row', label:'Interest Expense (Loan)', curV:cur.interestExpense, ytdV:ytd.interestExpense});
+  rows.push({type:'total', label:'NET PROFIT', curV:cur.netProfit, ytdV:ytd.netProfit, cls:'pl-net'});
+  return rows;
+}
+
+function renderTable(cur, ytd){
+  const rows = buildPLRows(cur, ytd);
+  let html='';
+  rows.forEach(r=>{
+    if(r.type==='section') html+=`<tr class="pl-section"><td colspan="5">${r.label}</td></tr>`;
+    else if(r.type==='spacer') html+=`<tr class="pl-spacer"><td colspan="5"></td></tr>`;
+    else if(r.type==='pctonly') html+=`<tr class="${r.cls}"><td>${r.label}</td><td>${r.curPct.toFixed(1)}%</td><td></td><td>${r.ytdPct.toFixed(1)}%</td><td></td></tr>`;
+    else {
+      const cls = r.type==='total' ? r.cls : 'pl-row';
+      const curPct = pctOf(r.curV, cur.totalRevenue);
+      const ytdPct = pctOf(r.ytdV, ytd.totalRevenue);
+      html += `<tr class="${cls}"><td>${r.label}</td><td>${fmtETB(r.curV)}</td><td class="pl-pct">${curPct.toFixed(1)}%</td><td>${fmtETB(r.ytdV)}</td><td class="pl-pct">${ytdPct.toFixed(1)}%</td></tr>`;
+    }
+  });
+  document.getElementById('plBody').innerHTML = html;
+}
+
+function psRow(iconClass, iconSvg, label, valueStr, unit, changeHtml){
+  return `<div class="ps-item">
+    <div class="ps-ico ${iconClass}"><svg viewBox="0 0 24 24">${iconSvg}</svg></div>
+    <div class="ps-mid">
+      <div class="ps-lbl">${label}</div>
+      <div class="ps-val">${valueStr}${unit?`<span class="u">${unit}</span>`:''}</div>
+    </div>
+    <div class="ps-chg">${changeHtml}</div>
+  </div>`;
+}
+const ICO_REVENUE = '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>';
+const ICO_TREND = '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>';
+const ICO_PERCENT = '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>';
+const ICO_DOC = '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>';
+const ICO_CHECK = '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+const ICO_SHARE = '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>';
+
+function renderProfitSummary(cur, prev){
+  document.getElementById('psBody').innerHTML =
+    psRow('ic-g', ICO_REVENUE, 'Total Revenue', fmtETB(cur.totalRevenue), 'ETB', pctChangeStr(cur.totalRevenue, prev.totalRevenue)) +
+    psRow('ic-g', ICO_TREND, 'Gross Profit', fmtETB(cur.grossProfit), 'ETB', pctChangeStr(cur.grossProfit, prev.grossProfit)) +
+    psRow('ic-o', ICO_PERCENT, 'Gross Margin', cur.grossMargin.toFixed(1), '%', ppChangeStr(cur.grossMargin, prev.grossMargin)) +
+    psRow('ic-r', ICO_DOC, 'Total Expenses', fmtETB(cur.totalExpensesCard), 'ETB', pctChangeStr(cur.totalExpensesCard, prev.totalExpensesCard, true)) +
+    psRow('ic-g', ICO_CHECK, 'Net Profit', fmtETB(cur.netProfit), 'ETB', pctChangeStr(cur.netProfit, prev.netProfit)) +
+    psRow('ic-pu', ICO_SHARE, 'Net Profit Margin', cur.netMargin.toFixed(1), '%', ppChangeStr(cur.netMargin, prev.netMargin));
+}
+
+function ytdRowHTML(label, valueStr, cls=''){
+  return `<div class="ytd-row ${cls}"><span class="yl">${label}</span><span class="yv">${valueStr}</span></div>`;
+}
+function renderYTD(ytd){
+  document.getElementById('ytdBody').innerHTML =
+    ytdRowHTML('Total Revenue', fmtETB(ytd.totalRevenue)+' ETB') +
+    ytdRowHTML('Total COGS', fmtETB(ytd.totalCOGS)+' ETB') +
+    ytdRowHTML('Gross Profit', fmtETB(ytd.grossProfit)+' ETB', 'bold') +
+    ytdRowHTML('Gross Margin', ytd.grossMargin.toFixed(1)+'%', 'bold green') +
+    ytdRowHTML('Total Expenses', fmtETB(ytd.totalExpensesCard)+' ETB') +
+    ytdRowHTML('Net Profit', fmtETB(ytd.netProfit)+' ETB', 'bold green') +
+    ytdRowHTML('Net Profit Margin', ytd.netMargin.toFixed(1)+'%', 'bold green');
+}
+
+function updateHeaderLabels(period, yearStart){
+  const label = periodToLabel(period);
+  document.getElementById('thMonthLbl').textContent = label;
+  document.getElementById('thYtdLbl').textContent = label;
+  document.getElementById('psPeriodLbl').textContent = `(${label})`;
+  const startLbl = MONTH_NAMES[0];
+  document.getElementById('ytdPeriodLbl2').textContent = `(${startLbl}–${label})`;
+  document.getElementById('plDateLbl').textContent = `For the month ended ${fmtDateLong(periodEndDate(period))}`;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── MASTER REFRESH ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+async function refreshPL(){
+  const msel = document.getElementById('msel');
+  const period = labelToPeriod(msel.value);
+  const prevP = shiftPeriod(period, -1);
+  const year = period.split('-')[0];
+  const yearStart = `${year}-01`;
+  PREV_PERIOD = prevP;
+
+  try{
+    const [monthData, prevData, ytdData] = await Promise.all([
+      fetchPeriodSet(`period=eq.${period}`),
+      fetchPeriodSet(`period=eq.${prevP}`),
+      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`)
+    ]);
+
+    let cur = calcFigures(monthData);
+    let prev = calcFigures(prevData);
+    let ytd = calcFigures(ytdData);
+    let isDemo = false;
+
+    // No live records for this month yet (common before real entries exist) —
+    // fall back to demo figures rather than showing an all-zero statement.
+    if(cur.totalRevenue === 0 && ytd.totalRevenue === 0){
+      cur = demoFiguresForMonth(period);
+      prev = demoFiguresForMonth(prevP);
+      ytd = demoFiguresForYTD(period);
+      isDemo = true;
+    }
+
+    LAST = {cur, ytd, period, isDemo};
+    renderTable(cur, ytd);
+    renderProfitSummary(cur, prev);
+    renderYTD(ytd);
+    updateHeaderLabels(period, yearStart);
+    setDemoBadge(isDemo);
+  }catch(err){
+    console.error('P&L refresh failed', err);
+    // Supabase unreachable — show demo figures instead of a dead page.
+    try{
+      const cur = demoFiguresForMonth(period);
+      const prev = demoFiguresForMonth(prevP);
+      const ytd = demoFiguresForYTD(period);
+      LAST = {cur, ytd, period, isDemo:true};
+      renderTable(cur, ytd);
+      renderProfitSummary(cur, prev);
+      renderYTD(ytd);
+      updateHeaderLabels(period, yearStart);
+      setDemoBadge(true);
+      toast('Could not reach Supabase — showing demo data','error');
+    }catch(err2){
+      document.getElementById('plBody').innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tl)">Could not load P&amp;L data — ${err.message}</td></tr>`;
+      toast('Could not load P&L data','error');
+    }
+  }
+}
+
+// ── Quick Actions: Excel / PDF / Print ───────────────────
+function exportExcel(retryCount){
+  retryCount = retryCount || 0;
+  if(!LAST) return;
+  if(typeof XLSX === 'undefined'){
+    if(retryCount < 6){
+      setTimeout(()=>exportExcel(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing Excel file…','info');
+      return;
+    }
+    toast('Could not load the Excel engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+    const {cur, ytd, period, isDemo} = LAST;
+    const monthLbl = periodToLabel(period);
+    const plRows = buildPLRows(cur, ytd);
+
+    const aoa = [
+      [isDemo ? 'Mena Injera & Derkosh — Profit & Loss Statement (Demo Data)' : 'Mena Injera & Derkosh — Profit & Loss Statement','','','',''],
+      [document.getElementById('plDateLbl').textContent,'','','',''],
+      ['','','','',''],
+      ['Particulars', `This Month (${monthLbl})`, '% of Revenue', `Year to Date (${monthLbl})`, '% of Revenue']
+    ];
+    const rowTypes = ['title','sub','blank','header'];
+    plRows.forEach(r=>{
+      if(r.type==='section'){ aoa.push([r.label.toUpperCase(),'','','','']); rowTypes.push('section'); }
+      else if(r.type==='spacer'){ aoa.push(['','','','','']); rowTypes.push('blank'); }
+      else if(r.type==='pctonly'){ aoa.push([r.label, r.curPct.toFixed(1)+'%','', r.ytdPct.toFixed(1)+'%','']); rowTypes.push(r.cls==='pl-net'?'net':'gross'); }
+      else{
+        aoa.push([r.label, Number(r.curV.toFixed(2)), pctOf(r.curV,cur.totalRevenue).toFixed(1)+'%', Number(r.ytdV.toFixed(2)), pctOf(r.ytdV,ytd.totalRevenue).toFixed(1)+'%']);
+        rowTypes.push(r.type==='total' ? (r.cls==='pl-net'?'net':'total') : 'row');
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:34},{wch:17},{wch:13},{wch:17},{wch:13}];
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}, {s:{r:1,c:0},e:{r:1,c:4}}];
+    ws['!freeze'] = {xSplit:0, ySplit:4};
+
+    const thinBorder = {style:'thin', color:{rgb:'D8E6DE'}};
+    const borderAll = {top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+
+    for(let r=0;r<aoa.length;r++){
+      const type = rowTypes[r];
+      for(let c=0;c<5;c++){
+        const addr = XLSX.utils.encode_cell({r,c});
+        if(!ws[addr]) ws[addr] = {t:'s', v:''};
+        let fill='FFFFFF', font={bold:false,color:{rgb:'16261E'},sz:10}, halign=(c===0?'left':'right');
+        if(type==='title'){ font={bold:true,color:{rgb:'16261E'},sz:14}; halign='left'; }
+        else if(type==='sub'){ font={bold:false,color:{rgb:'5E7268'},sz:10}; halign='left'; }
+        else if(type==='header'){ fill='1D6B42'; font={bold:true,color:{rgb:'FFFFFF'},sz:10}; }
+        else if(type==='section'){ fill='DFF3E8'; font={bold:true,color:{rgb:'1E8A4F'},sz:10.5}; halign='left'; }
+        else if(type==='total'||type==='gross'){ fill='EAF7F0'; font={bold:true,color:{rgb:'19733F'},sz:10}; }
+        else if(type==='net'){ fill='EAF7F0'; font={bold:true,color:{rgb:'19733F'},sz:11}; }
+        else if(type==='row'){ fill = (r%2===0)?'FFFFFF':'F7FBF9'; }
+        const hasBorder = !(type==='blank'||type==='title'||type==='sub');
+        ws[addr].s = { font, fill:{fgColor:{rgb:fill}}, alignment:{vertical:'center', horizontal: c===0?'left':halign}, border: hasBorder?borderAll:undefined };
+        if((type==='row'||type==='total'||type==='gross'||type==='net') && (c===1||c===3) && typeof ws[addr].v === 'number') ws[addr].z = '#,##0.00';
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'P&L Statement');
+    XLSX.writeFile(wb, `Mena-Injera-PL-${period}.xlsx`);
+    toast(`Downloaded Mena-Injera-PL-${period}.xlsx ✓`,'success');
+  } catch(err){
+    console.error('Excel export failed:', err);
+    toast('Excel export failed — please try again','error');
+  }
+}
+
+async function exportPDF(retryCount){
+  retryCount = retryCount || 0;
+  if(!LAST) return;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
+    if(retryCount < 6){
+      setTimeout(()=>exportPDF(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing PDF…','info');
+      return;
+    }
+    toast('Could not load the PDF engine. Check your connection and try again.','error');
+    return;
+  }
+  const loading = document.getElementById('exportLoading');
+  document.getElementById('exportLoadingText').textContent = 'Building your PDF statement…';
+  loading.classList.add('show');
+  try{
+    const { jsPDF } = window.jspdf;
+    const {cur, ytd, period, isDemo} = LAST;
+    const monthLbl = periodToLabel(period);
+    const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 32;
+
+    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+    const session = loadSession();
+    const preparedBy = (session && session.name)
+      ? `${session.name}${session.role ? ` (${session.role.charAt(0).toUpperCase()+session.role.slice(1)})` : ''}`
+      : 'Eyasu Mesfin (Owner)';
+
+    function drawHeader(){
+      doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+      doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+      doc.setFillColor(255,255,255); doc.roundedRect(marginX,18,38,38,9,9,'F');
+      doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+      doc.text('MI', marginX+19, 42, {align:'center'});
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+      doc.text(isDemo ? 'Profit & Loss Statement (Demo Data)' : 'Profit & Loss Statement', marginX+52, 34);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+      doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+      doc.setFontSize(9); doc.setTextColor(220,235,227);
+      doc.text('Period: '+monthLbl, pageW-marginX, 30, {align:'right'});
+      doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+      doc.text('Prepared by: '+preparedBy, pageW-marginX, 56, {align:'right'});
+    }
+
+    function drawKpiStrip(y){
+      const kpis=[
+        {lbl:'TOTAL REVENUE', val:fmtETB(cur.totalRevenue), unit:'ETB'},
+        {lbl:'GROSS PROFIT', val:fmtETB(cur.grossProfit), unit:'ETB'},
+        {lbl:'GROSS MARGIN', val:cur.grossMargin.toFixed(1), unit:'%'},
+        {lbl:'TOTAL EXPENSES', val:fmtETB(cur.totalExpensesCard), unit:'ETB'},
+        {lbl:'NET PROFIT', val:fmtETB(cur.netProfit), unit:'ETB'},
+        {lbl:'NET MARGIN', val:cur.netMargin.toFixed(1), unit:'%'}
+      ];
+      const gap=10; const cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length; const cardH=52;
+      kpis.forEach((k,i)=>{
+        const x=marginX+i*(cardW+gap);
+        doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+        doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+        doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.6);
+        doc.text(k.lbl, x+9, y+16, {charSpace:0.2});
+        doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+        doc.text(k.val, x+9, y+36);
+        const valW=doc.getTextWidth(k.val);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
+        doc.text(k.unit, x+9+valW+3, y+36);
+      });
+      return y+cardH;
+    }
+
+    drawHeader();
+    const kpiBottom = drawKpiStrip(94);
+
+    const plRows = buildPLRows(cur, ytd);
+    const head = [[ 'Particulars', `This Month\n${monthLbl}`, '% of Rev', `Year to Date\n${monthLbl}`, '% of Rev' ]];
+    const body = [];
+    const rowMeta = [];
+    plRows.forEach(r=>{
+      if(r.type==='section'){ body.push([{content:r.label.toUpperCase(), colSpan:5}]); rowMeta.push('section'); }
+      else if(r.type==='spacer'){ body.push([{content:'', colSpan:5}]); rowMeta.push('spacer'); }
+      else if(r.type==='pctonly'){ body.push([r.label, r.curPct.toFixed(1)+'%','', r.ytdPct.toFixed(1)+'%','']); rowMeta.push(r.cls==='pl-net'?'net':'gross'); }
+      else{
+        const curPct = pctOf(r.curV, cur.totalRevenue), ytdPct = pctOf(r.ytdV, ytd.totalRevenue);
+        body.push([r.label, fmtETB(r.curV), curPct.toFixed(1)+'%', fmtETB(r.ytdV), ytdPct.toFixed(1)+'%']);
+        rowMeta.push(r.type==='total' ? (r.cls==='pl-net'?'net':'total') : 'row');
+      }
+    });
+
+    doc.autoTable({
+      head, body,
+      startY: kpiBottom+18,
+      margin:{left:marginX, right:marginX, bottom:46},
+      styles:{font:'helvetica', fontSize:8.3, cellPadding:6, textColor:textDark, lineColor:border, lineWidth:0.6, valign:'middle'},
+      headStyles:{fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7.8, halign:'left'},
+      columnStyles:{0:{cellWidth:190}, 1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}},
+      alternateRowStyles:{fillColor:[249,251,250]},
+      didParseCell: function(data){
+        if(data.section !== 'body') return;
+        const meta = rowMeta[data.row.index];
+        if(meta==='section'){
+          data.cell.styles.fillColor=[223,243,232]; data.cell.styles.textColor=[30,138,79];
+          data.cell.styles.fontStyle='bold'; data.cell.styles.fontSize=8;
+        } else if(meta==='total' || meta==='gross'){
+          data.cell.styles.fillColor=[234,247,240]; data.cell.styles.fontStyle='bold';
+          if(data.column.index!==0) data.cell.styles.textColor=[25,115,63];
+        } else if(meta==='net'){
+          data.cell.styles.fillColor=[234,247,240]; data.cell.styles.fontStyle='bold'; data.cell.styles.fontSize=9.2;
+          if(data.column.index!==0) data.cell.styles.textColor=[25,115,63];
+        } else if(meta==='spacer'){
+          data.cell.styles.fillColor=[255,255,255]; data.cell.styles.lineWidth=0;
+        }
+      },
+      didDrawPage: function(){
+        if(doc.internal.getCurrentPageInfo().pageNumber>1) drawHeader();
+      }
+    });
+
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setDrawColor(...border);
+      doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
+      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+    }
+
+    doc.save(`Mena-Injera-PL-${period}.pdf`);
+    toast(`Downloaded Mena-Injera-PL-${period}.pdf ✓`,'success');
+  }catch(err){
+    console.error('PDF export failed:', err);
+    toast('PDF export failed — please try again','error');
+  }finally{
+    loading.classList.remove('show');
+  }
+}
+
+function printStatement(){
+  toast('Preparing print view…','info');
+  setTimeout(()=>window.print(), 300);
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  renderHeader({
+    title: 'P&L Statement',
+    subtitle: 'Profit and Loss Statement',
+    showMonthPicker: true,
+    months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+    selectedMonth: 'May 2026',
+    onMonthChange: () => refreshPL(),
+    notifications: [
+      { type:'o', title:'Expense approval pending', sub:'Rent — 5,000.00 ETB', time:'25 min ago' },
+      { type:'g', title:'May statement ready', sub:'Net Profit: 29,669.00 ETB', time:'3 hrs ago' }
+    ]
+  });
+  document.getElementById('userPanelProfile')?.addEventListener('click', () => window.location.href = 'settings.html');
+  await loadInvItems();
+  refreshPL();
+});
+</script>
+</body>
+</html>

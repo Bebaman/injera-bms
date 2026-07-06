@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Distribution — Mena Injera & Derkosh BMS</title>
+<script>
+/* ════ EARLY AUTH CHECK ════
+   Redirect-only pass so an expired/missing session bounces to login before any
+   CDN libraries or page content load. */
+(function(){
+  function loadSessionEarly(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  const s = loadSessionEarly();
+  if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
+    try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
+    window.location.replace('login.html');
+    throw new Error('No valid session — redirecting to login.');
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sh-hover:0 4px 14px rgba(20,40,30,.09);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:var(--fs-base);line-height:1.45;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI',Roboto,sans-serif;letter-spacing:.1px}
+button{font-family:inherit}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes riseUp{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes spinIn{from{opacity:0;transform:rotate(-120deg) scale(.6)}to{opacity:1;transform:rotate(0deg) scale(1)}}
+@keyframes slideLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+@keyframes spin360{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes rowFlash{0%{background:#dcf5e6}65%{background:#dcf5e6}100%{background:transparent}}
+@keyframes bellShake{0%,100%{transform:none}20%{transform:rotate(14deg)}40%{transform:rotate(-12deg)}60%{transform:rotate(8deg)}80%{transform:rotate(-5deg)}}
+@keyframes cardPop{0%{opacity:0;transform:translateY(14px) scale(.96)}70%{opacity:1;transform:translateY(-2px) scale(1.005)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes alertIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+.kc-anim{animation:riseUp .65s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d)*75ms)}
+.kc-ico.spin-ready{animation:spinIn .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--d)*75ms + .18s)}
+.sb-a{animation:slideLeft .4s ease both}
+.sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
+.al{animation:fadeUp .45s ease both}
+.al:nth-child(1){animation-delay:.05s}.al:nth-child(2){animation-delay:.12s}.al:nth-child(3){animation-delay:.19s}.al:nth-child(4){animation-delay:.26s}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.dist-left>.card:nth-child(1){animation-delay:.05s}
+.dist-left>.card:nth-child(2){animation-delay:.12s}
+.dist-right .card:nth-child(1){animation-delay:.1s}
+.dist-right .card:nth-child(2){animation-delay:.16s}
+.dist-right .card:nth-child(3){animation-delay:.22s}
+.bell-badge{animation:ringPop 2.4s ease-in-out infinite}
+.stat-dot{animation:pulseDot 2.2s ease-in-out infinite}
+
+.btn-add:active,.btn-tool:active,.btn-ghost:active,.btn-solid:active{transform:scale(.96)!important}
+.arr:active{transform:scale(.9)}
+.tbl-more:active{transform:scale(.88)}
+.view-exp:active{transform:scale(.98)}
+.kc:active{transform:translateY(0) scale(.99)!important}
+.qa-item:active{transform:scale(.96)!important}
+
+
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s,transform .2s;cursor:pointer;overflow:hidden}
+.kc:hover{box-shadow:var(--sh-hover);transform:translateY(-2px)}
+.kc::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(39,174,96,.06),transparent 60%);pointer-events:none;opacity:0;transition:opacity .3s}
+.kc:hover::after{opacity:1}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.kc:hover .kc-ico{transform:scale(1.15) rotate(360deg)}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e3f6ec}.ic-g svg{stroke:#27ae60}
+.ic-o{background:#fef2e0}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdeaea}.ic-r svg{stroke:#e5484d}
+.ic-p{background:#f3e8fd}.ic-p svg{stroke:#8b5cf6}
+.ic-b{background:#dfeefe}.ic-b svg{stroke:#2563eb}
+.ic-t{background:#dff6f4}.ic-t svg{stroke:#0d9b8a}
+.ic-y{background:#fdf3d8}.ic-y svg{stroke:#c99a1c}
+.kc-lbl{font-size:11.5px;color:var(--tl);font-weight:600;display:block;margin-bottom:5px}
+.kc-val{font-size:20px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px;letter-spacing:.1px}
+.kc-val .u{font-size:11.5px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:11.5px;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:2px}
+.up{color:#27ae60}.dn{color:#e5484d}
+.vs{color:var(--tl);font-weight:500;font-size:10.5px;margin-left:2px}
+.kc-note{font-size:10.5px;color:var(--tl);font-weight:600;margin-top:6px}
+
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:visible;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--sh-hover)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;gap:10px;flex-wrap:wrap}
+.card-ttl{font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
+.card-ttl .sub{font-size:11px;color:var(--tl);font-weight:500}
+.card-sub-line{font-size:11px;color:var(--tl);font-weight:500;padding:0 17px 12px;margin-top:-8px}
+.hd-actions{display:flex;align-items:center;gap:8px;position:relative}
+.btn-add{display:flex;align-items:center;gap:6px;background:#27ae60;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:11.5px;font-weight:700;cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s}
+.btn-add:hover{background:#229954;transform:translateY(-1px);box-shadow:0 4px 12px rgba(39,174,96,.35)}
+.btn-add svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.btn-tool{display:flex;align-items:center;gap:6px;background:#fff;color:var(--tm);border:1px solid var(--border);border-radius:8px;padding:8px 13px;font-size:11.5px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s;position:relative}
+.btn-tool:hover{background:#f6faf7;border-color:#c5d6cd}
+.btn-tool svg{width:14px;height:14px;stroke:var(--tm);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:0}
+.tbl th{padding:9px 12px;text-align:left;font-size:10.5px;font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;line-height:1.5}
+.tbl th .th-unit{display:block;font-size:8.6px;font-weight:600;color:var(--tl);opacity:.65;text-transform:none;letter-spacing:0}
+.tbl td{padding:10px 12px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap;transition:background .15s}
+@media(max-width:1650px){
+  .tbl{font-size:11.6px}
+  .tbl th{padding:7px 5px;font-size:9.3px;letter-spacing:.1px}
+  .tbl th .th-unit{font-size:7.8px}
+  .tbl td{padding:7px 5px}
+}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl tr.row-cur td{background:#f0faf5}
+.tbl .tot td{font-weight:700;background:#f6faf7;border-top:1.5px solid var(--border);border-bottom:none}
+.tbl .tot td.acc{color:#27ae60}
+.tbl-badge{font-size:10px;font-weight:700;padding:4px 11px;border-radius:20px;background:#e3f6ec;color:#19733f;display:inline-block}
+.sh-name{display:flex;align-items:center;gap:9px}
+.sh-name .av{width:30px;height:30px;font-size:10.5px}
+.sh-name-txt h5{font-size:12.5px;font-weight:700;color:var(--td);line-height:1.2}
+.sh-name-txt span{font-size:10.5px;color:var(--tl)}
+
+.info-note{display:flex;align-items:center;gap:9px;margin:2px 17px 15px;padding:10px 14px;background:#f0f7f3;border:1px solid #d9ebe1;border-radius:9px;font-size:11.5px;color:var(--tm);font-weight:600}
+.info-note svg{width:15px;height:15px;stroke:#5e9c7a;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+.view-exp{display:block;margin:10px 17px 14px;background:#eaf8f0;border:1px solid #bcdece;color:#27ae60;font-size:11.5px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;text-align:center;text-decoration:none;transition:background .15s,transform .15s}
+.view-exp:hover{background:#ddf1e5}
+
+.sum-list{padding:2px 0 6px}
+.sum-row{display:flex;align-items:center;gap:12px;padding:11px 17px;border-bottom:1px solid #f0f5f2;transition:background .15s}
+.sum-row:last-child{border-bottom:none}
+.sum-row:hover{background:#f7fbf9}
+.sum-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sum-ic svg{width:18px;height:18px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sum-bd{display:flex;flex-direction:column;gap:2px}
+.sum-lbl{font-size:11px;color:var(--tl);font-weight:600}
+.sum-val{font-size:15px;font-weight:700;color:var(--td);font-family:'Quicksand',sans-serif}
+
+.chart-box{padding:0 17px 16px;display:flex;flex-direction:column;position:relative}
+.leg{display:flex;gap:16px;margin-bottom:8px;font-size:11.5px;font-weight:600;color:var(--tm);flex-wrap:wrap}
+.leg span{cursor:pointer;transition:opacity .15s;user-select:none}
+.leg span.off{opacity:.35;text-decoration:line-through}
+.leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.chart-frame{position:relative;height:230px}
+.chart-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#fff;z-index:5;transition:opacity .3s}
+.chart-loading.hide{opacity:0;pointer-events:none}
+.spinner{width:26px;height:26px;border:3px solid #e3f6ec;border-top-color:#27ae60;border-radius:50%;animation:spin360 .7s linear infinite}
+
+.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:6px 17px 17px}
+.qa-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:15px 6px 13px;border:1px solid var(--border);border-radius:11px;cursor:pointer;transition:background .15s,border-color .15s,transform .15s;background:#fff;text-align:center}
+.qa-item:hover{background:#f7fbf9;border-color:#c5d6cd;transform:translateY(-2px)}
+.qa-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.qa-ic svg{width:18px;height:18px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-lbl{font-size:10.5px;font-weight:700;color:var(--tm);line-height:1.25}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(8,18,12,.58);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;animation:overlayIn .22s ease;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px;width:100%;max-width:520px;max-height:92vh;overflow:hidden;box-shadow:0 32px 90px rgba(8,18,12,.38),0 0 0 1px rgba(39,174,96,.12);display:flex;flex-direction:column;animation:modalIn .28s cubic-bezier(.22,.61,.36,1)}
+.modal.wide{max-width:680px}
+.modal>form{display:flex;flex-direction:column;min-height:0;flex:1}
+.modal-hdr{background:linear-gradient(135deg,#1d6b42 0%,#27ae60 100%);padding:22px 24px 20px;display:flex;align-items:center;gap:16px;position:relative;flex-shrink:0}
+.modal-hdr-ico{width:48px;height:48px;background:rgba(255,255,255,.15);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid rgba(255,255,255,.2)}
+.modal-hdr-ico svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modal-hdr-txt h3{font-family:'Quicksand',sans-serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2;letter-spacing:.1px}
+.modal-hdr-txt p{font-size:11px;color:rgba(255,255,255,.65);margin-top:3px}
+.modal-hdr-close{margin-left:auto;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,transform .2s}
+.modal-hdr-close:hover{background:rgba(255,255,255,.25);transform:rotate(90deg)}
+.modal-hdr-close svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.modal-body{padding:22px 24px;overflow-y:auto}
+.form-grid{display:grid;gap:12px}
+.form-grid.g2{grid-template-columns:1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:10.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.5px}
+.fg-wrap{position:relative;display:flex;align-items:center}
+.fg input,.fg select{width:100%;border:1.5px solid #dde8e2;border-radius:10px;padding:11px 13px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none;background:#fff;transition:border-color .18s,box-shadow .18s;-webkit-appearance:none;appearance:none}
+.fg input:hover,.fg select:hover{border-color:#c5d6cd}
+.fg input:focus,.fg select:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.13)}
+.fg input.pu{padding-right:42px}
+.fg-suf{position:absolute;right:12px;font-size:11px;font-weight:700;color:#aabbb4;pointer-events:none}
+.fg-hint{font-size:10px;color:var(--tl)}
+.fg input[readonly]{background:#f6faf7;color:#3a5647;cursor:not-allowed}
+.split-preview{background:linear-gradient(135deg,#f0faf5,#e8f5ee);border:1.5px solid #c8e6d4;border-radius:10px;padding:12px 14px;margin-top:6px}
+.split-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12.5px;color:#1a5c3a;font-weight:600}
+.split-row b{font-family:'Quicksand',sans-serif;font-size:14px}
+.modal-footer{display:flex;align-items:center;justify-content:flex-end;padding:14px 24px;border-top:1px solid var(--border);background:#fafcfb;gap:10px;flex-shrink:0}
+.btn-ghost{background:#fff;border:1.5px solid var(--border);color:var(--tm);font-weight:700;font-size:12px;padding:10px 18px;border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}
+.btn-ghost:hover{background:var(--bg);border-color:#c5d6cd}
+.btn-solid{background:linear-gradient(135deg,#2ebd6b,#1f9b53);border:none;color:#fff;font-weight:700;font-size:12px;padding:10px 22px;border-radius:10px;cursor:pointer;transition:opacity .15s,transform .15s,box-shadow .15s;display:flex;align-items:center;gap:7px;box-shadow:0 4px 14px rgba(39,174,96,.35)}
+.btn-solid:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(39,174,96,.45)}
+.btn-solid:active{transform:scale(.97)}
+.btn-solid svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+.export-drop{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 32px rgba(20,40,30,.16);min-width:210px;z-index:130;overflow:hidden;animation:dropIn .16s ease;display:none}
+.export-drop.show{display:block}
+.export-drop button{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .13s,color .13s;font-family:'Nunito',sans-serif}
+.export-drop button:hover{background:#f6faf7;color:var(--td)}
+.export-drop button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:#27ae60}
+
+.dist-main{display:grid;grid-template-columns:1fr 340px;gap:14px;margin-bottom:0;align-items:start;min-width:0}
+.dist-left{display:flex;flex-direction:column;gap:14px;min-width:0}
+.dist-right{display:flex;flex-direction:column;gap:14px}
+.pd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 17px 16px}
+
+@media(max-width:1180px){
+  .dist-main{grid-template-columns:1fr}
+  .pd-kpis{grid-template-columns:repeat(2,1fr)}
+  .qa-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:760px){
+  .content{padding:14px}
+  .pd-kpis{grid-template-columns:1fr 1fr}
+  .qa-grid{grid-template-columns:1fr 1fr}
+  .toast-stack{left:12px;right:12px;bottom:12px;align-items:stretch}
+  .toast{max-width:none}
+}
+@media(max-width:420px){
+  .pd-kpis{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+
+  <div class="content">
+    <div class="dist-main">
+      <!-- LEFT COLUMN -->
+      <div class="dist-left">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Profit Distribution <span class="sub" id="pdLbl">(May 2026)</span></div>
+            <div class="hd-actions">
+              <button class="btn-tool" onclick="openEditModal()"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>Edit Distribution %</button>
+            </div>
+          </div>
+          <div class="card-sub-line">Distribute net cash profit among shareholders</div>
+
+          <div class="pd-kpis">
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <span class="kc-lbl">Net Cash Profit</span>
+              <div class="kc-val"><span id="pdNet">29,669.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
+              <span class="kc-lbl">Distribution %</span>
+              <div class="kc-val"><span id="pdPct">10.00</span><span class="u">%</span></div>
+              <div class="kc-note">(Configurable)</div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg></div>
+              <span class="kc-lbl">Distributable Amount</span>
+              <div class="kc-val"><span id="pdDistAmt">2,966.90</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-p"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
+              <span class="kc-lbl">Retained in Business</span>
+              <div class="kc-val"><span id="pdRetained">26,702.10</span><span class="u">ETB</span></div>
+            </div>
+          </div>
+
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Shareholder</th><th>Ownership % <span class="th-unit">(This Month)</span></th><th>Ownership % <span class="th-unit">(Snapshot)</span></th><th>Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
+              <tbody id="shBody">
+                <tr>
+                  <td><div class="sh-name"><div class="av">EM</div><div class="sh-name-txt"><h5>Eyasu Mesfin</h5><span>Owner</span></div></div></td>
+                  <td>80.00%</td><td>80.00%</td><td id="shAmt1">2,373.52</td><td><span class="tbl-badge">Paid</span></td>
+                </tr>
+                <tr>
+                  <td><div class="sh-name"><div class="av" style="background:linear-gradient(145deg,#f7b03a,#e8891a)">KM</div><div class="sh-name-txt"><h5>Kaleb Mekonnen</h5><span>Investor</span></div></div></td>
+                  <td>20.00%</td><td>20.00%</td><td id="shAmt2">593.38</td><td><span class="tbl-badge">Paid</span></td>
+                </tr>
+              </tbody>
+              <tfoot><tr class="tot"><td>Total</td><td>100.00%</td><td>100.00%</td><td class="acc" id="shAmtTot">2,966.90</td><td>Paid</td></tr></tfoot>
+            </table>
+          </div>
+
+          <div class="info-note">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Distribution amounts are calculated based on the ownership percentages snapshot of this month.</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Distribution History <span class="sub">All profit distributions</span></div>
+            <div class="hd-actions">
+              <div class="btn-tool" id="expBtn" role="button" tabindex="0" onclick="toggleExpDrop(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleExpDrop(event);}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke-width:3;stroke-linecap:round;margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="export-drop" id="expDrop">
+                  <button onclick="event.stopPropagation();closeExpDrop();exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
+                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as PDF</button>
+                  <button onclick="event.stopPropagation();closeExpDrop();exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (with chart)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Month</th><th>Net Cash Profit <span class="th-unit">(ETB)</span></th><th>Distribution %</th><th>Distributable Amount <span class="th-unit">(ETB)</span></th><th>Distributed Amount <span class="th-unit">(ETB)</span></th><th>Retained Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
+              <tbody id="histBody"></tbody>
+            </table>
+          </div>
+          <button class="view-exp" onclick="toast('Opening full distribution history…','info')">&#9776; View Full History</button>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="dist-right">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Distribution Summary <span class="sub">(All Time)</span></div></div>
+          <div class="sum-list">
+            <div class="sum-row">
+              <div class="sum-ic ic-g"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Distributed (All Time)</span><span class="sum-val">18,534.75 ETB</span></div>
+            </div>
+            <div class="sum-row">
+              <div class="sum-ic ic-o"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Retained in Business (All Time)</span><span class="sum-val">137,428.25 ETB</span></div>
+            </div>
+            <div class="sum-row">
+              <div class="sum-ic ic-b"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Months with Distribution</span><span class="sum-val">8 Months</span></div>
+            </div>
+            <div class="sum-row">
+              <div class="sum-ic ic-p"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Average Distribution %</span><span class="sum-val">10.5%</span></div>
+            </div>
+            <div class="sum-row">
+              <div class="sum-ic ic-t"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Distributable Profit</span><span class="sum-val">156,963.00 ETB</span></div>
+            </div>
+            <div class="sum-row">
+              <div class="sum-ic ic-y"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Net Cash Profit (All Time)</span><span class="sum-val">156,963.00 ETB</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Distribution Trend <span class="sub">(Last 6 Months)</span></div></div>
+          <div class="chart-box">
+            <div class="leg" id="legTrend">
+              <span data-ds="0"><span class="leg-ln" style="background:#27ae60"></span>Distributed Amount (ETB)</span>
+              <span data-ds="1"><span class="leg-ln" style="background:#f59e0b"></span>Distribution %</span>
+            </div>
+            <div class="chart-frame">
+              <div class="chart-loading" id="ldTrend"><div class="spinner"></div></div>
+              <canvas id="cTrend"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+          <div class="qa-grid">
+            <div class="qa-item" onclick="openRecordModal()">
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg></div>
+              <span class="qa-lbl">Record Distribution</span>
+            </div>
+            <div class="qa-item" onclick="exportExcel()">
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg></div>
+              <span class="qa-lbl">Distribution Report (Excel)</span>
+            </div>
+            <div class="qa-item" onclick="exportPDF()">
+              <div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <span class="qa-lbl">Distribution PDF</span>
+            </div>
+            <div class="qa-item" onclick="exportFullPDF()">
+              <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
+              <span class="qa-lbl">Distribute Profit Report</span>
+            </div>
+            <div class="qa-item" onclick="openShareholderModal()">
+              <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+              <span class="qa-lbl">Shareholder Management</span>
+            </div>
+            <div class="qa-item" onclick="toast('Distribution settings coming soon','info')">
+              <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+              <span class="qa-lbl">Distribution Settings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</div>
+</div>
+
+<!-- EDIT DISTRIBUTION % MODAL -->
+<div class="modal-overlay" id="editModalOverlay" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Edit Distribution %</h3><p>Set the share of net cash profit to distribute this month</p></div>
+      <button class="modal-hdr-close" onclick="closeEditModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <form onsubmit="submitEditModal(event)">
+      <div class="modal-body">
+        <div class="form-grid g2">
+          <div class="fg">
+            <label>Month</label>
+            <div class="fg-wrap"><input type="text" id="editMonth" value="May 2026" readonly></div>
+          </div>
+          <div class="fg">
+            <label>Distribution %</label>
+            <div class="fg-wrap"><input type="number" id="editPct" class="pu" min="0" max="100" step="0.01" value="10.00" oninput="previewEditSplit()" required><span class="fg-suf">%</span></div>
+            <span class="fg-hint">Defaults to prior month's setting</span>
+          </div>
+        </div>
+        <div class="split-preview" id="editPreview">
+          <div class="split-row"><span>Distributable Amount</span><b id="prevDistAmt">2,966.90 ETB</b></div>
+          <div class="split-row"><span>Eyasu Mesfin (80.00%)</span><b id="prevEyasu">2,373.52 ETB</b></div>
+          <div class="split-row"><span>Kaleb Mekonnen (20.00%)</span><b id="prevKaleb">593.38 ETB</b></div>
+          <div class="split-row"><span>Retained in Business</span><b id="prevRetained">26,702.10 ETB</b></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeEditModal()">Cancel</button>
+        <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Save Distribution %</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- RECORD DISTRIBUTION MODAL -->
+<div class="modal-overlay" id="recordModalOverlay" onclick="if(event.target===this)closeRecordModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Record Distribution</h3><p>Confirm and record this month's shareholder payout</p></div>
+      <button class="modal-hdr-close" onclick="closeRecordModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <form onsubmit="submitRecordModal(event)">
+      <div class="modal-body">
+        <div class="split-preview">
+          <div class="split-row"><span>Month</span><b id="recMonth">May 2026</b></div>
+          <div class="split-row"><span>Net Cash Profit</span><b id="recNet">29,669.00 ETB</b></div>
+          <div class="split-row"><span>Distribution %</span><b id="recPct">10.00%</b></div>
+          <div class="split-row"><span>Distributable Amount</span><b id="recDistAmt">2,966.90 ETB</b></div>
+        </div>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="fg">
+            <label>Payment Date</label>
+            <div class="fg-wrap"><input type="date" id="recDate" required></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeRecordModal()">Cancel</button>
+        <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Confirm &amp; Record</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SHAREHOLDER MANAGEMENT MODAL -->
+<div class="modal-overlay" id="shModalOverlay" onclick="if(event.target===this)closeShareholderModal()">
+  <div class="modal wide">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Shareholder Management</h3><p>Ownership percentages must always sum to 100.00%</p></div>
+      <button class="modal-hdr-close" onclick="closeShareholderModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Eyasu Mesfin</td><td>Owner</td><td>80.00%</td><td><span class="tbl-badge">Active</span></td></tr>
+            <tr><td>Kaleb Mekonnen</td><td>Investor</td><td>20.00%</td><td><span class="tbl-badge">Active</span></td></tr>
+            <tr class="tot"><td>Total</td><td>–</td><td class="acc">100.00%</td><td>–</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info-note" style="margin:14px 0 0">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Percentage changes take effect from next month's distribution — not retroactively. Only the Owner role can add or deactivate shareholders.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeShareholderModal()">Close</button>
+      <button type="button" class="btn-solid" onclick="toast('Add shareholder coming soon','info')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add Shareholder</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+/* ══ STATE ═══════════════════════════════════ */
+const OWN = { eyasu:0.80, kaleb:0.20 };
+const history = [
+  {m:'Dec 2025', net:14880.00, pct:10.00},
+  {m:'Jan 2026', net:16420.00, pct:10.00},
+  {m:'Feb 2026', net:18750.00, pct:10.00},
+  {m:'Mar 2026', net:22310.00, pct:10.00},
+  {m:'Apr 2026', net:24850.00, pct:10.00},
+  {m:'May 2026', net:29669.00, pct:10.00},
+  {m:'Jun 2026', net:0, pct:10.00}
+];
+const MONTHS = history.map(h=>h.m);
+let curIdx = 5; // May 2026
+
+// ═══════════════════════════════════════════════════
+//  TOPBAR — title, month picker, and notifications now render through
+//  the shared header.js. Session/auth, sidebar, sign-out, and toast
+//  live in app-state.js / sidebar.js.
+// ═══════════════════════════════════════════════════
+renderHeader({
+  title: 'Distribution',
+  subtitle: 'Profit distribution and shareholder summary',
+  showMonthPicker: true,
+  months: MONTHS,
+  selectedMonth: MONTHS[curIdx],
+  onMonthChange: (label) => {
+    const idx = MONTHS.indexOf(label);
+    if (idx === -1) return;
+    if (history[idx].net === 0) {
+      toast('No distribution recorded yet for '+label, 'info');
+      document.getElementById('msel').value = MONTHS[curIdx];
+      return;
+    }
+    curIdx = idx;
+    renderMonth();
+  },
+  notifications: [
+    { type:'g', title:'May 2026 distribution recorded', sub:'2,966.90 ETB distributed', time:'1h ago' },
+    { type:'b', title:'Distribution % unchanged for 3 months', sub:'Currently set at 10.00%', time:'2h ago' }
+  ]
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeSidebar();
+    closeExpDrop();
+    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+  }
+});
+
+function f(n){ return (Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function computeSplit(net, pct){
+  const distAmt = net * (pct/100);
+  const retained = net - distAmt;
+  let eyasu = distAmt * OWN.eyasu;
+  let kaleb = distAmt - eyasu; // remainder absorbs rounding, per spec rule
+  eyasu = Math.round(eyasu*100)/100;
+  kaleb = Math.round((distAmt - eyasu)*100)/100;
+  return { distAmt, retained, eyasu, kaleb };
+}
+
+function renderMonth(){
+  const rec = history[curIdx];
+  document.getElementById('msel').value = rec.m;
+  document.getElementById('pdLbl').textContent = '('+rec.m+')';
+  document.getElementById('pdNet').textContent = f(rec.net);
+  document.getElementById('pdPct').textContent = rec.pct.toFixed(2);
+  const sp = computeSplit(rec.net, rec.pct);
+  document.getElementById('pdDistAmt').textContent = f(sp.distAmt);
+  document.getElementById('pdRetained').textContent = f(sp.retained);
+  document.getElementById('shAmt1').textContent = f(sp.eyasu);
+  document.getElementById('shAmt2').textContent = f(sp.kaleb);
+  document.getElementById('shAmtTot').textContent = f(sp.distAmt);
+  renderHistory();
+}
+
+function renderHistory(){
+  const body = document.getElementById('histBody');
+  body.innerHTML = '';
+  for(let i=history.length-1;i>=0;i--){
+    const h = history[i];
+    if(h.net===0) continue;
+    const sp = computeSplit(h.net, h.pct);
+    const tr = document.createElement('tr');
+    if(i===curIdx) tr.className='row-cur';
+    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${h.pct.toFixed(2)}%</td><td>${f(sp.distAmt)}</td><td>${f(sp.distAmt)}</td><td>${f(sp.retained)}</td><td><span class="tbl-badge">Paid</span></td>`;
+    body.appendChild(tr);
+  }
+}
+
+/* ══ EXPORT DROPDOWN (Distribution History card) ═ */
+function toggleExpDrop(e){
+  e.stopPropagation();
+  const d=document.getElementById('expDrop');
+  const was=d.classList.contains('show');
+  document.querySelectorAll('.export-drop').forEach(x=>x.classList.remove('show'));
+  d.classList.toggle('show',!was);
+}
+function closeExpDrop(){
+  const d=document.getElementById('expDrop');
+  if(d) d.classList.remove('show');
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('#expBtn')) closeExpDrop();
+});
+
+/* ══ EDIT DISTRIBUTION % MODAL ═══════════════ */
+function openEditModal(){
+  const rec = history[curIdx];
+  document.getElementById('editMonth').value = rec.m;
+  document.getElementById('editPct').value = rec.pct.toFixed(2);
+  previewEditSplit();
+  document.getElementById('editModalOverlay').classList.add('show');
+}
+function closeEditModal(){ document.getElementById('editModalOverlay').classList.remove('show'); }
+function previewEditSplit(){
+  const rec = history[curIdx];
+  const pct = parseFloat(document.getElementById('editPct').value)||0;
+  const sp = computeSplit(rec.net, pct);
+  document.getElementById('prevDistAmt').textContent = f(sp.distAmt)+' ETB';
+  document.getElementById('prevEyasu').textContent = f(sp.eyasu)+' ETB';
+  document.getElementById('prevKaleb').textContent = f(sp.kaleb)+' ETB';
+  document.getElementById('prevRetained').textContent = f(sp.retained)+' ETB';
+}
+function submitEditModal(e){
+  e.preventDefault();
+  const pct = parseFloat(document.getElementById('editPct').value)||0;
+  history[curIdx].pct = pct;
+  renderMonth();
+  closeEditModal();
+  toast('Distribution % updated to '+pct.toFixed(2)+'%','success');
+}
+
+/* ══ RECORD DISTRIBUTION MODAL ═══════════════ */
+function openRecordModal(){
+  const rec = history[curIdx];
+  const sp = computeSplit(rec.net, rec.pct);
+  document.getElementById('recMonth').textContent = rec.m;
+  document.getElementById('recNet').textContent = f(rec.net)+' ETB';
+  document.getElementById('recPct').textContent = rec.pct.toFixed(2)+'%';
+  document.getElementById('recDistAmt').textContent = f(sp.distAmt)+' ETB';
+  document.getElementById('recDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recordModalOverlay').classList.add('show');
+}
+function closeRecordModal(){ document.getElementById('recordModalOverlay').classList.remove('show'); }
+function submitRecordModal(e){
+  e.preventDefault();
+  closeRecordModal();
+  toast('Distribution recorded for '+history[curIdx].m,'success');
+}
+
+/* ══ SHAREHOLDER MODAL ═══════════════════════ */
+function openShareholderModal(){ document.getElementById('shModalOverlay').classList.add('show'); }
+function closeShareholderModal(){ document.getElementById('shModalOverlay').classList.remove('show'); }
+
+/* ══ EXPORT EXCEL (real .xlsx via SheetJS, styled like Derkosh) ── */
+function exportExcel(retryCount){
+  retryCount = retryCount || 0;
+  const month = history[curIdx].m.replace(' ','_');
+  if(typeof XLSX === 'undefined'){
+    if(retryCount < 6){
+      setTimeout(()=>exportExcel(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing Excel file…','info');
+      return;
+    }
+    exportCSVFallback(month);
+    return;
+  }
+  try{
+    const hdr=['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status'];
+    const data=[hdr];
+    let rowsForXlsx=[];
+    for(let i=history.length-1;i>=0;i--){
+      const h=history[i]; if(h.net===0) continue;
+      const sp=computeSplit(h.net,h.pct);
+      rowsForXlsx.push([h.m, h.net, h.pct/100, sp.distAmt, sp.distAmt, sp.retained, 'Paid']);
+    }
+    rowsForXlsx.forEach(r=>data.push(r));
+    const totalRowIdx = data.length; // 0-indexed position the TOTAL row will occupy
+    const totNet = rowsForXlsx.reduce((a,r)=>a+r[1],0);
+    const totDist = rowsForXlsx.reduce((a,r)=>a+r[3],0);
+    const totRet = rowsForXlsx.reduce((a,r)=>a+r[5],0);
+    data.push(['TOTAL', totNet, '—', totDist, totDist, totRet, 'Paid']);
+
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:12},{wch:20},{wch:14},{wch:22},{wch:22},{wch:20},{wch:10}];
+    ws['!rows']=[{hpt:22}];
+    ws['!freeze']={xSplit:0,ySplit:1};
+
+    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
+    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
+    const moneyCols=[1,3,4,5]; // ETB columns -> currency-style 2 decimals
+    const pctCols=[2];
+
+    for(let r=0;r<data.length;r++){
+      for(let c=0;c<hdr.length;c++){
+        const addr=XLSX.utils.encode_cell({r,c});
+        if(!ws[addr]) continue;
+        const isHeader=r===0;
+        const isTotal=r===totalRowIdx;
+        let numFmt;
+        if(!isHeader && moneyCols.includes(c)) numFmt='#,##0.00';
+        if(!isHeader && pctCols.includes(c) && r!==totalRowIdx) numFmt='0.00%';
+        ws[addr].s={
+          font:{ bold:isHeader||isTotal, color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')}, sz:10 },
+          fill:{fgColor:{rgb:isHeader?'1D6B42':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))}},
+          alignment:{vertical:'center',horizontal:(c===0||c===6)?'left':'right'},
+          border:borderAll
+        };
+        if(numFmt) ws[addr].z=numFmt;
+      }
+    }
+
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Distribution History');
+    XLSX.writeFile(wb,'Distribution_Report_'+month+'.xlsx');
+    toast('Downloaded Distribution_Report_'+month+'.xlsx ✓','success');
+  } catch(err){
+    console.error('Excel export failed:', err);
+    exportCSVFallback(month);
+  }
+}
+function csvField(v){
+  const s=String(v);
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function exportCSVFallback(month){
+  const hdr=['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status'];
+  const lines=[hdr.map(csvField).join(',')];
+  let totNet=0, totDist=0, totRet=0;
+  for(let i=history.length-1;i>=0;i--){
+    const h=history[i]; if(h.net===0) continue;
+    const sp=computeSplit(h.net,h.pct);
+    lines.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(sp.distAmt), f(sp.distAmt), f(sp.retained), 'Paid'].map(csvField).join(','));
+    totNet+=h.net; totDist+=sp.distAmt; totRet+=sp.retained;
+  }
+  lines.push(['TOTAL', f(totNet), '—', f(totDist), f(totDist), f(totRet), 'Paid'].map(csvField).join(','));
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='Distribution_Report_'+month+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('Excel engine unavailable — downloaded as CSV instead','info');
+}
+
+/* ══ EXPORT: PDF ═════════════════════════════ */
+function exportPDF(retryCount){
+  retryCount = retryCount||0;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
+    if(retryCount<6){ setTimeout(()=>exportPDF(retryCount+1),400); if(retryCount===0) toast('Preparing PDF…','info'); return; }
+    toast('Could not load the PDF engine. Check your connection and try again.','error'); return;
+  }
+  try{
+  const { jsPDF } = window.jspdf;
+  const rec = history[curIdx];
+  const sp = computeSplit(rec.net, rec.pct);
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 32;
+  const green=[39,174,96], deepGreen=[16,39,26], darkGreen=[22,52,36];
+  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+  function drawHeader(){
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+    doc.setFillColor(255,255,255); doc.roundedRect(marginX,18,38,38,9,9,'F');
+    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text('MI', marginX+19, 42, {align:'center'});
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text('Distribution Report', marginX+52, 34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+  }
+  function drawKpiStrip(y){
+    const kpis=[
+      {lbl:'NET CASH PROFIT', val:f(rec.net), unit:'ETB'},
+      {lbl:'DISTRIBUTION %', val:rec.pct.toFixed(2), unit:'%'},
+      {lbl:'DISTRIBUTABLE AMOUNT', val:f(sp.distAmt), unit:'ETB'},
+      {lbl:'RETAINED IN BUSINESS', val:f(sp.retained), unit:'ETB'}
+    ];
+    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=52;
+    kpis.forEach((k,i)=>{
+      const x=marginX+i*(cardW+gap);
+      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+      doc.text(k.lbl, x+10, y+17, {charSpace:0.3});
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+      doc.text(k.val, x+10, y+38);
+      const valW=doc.getTextWidth(k.val);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...textMid);
+      doc.text(k.unit, x+10+valW+4, y+38);
+    });
+    return y+cardH;
+  }
+  drawHeader();
+  let y = drawKpiStrip(94) + 20;
+
+  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Shareholder Distribution — '+rec.m, marginX, y);
+  y += 8;
+  doc.autoTable({
+    head:[['Shareholder','Role','Ownership %','Amount (ETB)','Status']],
+    body:[['Eyasu Mesfin','Owner','80.00%',f(sp.eyasu),'Paid'],['Kaleb Mekonnen','Investor','20.00%',f(sp.kaleb),'Paid']],
+    foot:[['Total','–','100.00%',f(sp.distAmt),'Paid']],
+    startY:y+8, margin:{left:marginX,right:marginX},
+    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
+    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  let y2 = doc.lastAutoTable.finalY + 24;
+  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Distribution History', marginX, y2);
+  const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
+  const histBody=[];
+  for(let i=history.length-1;i>=0;i--){
+    const h=history[i]; if(h.net===0) continue;
+    const s2=computeSplit(h.net,h.pct);
+    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), 'Paid']);
+  }
+  doc.autoTable({
+    head:histHead, body:histBody, startY:y2+8, margin:{left:marginX,right:marginX,bottom:44},
+    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setDrawColor(...border);
+    doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+    doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
+    doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+  }
+  doc.save('Distribution_Report_'+rec.m.replace(' ','_')+'.pdf');
+  toast('Downloaded Distribution_Report_'+rec.m.replace(' ','_')+'.pdf ✓','success');
+  } catch(err){
+    console.error('PDF export failed:', err);
+    toast('PDF export failed — please try again','error');
+  }
+}
+
+/* ══ EXPORT FULL PDF WITH CHART (landscape, multi-page) ══════════════
+   A richer companion to exportPDF() above — same data, but also captures
+   the Distribution Trend Chart.js canvas as an image and lays everything
+   out across full landscape pages (KPIs + chart on page 1, shareholder
+   table on page 2, full history table on page 3). */
+function exportFullPDF(retryCount){
+  retryCount = retryCount || 0;
+  const chartReady = window.distributionCharts && window.distributionCharts.chTrend;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartReady){
+    if(retryCount < 8){
+      setTimeout(()=>exportFullPDF(retryCount+1), 400);
+      if(retryCount === 0) toast('Preparing full report PDF…','info');
+      return;
+    }
+    toast('Could not load the PDF/chart engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+  const { jsPDF } = window.jspdf;
+  const rec = history[curIdx];
+  const sp = computeSplit(rec.net, rec.pct);
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 32;
+
+  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+  function drawHeader(subtitle){
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(marginX,18,38,38,9,9,'F');
+    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text('MI', marginX+19, 42, {align:'center'});
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text('Distribution Full Report'+(subtitle?' — '+subtitle:''), marginX+52, 34);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+  }
+  function drawFooter(){
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setDrawColor(...border);
+      doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
+      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
+    }
+  }
+  function drawKpiStrip(y){
+    const kpis=[
+      {lbl:'NET CASH PROFIT', val:f(rec.net), unit:'ETB'},
+      {lbl:'DISTRIBUTION %', val:rec.pct.toFixed(2), unit:'%'},
+      {lbl:'DISTRIBUTABLE AMOUNT', val:f(sp.distAmt), unit:'ETB'},
+      {lbl:'RETAINED IN BUSINESS', val:f(sp.retained), unit:'ETB'}
+    ];
+    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
+    kpis.forEach((k,i)=>{
+      const x=marginX+i*(cardW+gap);
+      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+      doc.text(k.lbl, x+10, y+15, {charSpace:0.3});
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
+      doc.text(k.val, x+10, y+34);
+      const valW=doc.getTextWidth(k.val);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
+      doc.text(k.unit, x+10+valW+4, y+34);
+    });
+    return y+cardH;
+  }
+  function drawChartTile(img,x,y,w,h,title){
+    doc.setFillColor(255,255,255); doc.setDrawColor(...border);
+    doc.roundedRect(x,y,w,h,7,7,'FD');
+    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+    doc.text(title, x+12, y+18);
+    const imgPad=10, imgY=y+26;
+    const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
+    try{ doc.addImage(img, 'PNG', x+imgPad, imgY, imgW, imgH, undefined, 'FAST'); }catch(e){ /* skip tile if capture failed */ }
+  }
+
+  /* ---- PAGE 1: KPI strip + Distribution Trend chart ---- */
+  drawHeader();
+  const kpiBottom = drawKpiStrip(94);
+  const gY = kpiBottom+18;
+  const imgTrend = window.distributionCharts.chTrend.toBase64Image();
+  drawChartTile(imgTrend, marginX, gY, pageW-marginX*2, pageH-gY-40, 'Distribution Trend (Last 6 Months)');
+
+  /* ---- PAGE 2: Shareholder distribution table ---- */
+  doc.addPage();
+  drawHeader('Shareholder Distribution');
+  doc.autoTable({
+    head:[['Shareholder','Role','Ownership %','Amount (ETB)','Status']],
+    body:[['Eyasu Mesfin','Owner','80.00%',f(sp.eyasu),'Paid'],['Kaleb Mekonnen','Investor','20.00%',f(sp.kaleb),'Paid']],
+    foot:[['Total','–','100.00%',f(sp.distAmt),'Paid']],
+    startY:94, margin:{left:marginX,right:marginX},
+    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
+    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  /* ---- PAGE 3: Full distribution history table ---- */
+  doc.addPage();
+  drawHeader('Distribution History');
+  const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
+  const histBody=[];
+  for(let i=history.length-1;i>=0;i--){
+    const h=history[i]; if(h.net===0) continue;
+    const s2=computeSplit(h.net,h.pct);
+    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), 'Paid']);
+  }
+  doc.autoTable({
+    head:histHead, body:histBody, startY:94, margin:{left:marginX,right:marginX,bottom:44},
+    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  drawFooter();
+  const safeMonth = rec.m.replace(' ','_');
+  doc.save('Distribution_Full_Report_'+safeMonth+'.pdf');
+  toast('Downloaded Distribution_Full_Report_'+safeMonth+'.pdf ✓','success');
+  } catch(err){
+    console.error('Full PDF export failed:', err);
+    toast('Full report PDF export failed — please try again','error');
+  }
+}
+
+/* ══ CHART ═══════════════════════════════════ */
+if(typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined'){ Chart.register(ChartDataLabels); }
+const ML=['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
+const distVals=[]; const pctVals=[];
+history.slice(0,6).forEach(h=>{ const sp=computeSplit(h.net,h.pct); distVals.push(Math.round(sp.distAmt)); pctVals.push(h.pct); });
+const hideL=id=>{const el=document.getElementById(id);if(el)el.classList.add('hide');};
+const legWire=(lid,ch)=>{
+  document.querySelectorAll('#'+lid+' span').forEach(sp=>{
+    sp.addEventListener('click',()=>{
+      const i=parseInt(sp.dataset.ds);
+      const m=ch.getDatasetMeta(i);
+      m.hidden=m.hidden===null?true:!m.hidden;
+      sp.classList.toggle('off',!!m.hidden);ch.update();
+    });
+  });
+};
+const TT={backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'}};
+const TX={font:{family:'Nunito',size:11},color:'#9aada5'};
+
+if(typeof Chart !== 'undefined'){
+  const chTrend = new Chart(document.getElementById('cTrend').getContext('2d'),{
+    data:{labels:ML,datasets:[
+      {type:'bar',label:'Distributed Amount (ETB)',data:distVals,backgroundColor:'#27ae60',borderRadius:5,maxBarThickness:32,yAxisID:'y',datalabels:{anchor:'end',align:'top',offset:2,color:'#16261e',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>v.toLocaleString()}},
+      {type:'line',label:'Distribution %',data:pctVals,borderColor:'#f59e0b',backgroundColor:'#f59e0b',borderWidth:2.5,borderDash:[5,4],pointBackgroundColor:'#f59e0b',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:7,fill:false,tension:0,yAxisID:'y1',datalabels:{display:false}}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
+      animation:{duration:1100,easing:'easeOutQuart'},
+      plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>c.dataset.yAxisID==='y1'?' '+c.dataset.label+': '+c.parsed.y+'%':' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}},
+      scales:{
+        x:{grid:{display:false},ticks:TX},
+        y:{position:'left',grid:{color:'#eef3f0',lineWidth:1},min:0,ticks:{...TX,callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}},
+        y1:{position:'right',grid:{display:false},min:0,max:20,ticks:{...TX,callback:v=>v+'%'}}
+      }},
+    plugins:[{id:'hlt',afterRender(){hideL('ldTrend');}}]
+  });
+  legWire('legTrend',chTrend);
+  window.distributionCharts = { chTrend };
+}
+
+/* ══ INIT ════════════════════════════════════ */
+renderMonth();
+</script>
+</body>
+</html>
