@@ -106,6 +106,11 @@ function renderSidebar(){
 
   const main = document.querySelector('.main');
   if (main && !main.id) main.id = 'mainContent';
+  // Sidebar starts collapsed (68px rail) by default at every width — .main must
+  // reserve exactly that much space from the start, or you get a dead gap
+  // between the rail and the content (the margin was sized for the full
+  // 220px width until JS narrowed it, which only happened under 1100px).
+  if (main) main.classList.add('sb-collapsed');
 
   document.querySelector('.sb-logout')?.addEventListener('click', signOut);
 
@@ -126,7 +131,10 @@ function toggleSidebar(){
   const overlay = document.getElementById('sbOverlay');
   if (window.innerWidth > 900){
     const pinned = sb.classList.toggle('pinned-open');
-    if (main) main.classList.toggle('sb-pinned', pinned);
+    if (main){
+      main.classList.toggle('sb-pinned', pinned);
+      main.classList.toggle('sb-collapsed', !pinned); // pinned open needs the full-width margin, not the collapsed one
+    }
   } else {
     sb.classList.toggle('open');
     if (overlay) overlay.classList.toggle('show');
@@ -142,7 +150,7 @@ function unpinSidebar(){
   const sb = document.getElementById('sidebar');
   const main = document.getElementById('mainContent') || document.querySelector('.main');
   if (sb) sb.classList.remove('pinned-open');
-  if (main) main.classList.remove('sb-pinned');
+  if (main){ main.classList.remove('sb-pinned'); main.classList.add('sb-collapsed'); }
 }
 function autoSidebarForWidth(){
   const sb = document.getElementById('sidebar');
