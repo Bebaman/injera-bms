@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales — Mena Injera & Derkosh BMS</title>
+<script>
+/* ════ EARLY AUTH CHECK ════
+   Redirect-only pass so an expired/missing session bounces to login before any
+   CDN libraries or page content load. */
+(function(){
+  function loadSessionEarly(){
+    try {
+      const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  const s = loadSessionEarly();
+  if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
+    try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
+    window.location.replace('login.html');
+    throw new Error('No valid session — redirecting to login.');
+  }
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="/css/shared-shell.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sh-hover:0 4px 14px rgba(0,0,0,.11);
+}
+body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.modal-hd h3{font-family:'Quicksand','Segoe UI',Roboto,sans-serif;letter-spacing:.1px}
+
+/* ══ KEYFRAMES ══════════════════════════════════════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideLeft{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes rippleAnim{to{transform:scale(2.8);opacity:0}}
+@keyframes numPop{0%{transform:scale(1)}50%{transform:scale(1.07)}100%{transform:scale(1)}}
+@keyframes barGrow{from{width:0}to{width:var(--w)}}
+@keyframes spinIn{from{opacity:0;transform:rotate(-90deg) scale(.7)}to{opacity:1;transform:rotate(0) scale(1)}}
+
+
+/* ══ KPI ROW ════════════════════════════════════════ */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s,transform .2s}
+.kc:hover{box-shadow:var(--sh-hover);transform:translateY(-1px)}
+.kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.kc:hover .kc-ico{transform:scale(1.12) rotate(-4deg)}
+.kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-g{background:#e5f5ed}.ic-g svg{stroke:#27ae60}
+.ic-t{background:#e0f2ee}.ic-t svg{stroke:#0d9b7a}
+.ic-o{background:#fef3e2}.ic-o svg{stroke:#f59e0b}
+.ic-r{background:#fdecea}.ic-r svg{stroke:#e53935}
+.ic-b{background:#e0effe}.ic-b svg{stroke:#2563eb}
+.ic-c{background:#e0f5fa}.ic-c svg{stroke:#0891b2}
+.ic-pu{background:#f1e9fb}.ic-pu svg{stroke:#8b5cf6}
+.kc-lbl{font-size:11px;color:var(--tl);font-weight:700;display:block;margin-bottom:5px}
+.kc-lbl .sub{font-size:9px;color:var(--tl);font-weight:600;display:block;margin-top:1px}
+.kc-val{font-size:19px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px}
+.kc-val .u{font-size:11px;font-weight:700;color:var(--tm);font-family:'Nunito',sans-serif}
+.kc-chg{font-size:11px;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:2px}
+.up{color:#27ae60}.dn{color:var(--red)}
+.vs{color:var(--tl);font-weight:500;font-size:10px;margin-left:3px}
+.kc.hl{box-shadow:0 6px 22px rgba(245,158,11,.38),0 1px 3px rgba(0,0,0,.06);border-color:#f7d99a}
+
+/* ══ CARD BASE ══════════════════════════════════════ */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--sh-hover)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;gap:10px;flex-wrap:wrap}
+.card-ttl{font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.card-ttl .tag{font-size:11px;color:var(--tl);font-weight:500;margin-left:2px}
+.vall{font-size:11.5px;font-weight:700;color:var(--green);cursor:pointer;transition:color .15s;white-space:nowrap;position:relative;overflow:hidden;padding:2px 4px;border-radius:5px}
+.vall:hover{color:#1a6b3c;text-decoration:underline}
+
+/* ══ LOADING SKELETON ═══════════════════════════════ */
+.skel{background:linear-gradient(90deg,#eef3f0 25%,#e4ece7 50%,#eef3f0 75%);background-size:200% 100%;animation:skelShim 1.4s infinite;border-radius:6px;height:1em;display:inline-block}
+@keyframes skelShim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ══ BUTTONS ════════════════════════════════════════ */
+.btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn-prim{display:flex;align-items:center;gap:6px;background:var(--green);color:#fff;border:none;font-weight:700;font-size:11.5px;padding:9px 15px;border-radius:8px;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap;position:relative;overflow:hidden;font-family:'Nunito',sans-serif}
+.btn-prim:hover{background:#229954}
+.btn-prim svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.btn-sec{display:flex;align-items:center;gap:6px;background:#fff;color:var(--tm);border:1px solid var(--border);font-weight:700;font-size:11.5px;padding:9px 13px;border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s;white-space:nowrap;position:relative;overflow:hidden;font-family:'Nunito',sans-serif}
+.btn-sec:hover{background:var(--bg);border-color:#b5cfc5}
+.btn-sec svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn-prim:active,.btn-sec:active{transform:scale(.97)}
+
+/* ══ TABLE ══════════════════════════════════════════ */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{padding:8px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.tbl td{padding:10px 14px;border-bottom:1px solid #edf3ef;color:var(--td);white-space:nowrap}
+.tbl tr:hover td{background:#f7fbf9}
+.tbl .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none}
+.tbl .tot td:first-child{color:#19733f}
+.tbl th.sortable{cursor:pointer;user-select:none;transition:color .12s}
+.tbl th.sortable:hover{color:#19733f}
+.sort-arrow{display:inline-block;margin-left:2px;font-size:8px;opacity:.35}
+.sort-arrow::after{content:'⬍'}
+.th-asc .sort-arrow::after{content:'▲';opacity:1}
+.th-desc .sort-arrow::after{content:'▼';opacity:1}
+.th-asc .sort-arrow,.th-desc .sort-arrow{opacity:1}
+.tbl-tight th{white-space:normal;line-height:1.2}
+.tbl-tight th,.tbl-tight td{padding-left:9px;padding-right:9px}
+.pg-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px;font-size:11.5px;color:var(--tl);font-weight:600}
+.pg-btns{display:flex;align-items:center;gap:4px}
+.pg-b{min-width:26px;height:26px;padding:0 6px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--tm);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s}
+.pg-b:hover{background:#eef8f2;border-color:#b5ddc5;color:#1a6b3c}
+.pg-b.active{background:var(--green);border-color:var(--green);color:#fff}
+.pg-b.dis{opacity:.4;cursor:default;pointer-events:none}
+.pmtag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block}
+.pm-cash{background:#e5f5ed;color:#19733f}
+.pm-credit{background:#fdecea;color:#b71c1c}
+.pm-bank{background:#e0effe;color:#1d4ed8}
+.pm-mobile{background:#f1e9fb;color:#6d28d9}
+.pm-mixed{background:#eef2f0;color:#5b6b63}
+.prod-dot{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.prod-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--dc,#27ae60);flex-shrink:0}
+.row-overdue{color:var(--red);font-weight:700}
+.dim{color:var(--tl)}
+
+/* ══ ROW MENU ═══════════════════════════════════════ */
+.row-menu-wrap{position:relative;display:inline-block}
+.row-menu-btn{color:var(--tl);cursor:pointer;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:5px;position:relative;overflow:hidden;display:inline-block}
+.row-menu-btn:hover{color:var(--td);background:var(--bg)}
+.row-drop{position:absolute;right:0;top:26px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.14);min-width:130px;z-index:60;overflow:hidden;display:none}
+.row-drop.open{display:block;animation:popIn .18s cubic-bezier(.34,1.56,.64,1) both}
+.row-drop button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;background:none;border:none;font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;white-space:nowrap}
+.row-drop button:hover{background:#f7fbf9;color:var(--td)}
+.row-drop button.danger:hover{background:#fdecea;color:#b71c1c}
+.row-drop button svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ══ FILTER PANEL ════════════════════════════════════ */
+.filter-panel{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
+.filter-panel.open{max-height:120px}
+.filter-inner{display:flex;gap:10px;flex-wrap:wrap;padding:4px 17px 14px}
+.filter-inner .fgrp{min-width:130px;flex:1}
+
+/* ══ LAYOUT ROWS ════════════════════════════════════ */
+.row-2{display:grid;grid-template-columns:2.5fr 1fr;gap:14px;margin-bottom:14px;align-items:stretch}
+.row-2 .card,.row-2 .side-stack>.card{display:flex;flex-direction:column}
+.side-stack{display:flex;flex-direction:column;gap:14px;height:100%}
+.side-stack>.card{flex:1}
+.row-3{display:grid;grid-template-columns:1.15fr 0.7fr 1.15fr;gap:14px;margin-bottom:14px;align-items:start}
+.row-prof{display:grid;grid-template-columns:1.65fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+.row-ar{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+
+/* ══ DONUTS ══════════════════════════════════════════ */
+.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;gap:14px;flex:1;justify-content:center}
+.dnut{position:relative;flex-shrink:0}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:80px}
+.dnut-lbl span{font-size:9px;color:var(--tl);font-weight:700;display:block;line-height:1.2}
+.dnut-lbl strong{font-size:11px;font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
+.exp-leg{font-size:10.5px;flex:1;display:flex;flex-direction:column;gap:7px}
+.exp-r{display:flex;align-items:center;gap:6px;transition:transform .15s;cursor:default;border-radius:4px;padding:1px 0}
+.exp-r:hover{transform:translateX(2px)}
+.exp-d{width:9px;height:9px;border-radius:50%;flex-shrink:0;transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+.exp-r:hover .exp-d{transform:scale(1.35)}
+.exp-n{color:var(--tm);flex:1;font-weight:700}
+.exp-v{font-weight:700;color:var(--td)}
+.exp-p{color:var(--tl);margin-left:3px;font-size:10px}
+
+/* ══ BAR LIST ════════════════════════════════════════ */
+.bar-list{padding:6px 17px 16px;display:flex;flex-direction:column;gap:12px}
+.bar-item h5{font-size:11.5px;font-weight:700;color:var(--td);margin-bottom:5px;display:flex;justify-content:space-between}
+.bar-item h5 .amt{color:var(--tm);font-weight:700}
+.bar-track{width:100%;height:8px;background:#eef3f0;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;background:var(--green);width:0;transition:width 1.1s cubic-bezier(.22,.61,.36,1)}
+
+/* ══ CHART BOX ══════════════════════════════════════ */
+.chart-box{padding:0 17px 16px;flex:1;display:flex;flex-direction:column}
+.chart-box canvas{flex:1}
+.leg{display:flex;gap:16px;margin-bottom:8px;font-size:11.5px;font-weight:700;color:var(--tm)}
+.leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* ══ QUICK ACTIONS ══════════════════════════════════ */
+.qa-g{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:12px 14px 14px}
+.qa-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 6px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-size:11.5px;font-weight:700;color:var(--tm);background:#fff;text-align:center;line-height:1.3;text-decoration:none;transition:all .15s;position:relative;overflow:hidden}
+.qa-b:hover{background:#eef8f2;border-color:#b5ddc5;color:#1a6b3c;transform:translateY(-1px);box-shadow:0 3px 8px rgba(39,174,96,.12)}
+.qa-b:active{transform:scale(.96)}
+.qa-b svg{width:22px;height:22px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.qa-b:hover svg{transform:scale(1.15)}
+
+/* ══ MODAL ═══════════════════════════════════════════ */
+.modal-bg{position:fixed;inset:0;background:rgba(16,38,26,.45);display:none;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(2px)}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:460px;max-width:93vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:popIn .25s cubic-bezier(.34,1.56,.64,1) both}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-hd h3{font-size:15px;font-weight:700;color:var(--td)}
+.modal-x{cursor:pointer;color:var(--tl);display:flex;transition:color .15s}
+.modal-x:hover{color:var(--td)}
+.modal-x svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.modal-bd{padding:18px 20px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px}
+.fgrp label{font-size:10.5px;font-weight:700;color:var(--tm);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.fgrp select,.fgrp input{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--td);outline:none;transition:border-color .15s;background:#fff}
+.fgrp select:focus,.fgrp input:focus{border-color:var(--green)}
+.rev-box{background:#eaf6f0;border:1px solid #b5ddc5;border-radius:8px;padding:12px 14px;text-align:center;font-size:13px;font-weight:700;color:#19733f;margin-bottom:13px}
+.rev-box span{font-size:17px;margin-left:4px;font-family:'Quicksand',sans-serif}
+.ar-box{background:#fef9ec;border:1px solid #f5e09a;border-radius:8px;padding:11px 14px;font-size:12px;color:#7a5f0a;margin-bottom:13px;display:none}
+.ar-box.show{display:block}
+.ar-box div{display:flex;justify-content:space-between;padding:2px 0}
+.ar-status{margin-top:5px;font-weight:700;font-size:12px}
+.vat-row{background:#eaf6f0;border:1px solid #b5ddc5;border-radius:8px;padding:10px 14px;margin-bottom:13px;display:none;font-size:12.5px}
+.vat-row.show{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vat-row label{font-size:10.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.3px}
+.vat-badge{background:#27ae60;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;letter-spacing:.5px}
+.vat-toggle-bar{background:#fff8e6;border:1px solid #f5e09a;border-radius:8px;padding:8px 14px;margin:0 0 2px;font-size:11.5px;font-weight:700;color:#7a5f0a;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.vat-switch{position:relative;width:36px;height:20px;flex-shrink:0}
+.vat-switch input{opacity:0;width:0;height:0}
+.vat-slider{position:absolute;inset:0;background:#ccc;border-radius:20px;cursor:pointer;transition:.3s}
+.vat-slider:before{content:"";position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.vat-switch input:checked + .vat-slider{background:var(--green)}
+.vat-switch input:checked + .vat-slider:before{transform:translateX(16px)}
+.modal-ft{display:flex;justify-content:flex-end;gap:9px;padding:14px 20px;border-top:1px solid var(--border)}
+
+/* ══ RIPPLE ══════════════════════════════════════════ */
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);transform:scale(0);animation:rippleAnim .55s ease-out forwards;pointer-events:none}
+.rip-dark{background:rgba(39,174,96,.22)}
+
+/* ══ SCROLL REVEAL ═══════════════════════════════════ */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .5s cubic-bezier(.22,.61,.36,1)}
+.reveal.in{opacity:1;transform:translateY(0)}
+
+/* ══ FOCUS VISIBLE ══════════════════════════════════ */
+a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.arr:focus-visible,.tb-ham:focus-visible,.modal-x:focus-visible,.row-menu-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:6px}
+.sb-a:focus-visible{outline-color:rgba(255,255,255,.7)}
+
+/* ══ REDUCED MOTION ══════════════════════════════════ */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+@media(max-width:1200px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .row-3{grid-template-columns:1fr 1fr}
+  .row-3 .card:last-child{grid-column:1/-1}
+}
+@media(max-width:860px){
+  .content{padding:12px 14px}
+  .kpi-row{grid-template-columns:repeat(2,1fr);gap:10px}
+  .row-2,.row-prof,.row-ar{grid-template-columns:1fr!important}
+  .row-3{grid-template-columns:1fr}
+  .row-3 .card:last-child{grid-column:auto}
+  .side-stack{flex-direction:column}
+  .qa-g{grid-template-columns:repeat(2,1fr)}
+  .frow{grid-template-columns:1fr}
+  .toast-stack{left:14px;right:14px;bottom:14px;align-items:stretch}
+  .toast{max-width:none}
+  .modal{width:96vw}
+}
+@media(max-width:480px){
+  .kpi-row{gap:8px}
+  .kc{padding:13px 11px 11px}
+  .kc-val{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div id="sidebar-root"></div>
+<div class="main" id="mainContent">
+  <div id="header-root"></div>
+
+  <!-- CONTENT -->
+  <div class="content" id="pageContent">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row" id="kpiRow">
+      <div class="kc reveal" style="--d:0"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><span class="kc-lbl">Total Revenue<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-rev" data-target="109711" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up" id="k-rev-chg">&#9650; 12.5%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:1"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><span class="kc-lbl">Cash Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-cash" data-target="63214" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 9.4%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:2"><div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Credit Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-credit" data-target="46497" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 17.8%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:3"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Injera (per piece)</span></span><div class="kc-val"><span class="cnt" id="k-inj-price" data-target="6.82" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg dn">&#9660; 1.3%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:4"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Derkosh (per kg)</span></span><div class="kc-val"><span class="cnt" id="k-derk-price" data-target="75.33" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 3.2%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:5"><div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Outstanding A/R<span class="sub">(All Customers)</span></span><div class="kc-val"><span class="cnt" id="k-ar" data-target="19712" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg dn">&#9660; 8.2%<span class="vs">vs Apr 2026</span></div></div>
+    </div>
+
+    <!-- TRANSACTIONS + DONUTS -->
+    <div class="row-2">
+      <div class="card reveal">
+        <div class="card-hd">
+          <div class="card-ttl">Sales Transactions <span class="tag" id="txnPeriodLabel">(May 2026)</span></div>
+          <div class="btn-row">
+            <button class="btn-prim" onclick="openSaleModal(event)"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Sale</button>
+            <button class="btn-sec" onclick="exportExcel(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export Excel</button>
+            <button class="btn-sec" onclick="exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 9 9"/></svg>Export PDF</button>
+            <button class="btn-sec" id="exportPageBtn" onclick="exportFullPagePDF(event)" title="Exports the whole dashboard, including charts, as one PDF"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Export Page (PDF)</button>
+            <button class="btn-sec" id="filterBtn" onclick="toggleFilter(event)"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
+          </div>
+        </div>
+        <div class="filter-panel" id="filterPanel">
+          <div class="filter-inner">
+            <div class="fgrp"><label>Product</label><select id="flt-product" onchange="applyFilters()"><option value="">All</option><option value="Injera">Injera</option><option value="Derkosh">Derkosh</option></select></div>
+            <div class="fgrp"><label>Customer</label><select id="flt-customer" onchange="applyFilters()"><option value="">All Customers</option></select></div>
+            <div class="fgrp"><label>Payment</label><select id="flt-method" onchange="applyFilters()"><option value="">All Methods</option><option value="Cash">Cash</option><option value="Credit">Credit</option><option value="Bank Transfer">Bank Transfer</option><option value="Mobile Money">Mobile Money</option></select></div>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="salesTbl">
+            <thead><tr>
+              <th class="sortable" onclick="sortSales('date')" data-col="date">Date <span class="sort-arrow"></span></th>
+              <th class="sortable" onclick="sortSales('product')" data-col="product">Product <span class="sort-arrow"></span></th>
+              <th class="sortable" onclick="sortSales('customer')" data-col="customer">Customer <span class="sort-arrow"></span></th>
+              <th>Customer Type</th>
+              <th class="sortable" onclick="sortSales('quantity')" data-col="quantity">Qty <span class="sort-arrow"></span></th>
+              <th>Unit</th>
+              <th class="sortable" onclick="sortSales('payment_method')" data-col="payment_method">Payment Method <span class="sort-arrow"></span></th>
+              <th class="sortable" onclick="sortSales('unit_price')" data-col="unit_price">Unit Price (ETB) <span class="sort-arrow"></span></th>
+              <th class="sortable" onclick="sortSales('revenue')" data-col="revenue">Revenue (ETB) <span class="sort-arrow"></span></th>
+              <th>Settled Date</th><th></th>
+            </tr></thead>
+            <tbody id="salesBody"><tr><td colspan="11" style="text-align:center;padding:22px;color:var(--tl)"><span class="skel" style="width:60%">&nbsp;</span></td></tr></tbody>
+          </table>
+        </div>
+        <div class="pg-bar" id="salesPgBar" style="display:none">
+          <span id="salesPgInfo"></span>
+          <div class="pg-btns" id="salesPgBtns"></div>
+        </div>
+      </div>
+      <div class="side-stack">
+        <div class="card reveal">
+          <div class="card-hd"><div class="card-ttl">Sales by Product <span class="tag">(This Month)</span></div></div>
+          <div class="exp-bd">
+            <div class="dnut"><canvas id="prodChart" width="118" height="118"></canvas><div class="dnut-lbl"><span>Total Revenue</span><strong id="prodTotal">—</strong></div></div>
+            <div class="exp-leg" id="prodLeg"></div>
+          </div>
+        </div>
+        <div class="card reveal">
+          <div class="card-hd"><div class="card-ttl">Sales by Payment Method <span class="tag">(This Month)</span></div></div>
+          <div class="exp-bd">
+            <div class="dnut"><canvas id="pmChart" width="118" height="118"></canvas><div class="dnut-lbl"><span>Total Revenue</span><strong id="pmTotal">—</strong></div></div>
+            <div class="exp-leg" id="pmLeg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 CHARTS -->
+    <div class="row-3">
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Revenue Trend <span class="tag">(Last 6 Months)</span></div></div>
+        <div class="chart-box">
+          <div class="leg"><span><span class="leg-ln" style="background:#27ae60"></span>Revenue (ETB)</span></div>
+          <div style="position:relative;min-height:210px"><canvas id="trendChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Top 5 Customers <span class="tag">(This Month)</span></div></div>
+        <div class="bar-list" id="top5List">
+          <div style="padding:22px;text-align:center;color:var(--tl)"><span class="skel" style="width:80%">&nbsp;</span></div>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Injera vs Derkosh <span class="tag">(Last 6 Months)</span></div></div>
+        <div class="chart-box">
+          <div class="leg">
+            <span><span class="leg-ln" style="background:#27ae60"></span>Injera (ETB)</span>
+            <span><span class="leg-ln" style="background:#f59e0b"></span>Derkosh (ETB)</span>
+          </div>
+          <div style="position:relative;min-height:210px"><canvas id="idChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFITABILITY + COLLECTIONS -->
+    <div class="row-prof">
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Customer Profitability Summary <span class="tag">(This Month)</span></div><a class="vall" onclick="viewAll(event,'Customer Profitability')">View All</a></div>
+        <div class="tbl-wrap">
+          <table class="tbl tbl-tight">
+            <thead><tr><th>Customer</th><th>Revenue (ETB)</th><th>Total Orders</th><th>Avg Order (ETB)</th><th>Payment Type</th><th>Outstanding (ETB)</th><th>Days to Pay (Avg)</th></tr></thead>
+            <tbody id="profitBody"><tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)"><span class="skel" style="width:70%">&nbsp;</span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Recent Credit Collections <span class="tag">(This Month)</span></div><a class="vall" onclick="viewAll(event,'Credit Collections')">View All</a></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Date</th><th>Customer</th><th>Amount (ETB)</th><th>Payment Method</th></tr></thead>
+            <tbody id="collectBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)"><span class="skel" style="width:70%">&nbsp;</span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- A/R + QUICK ACTIONS -->
+    <div class="row-ar">
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Outstanding Accounts Receivable</div><a class="vall" onclick="viewAll(event,'Accounts Receivable')">View All</a></div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>Customer</th><th>Outstanding (ETB)</th><th>Overdue (Days)</th><th>Credit Limit</th></tr></thead>
+            <tbody id="arBody"><tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)"><span class="skel" style="width:70%">&nbsp;</span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+        <div class="qa-g">
+          <a class="qa-b" onclick="openSaleModal(event)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add New<br>Sale</a>
+          <a class="qa-b" onclick="openAddCustomerModal(event)"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>New<br>Customer</a>
+          <a class="qa-b" onclick="openCollectModal(event)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>Record<br>Payment</a>
+          <a class="qa-b" onclick="openReportsModal(event)"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Sales<br>Reports</a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- TOAST STACK -->
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- ADD SALE MODAL -->
+<div class="modal-bg" id="saleModalBg">
+  <div class="modal">
+    <div class="modal-hd"><h3>New Sale</h3><div class="modal-x" onclick="closeSaleModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd">
+      <div class="frow">
+        <div class="fgrp"><label>Date *</label><input type="date" id="f-date"><input type="hidden" id="f-edit-id"></div>
+        <div class="fgrp"><label>Product *</label><select id="f-product" onchange="onProductChange()"><option value="Injera">Injera</option><option value="Derkosh">Derkosh</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fgrp"><label>Customer *</label><select id="f-customer" onchange="onCustomerChange()"></select></div>
+        <div class="fgrp"><label>Customer Type</label><input type="text" id="f-ctype" disabled></div>
+      </div>
+      <div class="frow">
+        <div class="fgrp"><label>Quantity * <span id="f-unit-lbl" style="font-weight:600;color:var(--tl)">(pieces)</span></label><input type="number" id="f-qty" oninput="recalc()"></div>
+        <div class="fgrp"><label>Unit Price (ETB) *</label><input type="number" step="0.01" id="f-price" oninput="recalc()"></div>
+      </div>
+      <div class="rev-box">Revenue: <span id="f-revenue">0.00</span> ETB</div>
+      <div class="frow">
+        <div class="fgrp"><label>Payment Method *</label><select id="f-method" onchange="onMethodChange()"><option value="Cash">Cash</option><option value="Credit">Credit</option><option value="Bank Transfer">Bank Transfer</option><option value="Mobile Money">Mobile Money</option></select></div>
+        <div class="fgrp"></div>
+      </div>
+      <div class="ar-box" id="f-arbox">
+        <div><span>Current Outstanding A/R:</span><strong id="f-ar-current">—</strong></div>
+        <div><span>Credit Limit:</span><strong id="f-ar-limit">—</strong></div>
+        <div><span>After this sale:</span><strong id="f-ar-after">—</strong></div>
+        <div class="ar-status" id="f-ar-status"></div>
+      </div>
+    </div>
+      <!-- VAT section (shown when VAT-registered) -->
+      <div class="vat-toggle-bar">
+        <span>VAT Registration (Ethiopia 15%)</span>
+        <label class="vat-switch"><input type="checkbox" id="vatToggle" onchange="onVatToggle()"><span class="vat-slider"></span></label>
+      </div>
+      <div class="vat-row" id="vatRow">
+        <div>
+          <label>VAT Rate</label>
+          <div style="font-weight:700;color:var(--td);font-size:14px">15.00%</div>
+        </div>
+        <div>
+          <label>VAT Amount (ETB)</label>
+          <div style="font-weight:700;color:var(--td);font-size:14px" id="f-vat-amt">0.00</div>
+        </div>
+        <div>
+          <label>Total inc. VAT (ETB)</label>
+          <div style="font-weight:700;color:#19733f;font-size:14px" id="f-vat-total">0.00</div>
+        </div>
+        <span class="vat-badge">VAT ON</span>
+      </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeSaleModal()">Cancel</button><button class="btn-prim" onclick="saveSale()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save Sale</button></div>
+  </div>
+</div>
+
+<!-- RECORD PAYMENT MODAL -->
+<div class="modal-bg" id="collectModalBg">
+  <div class="modal" style="width:400px">
+    <div class="modal-hd"><h3>Record Credit Payment</h3><div class="modal-x" onclick="closeCollectModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd">
+      <div class="fgrp" style="margin-bottom:13px"><label>Customer *</label><select id="c-customer"></select></div>
+      <div class="frow">
+        <div class="fgrp"><label>Payment Date *</label><input type="date" id="c-date"></div>
+        <div class="fgrp"><label>Amount (ETB) *</label><input type="number" step="0.01" id="c-amount" placeholder="0.00"></div>
+      </div>
+      <div class="fgrp"><label>Channel *</label><select id="c-channel"><option>Cash</option><option>Bank Transfer</option><option>Mobile Money</option></select></div>
+      <div id="c-locked-note" style="display:none;font-size:11px;color:var(--tl);background:var(--bg);padding:8px 10px;border-radius:8px;margin-top:2px">Settling this specific sale — customer is locked.</div>
+      <input type="hidden" id="c-target-sale-id">
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeCollectModal()">Cancel</button><button class="btn-prim" onclick="savePayment()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save Payment</button></div>
+  </div>
+</div>
+
+<!-- ADD CUSTOMER MODAL -->
+<div class="modal-bg" id="custModalBg">
+  <div class="modal" style="width:400px">
+    <div class="modal-hd"><h3>New Customer</h3><div class="modal-x" onclick="closeAddCustomerModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd">
+      <div class="fgrp" style="margin-bottom:13px"><label>Customer Name *</label><input type="text" id="nc-name" placeholder="e.g. Sheraton Addis"></div>
+      <div class="frow">
+        <div class="fgrp"><label>Customer Type *</label><select id="nc-type"><option>Hotel</option><option>Restaurant</option><option>Wholesale</option><option>Retail</option></select></div>
+        <div class="fgrp"><label>Credit Limit (ETB)</label><input type="number" step="0.01" id="nc-limit" placeholder="0.00"></div>
+      </div>
+      <div class="fgrp"><label>Phone (optional)</label><input type="text" id="nc-phone" placeholder="09xx xxx xxx"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeAddCustomerModal()">Cancel</button><button class="btn-prim" onclick="saveCustomer()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save Customer</button></div>
+  </div>
+</div>
+
+<!-- SALES REPORTS MODAL -->
+<div class="modal-bg" id="reportsModalBg">
+  <div class="modal" style="width:400px">
+    <div class="modal-hd"><h3>Sales Reports</h3><div class="modal-x" onclick="closeReportsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export this month as PDF</a>
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportExcel(event)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M16 3v18M3 9h18M3 15h18"/></svg>Export this month as Excel</a>
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" href="reports.html"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Open Multi-Year Reports module</a>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW ALL MODAL -->
+<div class="modal-bg" id="viewAllModalBg">
+  <div class="modal" style="width:640px;max-width:92vw">
+    <div class="modal-hd"><h3 id="va-title">View All</h3><div class="modal-x" onclick="closeViewAll()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd" style="max-height:64vh;overflow-y:auto;padding-top:6px">
+      <table class="tbl" style="width:100%">
+        <thead id="va-thead"></thead>
+        <tbody id="va-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app-state.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/header.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+//  STATE
+//  Session/auth, sbGet/sbPost/sbPatch/sbDelete, confirm modal, toast,
+//  and sign-out now live in the shared /js/app-state.js. Sidebar
+//  rendering + toggle live in /js/sidebar.js. Topbar (title, month
+//  picker, notifications, user panel) lives in /js/header.js.
+// ═══════════════════════════════════════════════════
+const CURRENT_USER_ID = (loadSession() && loadSession().user_id) || null;
+let currentPeriod = '2026-05';
+let allSales    = [];
+let allCustomers= [];
+let customerBalances = []; // rows from the customer_profitability view — true running AR balance per customer
+let openDrop    = null;
+let prodChart = null, pmChart = null, trendChart = null, idChart = null;
+let profitFullSorted = [], arFullRows = [], collectionsFull = [];
+
+// ═══════════════════════════════════════════════════
+//  DB <-> UI VALUE MAPS
+//  DB schema (sales.product_type, sales.payment_method, customers.type,
+//  credit_payments.channel) uses lowercase enum values. The UI works in
+//  friendly display strings — translate at the fetch/save boundary only.
+// ═══════════════════════════════════════════════════
+const PROD_TO_DB   = { 'Injera':'injera', 'Derkosh':'derkosh' };
+const PROD_FROM_DB = { injera:'Injera', derkosh:'Derkosh' };
+const PM_TO_DB      = { 'Cash':'cash', 'Credit':'credit', 'Bank Transfer':'bank', 'Mobile Money':'mobile' };
+const PM_FROM_DB    = { cash:'Cash', credit:'Credit', bank:'Bank Transfer', mobile:'Mobile Money' };
+const CTYPE_TO_DB   = { 'Hotel':'hotel', 'Restaurant':'restaurant', 'Wholesale':'wholesale', 'Retail':'retail' };
+const CTYPE_FROM_DB = { hotel:'Hotel', restaurant:'Restaurant', wholesale:'Wholesale', retail:'Retail' };
+
+// ═══════════════════════════════════════════════════
+//  MONTH PICKER — header.js's <select> uses the same string for the
+//  option's value and its visible label, so we key off the friendly
+//  label (e.g. "May 2026") and translate to the ISO period key
+//  (e.g. "2026-05") ourselves wherever Supabase queries need it.
+// ═══════════════════════════════════════════════════
+const MONTHS = [
+  { key:'2026-01', label:'Jan 2026' },
+  { key:'2026-02', label:'Feb 2026' },
+  { key:'2026-03', label:'Mar 2026' },
+  { key:'2026-04', label:'Apr 2026' },
+  { key:'2026-05', label:'May 2026' },
+  { key:'2026-06', label:'Jun 2026' },
+];
+function periodFromLabel(label){ const m = MONTHS.find(x => x.label === label); return m ? m.key : currentPeriod; }
+
+// ═══════════════════════════════════════════════════
+//  NOTIFICATIONS — fed into header.js's shared notification panel.
+//  NOTE: still placeholder data, same as before retrofit — wiring
+//  these to real overdue/credit/payment events is a good follow-up.
+// ═══════════════════════════════════════════════════
+const SALES_NOTIFICATIONS = [
+  { type:'o', title:'Bole Restaurant payment overdue',    sub:'5,600.00 ETB outstanding — 7 days overdue',            time:'2h ago' },
+  { type:'r', title:'New credit sale recorded',            sub:'Yeka Retail Shop — Derkosh, 3,750.00 ETB',             time:'5h ago' },
+  { type:'g', title:'Payment collected',                   sub:'Addis Hotel settled 4,950.00 ETB via Bank Transfer',   time:'1d ago' },
+  { type:'o', title:'Addis Hotel payment overdue',         sub:'12,450.00 ETB outstanding — 14 days overdue',          time:'1d ago' },
+  { type:'p', title:'Monthly revenue milestone',           sub:'Total revenue passed 100,000 ETB for May 2026',        time:'2d ago' },
+  { type:'r', title:'New credit sale recorded',            sub:'Bole Restaurant — Derkosh, 7,600.00 ETB',              time:'3d ago' },
+  { type:'g', title:'Payment collected',                   sub:'Yeka Retail Shop settled 1,800.00 ETB via Mobile Money', time:'4d ago' },
+];
+
+renderHeader({
+  title: 'Sales Overview',
+  subtitle: 'Track sales performance, revenue, and customer profitability',
+  showMonthPicker: true,
+  months: MONTHS.map(m => m.label),
+  selectedMonth: (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label,
+  onMonthChange: (label) => {
+    currentPeriod = periodFromLabel(label);
+    document.getElementById('txnPeriodLabel').textContent = `(${label})`;
+    salesPage = 1;
+    loadAll();
+  },
+  notifications: SALES_NOTIFICATIONS
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeSidebar();
+    closeAllDrops();
+    // Close any open modal
+    document.querySelectorAll('.modal-bg.open').forEach(m => {
+      m.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+    // Reset modal title in case it was in edit mode
+    const h = document.querySelector('#saleModalBg .modal-hd h3');
+    if (h) h.textContent = 'New Sale';
+  }
+});
+
+// ═══════════════════════════════════════════════════
+//  RIPPLE
+// ═══════════════════════════════════════════════════
+function ripple(e, dark = false) {
+  const el   = e.currentTarget || e.target;
+  const r    = document.createElement('span');
+  r.className = 'ripple' + (dark ? ' rip-dark' : '');
+  const rect = el.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 1.7;
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  el.appendChild(r);
+  setTimeout(() => r.remove(), 600);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.btn-prim,.btn-sec,.qa-b,.arr,.bell,.vall').forEach(el => {
+    el.addEventListener('click', e => ripple(e, !el.classList.contains('btn-prim')));
+  });
+});
+
+// ═══════════════════════════════════════════════════
+//  SCROLL REVEAL
+// ═══════════════════════════════════════════════════
+const revealIO = new IntersectionObserver(entries => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      const el = entry.target;
+      setTimeout(() => {
+        el.classList.add('in');
+        el.querySelectorAll('.cnt').forEach(c => animateCount(c));
+        el.querySelectorAll('.bar-fill').forEach(b => {
+          b.style.width = b.dataset.w || b.style.getPropertyValue('--w') || '0%';
+        });
+      }, parseInt(el.dataset.d || 0) * 55);
+      revealIO.unobserve(el);
+    }
+  });
+}, { threshold: 0.07 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.reveal').forEach((el, i) => {
+    el.dataset.d = Math.min(i, 5);
+    revealIO.observe(el);
+  });
+});
+
+// ═══════════════════════════════════════════════════
+//  COUNT-UP
+// ═══════════════════════════════════════════════════
+function animateCount(el) {
+  if (el.dataset.done) return;
+  el.dataset.done = '1';
+  const target   = parseFloat(el.dataset.target || el.textContent.replace(/,/g, ''));
+  const decimals = parseInt(el.dataset.dec || 0);
+  const duration = 1100;
+  const start    = performance.now();
+  const ease     = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  const tick = now => {
+    const p = Math.min((now - start) / duration, 1);
+    const v = target * ease(p);
+    el.textContent = v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    if (p < 1) { requestAnimationFrame(tick); }
+    else {
+      el.textContent = target.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      el.style.animation = 'numPop .3s ease';
+      setTimeout(() => el.style.animation = '', 350);
+    }
+  };
+  requestAnimationFrame(tick);
+}
+
+// ═══════════════════════════════════════════════════
+//  TOAST — thin shim over the shared toast() in app-state.js, translating
+//  this page's ok/err/info vocabulary into the shared success/error/info.
+//  Note: the shared toast has a fixed ~3.2s duration, so custom durations
+//  passed here are no longer honored.
+// ═══════════════════════════════════════════════════
+function showToast(msg, type = 'ok') {
+  toast(msg, { ok:'success', err:'error', info:'info' }[type] || 'info');
+}
+
+// ═══════════════════════════════════════════════════
+//  SUPABASE DATA LOADING
+// ═══════════════════════════════════════════════════
+async function loadAll() {
+  await Promise.all([loadCustomers(), loadSales()]);
+  buildCharts();
+}
+
+async function loadCustomers() {
+  try {
+    const data = await sbGet('customers?select=id,name,type,credit_limit&order=name.asc');
+    allCustomers = (data || []).map(c => ({ ...c, customer_type: CTYPE_FROM_DB[c.type] || c.type }));
+    populateCustomerDropdowns();
+  } catch (err) { console.error(err); showToast('Could not load customers', 'err'); }
+}
+
+async function loadCustomerBalances() {
+  try {
+    customerBalances = await sbGet('customer_profitability?select=id,name,credit_limit,total_credit_sales,total_collected,outstanding_ar,last_purchase_date') || [];
+  } catch (err) { console.error(err); customerBalances = []; }
+}
+
+async function loadSales() {
+  try {
+    const qs = `select=id,date,product_type,customer_id,quantity,payment_method,unit_price,revenue,settled_date,customers(name,type,credit_limit)` +
+               `&date=gte.${currentPeriod}-01&date=lte.${currentPeriod}-31&order=date.desc`;
+    const data = await sbGet(`sales?${qs}`);
+    allSales = (data || []).map(r => ({
+      ...r,
+      product: PROD_FROM_DB[r.product_type] || r.product_type,
+      payment_method: PM_FROM_DB[r.payment_method] || r.payment_method,
+      customers: r.customers ? { ...r.customers, customer_type: CTYPE_FROM_DB[r.customers.type] || r.customers.type } : r.customers
+    }));
+  } catch (err) { console.error(err); showToast('Could not load sales data', 'err'); return; }
+  await loadCustomerBalances();
+  renderSalesTable(allSales);
+  updateKPIs(allSales);
+  buildTop5(allSales);
+  buildProfitability(allSales);
+  buildAR(allSales);
+  buildCollections();
+}
+
+async function buildCollections() {
+  // Recent payments against credit sales
+  const qs = `select=settled_date,customers(name),revenue,payment_method` +
+             `&payment_method=eq.credit&settled_date=not.is.null` +
+             `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${currentPeriod}-31` +
+             `&order=settled_date.desc&limit=6`;
+  let data = [];
+  try { data = await sbGet(`sales?${qs}`) || []; } catch (err) { console.error(err); }
+
+  const tbody = document.getElementById('collectBody');
+  collectionsFull = data.map(r => ({settled_date:r.settled_date, name:r.customers?.name || 'Unknown', revenue:parseFloat(r.revenue||0), method:PM_FROM_DB[r.payment_method]||r.payment_method}));
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No collections this period</td></tr>`;
+    return;
+  }
+  let total = 0;
+  let html = data.map(r => {
+    total += parseFloat(r.revenue || 0);
+    const pm = pmTag(r.payment_method);
+    return `<tr>
+      <td>${fmtDate(r.settled_date)}</td>
+      <td>${r.customers?.name || '—'}</td>
+      <td>${fmt(r.revenue)}</td>
+      <td>${pm}</td>
+    </tr>`;
+  }).join('');
+  html += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(total)}</td><td></td></tr>`;
+  tbody.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+//  KPIs
+// ═══════════════════════════════════════════════════
+function currentTotalAR() {
+  // Sum the customer_profitability view's outstanding_ar — a true running
+  // balance netting ALL credit_payments against ALL of a customer's credit sales.
+  return customerBalances.reduce((s,c) => s + Math.max(0, parseFloat(c.outstanding_ar||0)), 0);
+}
+function updateKPIs(sales) {
+  const total   = sales.reduce((s,r) => s + parseFloat(r.revenue||0), 0);
+  const cash    = sales.filter(r => r.payment_method === 'Cash').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
+  const credit  = sales.filter(r => r.payment_method === 'Credit').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
+  const injPrc  = avg(sales.filter(r => r.product === 'Injera').map(r => parseFloat(r.unit_price||0)));
+  const drkPrc  = avg(sales.filter(r => r.product === 'Derkosh').map(r => parseFloat(r.unit_price||0)));
+  const ar      = currentTotalAR();
+
+  setKPI('k-rev',       total);
+  setKPI('k-cash',      cash);
+  setKPI('k-credit',    credit);
+  setKPI('k-inj-price', injPrc);
+  setKPI('k-derk-price',drkPrc);
+  setKPI('k-ar',        ar);
+}
+function setKPI(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.target = val.toFixed(parseInt(el.dataset.dec||0));
+  el.dataset.done   = '';
+  animateCount(el);
+}
+
+// ═══════════════════════════════════════════════════
+//  SALES TABLE (paginated)
+// ═══════════════════════════════════════════════════
+let filteredSales = [];
+let salesPage = 1;
+const SALES_PER_PAGE = 8;
+
+function renderSalesTable(sales, opts) {
+  opts = opts || {};
+  filteredSales = sales;
+  const tbody  = document.getElementById('salesBody');
+  const pgBar  = document.getElementById('salesPgBar');
+  if (!sales.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:22px;color:var(--tl)">No sales found for this period</td></tr>`;
+    if (pgBar) pgBar.style.display = 'none';
+    return;
+  }
+  const totalRevenue = sales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const totalQty     = sales.reduce((s,r)=>s+(r.quantity||0),0);
+
+  const pageCount = Math.max(1, Math.ceil(sales.length / SALES_PER_PAGE));
+  if (salesPage > pageCount) salesPage = pageCount;
+  if (salesPage < 1) salesPage = 1;
+  const pageData = opts.all ? sales : sales.slice((salesPage-1)*SALES_PER_PAGE, salesPage*SALES_PER_PAGE);
+
+  let rows = pageData.map((r) => {
+    const cust = r.customers?.name || '—';
+    const type = r.customers?.customer_type || '—';
+    const rev  = parseFloat(r.revenue || 0);
+    const isProd = r.product === 'Injera';
+    const dc = isProd ? '#27ae60' : '#f59e0b';
+    return `<tr data-id="${r.id}" data-product="${r.product}" data-customer="${cust}" data-method="${r.payment_method}">
+      <td>${fmtDate(r.date)}</td>
+      <td><span class="prod-dot" style="--dc:${dc}">${r.product}</span></td>
+      <td>${cust}</td><td>${type}</td>
+      <td>${(r.quantity||0).toLocaleString()}</td>
+      <td>${isProd?'pcs':'kg'}</td>
+      <td>${pmTag(r.payment_method)}</td>
+      <td>${fmt(r.unit_price)}</td>
+      <td style="font-weight:700">${fmt(rev)}</td>
+      <td>${r.settled_date ? fmtDate(r.settled_date) : '<span class="dim">—</span>'}</td>
+      <td><div class="row-menu-wrap">
+        <span class="row-menu-btn" onclick="toggleRowMenu(event,this)">&#8943;</span>
+        <div class="row-drop">
+          <button onclick="rowView(event,'${r.id}')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+          ${(r.payment_method === 'Credit' && !r.settled_date) ? `<button onclick="settleSaleRow(event,'${r.id}')" style="color:#19733f"><svg viewBox="0 0 24 24" style="stroke:#19733f"><path d="M9 16l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>Mark as Paid</button>` : ''}
+          <button onclick="rowEdit(event,'${r.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
+          <button class="danger" onclick="rowDelete(event,'${r.id}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete</button>
+        </div>
+      </div></td>
+    </tr>`;
+  }).join('');
+  rows += `<tr class="tot"><td>TOTAL</td><td></td><td></td><td></td>
+    <td>${totalQty.toLocaleString()}</td>
+    <td></td><td class="dim">—</td><td class="dim">—</td>
+    <td>${fmt(totalRevenue)}</td><td class="dim">—</td><td></td></tr>`;
+  tbody.innerHTML = rows;
+
+  if (pgBar) {
+    if (opts.all || pageCount <= 1) {
+      pgBar.style.display = 'none';
+    } else {
+      pgBar.style.display = 'flex';
+      const start = (salesPage-1)*SALES_PER_PAGE + 1;
+      const end   = Math.min(salesPage*SALES_PER_PAGE, sales.length);
+      document.getElementById('salesPgInfo').textContent = `Showing ${start}–${end} of ${sales.length} entries`;
+      let btnsHtml = `<div class="pg-b${salesPage===1?' dis':''}" onclick="goSalesPage(${salesPage-1})">&#8249;</div>`;
+      for (let i = 1; i <= pageCount; i++) {
+        if (pageCount > 7 && i > 2 && i < pageCount-1 && Math.abs(i-salesPage) > 1) {
+          if (i === 3 || i === pageCount-2) btnsHtml += `<div class="pg-b dis" style="border:none;background:none;min-width:16px">…</div>`;
+          continue;
+        }
+        btnsHtml += `<div class="pg-b${i===salesPage?' active':''}" onclick="goSalesPage(${i})">${i}</div>`;
+      }
+      btnsHtml += `<div class="pg-b${salesPage===pageCount?' dis':''}" onclick="goSalesPage(${salesPage+1})">&#8250;</div>`;
+      document.getElementById('salesPgBtns').innerHTML = btnsHtml;
+    }
+  }
+}
+function goSalesPage(p) {
+  const pageCount = Math.max(1, Math.ceil(filteredSales.length / SALES_PER_PAGE));
+  if (p < 1 || p > pageCount) return;
+  salesPage = p;
+  renderSalesTable(filteredSales);
+  document.getElementById('salesTbl').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+let salesSortCol = null, salesSortDir = 1;
+function sortSales(col) {
+  if (salesSortCol === col) salesSortDir *= -1; else { salesSortCol = col; salesSortDir = (col==='date') ? -1 : 1; }
+  const dataset = filteredSales.length ? filteredSales : allSales;
+  dataset.sort((a,b) => {
+    let av, bv;
+    if (col === 'customer') { av = a.customers?.name||''; bv = b.customers?.name||''; }
+    else if (col === 'quantity' || col === 'unit_price' || col === 'revenue') { av = parseFloat(a[col]||0); bv = parseFloat(b[col]||0); }
+    else if (col === 'date') { av = new Date(a.date); bv = new Date(b.date); }
+    else { av = a[col]||''; bv = b[col]||''; }
+    if (av < bv) return -1 * salesSortDir;
+    if (av > bv) return  1 * salesSortDir;
+    return 0;
+  });
+  document.querySelectorAll('#salesTbl th.sortable').forEach(th => {
+    th.classList.remove('th-asc','th-desc');
+    if (th.dataset.col === col) th.classList.add(salesSortDir === 1 ? 'th-asc' : 'th-desc');
+  });
+  salesPage = 1;
+  renderSalesTable(dataset);
+}
+
+// ═══════════════════════════════════════════════════
+//  TOP 5 CUSTOMERS BAR LIST
+// ═══════════════════════════════════════════════════
+function buildTop5(sales) {
+  const map = {};
+  sales.forEach(r => {
+    const n = r.customers?.name || 'Unknown';
+    map[n] = (map[n] || 0) + parseFloat(r.revenue || 0);
+  });
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const total  = sales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const max    = sorted[0]?.[1] || 1;
+  const list   = document.getElementById('top5List');
+  if (!sorted.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:var(--tl)">No data</div>`; return; }
+  list.innerHTML = sorted.map(([name,val]) => {
+    const pct = ((val/total)*100).toFixed(1);
+    const w   = ((val/max)*100).toFixed(1);
+    return `<div class="bar-item">
+      <h5>${name} <span class="amt">${fmt(val)} (${pct}%)</span></h5>
+      <div class="bar-track"><div class="bar-fill" style="width:0%" data-w="${w}%"></div></div>
+    </div>`;
+  }).join('');
+  // Animate bars after a tick
+  setTimeout(() => {
+    list.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w; });
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════════
+//  CUSTOMER PROFITABILITY
+// ═══════════════════════════════════════════════════
+function buildProfitability(sales) {
+  const map = {};
+  sales.forEach(r => {
+    const n = r.customers?.name || 'Unknown';
+    if (!map[n]) map[n] = { rev:0, orders:0, pmCounts:{}, outstanding:0, days:[] };
+    map[n].rev    += parseFloat(r.revenue||0);
+    map[n].orders += 1;
+    map[n].pmCounts[r.payment_method] = (map[n].pmCounts[r.payment_method]||0) + 1;
+    if (r.payment_method === 'Credit' && !r.settled_date)
+      map[n].outstanding += parseFloat(r.revenue||0);
+    if (r.payment_method === 'Credit' && r.settled_date && r.date) {
+      const d = (new Date(r.settled_date) - new Date(r.date)) / 86400000;
+      map[n].days.push(d);
+    }
+  });
+  // Resolve one representative payment type per customer: their only method if they've
+  // always paid the same way, or "Mixed" if they've used more than one across orders.
+  Object.values(map).forEach(d => {
+    const methods = Object.keys(d.pmCounts);
+    d.pm = methods.length <= 1 ? (methods[0] || '—') : 'Mixed';
+  });
+  const fullSorted = Object.entries(map).sort((a,b)=>b[1].rev-a[1].rev);
+  profitFullSorted = fullSorted;
+  const sorted = fullSorted.slice(0,6);
+  const tbody  = document.getElementById('profitBody');
+  if (!sorted.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)">No data</td></tr>`; return; }
+  tbody.innerHTML = sorted.map(([name,d]) => {
+    const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
+    return `<tr>
+      <td>${name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td>
+      <td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td>
+      <td>${fmt(d.outstanding)}</td><td>${avg_days}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  A/R TABLE
+// ═══════════════════════════════════════════════════
+function buildAR(sales) {
+  const tbody = document.getElementById('arBody');
+  const map = {};
+  // outstanding_ar comes from the customer_profitability view, which nets ALL
+  // credit_payments (including partial payments) against ALL of a customer's
+  // credit sales — a true running balance per customer, not just "does this
+  // one sale have a settled_date".
+  sales.forEach(r => {
+    if (r.payment_method === 'Credit' && !r.settled_date) {
+      const n = r.customers?.name || 'Unknown';
+      if (!map[n] || r.date < map[n].date) { map[n] = { ...(map[n]||{}), date: r.date }; }
+    }
+  });
+  customerBalances.forEach(c => {
+    const outstanding = parseFloat(c.outstanding_ar || 0);
+    if (outstanding <= 0.01) return;
+    map[c.name] = { outstanding, limit: parseFloat(c.credit_limit||0), date: (map[c.name]&&map[c.name].date) || c.last_purchase_date };
+  });
+  const rows  = Object.entries(map);
+  arFullRows = rows;
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No outstanding A/R</td></tr>`; return; }
+  let total = 0;
+  let html  = rows.map(([name, d]) => {
+    total += d.outstanding;
+    const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
+    const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
+    return `<tr><td>${name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+  }).join('');
+  html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
+  tbody.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════
+function buildCharts() {
+  if (typeof Chart === 'undefined') return;
+  Chart.register(ChartDataLabels);
+
+  // ─ shared tooltip ─
+  const tip = {
+    backgroundColor:'#1a2e25', padding:10, cornerRadius:8,
+    titleFont:{family:'Quicksand',size:12,weight:'700'},
+    bodyFont:{family:'Nunito',size:11.5,weight:'600'},
+    displayColors:true, boxPadding:4,
+  };
+
+  // ─ Donut: by Product ─
+  const injRev = allSales.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const drkRev = allSales.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const totRev = injRev + drkRev;
+  document.getElementById('prodTotal').textContent = fmt(totRev) + ' ETB';
+  document.getElementById('prodLeg').innerHTML = [
+    ['#27ae60','Injera',injRev,totRev],['#f59e0b','Derkosh',drkRev,totRev]
+  ].map(([c,n,v,t])=>`<div class="exp-r"><div class="exp-d" style="background:${c}"></div><span class="exp-n">${n}</span><span class="exp-v">${fmt(v)} ETB</span><span class="exp-p">${t?((v/t)*100).toFixed(1):0}%</span></div>`).join('');
+
+  if (prodChart) prodChart.destroy();
+  prodChart = new Chart(document.getElementById('prodChart').getContext('2d'), {
+    type:'doughnut', data:{ labels:['Injera','Derkosh'], datasets:[{ data:[injRev,drkRev], backgroundColor:['#27ae60','#f59e0b'], borderWidth:3, borderColor:'#fff', hoverOffset:10 }] },
+    options:{ responsive:false, cutout:'68%', animation:{animateScale:true,animateRotate:true,duration:1000,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, datalabels:{display:false}, tooltip:{...tip,callbacks:{label:c=>' '+c.label+': '+fmt(c.parsed)+' ETB'}} } }
+  });
+
+  // ─ Donut: by Payment Method ─
+  const pmMap = {};
+  allSales.forEach(r=>{ pmMap[r.payment_method]=(pmMap[r.payment_method]||0)+parseFloat(r.revenue||0); });
+  const pmColors = {'Cash':'#27ae60','Credit':'#2563eb','Bank Transfer':'#8b5cf6','Mobile Money':'#f59e0b'};
+  const pmLabels = Object.keys(pmMap), pmVals = Object.values(pmMap);
+  document.getElementById('pmTotal').textContent = fmt(totRev) + ' ETB';
+  document.getElementById('pmLeg').innerHTML = pmLabels.map((l,i)=>`<div class="exp-r"><div class="exp-d" style="background:${pmColors[l]||'#94a3b8'}"></div><span class="exp-n">${l}</span><span class="exp-v">${fmt(pmVals[i])} ETB</span><span class="exp-p">${totRev?((pmVals[i]/totRev)*100).toFixed(1):0}%</span></div>`).join('');
+
+  if (pmChart) pmChart.destroy();
+  pmChart = new Chart(document.getElementById('pmChart').getContext('2d'), {
+    type:'doughnut', data:{ labels:pmLabels, datasets:[{ data:pmVals, backgroundColor:pmLabels.map(l=>pmColors[l]||'#94a3b8'), borderWidth:3, borderColor:'#fff', hoverOffset:10 }] },
+    options:{ responsive:false, cutout:'68%', animation:{animateScale:true,animateRotate:true,duration:1000,easing:'easeOutQuart'}, plugins:{ legend:{display:false}, datalabels:{display:false}, tooltip:{...tip,callbacks:{label:c=>' '+c.label+': '+fmt(c.parsed)+' ETB'}} } }
+  });
+
+  // ─ Trend chart (last 6 months from Supabase) ─
+  buildTrendCharts();
+}
+
+async function buildTrendCharts() {
+  // Compute 6-month window ending at currentPeriod
+  const [yr, mo] = currentPeriod.split('-').map(Number);
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    let m = mo - i, y = yr;
+    if (m <= 0) { m += 12; y--; }
+    months.push(`${y}-${String(m).padStart(2,'0')}`);
+  }
+  const startDate = months[0] + '-01';
+  const endDate   = currentPeriod + '-31';
+
+  let data = [];
+  try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}`) || []; } catch (err) { console.error(err); return; }
+
+  const revByMonth = {}, injByMonth = {}, drkByMonth = {};
+  months.forEach(m => { revByMonth[m]=0; injByMonth[m]=0; drkByMonth[m]=0; });
+  data.forEach(r => {
+    const mk = r.date?.slice(0,7);
+    if (!mk || !months.includes(mk)) return;
+    const v = parseFloat(r.revenue||0);
+    revByMonth[mk] = (revByMonth[mk]||0) + v;
+    if (r.product_type==='injera')  injByMonth[mk]=(injByMonth[mk]||0)+v;
+    if (r.product_type==='derkosh') drkByMonth[mk]=(drkByMonth[mk]||0)+v;
+  });
+  const labels    = months.map(m => { const [y,mo]=m.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+' '+y; });
+  const revVals   = months.map(m=>revByMonth[m]||0);
+  const injVals   = months.map(m=>injByMonth[m]||0);
+  const drkVals   = months.map(m=>drkByMonth[m]||0);
+
+  const sharedLineOpts = {
+    responsive:true, maintainAspectRatio:false,
+    layout:{padding:{top:26,bottom:8,left:4,right:4}},
+    interaction:{intersect:false,mode:'index'},
+    animation:{duration:1100,easing:'easeOutQuart'},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:'Nunito',size:11},color:'#9aada5'}},
+      y:{grid:{color:'#eef3f0',lineWidth:1},beginAtZero:true,min:0,ticks:{font:{family:'Nunito',size:11},color:'#9aada5',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+    }
+  };
+
+  const gradFn = (ctx, color) => {
+    const g = ctx.chart.ctx.createLinearGradient(0,0,0,ctx.chart.height);
+    g.addColorStop(0,  color.replace('1)','.18)')); g.addColorStop(1, color.replace('1)','.01)'));
+    return g;
+  };
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'Revenue (ETB)', data:revVals, borderColor:'#27ae60', backgroundColor: ctx=>gradFn(ctx,'rgba(39,174,96,1)'), borderWidth:2.5, tension:0.35, fill:true, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:2, pointRadius:4, pointHoverRadius:8, datalabels:{align:'top',anchor:'end',offset:5,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'} }] },
+    options:{ ...sharedLineOpts, plugins:{ legend:{display:false}, tooltip:{...{backgroundColor:'#1a2e25',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'}}, callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.parsed.y)+' ETB'}} } }
+  });
+
+  if (idChart) idChart.destroy();
+  idChart = new Chart(document.getElementById('idChart').getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Injera (ETB)',  data:injVals, borderColor:'#27ae60', backgroundColor:ctx=>gradFn(ctx,'rgba(39,174,96,1)'),   borderWidth:2.5, tension:0.35, fill:true, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:2, pointRadius:4, pointHoverRadius:8, datalabels:{align:'top',anchor:'end',offset:5,color:'#1a2e25',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'} },
+      { label:'Derkosh (ETB)', data:drkVals, borderColor:'#f59e0b', backgroundColor:ctx=>gradFn(ctx,'rgba(245,158,11,1)'), borderWidth:2.5, tension:0.35, fill:true, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:2, pointRadius:4, pointHoverRadius:8, datalabels:{align:'bottom',anchor:'start',offset:5,color:'#9a7b0a',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'} }
+    ]},
+    options:{ ...sharedLineOpts, plugins:{ legend:{display:false}, tooltip:{...{backgroundColor:'#1a2e25',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'},displayColors:true,boxPadding:4}, callbacks:{label:c=>' '+c.dataset.label+': '+fmt(c.parsed.y)+' ETB'}} } }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  FILTER
+// ═══════════════════════════════════════════════════
+let filterOpen = false;
+function toggleFilter(e) {
+  if (e) ripple(e);
+  filterOpen = !filterOpen;
+  document.getElementById('filterPanel').classList.toggle('open', filterOpen);
+  document.getElementById('filterBtn').style.background = filterOpen ? '#eaf6f0' : '';
+  if (filterOpen) applyFilters();
+}
+function applyFilters() {
+  const prod = document.getElementById('flt-product').value;
+  const cust = document.getElementById('flt-customer').value;
+  const meth = document.getElementById('flt-method').value;
+  const result = allSales.filter(r => {
+    const rc = r.customers?.name || '';
+    return (!prod || r.product===prod) && (!cust || rc===cust) && (!meth || r.payment_method===meth);
+  });
+  salesPage = 1;
+  renderSalesTable(result);
+  if (prod || cust || meth) showToast(`${result.length} row${result.length===1?'':'s'} matched`, 'info', 1800);
+}
+
+// ═══════════════════════════════════════════════════
+//  ROW ACTIONS
+// ═══════════════════════════════════════════════════
+function toggleRowMenu(e, el) {
+  e.stopPropagation();
+  const drop = el.nextElementSibling;
+  if (openDrop && openDrop !== drop) openDrop.classList.remove('open');
+  drop.classList.toggle('open');
+  openDrop = drop.classList.contains('open') ? drop : null;
+}
+function closeAllDrops() {
+  if (openDrop) { openDrop.classList.remove('open'); openDrop=null; }
+}
+document.addEventListener('click', closeAllDrops);
+
+function rowView(e, id) {
+  e.stopPropagation(); closeAllDrops();
+  const r = allSales.find(s => s.id === id);
+  if (!r) return;
+  // Build a quick detail toast with key fields
+  const rev = fmt(r.revenue);
+  const settled = r.settled_date ? fmtDate(r.settled_date) : 'Unsettled';
+  showToast(`${r.product} — ${r.customers?.name || '?'} | ${rev} ETB | ${r.payment_method} | ${settled}`, 'info', 4000);
+}
+
+function rowEdit(e, id) {
+  e.stopPropagation(); closeAllDrops();
+  const r = allSales.find(s => s.id === id);
+  if (!r) return;
+  // Pre-fill the Add Sale modal with this row's data for editing
+  openSaleModal(null);
+  setTimeout(() => {
+    document.getElementById('f-product').value = r.product;
+    onProductChange();
+    // Find and select the customer
+    const custSel = document.getElementById('f-customer');
+    Array.from(custSel.options).forEach((opt, i) => {
+      if (opt.text === r.customers?.name) custSel.selectedIndex = i;
+    });
+    onCustomerChange();
+    document.getElementById('f-date').value  = r.date || '';
+    document.getElementById('f-qty').value   = r.quantity || '';
+    document.getElementById('f-price').value = r.unit_price || '';
+    document.getElementById('f-method').value = r.payment_method || 'Cash';
+    onMethodChange(); recalc();
+    // Update modal title to show edit mode
+    document.getElementById('f-edit-id').value = r.id;
+    document.querySelector('#saleModalBg .modal-hd h3').textContent = 'Edit Sale';
+  }, 50);
+}
+async function rowDelete(e, id) {
+  e.stopPropagation(); closeAllDrops();
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  if (!row) return;
+  row.style.transition = 'opacity .3s,transform .3s';
+  row.style.opacity = '0'; row.style.transform = 'translateX(20px)';
+  let error = null;
+  try { await sbDelete(`sales?id=eq.${id}`); } catch (err) { error = err; }
+  setTimeout(() => {
+    if (error) { row.style.opacity='1'; row.style.transform=''; showToast('Delete failed: ' + error.message, 'err'); }
+    else { row.remove(); showToast('Sale removed', 'ok'); loadSales(); }
+  }, 320);
+}
+
+// ═══════════════════════════════════════════════════
+//  CUSTOMERS DROPDOWN
+// ═══════════════════════════════════════════════════
+function populateCustomerDropdowns() {
+  const opts = allCustomers.map(c => `<option value="${c.id}" data-type="${c.customer_type||''}" data-limit="${c.credit_limit||0}">${c.name}</option>`).join('');
+  document.getElementById('f-customer').innerHTML = opts;
+  document.getElementById('c-customer').innerHTML = allCustomers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+
+  const fltCust = document.getElementById('flt-customer');
+  fltCust.innerHTML = '<option value="">All Customers</option>' + allCustomers.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+
+  onCustomerChange();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL — ADD SALE
+// ═══════════════════════════════════════════════════
+function openSaleModal(e) {
+  if (e) ripple(e);
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('f-edit-id').value = '';
+  document.querySelector('#saleModalBg .modal-hd h3').textContent = 'New Sale';
+  document.getElementById('f-date').value = today;
+  document.getElementById('f-qty').value   = '';
+  document.getElementById('f-price').value = '';
+  document.getElementById('f-revenue').textContent = '0.00';
+  document.getElementById('f-arbox').classList.remove('show');
+  document.getElementById('saleModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  recalc();
+}
+function closeSaleModal() {
+  document.getElementById('saleModalBg').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('f-edit-id').value = '';
+  document.querySelector('#saleModalBg .modal-hd h3').textContent = 'New Sale';
+}
+function onProductChange() { document.getElementById('f-unit-lbl').textContent = document.getElementById('f-product').value==='Injera'?'(pieces)':'(kg)'; recalc(); }
+function onCustomerChange() {
+  const sel  = document.getElementById('f-customer');
+  const opt  = sel.options[sel.selectedIndex];
+  document.getElementById('f-ctype').value = opt?.dataset.type || '';
+  recalc();
+}
+function onMethodChange() { document.getElementById('f-arbox').classList.toggle('show', document.getElementById('f-method').value==='Credit'); recalc(); }
+function onVatToggle() {
+  const on = document.getElementById('vatToggle').checked;
+  document.getElementById('vatRow').classList.toggle('show', on);
+  recalc();
+}
+
+function recalc() {
+  const qty   = parseFloat(document.getElementById('f-qty').value)||0;
+  const price = parseFloat(document.getElementById('f-price').value)||0;
+  const rev   = qty * price;
+  document.getElementById('f-revenue').textContent = rev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // VAT calculation
+  const vatOn = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
+  if (vatOn) {
+    const vatAmt   = rev * 0.15;
+    const vatTotal = rev + vatAmt;
+    document.getElementById('f-vat-amt').textContent   = vatAmt.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('f-vat-total').textContent = vatTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  if (document.getElementById('f-method').value === 'Credit') {
+    const sel     = document.getElementById('f-customer');
+    const opt     = sel.options[sel.selectedIndex];
+    const limit   = parseFloat(opt?.dataset.limit||0);
+    const custName = opt?.text || '';
+    // Current A/R: the true running balance from the customer_profitability
+    // view (credit sales minus ALL payments, including partials).
+    const bal = customerBalances.find(c => c.name === custName);
+    const current = bal ? parseFloat(bal.outstanding_ar||0) : 0;
+    const after    = current + rev;
+    document.getElementById('f-ar-current').textContent = fmt(current) + ' ETB';
+    document.getElementById('f-ar-limit').textContent   = fmt(limit) + ' ETB';
+    document.getElementById('f-ar-after').textContent   = fmt(after) + ' ETB';
+    const st = document.getElementById('f-ar-status');
+    if (after > limit && limit > 0) { st.textContent='Over credit limit'; st.style.color='#b71c1c'; }
+    else { st.textContent='Within credit limit'; st.style.color='#19733f'; }
+    document.getElementById('f-arbox').classList.add('show');
+  } else { document.getElementById('f-arbox').classList.remove('show'); }
+}
+async function saveSale() {
+  const editId = document.getElementById('f-edit-id').value;
+  const date   = document.getElementById('f-date').value;
+  const prod   = document.getElementById('f-product').value;
+  const custId = document.getElementById('f-customer').value;
+  const qty    = parseFloat(document.getElementById('f-qty').value);
+  const price  = parseFloat(document.getElementById('f-price').value);
+  const method = document.getElementById('f-method').value;
+  if (!date||!custId||!qty||!price) { showToast('Please fill in all required fields', 'err'); return; }
+  const revenue = qty * price;
+  const vatOn      = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
+  const vat_rate_pct = vatOn ? 15.00 : 0.00;
+  // revenue, vat_amount, and period are all computed server-side by the sales_before
+  // trigger — we don't need to (and shouldn't try to) set them from the client.
+  const payload = { date, product_type: PROD_TO_DB[prod] || prod.toLowerCase(), customer_id:custId, quantity:qty, unit_price:price, payment_method: PM_TO_DB[method] || method.toLowerCase(), vat_rate_pct };
+  if (!editId && CURRENT_USER_ID) payload.created_by = CURRENT_USER_ID;
+  try {
+    if (editId) await sbPatch(`sales?id=eq.${editId}`, payload);
+    else        await sbPost('sales', [payload]);
+  } catch (err) { showToast('Save failed: ' + err.message, 'err'); return; }
+  closeSaleModal();
+  showToast(editId ? `${prod} sale updated` : `${prod} sale saved — ${fmt(revenue)} ETB`, 'ok');
+  loadSales();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL — RECORD PAYMENT
+// ═══════════════════════════════════════════════════
+function openCollectModal(e, saleId) {
+  if (e) ripple(e);
+  document.getElementById('c-date').value = new Date().toISOString().slice(0,10);
+  const custSel   = document.getElementById('c-customer');
+  const lockedNote= document.getElementById('c-locked-note');
+  const targetFld = document.getElementById('c-target-sale-id');
+  if (saleId) {
+    const sale = allSales.find(r => String(r.id) === String(saleId));
+    if (sale) {
+      custSel.value = sale.customer_id;
+      custSel.disabled = true;
+      document.getElementById('c-amount').value = parseFloat(sale.revenue||0).toFixed(2);
+      lockedNote.style.display = 'block';
+      targetFld.value = sale.id;
+    }
+  } else {
+    custSel.disabled = false;
+    document.getElementById('c-amount').value = '';
+    lockedNote.style.display = 'none';
+    targetFld.value = '';
+  }
+  document.getElementById('collectModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeCollectModal() {
+  document.getElementById('collectModalBg').classList.remove('open');
+  document.getElementById('c-customer').disabled = false;
+  document.getElementById('c-locked-note').style.display = 'none';
+  document.getElementById('c-target-sale-id').value = '';
+  document.body.style.overflow = '';
+}
+function settleSaleRow(e, id) { if (e) ripple(e); openCollectModal(null, id); }
+async function savePayment() {
+  const custId   = document.getElementById('c-customer').value;
+  const date     = document.getElementById('c-date').value;
+  const amount   = parseFloat(document.getElementById('c-amount').value);
+  const targetId = document.getElementById('c-target-sale-id').value;
+  if (!custId||!date||!amount) { showToast('Please fill in all required fields', 'err'); return; }
+  let saleIdToSettle = targetId;
+  let saleRevenue = null;
+  try {
+    if (!saleIdToSettle) {
+      const unsettled = await sbGet(`sales?select=id,revenue&customer_id=eq.${custId}&payment_method=eq.credit&settled_date=is.null&order=date.asc&limit=1`);
+      if (!unsettled?.length) { showToast('No outstanding credit sales for this customer', 'err'); return; }
+      saleIdToSettle = unsettled[0].id;
+      saleRevenue = parseFloat(unsettled[0].revenue || 0);
+    } else {
+      const sale = allSales.find(r => String(r.id) === String(targetId));
+      saleRevenue = parseFloat(sale?.revenue || 0);
+    }
+
+    // Record the payment in the credit_payments ledger (supports partial payments)
+    const channel = document.getElementById('c-channel').value;
+    const payRow = { sale_id: saleIdToSettle, payment_date: date, amount_paid: amount, channel: PM_TO_DB[channel] || channel.toLowerCase() };
+    if (CURRENT_USER_ID) payRow.created_by = CURRENT_USER_ID;
+    await sbPost('credit_payments', [payRow]);
+
+    // Only mark the sale as settled once total payments cover the full revenue
+    const paidRows = await sbGet(`credit_payments?select=amount_paid&sale_id=eq.${saleIdToSettle}`);
+    const totalPaid = (paidRows || []).reduce((s,r) => s + parseFloat(r.amount_paid || 0), 0);
+    if (saleRevenue !== null && totalPaid >= saleRevenue - 0.01) {
+      await sbPatch(`sales?id=eq.${saleIdToSettle}`, { settled_date:date });
+    }
+  } catch (err) { showToast('Payment failed: ' + err.message, 'err'); return; }
+  closeCollectModal();
+  showToast(`Payment of ${fmt(amount)} ETB recorded`, 'ok');
+  loadSales();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL — NEW CUSTOMER
+// ═══════════════════════════════════════════════════
+function openAddCustomerModal(e) {
+  if (e) { e.preventDefault(); ripple(e); }
+  document.getElementById('nc-name').value  = '';
+  document.getElementById('nc-type').value  = 'Hotel';
+  document.getElementById('nc-limit').value = '';
+  document.getElementById('nc-phone').value = '';
+  document.getElementById('custModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAddCustomerModal() { document.getElementById('custModalBg').classList.remove('open'); document.body.style.overflow=''; }
+async function saveCustomer() {
+  const name  = document.getElementById('nc-name').value.trim();
+  const type  = document.getElementById('nc-type').value;
+  const limit = parseFloat(document.getElementById('nc-limit').value) || 0;
+  if (!name) { showToast('Please enter a customer name', 'err'); return; }
+  try {
+    await sbPost('customers', [{ name, type: CTYPE_TO_DB[type] || type.toLowerCase(), credit_limit:limit }]);
+  } catch (err) { showToast('Save failed: ' + err.message, 'err'); return; }
+  closeAddCustomerModal();
+  showToast(`${name} added as a customer`, 'ok');
+  loadCustomers();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODAL — SALES REPORTS
+// ═══════════════════════════════════════════════════
+function openReportsModal(e) { if (e) { e.preventDefault(); ripple(e); } document.getElementById('reportsModalBg').classList.add('open'); document.body.style.overflow='hidden'; }
+function closeReportsModal() { document.getElementById('reportsModalBg').classList.remove('open'); document.body.style.overflow=''; }
+
+// ═══════════════════════════════════════════════════
+//  VIEW ALL — full-list modals for summary cards
+// ═══════════════════════════════════════════════════
+function closeViewAll() { document.getElementById('viewAllModalBg').classList.remove('open'); document.body.style.overflow=''; }
+function viewAll(e, section) {
+  if (e) ripple(e);
+  document.getElementById('va-title').textContent = section;
+  const thead = document.getElementById('va-thead');
+  const tbody = document.getElementById('va-tbody');
+
+  if (section === 'Customer Profitability') {
+    thead.innerHTML = `<tr><th>Customer</th><th>Revenue (ETB)</th><th>Orders</th><th>Avg Order (ETB)</th><th>Payment Type</th><th>Outstanding (ETB)</th><th>Days to Pay (Avg)</th></tr>`;
+    if (!profitFullSorted.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)">No data</td></tr>`; }
+    else tbody.innerHTML = profitFullSorted.map(([name,d]) => {
+      const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
+      return `<tr><td>${name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td><td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td><td>${fmt(d.outstanding)}</td><td>${avg_days}</td></tr>`;
+    }).join('');
+  } else if (section === 'Credit Collections') {
+    thead.innerHTML = `<tr><th>Date</th><th>Customer</th><th>Amount (ETB)</th><th>Payment Method</th></tr>`;
+    if (!collectionsFull.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No collections this period</td></tr>`; }
+    else {
+      let total = 0;
+      let html = collectionsFull.map(r => { total += parseFloat(r.revenue||0); return `<tr><td>${fmtDate(r.settled_date)}</td><td>${r.name}</td><td>${fmt(r.revenue)}</td><td>${pmTag(r.method)}</td></tr>`; }).join('');
+      html += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(total)}</td><td></td></tr>`;
+      tbody.innerHTML = html;
+    }
+  } else if (section === 'Accounts Receivable') {
+    thead.innerHTML = `<tr><th>Customer</th><th>Outstanding (ETB)</th><th>Overdue (Days)</th><th>Credit Limit</th></tr>`;
+    if (!arFullRows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No outstanding A/R</td></tr>`; }
+    else {
+      let total = 0;
+      let html = arFullRows.map(([name,d]) => {
+        total += d.outstanding;
+        const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
+        const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
+        return `<tr><td>${name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+      }).join('');
+      html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
+      tbody.innerHTML = html;
+    }
+  }
+  document.getElementById('viewAllModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+// ═══════════════════════════════════════════════════
+//  PDF EXPORT — full styled printable report
+// ═══════════════════════════════════════════════════
+function exportPDF(e) {
+  if (e) ripple(e);
+  const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
+
+  // Build totals
+  const total  = allSales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const cash   = allSales.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const credit = allSales.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const ar     = currentTotalAR();
+  const injRev = allSales.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const drkRev = allSales.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+
+  // Build table rows HTML
+  const rows = allSales.map(r => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.product}</td>
+      <td>${r.customers?.name||'—'}</td>
+      <td>${r.customers?.customer_type||'—'}</td>
+      <td>${(r.quantity||0).toLocaleString()}</td>
+      <td>${r.product==='Injera'?'pcs':'kg'}</td>
+      <td><span class="pmtag">${r.payment_method}</span></td>
+      <td>${fmt(r.unit_price)}</td>
+      <td><strong>${fmt(r.revenue)}</strong></td>
+      <td>${r.settled_date?fmtDate(r.settled_date):'—'}</td>
+    </tr>`).join('');
+
+  const vatOn   = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
+  const vatAmt  = vatOn ? total * 0.15 : 0;
+  const vatLine = vatOn ? `<tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Output VAT (15%)</td><td><strong style="color:#19733f">${fmt(vatAmt)} ETB</strong></td><td></td></tr>
+  <tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Total inc. VAT</td><td><strong style="color:#19733f">${fmt(total+vatAmt)} ETB</strong></td><td></td></tr>` : '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sales Report — ${period}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1a2e25;background:#fff;padding:24px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #27ae60;margin-bottom:18px}
+  .logo-area h1{font-size:17px;font-weight:800;color:#1a2e25;letter-spacing:.3px}
+  .logo-area p{font-size:10px;color:#9aada5;margin-top:2px}
+  .report-info{text-align:right}
+  .report-info h2{font-size:13px;font-weight:700;color:#1a2e25}
+  .report-info p{font-size:10px;color:#9aada5;margin-top:2px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  .kpi{background:#f7fbf9;border:1px solid #e0eae5;border-radius:8px;padding:10px 12px}
+  .kpi label{font-size:9px;font-weight:700;color:#9aada5;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
+  .kpi strong{font-size:14px;font-weight:800;color:#1a2e25}
+  .kpi .sub{font-size:9.5px;color:#5a6e65;margin-top:2px}
+  .section-title{font-size:11px;font-weight:800;color:#1a2e25;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e0eae5}
+  table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:10px}
+  th{padding:6px 8px;text-align:left;font-size:9px;font-weight:800;color:#9aada5;background:#f7fbf9;border-bottom:1.5px solid #e0eae5;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+  td{padding:7px 8px;border-bottom:1px solid #f0f5f2;color:#1a2e25}
+  tr:hover td{background:#f7fbf9}
+  tr.tot td{font-weight:800;background:#f0f5f2;border-top:1.5px solid #e0eae5;border-bottom:none}
+  tr.tot td:first-child{color:#19733f}
+  tr.vat-sum td{background:#eaf6f0;border-top:none}
+  .pmtag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:#e5f5ed;color:#19733f}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+  .box{background:#f7fbf9;border:1px solid #e0eae5;border-radius:8px;padding:12px}
+  .box h4{font-size:10px;font-weight:800;color:#1a2e25;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+  .box-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f5f2;font-size:10px}
+  .box-row:last-child{border-bottom:none;font-weight:800;color:#19733f;padding-top:5px}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .footer-pdf{text-align:center;font-size:9px;color:#9aada5;padding-top:12px;border-top:1px solid #e0eae5;margin-top:4px}
+  ${vatOn ? '.vat-notice{background:#eaf6f0;border:1px solid #b5ddc5;border-radius:6px;padding:7px 12px;font-size:9.5px;font-weight:700;color:#19733f;margin-bottom:14px}' : ''}
+  @media print{body{padding:0}@page{margin:16mm;size:A4 landscape}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo-area">
+    <h1>MENA INJERA &amp; DERKOSH</h1>
+    <p>Business Management System v37</p>
+  </div>
+  <div class="report-info">
+    <h2>Sales Report — ${period}</h2>
+    <p>Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</p>
+    <p>${allSales.length} transactions</p>
+  </div>
+</div>
+
+${vatOn ? `<div class="vat-notice">VAT REGISTERED — Output VAT at 15% included in totals below</div>` : ''}
+
+<div class="kpi-grid">
+  <div class="kpi"><label>Total Revenue</label><strong>${fmt(total)} ETB</strong><div class="sub">All payment methods</div></div>
+  <div class="kpi"><label>Cash Sales</label><strong>${fmt(cash)} ETB</strong><div class="sub">${total?((cash/total)*100).toFixed(1):0}% of total</div></div>
+  <div class="kpi"><label>Credit Sales</label><strong>${fmt(credit)} ETB</strong><div class="sub">${total?((credit/total)*100).toFixed(1):0}% of total</div></div>
+  <div class="kpi"><label>Outstanding A/R</label><strong>${fmt(ar)} ETB</strong><div class="sub">Unsettled credit</div></div>
+</div>
+
+<div class="section-title">Sales Transactions</div>
+<table>
+  <thead><tr><th>Date</th><th>Product</th><th>Customer</th><th>Type</th><th>Qty</th><th>Unit</th><th>Payment</th><th>Unit Price</th><th>Revenue (ETB)</th><th>Settled</th></tr></thead>
+  <tbody>
+    ${rows}
+    <tr class="tot"><td>TOTAL</td><td></td><td></td><td></td><td>${allSales.reduce((s,r)=>s+(r.quantity||0),0).toLocaleString()}</td><td></td><td></td><td></td><td>${fmt(total)} ETB</td><td></td></tr>
+    ${vatLine}
+  </tbody>
+</table>
+
+<div class="split">
+  <div class="box">
+    <h4>Revenue by Product</h4>
+    <div class="box-row"><span><span class="dot" style="background:#27ae60"></span>Injera</span><span>${fmt(injRev)} ETB &nbsp;${total?((injRev/total)*100).toFixed(1):0}%</span></div>
+    <div class="box-row"><span><span class="dot" style="background:#f59e0b"></span>Derkosh</span><span>${fmt(drkRev)} ETB &nbsp;${total?((drkRev/total)*100).toFixed(1):0}%</span></div>
+    <div class="box-row"><span>TOTAL</span><span>${fmt(total)} ETB</span></div>
+  </div>
+  <div class="box">
+    <h4>Revenue by Payment Method</h4>
+    ${['Cash','Credit','Bank Transfer','Mobile Money'].map(m => {
+        const v = allSales.filter(r=>r.payment_method===m).reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+        return `<div class="box-row"><span>${m}</span><span>${fmt(v)} ETB &nbsp;${total?((v/total)*100).toFixed(1):0}%</span></div>`;
+      }).join('')}
+    <div class="box-row"><span>TOTAL</span><span>${fmt(total)} ETB</span></div>
+  </div>
+</div>
+
+<div class="footer-pdf">© 2026 Mena Injera &amp; Derkosh Business Management System v37 — Confidential</div>
+</body></html>`;
+
+  // Open print dialog in a new window
+  const win = window.open('', '_blank', 'width=1100,height=800,menubar=no,toolbar=no');
+  win.document.write(html);
+  win.document.close();
+  win.onload = function() {
+    win.focus();
+    win.print();
+  };
+  showToast('PDF report opened — use Print → Save as PDF', 'ok', 3500);
+}
+// ═══════════════════════════════════════════════════
+//  EXPORT — FULL PAGE AS PDF (visual snapshot incl. charts)
+// ═══════════════════════════════════════════════════
+// Renders a crisp, correctly-proportioned clone of a live Chart.js chart at high
+// resolution for PDF embedding — avoids the pixelation/stretching you get from
+// grabbing the small on-screen canvas directly.
+async function renderHiResChartImage(sourceChart, boxW, boxH, scale, fontScale) {
+  scale = scale || 4;
+  fontScale = fontScale || 1;
+  const w = Math.max(1, Math.round(boxW * scale));
+  const h = Math.max(1, Math.round(boxH * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.style.position = 'fixed'; canvas.style.left = '-99999px'; canvas.style.top = '0';
+  document.body.appendChild(canvas);
+  let tempChart = null;
+  try {
+    const baseOptions = Object.assign({}, sourceChart.config.options, {
+      responsive: false, maintainAspectRatio: false, animation: false, devicePixelRatio: 1
+    });
+    let clonedData = sourceChart.config.data;
+    if (fontScale !== 1) {
+      // Scale axis tick labels — otherwise fixed-pixel fonts shrink to near-invisible
+      // once this image is rendered large then scaled back down to fit the PDF box.
+      if (baseOptions.scales) {
+        const scaledScales = {};
+        Object.keys(baseOptions.scales).forEach(axis => {
+          const orig = sourceChart.config.options.scales[axis] || {};
+          scaledScales[axis] = Object.assign({}, orig, {
+            ticks: Object.assign({}, orig.ticks, {
+              font: Object.assign({}, orig.ticks?.font, { size: (orig.ticks?.font?.size || 11) * fontScale })
+            })
+          });
+        });
+        baseOptions.scales = scaledScales;
+      }
+      // Scale in-chart data-point labels the same way
+      if (clonedData.datasets) {
+        clonedData = { labels: clonedData.labels, datasets: clonedData.datasets.map(ds => {
+          if (!ds.datalabels) return ds;
+          return Object.assign({}, ds, { datalabels: Object.assign({}, ds.datalabels, {
+            font: Object.assign({}, ds.datalabels.font, { size: (ds.datalabels.font?.size || 10) * fontScale })
+          })});
+        })};
+      }
+    }
+    tempChart = new Chart(canvas, {
+      type: sourceChart.config.type,
+      data: clonedData,
+      options: baseOptions,
+      plugins: sourceChart.config.plugins || []
+    });
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return canvas.toDataURL('image/png', 1.0);
+  } finally {
+    if (tempChart) tempChart.destroy();
+    canvas.remove();
+  }
+}
+
+async function exportFullPagePDF(e, retryCount) {
+  if (e) ripple(e);
+  retryCount = retryCount || 0;
+  const chartsReady = prodChart && pmChart && trendChart && idChart;
+  if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartsReady) {
+    if (retryCount < 8) { setTimeout(() => exportFullPagePDF(null, retryCount+1), 400); if (retryCount===0) showToast('Preparing full report PDF…', 'info'); return; }
+    showToast('Could not load the PDF/chart engine. Check your connection and try again.', 'err');
+    return;
+  }
+  const btn = document.getElementById('exportPageBtn');
+  const original = btn.innerHTML;
+  btn.innerHTML = 'Generating…';
+  btn.disabled = true;
+  closeAllDrops();
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 32;
+    const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
+
+    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+    const dataset = filteredSales.length ? filteredSales : allSales;
+    const totalRev   = dataset.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const cashRev    = dataset.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const creditRev  = dataset.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const injPrice   = avg(dataset.filter(r=>r.product==='Injera').map(r=>parseFloat(r.unit_price||0)));
+    const drkPrice   = avg(dataset.filter(r=>r.product==='Derkosh').map(r=>parseFloat(r.unit_price||0)));
+    const outstandingAR = dataset.filter(r=>r.payment_method==='Credit'&&!r.settled_date).reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+
+    function drawHeader(subtitle) {
+      doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
+      doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
+      doc.setFillColor(255,255,255);
+      doc.roundedRect(marginX,18,38,38,9,9,'F');
+      doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+      doc.text('MI', marginX+19, 42, {align:'center'});
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+      doc.text('Sales Overview'+(subtitle?' — '+subtitle:''), marginX+52, 34);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+      doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
+      doc.setFontSize(9); doc.setTextColor(220,235,227);
+      doc.text('Period: '+period, pageW-marginX, 30, {align:'right'});
+      doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
+      doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+    }
+    function drawFooter() {
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i=1;i<=pageCount;i++) {
+        doc.setPage(i);
+        doc.setDrawColor(...border);
+        doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+        doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
+        doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
+      }
+    }
+    function drawKpiStrip(y) {
+      const kpis = [
+        {lbl:'TOTAL REVENUE',   val:fmt(totalRev),      unit:'ETB'},
+        {lbl:'CASH SALES',      val:fmt(cashRev),       unit:'ETB'},
+        {lbl:'CREDIT SALES',    val:fmt(creditRev),     unit:'ETB'},
+        {lbl:'AVG PRICE INJERA',val:fmt(injPrice),      unit:'ETB'},
+        {lbl:'AVG PRICE DERKOSH',val:fmt(drkPrice),     unit:'ETB'},
+        {lbl:'OUTSTANDING A/R', val:fmt(outstandingAR), unit:'ETB'},
+      ];
+      const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
+      kpis.forEach((k,i) => {
+        const x = marginX + i*(cardW+gap);
+        doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+        doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+        doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.6);
+        doc.text(k.lbl, x+9, y+15, {charSpace:0.2});
+        doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
+        doc.text(k.val, x+9, y+34);
+        const valW = doc.getTextWidth(k.val);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...textMid);
+        doc.text(k.unit, x+9+valW+4, y+34);
+      });
+      return y+cardH;
+    }
+    function hex2rgb(hex) {
+      const h = hex.replace('#','');
+      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    }
+    async function drawChartTile(sourceChart, x, y, w, h, title) {
+      doc.setFillColor(255,255,255); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,w,h,7,7,'FD');
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+      doc.text(title, x+12, y+18);
+      const imgPad=10, imgY=y+26;
+      const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
+      try {
+        const img = await renderHiResChartImage(sourceChart, imgW, imgH, 4, 5.5);
+        doc.addImage(img, 'PNG', x+imgPad, imgY, imgW, imgH, undefined, 'FAST');
+      } catch(err) { console.error('chart tile render failed', err); }
+    }
+    async function drawDonutTile(x, y, w, h, title, chart, segments) {
+      doc.setFillColor(255,255,255); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,w,h,7,7,'FD');
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
+      doc.text(title, x+12, y+18);
+      const pad=14, top=y+30;
+      const ringSize = Math.min(h-(top-y)-pad, w*0.4);
+      const ringX = x+pad, ringY = top + ((h-(top-y)-pad-ringSize)/2);
+      try {
+        const img = await renderHiResChartImage(chart, ringSize, ringSize, 4);
+        doc.addImage(img, 'PNG', ringX, ringY, ringSize, ringSize, undefined, 'FAST');
+      } catch(err) { console.error('donut render failed', err); }
+      const total = segments.reduce((s,seg)=>s+seg.value,0);
+      const cx = ringX+ringSize/2, cy = ringY+ringSize/2;
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.2);
+      doc.text('TOTAL REVENUE', cx, cy-5, {align:'center', charSpace:0.2});
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(8.8);
+      doc.text(fmt(total), cx, cy+6, {align:'center'});
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...textMid);
+      doc.text('ETB', cx, cy+14, {align:'center'});
+      let ly = ringY + Math.max(0, (ringSize - segments.length*28)/2) + 4;
+      const legX = ringX+ringSize+18;
+      segments.forEach(seg => {
+        doc.setFillColor(...seg.colorRgb);
+        doc.roundedRect(legX, ly, 8, 8, 2, 2, 'F');
+        doc.setTextColor(...textDark); doc.setFont('helvetica','bold'); doc.setFontSize(8.2);
+        doc.text(seg.name, legX+13, ly+7);
+        const pct = total ? ((seg.value/total)*100).toFixed(1)+'%' : '0%';
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.3); doc.setTextColor(...textMid);
+        doc.text(fmt(seg.value)+' ETB  ·  '+pct, legX+13, ly+18);
+        ly += 28;
+      });
+    }
+    const tableTheme = {
+      styles:{font:'helvetica',fontSize:8.6,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.8,halign:'left'},
+      footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.6,lineWidth:{top:1.2},lineColor:[200,224,210]},
+      alternateRowStyles:{fillColor:[249,251,250]},
+    };
+
+    // ── PAGE 1: KPI strip + 2x2 chart grid ──
+    drawHeader();
+    const kpiBottom = drawKpiStrip(94);
+    const gY = kpiBottom+16, gGap=14;
+    const tileW = (pageW-marginX*2-gGap)/2;
+    const tileH = (pageH-gY-30-gGap)/2;
+
+    const injRev = dataset.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const drkRev = dataset.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const pmMapExp = {};
+    dataset.forEach(r => { pmMapExp[r.payment_method] = (pmMapExp[r.payment_method]||0) + parseFloat(r.revenue||0); });
+    const pmColorsExp = {'Cash':'#27ae60','Credit':'#2563eb','Bank Transfer':'#8b5cf6','Mobile Money':'#f59e0b'};
+
+    await drawDonutTile(marginX, gY, tileW, tileH, 'Sales by Product (This Month)', prodChart, [
+      {name:'Injera',  value:injRev, colorRgb:hex2rgb('#27ae60')},
+      {name:'Derkosh', value:drkRev, colorRgb:hex2rgb('#f59e0b')},
+    ]);
+    await drawDonutTile(marginX+tileW+gGap, gY, tileW, tileH, 'Sales by Payment Method (This Month)', pmChart,
+      Object.keys(pmMapExp).map(k => ({name:k, value:pmMapExp[k], colorRgb:hex2rgb(pmColorsExp[k]||'#94a3b8')}))
+    );
+    await drawChartTile(trendChart, marginX,            gY+tileH+gGap, tileW, tileH, 'Revenue Trend (Last 6 Months)');
+    await drawChartTile(idChart,    marginX+tileW+gGap, gY+tileH+gGap, tileW, tileH, 'Injera vs Derkosh (Last 6 Months)');
+
+    // ── PAGE 2: Sales Transactions ──
+    doc.addPage();
+    drawHeader('Sales Transactions');
+    const txHead = [['Date','Product','Customer','Customer Type','Qty','Unit','Payment Method','Unit Price (ETB)','Revenue (ETB)','Settled Date']];
+    const txBody = dataset.map(r => [
+      fmtDate(r.date), r.product, r.customers?.name||'—', r.customers?.customer_type||'—',
+      (r.quantity||0).toLocaleString(), r.product==='Injera'?'pcs':'kg', r.payment_method,
+      fmt(r.unit_price), fmt(r.revenue), r.settled_date?fmtDate(r.settled_date):'—'
+    ]);
+    const txFoot = [['TOTAL','—','—','—', dataset.reduce((s,r)=>s+(r.quantity||0),0).toLocaleString(), '—','—','—', fmt(totalRev), '—']];
+    doc.autoTable({ head:txHead, body:txBody, foot:txFoot, startY:94, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme, columnStyles:{0:{fontStyle:'bold'},8:{textColor:[27,150,80],fontStyle:'bold'}} });
+
+    // ── PAGE 3: Customer Profitability Summary ──
+    doc.addPage();
+    drawHeader('Customer Profitability Summary');
+    const profHead = [['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Payment Type','Outstanding (ETB)','Days to Pay (Avg)']];
+    const profBody = profitFullSorted.map(([name,d]) => {
+      const avgDays = d.days && d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
+      return [name, fmt(d.rev), d.orders, fmt(d.rev/d.orders), d.pm, fmt(d.outstanding), avgDays];
+    });
+    doc.autoTable({ head:profHead, body:profBody, startY:94, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme, columnStyles:{0:{fontStyle:'bold'}} });
+
+    // ── PAGE 4: Credit Collections + Outstanding A/R ──
+    doc.addPage();
+    drawHeader('Credit Collections & Outstanding A/R');
+    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Recent Credit Collections', marginX, 92);
+    const collHead = [['Date','Customer','Amount (ETB)','Payment Method']];
+    const collBody = collectionsFull.map(r => [fmtDate(r.settled_date), r.name, fmt(r.revenue), r.method]);
+    const collTotal = collectionsFull.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    doc.autoTable({ head:collHead, body:collBody, foot:[['TOTAL','—',fmt(collTotal),'—']], startY:100, margin:{left:marginX,right:marginX}, ...tableTheme });
+
+    const arStartY = (doc.lastAutoTable?.finalY || 100) + 30;
+    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Outstanding Accounts Receivable', marginX, arStartY);
+    const arHead = [['Customer','Outstanding (ETB)','Overdue (Days)','Credit Limit (ETB)']];
+    const arBody = arFullRows.map(([name,d]) => {
+      const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
+      return [name, fmt(d.outstanding), days, fmt(d.limit)];
+    });
+    const arTotal = arFullRows.reduce((s,[,d])=>s+d.outstanding,0);
+    doc.autoTable({ head:arHead, body:arBody, foot:[['TOTAL',fmt(arTotal),'—','—']], startY:arStartY+8, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme });
+
+    drawFooter();
+    const safeMonth = period.replace(' ','_');
+    doc.save('Sales_Overview_Full_Report_'+safeMonth+'.pdf');
+    showToast('Full report PDF downloaded', 'ok');
+  } catch (err) {
+    console.error('Full PDF export failed:', err);
+    showToast('Full report PDF export failed — please try again', 'err');
+  } finally {
+    btn.innerHTML = original;
+    btn.disabled = false;
+  }
+}
+function exportExcel(e) {
+  if (e) ripple(e);
+
+  if (typeof XLSX === 'undefined') {
+    showToast('Excel library loading — try again in a moment', 'info');
+    return;
+  }
+
+  const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
+
+  // ── Sheet 1: Sales Transactions ──
+  const txnHeaders = ['Date','Product','Customer','Customer Type','Qty','Unit','Payment Method','Unit Price (ETB)','Revenue (ETB)','VAT Rate (%)','VAT Amount (ETB)','Total inc. VAT (ETB)','Settled Date'];
+  const exportVatOn = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
+  const txnRows = allSales.map(r => {
+    const rev      = parseFloat(r.revenue || 0);
+    const vatRate  = r.vat_rate_pct != null ? parseFloat(r.vat_rate_pct) : (exportVatOn ? 15 : 0);
+    const vatAmt   = rev * (vatRate / 100);
+    return [
+      r.date ? fmtDate(r.date) : '—',
+      r.product,
+      r.customers?.name || '—',
+      r.customers?.customer_type || '—',
+      r.quantity || 0,
+      r.product === 'Injera' ? 'pcs' : 'kg',
+      r.payment_method,
+      parseFloat(r.unit_price || 0),
+      rev,
+      vatRate,
+      vatAmt,
+      rev + vatAmt,
+      r.settled_date ? fmtDate(r.settled_date) : '—',
+    ];
+  });
+  // Add totals row
+  const totalQty = allSales.reduce((s,r) => s + (r.quantity||0), 0);
+  const totalRev = allSales.reduce((s,r) => s + parseFloat(r.revenue||0), 0);
+  txnRows.push(['TOTAL','','','',totalQty,'','','',totalRev,'']);
+
+  const txnSheet = XLSX.utils.aoa_to_sheet([txnHeaders, ...txnRows]);
+
+  // Style column widths
+  txnSheet['!cols'] = [
+    {wch:14},{wch:10},{wch:18},{wch:14},{wch:8},{wch:6},
+    {wch:16},{wch:14},{wch:16},{wch:12},{wch:16},{wch:18},{wch:14}
+  ];
+
+  // ── Sheet 2: KPI Summary ──
+  const total   = allSales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const cash    = allSales.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const credit  = allSales.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const bank    = allSales.filter(r=>r.payment_method==='Bank Transfer').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const mobile  = allSales.filter(r=>r.payment_method==='Mobile Money').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const injRev  = allSales.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const drkRev  = allSales.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+  const ar      = currentTotalAR();
+
+  const summaryData = [
+    ['Mena Injera & Derkosh — Sales Summary', period],
+    [],
+    ['KPI', 'Value (ETB)'],
+    ['Total Revenue', total],
+    ['Cash Sales', cash],
+    ['Credit Sales', credit],
+    ['Bank Transfer Sales', bank],
+    ['Mobile Money Sales', mobile],
+    [],
+    ['Product Breakdown', ''],
+    ['Injera Revenue', injRev],
+    ['Derkosh Revenue', drkRev],
+    [],
+    ['Outstanding A/R', ar],
+    ['Total Transactions', allSales.length],
+  ];
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  summarySheet['!cols'] = [{wch:28},{wch:18}];
+
+  // ── Sheet 3: Customer Profitability ──
+  const profMap = {};
+  allSales.forEach(r => {
+    const n = r.customers?.name || 'Unknown';
+    if (!profMap[n]) profMap[n] = {rev:0,orders:0,outstanding:0};
+    profMap[n].rev    += parseFloat(r.revenue||0);
+    profMap[n].orders += 1;
+    if (r.payment_method==='Credit'&&!r.settled_date) profMap[n].outstanding += parseFloat(r.revenue||0);
+  });
+  const profHeaders = ['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Outstanding A/R (ETB)'];
+  const profRows = Object.entries(profMap)
+    .sort((a,b)=>b[1].rev-a[1].rev)
+    .map(([n,d]) => [n, d.rev, d.orders, d.rev/d.orders, d.outstanding]);
+  const profSheet = XLSX.utils.aoa_to_sheet([profHeaders, ...profRows]);
+  profSheet['!cols'] = [{wch:18},{wch:16},{wch:14},{wch:16},{wch:18}];
+
+  // ── Build workbook ──
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, txnSheet,     'Sales Transactions');
+  XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+  XLSX.utils.book_append_sheet(wb, profSheet,    'Customer Profitability');
+
+  // ── Download ──
+  const filename = `Sales_${period.replace(' ','_')}_Mena_Injera.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast(`Downloaded ${filename}`, 'ok');
+}
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', ev => { if(ev.target===bg){bg.classList.remove('open');document.body.style.overflow='';} }));
+
+// Helpers
+function fmt(v)     { return (parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function avg(arr)   { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function fmtDate(d) { if(!d)return'—'; const dt=new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function pmTag(m)   {
+  const map={'Cash':'pm-cash','Credit':'pm-credit','Bank Transfer':'pm-bank','Mobile Money':'pm-mobile','Mixed':'pm-mixed'};
+  return `<span class="pmtag ${map[m]||''}">${m||'—'}</span>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+});
+</script>
+</body>
+</html>
