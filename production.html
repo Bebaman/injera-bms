@@ -253,10 +253,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 
 /* ══ RESPONSIVE ══════════════════════════════════════ */
 @media (max-width:1400px){
-  .kpi-row{grid-template-columns:repeat(3,1fr)}
   .row-main{grid-template-columns:1fr}
   .chart-donut-row{grid-template-columns:1fr}
   .bottom3{grid-template-columns:1fr}
+}
+@media (max-width:1100px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
 }
 /* Old hover-to-expand sidebar CSS removed — shared-shell.css's
    .sb.collapsed / .sb.pinned-open system (driven by sidebar.js) replaces it. */
