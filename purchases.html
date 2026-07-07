@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchases — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Purchases — Mena Injera & Derkosh BMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <!-- Shared shell: app-state.js's earlyAuthCheck() runs immediately on load (same
      blocking-redirect position the old inline guard used to occupy), and exposes
      loadSession()/signOut()/etc. before anything else on the page needs them.
@@ -280,7 +281,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 @media (max-width:1220px) and (min-width:901px){
   .bot2{grid-template-columns:1fr}
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{grid-template-columns:1fr 1fr}
-  .settings-row{grid-template-columns:1fr 1fr}
 }
 @media (max-width:900px){
   /* Sidebar/topbar responsive behavior now lives in shared-shell.css.
@@ -295,9 +295,21 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 
   /* Two-column areas collapse to one column */
   .bot2{display:flex;flex-direction:column}
-  .settings-row{grid-template-columns:1fr}
   .donut-row{grid-template-columns:1fr}
   .bot2 > div[style*="grid-template-columns"]{display:flex !important;flex-direction:column}
+
+  /* Modals: full-width sheet with less outer padding so form fields have real room */
+  .modal-overlay{padding:0}
+  .modal{max-width:100%;width:100%;border-radius:14px 14px 0 0;max-height:94vh}
+  .modal-hd{padding:14px 16px}
+  .modal-bd{padding:14px 16px}
+  .modal-ft{padding:12px 16px}
+
+  /* Purchase/Supplier form rows: stack to one column instead of a cramped 2-col grid */
+  .f-row{grid-template-columns:1fr;gap:10px;margin-bottom:12px}
+
+  /* Approval Queue cards: total/amount block wraps under the description on narrow screens */
+  #approvalQueueList > div{flex-wrap:wrap}
 
   /* Filter panel stacks on mobile */
   .filter-panel-inner{flex-direction:column}
@@ -337,6 +349,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 @media (max-width:480px){
   .kc{min-width:160px}
 }
+} /* close @media (max-width:900px) — was missing, which had been silently nesting
+     everything below (including the entire @media print block) inside the 900px
+     query, so PDF export formatting only applied when the window was also ≤900px. */
 
 /* ═══════════════════════════════════════════════════════════════════
    PRINT / PDF EXPORT
@@ -607,7 +622,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <tbody id="supTblBody">
             </tbody>
           </table>
-          <a class="view-exp" onclick="openSupplierModal()" style="cursor:pointer">Manage Suppliers</a>
+          <a class="view-exp" href="suppliers.html">Manage Suppliers</a>
         </div>
 
         <!-- Expense Approval Summary -->
@@ -693,91 +708,14 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
     </div>
 
-    <!-- Settings/config widgets (Bank Fee, Approval Threshold, VAT) — full-width 3-column
-         row below the two-column area, not squeezed into the narrow right sidebar. Local-only
-         controls, not reportable data — excluded from the PDF export via .no-print. -->
-    <div class="no-print settings-row" id="settingsRow">
-        <!-- Bank Transfer Fee Config — per BMS briefing spec -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">
-              <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
-              Bank Transfer Fee
-            </div>
-            <span style="font-size:10.5px;font-weight:600;color:var(--tl)">Configurable</span>
-          </div>
-          <div style="padding:6px 17px 16px">
-            <p style="font-size:11.5px;color:var(--tm);margin-bottom:12px;line-height:1.5">Set the default bank transfer fee that is auto-added to Bank payment purchases.</p>
-            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-              <div class="f-grp" style="flex:1;min-width:100px">
-                <label style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Fee Type</label>
-                <select id="bankFeeType" onchange="updateBankFeePreview()" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:'Nunito',sans-serif;outline:none;width:100%">
-                  <option value="fixed">Fixed (ETB)</option>
-                  <option value="percent">Percentage (%)</option>
-                  <option value="none">No Auto-Fee</option>
-                </select>
-              </div>
-              <div class="f-grp" id="bankFeeValWrap" style="flex:1;min-width:90px">
-                <label style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Amount</label>
-                <input type="number" id="bankFeeVal" value="85" step="0.01" oninput="updateBankFeePreview()" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:'Nunito',sans-serif;outline:none;width:100%">
-              </div>
-            </div>
-            <div id="bankFeePreview" style="margin-top:10px;background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 13px;font-size:12px;color:var(--tm)">
-              Preview: <strong id="bankFeePreviewTxt" style="color:#1a6b3c">85.00 ETB</strong> added to each Bank-channel purchase
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn-pri" style="flex:1;padding:9px 0;font-size:12.5px" onclick="saveBankFee()">Save Fee Setting</button>
-              <button class="btn-sec" style="padding:9px 14px;font-size:12.5px" onclick="applyBankFeeToNew()">Apply to New Entry</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Expense Approval Threshold Config — per BMS briefing spec §3.2 step 4, "configurable in Setup" -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">
-              <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-              Expense Approval Threshold
-            </div>
-            <span style="font-size:10.5px;font-weight:600;color:var(--tl)">Configurable</span>
-          </div>
-          <div style="padding:6px 17px 16px">
-            <p style="font-size:11.5px;color:var(--tm);margin-bottom:12px;line-height:1.5">Expense rows at or above this amount are submitted for Owner approval. Purchase rows always auto-approve. This will move to the Setup module once built — for now it's saved locally in this browser.</p>
-            <div class="f-grp">
-              <label style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Threshold (ETB)</label>
-              <input type="number" id="approvalThresholdVal" value="500" step="1" min="0" oninput="updateApprovalThresholdPreview()" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:'Nunito',sans-serif;outline:none;width:100%">
-            </div>
-            <div id="approvalThresholdPreview" style="margin-top:10px;background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 13px;font-size:12px;color:var(--tm)">
-              Expenses ≥ <strong id="approvalThresholdPreviewTxt" style="color:#1a6b3c">500.00 ETB</strong> require Owner approval
-            </div>
-            <button class="btn-pri" style="width:100%;padding:9px 0;font-size:12.5px;margin-top:12px" onclick="saveApprovalThreshold()">Save Threshold</button>
-          </div>
-        </div>
-
-        <!-- VAT Registration Config — per BMS briefing spec "VAT Framework" -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">
-              <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              VAT Registration
-            </div>
-            <span style="font-size:10.5px;font-weight:600;color:var(--tl)">Configurable</span>
-          </div>
-          <div style="padding:6px 17px 16px">
-            <p style="font-size:11.5px;color:var(--tm);margin-bottom:12px;line-height:1.5">Ethiopia's standard VAT rate is 15%. Once registered, every new purchase line records Input VAT for reporting. Existing rows are unaffected. Belongs in business_settings once Setup exists — saved locally for now.</p>
-            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer;margin-bottom:10px">
-              <input type="checkbox" id="vatRegisteredChk" onchange="onVatToggle()" style="width:16px;height:16px;accent-color:#27ae60">
-              VAT-registered business
-            </label>
-            <div id="vatRateWrap" class="f-grp" style="display:none">
-              <label style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">VAT Rate (%)</label>
-              <input type="number" id="vatRateVal" value="15" step="0.01" min="0" max="100" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:'Nunito',sans-serif;outline:none;width:100%">
-            </div>
-            <button class="btn-pri" style="width:100%;padding:9px 0;font-size:12.5px;margin-top:8px" onclick="saveVatSettings()">Save VAT Setting</button>
-          </div>
-        </div>
-    </div>
-    <!-- /no-print settings widgets -->
+    <!-- Bank Transfer Fee / Expense Approval Threshold / VAT Registration widgets were
+         removed from this page per Superman's note (2026-07-07): these are business-wide
+         settings, not purchase-page settings, and belong in the Settings module instead of
+         being duplicated here. The underlying config (bankFeeConfig, EXPENSE_APPROVAL_THRESHOLD,
+         vatSettings) is still loaded from business_settings via loadBusinessSettingsFromSupabase()
+         further down and used for calculations (recalcTotal, savePurchase, bank fee auto-add) —
+         only the editable UI cards were removed. Once the Settings module exists, this page
+         will simply read whatever values it saves. -->
 
   </div><!-- /content -->
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
@@ -902,12 +840,20 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div id="pFxHint" style="font-size:11.5px;color:var(--tm);background:#f7f9f8;border:1px solid #e5e9e7;border-radius:8px;padding:8px 10px">Reference only — enter the ETB Unit Price above; it's the authoritative amount for all calculations.</div>
         </div>
       </div>
+      <!-- Delivery In is Injera-Blend-only (toggled by updateProcDelivVisibility). Payment
+           Channel must ALWAYS be visible/selectable regardless of category — it used to live
+           in the same row as Delivery In and got hidden along with it for every non-Injera-
+           Blend purchase, Expense, and Asset Purchase, silently defaulting every one of those
+           rows to "Bank" with no way to change it. Now only Delivery In's own cell toggles;
+           Payment Channel's cell (and its grid-column span) is adjusted in JS instead so it
+           still sits side-by-side with Delivery In when both apply, and takes the full row
+           width when Delivery In is hidden. -->
       <div class="f-row" id="delivRow">
-        <div class="f-grp">
+        <div class="f-grp" id="delivInGrp">
           <label>Delivery In (ETB)</label>
           <input type="number" id="pDeliv" value="0" step="0.01" oninput="recalcTotal()">
         </div>
-        <div class="f-grp">
+        <div class="f-grp" id="pChannelGrp">
           <label>Payment Channel</label>
           <select id="pChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
         </div>
@@ -1748,9 +1694,13 @@ function updateProcDelivVisibility(){
   const item = type === 'Purchase' ? itemById(itemId) : null;
   const showProcDeliv = !!item && PROC_DELIV_ITEMS.has(item.name);
   const procRow = document.getElementById('procCostRow');
-  const delivRow = document.getElementById('delivRow');
+  const delivInGrp = document.getElementById('delivInGrp');
+  const channelGrp = document.getElementById('pChannelGrp');
   if(procRow) procRow.style.display = showProcDeliv ? '' : 'none';
-  if(delivRow) delivRow.style.display = showProcDeliv ? '' : 'none';
+  // Only Delivery In toggles — Payment Channel (channelGrp) always stays visible so every
+  // Purchase/Expense/Asset row can pick Bank/Cash/Mobile Money, not just Injera Blend rows.
+  if(delivInGrp) delivInGrp.style.display = showProcDeliv ? '' : 'none';
+  if(channelGrp) channelGrp.style.gridColumn = showProcDeliv ? '' : '1 / -1';
   if(!showProcDeliv){
     document.getElementById('pProcCost').value = 0;
     document.getElementById('pDeliv').value = 0;
@@ -1884,13 +1834,13 @@ function buildFilterCategoryDropdown(){
 let EXPENSE_APPROVAL_THRESHOLD = 1000;
 
 function initApprovalThreshold(){
-  document.getElementById('approvalThresholdVal').value = EXPENSE_APPROVAL_THRESHOLD;
-  updateApprovalThresholdPreview();
+  // The Approval Threshold card's UI was removed from this page (2026-07-07) — it belongs in
+  // the Settings module. EXPENSE_APPROVAL_THRESHOLD itself still comes from
+  // loadBusinessSettingsFromSupabase() and is used for approval-status calculations; there's
+  // no local UI to sync it into anymore, so this is now a no-op kept only so existing call
+  // sites don't need to change.
 }
-function updateApprovalThresholdPreview(){
-  const val = parseFloat(document.getElementById('approvalThresholdVal').value)||0;
-  document.getElementById('approvalThresholdPreviewTxt').textContent = fmt(val)+' ETB';
-}
+function updateApprovalThresholdPreview(){ /* UI removed from this page — no-op */ }
 async function saveApprovalThreshold(){
   const val = parseFloat(document.getElementById('approvalThresholdVal').value)||0;
   if(val < 0){ showToast('Threshold cannot be negative'); return; }
@@ -1915,14 +1865,13 @@ async function saveApprovalThreshold(){
 let vatSettings = { isRegistered: false, ratePct: 15 };
 
 function initVatSettings(){
-  document.getElementById('vatRegisteredChk').checked = vatSettings.isRegistered;
-  document.getElementById('vatRateVal').value = vatSettings.ratePct;
-  document.getElementById('vatRateWrap').style.display = vatSettings.isRegistered ? '' : 'none';
+  // The VAT Registration card's UI was removed from this page (2026-07-07) — it belongs in
+  // the Settings module. vatSettings itself still comes from loadBusinessSettingsFromSupabase()
+  // and is used for VAT calculations; toggleVatFieldInModal() below is the only remaining
+  // effect this page needs (shows/hides the VAT row inside the New Purchase modal).
   toggleVatFieldInModal();
 }
-function onVatToggle(){
-  document.getElementById('vatRateWrap').style.display = document.getElementById('vatRegisteredChk').checked ? '' : 'none';
-}
+function onVatToggle(){ /* UI removed from this page — no-op */ }
 async function saveVatSettings(){
   const isRegistered = document.getElementById('vatRegisteredChk').checked;
   const ratePct = parseFloat(document.getElementById('vatRateVal').value)||0;
@@ -2368,6 +2317,72 @@ function renderCharts(){
         tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}} }
     }
   });
+
+  renderTrendChart(mk);
+}
+
+// Purchase Trend line chart — trailing 6 months ending at the currently selected month,
+// summed from the real `purchases` array (which loadFromSupabase() populates from the DB).
+// Previously this chart was built once at page load from a hardcoded 6-number array and
+// never touched again, so it never reflected actual purchases — this rebuilds it every
+// time renderCharts() runs (month change, save, approve/reject, delete, initial load).
+function renderTrendChart(mk){
+  const months = [];
+  let cursor = mk;
+  for(let i=0;i<6;i++){ months.unshift(cursor); cursor = prevMonthKey(cursor); }
+  const labels = months.map(monthLabel);
+  const data = months.map(m => getMonthPurchases(m).reduce((s,p)=>s+rowTotal(p),0));
+  const maxVal = Math.max(...data, 1);
+  // Round the axis max up to a clean step above the highest month so real data (which can
+  // exceed the old hardcoded 100,000 ceiling) always fits instead of getting clipped.
+  const step = maxVal > 200000 ? 50000 : 20000;
+  const axisMax = Math.ceil((maxVal*1.15)/step)*step;
+
+  if(trendChart) trendChart.destroy();
+  const rc = document.getElementById('trendChart').getContext('2d');
+  trendChart = new Chart(rc,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Total Purchases (ETB)',
+          data,
+          borderColor:'#27ae60',
+          backgroundColor:'rgba(39,174,96,0.07)',
+          borderWidth:2.5,
+          pointBackgroundColor:'#27ae60',
+          pointRadius:4,pointHoverRadius:6,
+          fill:true,tension:0.35,
+          datalabels:{
+            align:'top',anchor:'end',
+            offset:8,
+            color:'#1a2e25',
+            font:{family:'Nunito',size:10,weight:'700'},
+            formatter:v=>(v/1000).toFixed(1)+'K'
+          }
+        }
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:26,bottom:14}},
+      animation:{duration:1500, easing:'easeOutCubic'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:11},color:'#9aada5'}},
+        y:{
+          grid:{color:'#eef3f0',lineWidth:1},
+          min:0,max:axisMax,
+          ticks:{stepSize:step,font:{family:'Nunito',size:11},color:'#9aada5',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+          beginAtZero:true
+        }
+      }
+    }
+  });
 }
 
 /* ════════════════ SPEND BY CATEGORY (data-driven bars) ════════════════ */
@@ -2390,51 +2405,9 @@ function renderCategoryBars(grandTotal, rows){
   }));
 }
 
-// Purchase Trend line chart (static historical series + animated draw-in)
-const rc=document.getElementById('trendChart').getContext('2d');
-trendChart = new Chart(rc,{
-  type:'line',
-  data:{
-    labels:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'],
-    datasets:[
-      {
-        label:'Total Purchases (ETB)',
-        data:[58200,62700,55400,69800,69200,73500],
-        borderColor:'#27ae60',
-        backgroundColor:'rgba(39,174,96,0.07)',
-        borderWidth:2.5,
-        pointBackgroundColor:'#27ae60',
-        pointRadius:4,pointHoverRadius:6,
-        fill:true,tension:0.35,
-        datalabels:{
-          align:'top',anchor:'end',
-          offset:8,
-          color:'#1a2e25',
-          font:{family:'Nunito',size:10,weight:'700'},
-          formatter:v=>(v/1000).toFixed(1)+'K'
-        }
-      }
-    ]
-  },
-  options:{
-    responsive:true,maintainAspectRatio:false,
-    layout:{padding:{top:26,bottom:14}},
-    animation:{duration:1500, easing:'easeOutCubic'},
-    plugins:{
-      legend:{display:false},
-      tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}
-    },
-    scales:{
-      x:{grid:{display:false},ticks:{font:{family:'Nunito',size:11},color:'#9aada5'}},
-      y:{
-        grid:{color:'#eef3f0',lineWidth:1},
-        min:0,max:100000,
-        ticks:{stepSize:20000,font:{family:'Nunito',size:11},color:'#9aada5',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
-        beginAtZero:true
-      }
-    }
-  }
-});
+// Purchase Trend line chart — now built inside renderCharts() from real `purchases` data
+// (see renderTrendChart() below) instead of this old hardcoded 6-month array, so it stays
+// connected to Supabase like every other chart on this page and updates on every data change.
 
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){
@@ -2449,86 +2422,38 @@ document.addEventListener('keydown', e=>{
   }
 });
 
-/* ════════════════ BANK TRANSFER FEE ════════════════ */
-let bankFeeConfig = JSON.parse(localStorage.getItem('bankFeeConfig')||'{"type":"fixed","value":85}');
-
-function initBankFee(){
-  document.getElementById('bankFeeType').value = bankFeeConfig.type || 'fixed';
-  document.getElementById('bankFeeVal').value = bankFeeConfig.value || 85;
-  updateBankFeePreview();
-}
-
-function updateBankFeePreview(){
-  const type = document.getElementById('bankFeeType').value;
-  const val = parseFloat(document.getElementById('bankFeeVal').value)||0;
-  const wrap = document.getElementById('bankFeeValWrap');
-  const preview = document.getElementById('bankFeePreviewTxt');
-  const previewBox = document.getElementById('bankFeePreview');
-  wrap.style.display = type === 'none' ? 'none' : '';
-  if(type === 'none'){
-    preview.textContent = 'No fee';
-    previewBox.style.background = '#f7f7f7';
-    previewBox.style.borderColor = '#e0e0e0';
-  } else if(type === 'fixed'){
-    preview.textContent = fmt(val)+' ETB';
-    previewBox.style.background = '#f0f8f4';
-    previewBox.style.borderColor = '#bcdece';
-  } else {
-    preview.textContent = val+'% of total';
-    previewBox.style.background = '#f0f8f4';
-    previewBox.style.borderColor = '#bcdece';
-  }
-}
-
-function saveBankFee(){
-  bankFeeConfig.type = document.getElementById('bankFeeType').value;
-  bankFeeConfig.value = parseFloat(document.getElementById('bankFeeVal').value)||0;
-  try { localStorage.setItem('bankFeeConfig', JSON.stringify(bankFeeConfig)); } catch(e){}
-  showToast('Bank fee setting saved — '+
-    (bankFeeConfig.type==='none' ? 'No auto-fee' :
-     bankFeeConfig.type==='fixed' ? fmt(bankFeeConfig.value)+' ETB per Bank purchase' :
-     bankFeeConfig.value+'% per Bank purchase'));
-}
-
-function applyBankFeeToNew(){
-  // Open a new Bank-channel expense entry pre-filled with the bank fee.
-  // Per spec §3.9: "Bank charge creates an automatic expense entry: category = 'Bank Charges'".
-  openPurchaseModal();
-  document.getElementById('pType').value = 'Expense';
-  onTypeChange();
-  document.getElementById('pChannel').value = 'Bank';
-  // Find Berhan Bank supplier if exists
-  const berhan = suppliers.find(s=>s.name.toLowerCase().includes('bank'));
-  if(berhan) document.getElementById('pSupplier').value = berhan.id;
-  const bankChargeCat = expCatByName('Bank Charges');
-  buildCategoryDropdown('Expense', bankChargeCat ? bankChargeCat.id : '');
-  if(bankChargeCat) document.getElementById('pCategory').value = bankChargeCat.id;
-  document.getElementById('pDescription').value = 'Bank Transfer Fee';
-  const feeVal = bankFeeConfig.type==='fixed' ? bankFeeConfig.value : 0;
-  document.getElementById('pUnitPrice').value = feeVal;
-  recalcTotal();
-  showToast('Bank fee pre-filled — adjust amount if needed');
-}
+/* ════════════════ BANK TRANSFER FEE — real business_settings.bank_charge_default_pct ════════════════ */
+// Confirmed against the live schema (2026-07-08): business_settings has exactly one bank-fee
+// column, bank_charge_default_pct (numeric, default 0.5000) — a percentage, not the old
+// localStorage model's {type:'fixed'|'percent'|'none', value} shape. There is no fixed-ETB
+// option in the real schema, so this now always applies as a percentage of the purchase total
+// (0 behaves the same as "no fee"). Loaded from Supabase in loadBusinessSettingsFromSupabase();
+// no more localStorage.
+let bankFeeConfig = { ratePct: 0.5 };
 
 function getBankFeeAmount(totalCost){
-  if(bankFeeConfig.type === 'none') return 0;
-  if(bankFeeConfig.type === 'fixed') return bankFeeConfig.value;
-  if(bankFeeConfig.type === 'percent') return totalCost * bankFeeConfig.value / 100;
-  return 0;
+  return totalCost * (bankFeeConfig.ratePct || 0) / 100;
 }
 // Maps UI status ↔ real schema's approval_status ENUM('auto_approved','pending','approved','rejected').
 // IMPORTANT: the purchases_computed() trigger in injera_bms_COMPLETE.sql re-checks the
 // threshold server-side and promotes 'pending' → 'auto_approved' when total_cost is at/under
-// business_settings.approval_threshold_etb. To avoid the client and DB ever disagreeing on
-// the threshold, we defer to the DB: Expense rows below threshold are still sent as 'pending'
-// and the trigger promotes them; only an explicit Reject sends 'rejected' outright.
+// business_settings.approval_threshold_etb. For expenses BELOW threshold we still defer to
+// the DB: send 'pending' and let the trigger's own check promote it to auto_approved.
+//
+// BUG FIX (2026-07-07): an Owner clicking "Approve" in the Approval Queue on an expense that
+// is AT/ABOVE threshold used to also send 'pending' here (the only status this function knew
+// how to send for a non-Purchase row), so the trigger re-checked the same still-over-threshold
+// total, left it 'pending' in the DB, and syncTriggerComputedFields() then read that back and
+// silently flipped the row's local status right back to 'Pending' — the Approve button visibly
+// did nothing. An explicit manual approval (p.approvedAt is set by approvePurchase()) now sends
+// 'approved' so the trigger doesn't re-run the threshold check and undo the Owner's decision.
 function toDbApprovalStatus(p){
-  if(p.status === 'Pending') return 'pending';
   if(p.status === 'Rejected') return 'rejected';
   if(p.type === 'Purchase') return 'auto_approved'; // trigger has no special-case for this; purchases always auto-approve
-  // Expense or Asset Purchase, resolved as Completed client-side: send 'pending' and let
-  // the trigger's own threshold check (reading the live business_settings row) decide
-  // auto_approved vs leaving it pending.
+  if(p.status === 'Completed' && p.approvedAt) return 'approved'; // explicit Owner approval via the Approval Queue
+  if(p.status === 'Pending') return 'pending';
+  // Expense/Asset resolved as Completed client-side with no explicit approval timestamp
+  // (i.e. it was under threshold to begin with): let the trigger's threshold check decide.
   return 'pending';
 }
 function fromDbApprovalStatus(dbStatus){
@@ -2635,6 +2560,9 @@ async function loadBusinessSettingsFromSupabase(){
         isRegistered: !!data.is_vat_registered,
         ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15) // rate isn't its own column; 15% is Ethiopia's standard rate per spec
       };
+      // bank_charge_default_pct confirmed against the live schema (2026-07-08) — a percentage,
+      // not the old localStorage {type,value} shape. Falls back to 0.5% if the row is missing it.
+      bankFeeConfig = { ratePct: parseFloat(data.bank_charge_default_pct ?? 0.5) };
       businessSettingsId = data.id;
     }
   } catch(err){
@@ -2819,7 +2747,8 @@ document.querySelectorAll('.tb-mid .arr').forEach((el, i) => {
   el.onclick = () => chgM(i === 0 ? -1 : 1);
 });
 loadFromSupabase();
-initBankFee();
+// bankFeeConfig no longer needs a separate init call — it's populated straight from
+// business_settings.bank_charge_default_pct inside loadBusinessSettingsFromSupabase().
 </script>
 
 </body>
