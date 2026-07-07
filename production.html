@@ -127,7 +127,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .tbl-wrap{overflow-x:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:var(--fs-base);white-space:nowrap}
 .tbl th{padding:9px 14px;text-align:left;font-size:var(--fs-xs);font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
-.tbl td{padding:10px 14px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+.tbl td{padding:9px 14px;border-bottom:1px solid #f0f5f2;color:var(--td)}
 .tbl tr td{transition:background .15s ease}
 .tbl tr:hover td{background:#f7fbf9}
 .tbl td.num{font-weight:600;color:var(--tm)}
@@ -196,7 +196,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 /* ══ DONUT ═══════════════════════════════════════════ */
 .exp-bd{padding:8px 16px 16px;display:flex;align-items:center;gap:14px;flex:1}
 .dnut{position:relative;flex-shrink:0}
-.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:84px}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:100px}
 .dnut-lbl span{font-size:var(--fs-2xs);color:var(--tl);font-weight:600;display:block;line-height:1.2}
 .dnut-lbl strong{font-size:12px;font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
 .exp-leg{font-size:var(--fs-xs);flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -236,7 +236,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 
 /* ══ WEEKLY CALENDAR ═════════════════════════════════ */
 .wk-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;padding:6px 17px 4px}
-.wk-day{border-radius:10px;padding:11px 4px;text-align:center;transition:transform .15s}
+.wk-day{border-radius:10px;padding:9px 4px;text-align:center;transition:transform .15s}
 .wk-day:hover{transform:translateY(-2px)}
 .wk-day .wd-name{font-size:9.5px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.4px}
 .wk-day .wd-date{font-size:11px;color:var(--tl);font-weight:700;margin:5px 0 7px}
@@ -516,7 +516,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
               </select>
             </div>
             <div class="chart-box">
-              <div class="chart-wrap" style="position:relative;flex:1;min-height:250px;max-height:280px">
+              <div class="chart-wrap" style="position:relative;flex:1;min-height:225px;max-height:255px">
                 <canvas id="trendChart"></canvas>
               </div>
             </div>
@@ -528,7 +528,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
             </div>
             <div class="exp-bd">
               <div class="dnut">
-                <canvas id="costChart" width="118" height="118"></canvas>
+                <canvas id="costChart" width="140" height="140"></canvas>
                 <div class="dnut-lbl">
                   <span>Total Cost</span>
                   <strong id="dnutTotal">0.00<br>ETB</strong>
@@ -2448,7 +2448,8 @@ try {
       y:{
         grid:{color:'#eef3f0',lineWidth:1},
         min:0,
-        ticks:{font:{family:'Nunito',size:11},color:'#9aada5',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
+        suggestedMax: Math.max(...qtyData, ...costData, 10) > 0 ? undefined : 10,
+        ticks:{font:{family:'Nunito',size:11},color:'#9aada5',precision:0,callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},
         beginAtZero:true
       }
     }
