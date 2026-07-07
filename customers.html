@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Customers — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Customers — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
    Redirect-only pass so an expired/missing session bounces to login before any
@@ -630,7 +630,7 @@ const PM_TO_DB={'Cash':'cash','Credit':'credit','Bank Transfer':'bank','Mobile M
    See customers_migration.sql for the schema this depends on. */
 async function loadCustomers(){
   try{
-    const rows = await sbGet('customer_profitability?select=id,name,type,phone,email,address,credit_limit,payment_terms_days,status,created_at,revenue,total_credit_sales,total_collected,outstanding_ar,last_purchase_date,last_payment_date,avg_days_to_pay&order=name.asc') || [];
+    const rows = await sbGet('customer_profitability?select=id,name,type,phone,email,address,credit_limit,payment_terms_days,status,created_at,total_revenue,total_credit_sales,total_collected,outstanding_ar,last_purchase_date,last_payment_date,avg_days_to_pay&order=name.asc') || [];
     customers = rows.map(r=>({
       id:r.id,
       name:r.name,
@@ -646,7 +646,7 @@ async function loadCustomers(){
       since:r.created_at?fmtDateShort(r.created_at):'—',
       avgDays:parseFloat(r.avg_days_to_pay||0),
       lastPayment:r.last_payment_date?fmtDateShort(r.last_payment_date):'—',
-      revenue:parseFloat(r.revenue||0),
+      revenue:parseFloat(r.total_revenue||0),
       grossMarginPct:0, // TODO: wire real COGS-per-customer once available — see migration notes
       txns:null // lazy-loaded per customer in loadCustomerTxns()
     }));
@@ -679,13 +679,16 @@ async function loadCustomerTxns(id){
   if(!c) return [];
   if(c.txns) return c.txns; // cached
   try{
-    const [sales, payments] = await Promise.all([
-      sbGet(`sales?select=date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc&limit=20`),
-      sbGet(`credit_payments?select=paid_date,amount_paid,channel&customer_id=eq.${id}&order=paid_date.desc&limit=20`)
-    ]);
+    const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc&limit=20`) || [];
+    const saleIds = sales.map(s=>s.id);
+    // credit_payments has no customer_id column — it links via sale_id,
+    // so payments for this customer are fetched via their sale IDs.
+    const payments = saleIds.length
+      ? await sbGet(`credit_payments?select=payment_date,amount_paid,channel,sale_id&sale_id=in.(${saleIds.join(',')})&order=payment_date.desc&limit=20`) || []
+      : [];
     const PROD_FROM_DB={injera:'Injera',derkosh:'Derkosh'};
     const PM_FROM_DB={cash:'Cash',credit:'Credit',bank:'Bank Transfer',mobile:'Mobile Money'};
-    const saleTxns=(sales||[]).map(s=>({
+    const saleTxns=sales.map(s=>({
       date:fmtDateShort(s.date),
       type:'Sale',
       product:PROD_FROM_DB[s.product_type]||s.product_type,
@@ -696,8 +699,8 @@ async function loadCustomerTxns(id){
       status:s.settled_date?'Settled':'Unsettled',
       _sort:new Date(s.date)
     }));
-    const payTxns=(payments||[]).map(p=>({
-      date:fmtDateShort(p.paid_date),
+    const payTxns=payments.map(p=>({
+      date:fmtDateShort(p.payment_date),
       type:'Payment',
       product:'-',
       qty:'-',
@@ -705,7 +708,7 @@ async function loadCustomerTxns(id){
       amount:parseFloat(p.amount_paid||0),
       method:PM_FROM_DB[p.channel]||p.channel||'—',
       status:'Settled',
-      _sort:new Date(p.paid_date)
+      _sort:new Date(p.payment_date)
     }));
     c.txns=[...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort).map(({_sort,...t})=>t);
   }catch(err){
@@ -983,9 +986,9 @@ async function saveNewCustomer(e){
   try{
     await sbPost('customers',[{
       name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
-      phone, email, address,
+      contact_phone:phone, contact_email:email, address,
       credit_limit:limit, payment_terms_days:terms,
-      status:'active'
+      is_active:true
     }]);
   }catch(err){
     console.error('Save customer failed:', err);
@@ -1017,7 +1020,7 @@ async function savePayment(e){
   const btn=document.getElementById('paySaveBtn');
   btn.classList.add('loading');
   const cid=document.getElementById('payCustomer').value;
-  const amount=parseFloat(document.getElementById('payAmount').value)||0;
+  let amount=parseFloat(document.getElementById('payAmount').value)||0;
   const method=document.getElementById('payMethod').value;
   const date=document.getElementById('payDate').value;
   if(!cid||amount<=0){
@@ -1026,12 +1029,48 @@ async function savePayment(e){
     return;
   }
   try{
-    await sbPost('credit_payments',[{
-      customer_id:cid,
-      amount_paid:amount,
-      channel:PM_TO_DB[method]||(method||'').toLowerCase(),
-      paid_date:date
-    }]);
+    // Pull this customer's unsettled credit sales, oldest first, along with
+    // any payments already applied to each, so we know each sale's true
+    // remaining balance before allocating the new payment (FIFO).
+    const unsettledSales = await sbGet(`sales?select=id,date,revenue&customer_id=eq.${cid}&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false&order=date.asc`) || [];
+    if(!unsettledSales.length){
+      btn.classList.remove('loading');
+      toast('This customer has no unsettled credit sales to apply a payment to','error');
+      return;
+    }
+    const saleIds = unsettledSales.map(s=>s.id);
+    const existingPayments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
+    const paidBySale = {};
+    existingPayments.forEach(p=>{ paidBySale[p.sale_id]=(paidBySale[p.sale_id]||0)+parseFloat(p.amount_paid||0); });
+
+    const channel = PM_TO_DB[method]||(method||'').toLowerCase();
+    const paymentRows=[];
+    const settledSaleIds=[];
+    let remaining=amount;
+    for(const s of unsettledSales){
+      if(remaining<=0) break;
+      const alreadyPaid = paidBySale[s.id]||0;
+      const balance = parseFloat(s.revenue||0) - alreadyPaid;
+      if(balance<=0) continue;
+      const applyAmount = Math.min(remaining, balance);
+      paymentRows.push({ sale_id:s.id, amount_paid:applyAmount, channel, payment_date:date });
+      if(applyAmount>=balance-0.0001) settledSaleIds.push(s.id); // fully paid off
+      remaining-=applyAmount;
+    }
+    if(!paymentRows.length){
+      btn.classList.remove('loading');
+      toast('Nothing to apply — outstanding balance may already be settled','error');
+      return;
+    }
+    await sbPost('credit_payments', paymentRows);
+    if(settledSaleIds.length){
+      await Promise.all(settledSaleIds.map(id=>sbPatch(`sales?id=eq.${id}`, { settled_date: date })));
+    }
+    if(remaining>0.01){
+      toast('Applied '+f(amount-remaining)+' ETB — '+f(remaining)+' ETB exceeded this customer\'s outstanding credit and was not recorded','error');
+    } else {
+      toast('Payment of '+f(amount)+' ETB recorded across '+paymentRows.length+' sale(s)','success');
+    }
   }catch(err){
     console.error('Save payment failed:', err);
     btn.classList.remove('loading');
@@ -1042,7 +1081,6 @@ async function savePayment(e){
   if(c) c.txns=null; // invalidate cache so renderTxns re-fetches with the new payment
   btn.classList.remove('loading');
   closeModal('paymentModal');
-  toast('Payment of '+f(amount)+' ETB recorded','success');
   await loadCustomers();
 }
 function updateTotalCustKpi(){
