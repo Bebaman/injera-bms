@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>Derkosh — Mena Injera & Derkosh BMS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -353,6 +358,18 @@ button{font-family:inherit}
   .der-bottom{grid-template-columns:1fr}
 }
 
+/* TABLET (portrait iPad/iPad-mini/Android tablets ~768-900px): the 1180px
+   breakpoint above already drops to a 3-col KPI grid and stacks the main
+   panels, so tablets mostly inherit that. This just tightens spacing so
+   cards/charts don't feel oversized on a ~800px-wide screen. */
+@media(max-width:900px){
+  .kpi-row{gap:10px}
+  .kc{padding:13px 12px 11px}
+  .der-charts,.der-bottom{gap:12px}
+  .chart-frame{height:220px}
+  .chart-frame.lg{height:240px}
+}
+
 /* Sidebar/topbar mobile behavior now lives in shared-shell.css (900px
    breakpoint). These are the remaining content-only mobile tweaks. */
 @media(max-width:760px){
@@ -363,6 +380,9 @@ button{font-family:inherit}
 @media(max-width:420px){
   .kpi-row{grid-template-columns:1fr 1fr}
   .kc-val{font-size:17px}
+  .kc{padding:11px 10px 10px}
+  .card-ttl{font-size:13px}
+  .stk-lbl,.stk-val,.mv-lbl,.mv-val{font-size:12px}
 }
 </style>
 </head>
@@ -746,15 +766,28 @@ function periodFromLabel(label){
   const [mon,yr]=label.trim().split(' ');
   return `${yr}-${String(MN.indexOf(mon)+1).padStart(2,'0')}`;
 }
-function currentPeriod(){ return periodFromLabel(document.getElementById('msel').value); }
+function currentPeriod(){
+  const el=document.getElementById('msel');
+  if(!el || !el.value){
+    // #msel is built by renderHeader() (header.js); if this page's own
+    // load sequence ever runs before that finishes, fall back to the
+    // real current month instead of throwing.
+    const now=new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+  return periodFromLabel(el.value);
+}
 
 /* ══ SIDEBAR / ALERT BAR: rendering + toggling now handled by
    sidebar.js, header.js and shared-shell.css. ══ */
 
 /* ══ MONTH PICKER ───────────────────────── */
 function onMonthChange(){
-  const m=document.getElementById('msel').value;
-  document.getElementById('tblLbl').textContent='('+m+')';
+  const msel=document.getElementById('msel');
+  if(!msel) return;
+  const m=msel.value;
+  const tblLbl=document.getElementById('tblLbl');
+  if(tblLbl) tblLbl.textContent='('+m+')';
   toast('Switched to '+m,'info');
   loadMonth();
   loadHistoryAndRenderCharts();
@@ -931,7 +964,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     alert:{
       message:'<strong>2 items</strong> need reorder — Gomen Zere (2.50 kg) and Berbere Spice (1.20 kg) are below their reorder levels.',
       linkText:'View Inventory',
-      onLinkClick:()=>{ toast('Opening Inventory…','info'); }
+      onLinkClick:()=>{ window.location.href='inventory.html'; }
     }
   });
   initCounts();
@@ -971,9 +1004,10 @@ function pkgLabel(pkgItemId){
 
 async function loadMonth(){
   const period=currentPeriod();
-  const monthLabel=document.getElementById('msel').value;
-  document.getElementById('tblLbl').textContent='('+monthLabel+')';
-  document.getElementById('reportSub').textContent=monthLabel;
+  const mselEl=document.getElementById('msel');
+  const monthLabel=mselEl ? mselEl.value : periodLabel(period);
+  const tblLbl=document.getElementById('tblLbl'); if(tblLbl) tblLbl.textContent='('+monthLabel+')';
+  const reportSub=document.getElementById('reportSub'); if(reportSub) reportSub.textContent=monthLabel;
   try{
     const [costRows, salesRows, priorProdRows, priorSalesRows] = await Promise.all([
       sbGet(`derkosh_batch_costs?select=*&period=eq.${period}&order=date.asc`),
@@ -2079,7 +2113,9 @@ function periodLabel(period){
 }
 async function loadHistoryAndRenderCharts(){
   if(typeof Chart==='undefined') { console.warn('Chart.js failed to load — charts will not render, but the rest of the dashboard remains functional.'); return; }
-  const periods=last6Periods(document.getElementById('msel').value);
+  const mselEl=document.getElementById('msel');
+  const endLabel=mselEl ? mselEl.value : periodLabel(currentPeriod());
+  const periods=last6Periods(endLabel);
   const labels=periods.map(periodLabel);
   try{
     const perPeriod=await Promise.all(periods.map(async p=>{
