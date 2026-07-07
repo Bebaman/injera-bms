@@ -611,83 +611,109 @@ renderHeader({
 
 /* ══ STATE: CUSTOMERS ═══════════════════════ */
 const TYPE_CLASS={Hotel:'type-hotel',Restaurant:'type-restaurant',Wholesale:'type-wholesale',Retail:'type-retail'};
-let customers=[
-  {id:'c1',name:'Addis Hotel',type:'Hotel',phone:'+251 91 123 4567',email:'contact@addishotel.com',address:'Bole Road, Addis Ababa',
-   creditLimit:30000,outstanding:8450,lastPurchase:'May 30, 2026',status:'Active',since:'Jan 12, 2025',avgDays:18.6,lastPayment:'May 20, 2026',
-   revenue:32450,grossMarginPct:30.3,
-   txns:[
-     {date:'May 30, 2026',type:'Sale',product:'Injera',qty:'3,000 pcs',unitPrice:10.00,amount:30000.00,method:'Credit',status:'Unsettled'},
-     {date:'May 28, 2026',type:'Sale',product:'Derkosh',qty:'80 kg',unitPrice:120.00,amount:9600.00,method:'Credit',status:'Unsettled'},
-     {date:'May 20, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:12000.00,method:'Bank Transfer',status:'Settled'},
-     {date:'May 15, 2026',type:'Sale',product:'Injera',qty:'2,000 pcs',unitPrice:10.00,amount:20000.00,method:'Credit',status:'Unsettled'},
-     {date:'May 10, 2026',type:'Sale',product:'Derkosh',qty:'50 kg',unitPrice:120.00,amount:6000.00,method:'Cash',status:'Settled'}
-   ]},
-  {id:'c2',name:'Bole Restaurant',type:'Restaurant',phone:'+251 91 345 6789',email:'info@bolerestaurant.com',address:'Bole Medhanealem, Addis Ababa',
-   creditLimit:25000,outstanding:6780,lastPurchase:'May 28, 2026',status:'Active',since:'Mar 4, 2025',avgDays:24.2,lastPayment:'May 12, 2026',
-   revenue:18750,grossMarginPct:28.9,
-   txns:[
-     {date:'May 28, 2026',type:'Sale',product:'Injera',qty:'1,800 pcs',unitPrice:10.00,amount:18000.00,method:'Credit',status:'Unsettled'},
-     {date:'May 22, 2026',type:'Sale',product:'Derkosh',qty:'35 kg',unitPrice:120.00,amount:4200.00,method:'Credit',status:'Unsettled'},
-     {date:'May 12, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:9000.00,method:'Bank Transfer',status:'Settled'},
-     {date:'May 5, 2026',type:'Sale',product:'Injera',qty:'1,200 pcs',unitPrice:10.00,amount:12000.00,method:'Cash',status:'Settled'}
-   ]},
-  {id:'c3',name:'Lucy Wholesale',type:'Wholesale',phone:'+251 90 456 7890',email:'orders@lucywholesale.com',address:'Merkato, Addis Ababa',
-   creditLimit:20000,outstanding:2320,lastPurchase:'May 27, 2026',status:'Active',since:'Jun 18, 2025',avgDays:15.3,lastPayment:'May 22, 2026',
-   revenue:15300,grossMarginPct:29.1,
-   txns:[
-     {date:'May 27, 2026',type:'Sale',product:'Injera',qty:'2,500 pcs',unitPrice:9.50,amount:23750.00,method:'Credit',status:'Unsettled'},
-     {date:'May 22, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:21430.00,method:'Bank Transfer',status:'Settled'}
-   ]},
-  {id:'c4',name:'Yeka Retail Shop',type:'Retail',phone:'+251 91 567 8901',email:'yekaretail@gmail.com',address:'Yeka, Addis Ababa',
-   creditLimit:5000,outstanding:1250,lastPurchase:'May 30, 2026',status:'Active',since:'Sep 2, 2025',avgDays:12.1,lastPayment:'May 18, 2026',
-   revenue:11200,grossMarginPct:28.7,
-   txns:[
-     {date:'May 30, 2026',type:'Sale',product:'Injera',qty:'400 pcs',unitPrice:10.50,amount:4200.00,method:'Credit',status:'Unsettled'},
-     {date:'May 18, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:2950.00,method:'Mobile Money',status:'Settled'}
-   ]},
-  {id:'c5',name:'Meskel Cafe',type:'Restaurant',phone:'+251 90 678 9012',email:'meskelcafe@gmail.com',address:'Meskel Flower, Addis Ababa',
-   creditLimit:15000,outstanding:900,lastPurchase:'May 26, 2026',status:'Active',since:'Nov 10, 2025',avgDays:17.8,lastPayment:'May 19, 2026',
-   revenue:8450,grossMarginPct:27.3,
-   txns:[
-     {date:'May 26, 2026',type:'Sale',product:'Derkosh',qty:'25 kg',unitPrice:120.00,amount:3000.00,method:'Credit',status:'Unsettled'},
-     {date:'May 19, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:2100.00,method:'Cash',status:'Settled'}
-   ]},
-  {id:'c6',name:'Hilton Addis',type:'Hotel',phone:'+251 91 789 0123',email:'procurement@hiltonaddis.com',address:'Menelik II Ave, Addis Ababa',
-   creditLimit:40000,outstanding:3200,lastPurchase:'May 24, 2026',status:'Active',since:'Feb 1, 2025',avgDays:14.4,lastPayment:'May 16, 2026',
-   revenue:9600,grossMarginPct:31.2,
-   txns:[{date:'May 24, 2026',type:'Sale',product:'Injera',qty:'900 pcs',unitPrice:10.00,amount:9000.00,method:'Credit',status:'Unsettled'},
-         {date:'May 16, 2026',type:'Payment',product:'-',qty:'-',unitPrice:null,amount:5800.00,method:'Bank Transfer',status:'Settled'}]},
-  {id:'c7',name:'Zewditu Wholesale',type:'Wholesale',phone:'+251 91 890 1234',email:'zewditu.wh@gmail.com',address:'Piassa, Addis Ababa',
-   creditLimit:22000,outstanding:0,lastPurchase:'May 19, 2026',status:'Active',since:'Jul 22, 2025',avgDays:9.8,lastPayment:'May 19, 2026',
-   revenue:7100,grossMarginPct:26.5,
-   txns:[{date:'May 19, 2026',type:'Sale',product:'Injera',qty:'700 pcs',unitPrice:9.50,amount:6650.00,method:'Cash',status:'Settled'}]},
-  {id:'c8',name:'Kids Corner Retail',type:'Retail',phone:'+251 90 901 2345',email:'kidscorner@gmail.com',address:'CMC, Addis Ababa',
-   creditLimit:4000,outstanding:500,lastPurchase:'May 21, 2026',status:'Active',since:'Oct 30, 2025',avgDays:11.0,lastPayment:'May 11, 2026',
-   revenue:3900,grossMarginPct:27.0,
-   txns:[{date:'May 21, 2026',type:'Sale',product:'Injera',qty:'250 pcs',unitPrice:10.50,amount:2625.00,method:'Credit',status:'Unsettled'}]},
-  {id:'c9',name:'Sunshine Restaurant',type:'Restaurant',phone:'+251 91 012 3456',email:'sunshine.rest@gmail.com',address:'Kazanchis, Addis Ababa',
-   creditLimit:18000,outstanding:1800,lastPurchase:'May 23, 2026',status:'Active',since:'Apr 14, 2025',avgDays:19.5,lastPayment:'May 9, 2026',
-   revenue:6200,grossMarginPct:28.0,
-   txns:[{date:'May 23, 2026',type:'Sale',product:'Derkosh',qty:'20 kg',unitPrice:120.00,amount:2400.00,method:'Credit',status:'Unsettled'}]},
-  {id:'c10',name:'Merkato Traders',type:'Wholesale',phone:'+251 90 123 4567',email:'merkatotraders@gmail.com',address:'Merkato, Addis Ababa',
-   creditLimit:26000,outstanding:4200,lastPurchase:'May 25, 2026',status:'Active',since:'May 5, 2025',avgDays:22.0,lastPayment:'May 8, 2026',
-   revenue:5400,grossMarginPct:26.8,
-   txns:[{date:'May 25, 2026',type:'Sale',product:'Injera',qty:'1,000 pcs',unitPrice:9.00,amount:9000.00,method:'Credit',status:'Unsettled'}]},
-  {id:'c11',name:'Green Valley Hotel',type:'Hotel',phone:'+251 91 234 5678',email:'gvh@greenvalley.com',address:'Sarbet, Addis Ababa',
-   creditLimit:15000,outstanding:2100,lastPurchase:'Mar 2, 2026',status:'Inactive',since:'Aug 8, 2024',avgDays:35.0,lastPayment:'Mar 10, 2026',
-   revenue:1600,grossMarginPct:24.0,
-   txns:[{date:'Mar 2, 2026',type:'Sale',product:'Injera',qty:'150 pcs',unitPrice:10.00,amount:1500.00,method:'Credit',status:'Unsettled'}]},
-  {id:'c12',name:'Old Town Cafe',type:'Restaurant',phone:'+251 90 345 6789',email:'oldtowncafe@gmail.com',address:'Piassa, Addis Ababa',
-   creditLimit:8000,outstanding:0,lastPurchase:'Jan 14, 2026',status:'Inactive',since:'Dec 1, 2024',avgDays:20.0,lastPayment:'Jan 20, 2026',
-   revenue:900,grossMarginPct:25.0,
-   txns:[{date:'Jan 14, 2026',type:'Sale',product:'Derkosh',qty:'8 kg',unitPrice:120.00,amount:960.00,method:'Cash',status:'Settled'}]}
-];
-let selectedId='c1';
+let customers=[];
+let selectedId=null;
 let filtered=[...customers];
 let curPage=1;
 const PAGE_SIZE=5;
 const f=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const initials=name=>name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const CTYPE_FROM_DB={hotel:'Hotel',restaurant:'Restaurant',wholesale:'Wholesale',retail:'Retail'};
+const CTYPE_TO_DB={'Hotel':'hotel','Restaurant':'restaurant','Wholesale':'wholesale','Retail':'retail'};
+const PM_TO_DB={'Cash':'cash','Credit':'credit','Bank Transfer':'bank','Mobile Money':'mobile'};
+
+/* ══ LOAD FROM SUPABASE ══════════════════════
+   customer_profitability view supplies the calculated fields
+   (revenue, outstanding_ar, avg_days_to_pay, last_purchase_date,
+   last_payment_date) joined with the static customer columns
+   (phone, email, address, payment_terms_days, status, created_at).
+   See customers_migration.sql for the schema this depends on. */
+async function loadCustomers(){
+  try{
+    const rows = await sbGet('customer_profitability?select=id,name,type,phone,email,address,credit_limit,payment_terms_days,status,created_at,revenue,total_credit_sales,total_collected,outstanding_ar,last_purchase_date,last_payment_date,avg_days_to_pay&order=name.asc') || [];
+    customers = rows.map(r=>({
+      id:r.id,
+      name:r.name,
+      type:CTYPE_FROM_DB[r.type]||r.type,
+      phone:r.phone||'',
+      email:r.email||'',
+      address:r.address||'',
+      creditLimit:parseFloat(r.credit_limit||0),
+      paymentTermsDays:r.payment_terms_days||30,
+      outstanding:parseFloat(r.outstanding_ar||0),
+      lastPurchase:r.last_purchase_date?fmtDateShort(r.last_purchase_date):'—',
+      status:r.status==='active'?'Active':'Inactive',
+      since:r.created_at?fmtDateShort(r.created_at):'—',
+      avgDays:parseFloat(r.avg_days_to_pay||0),
+      lastPayment:r.last_payment_date?fmtDateShort(r.last_payment_date):'—',
+      revenue:parseFloat(r.revenue||0),
+      grossMarginPct:0, // TODO: wire real COGS-per-customer once available — see migration notes
+      txns:null // lazy-loaded per customer in loadCustomerTxns()
+    }));
+  }catch(err){
+    console.error('Could not load customers:', err);
+    toast('Could not load customers from Supabase','error');
+    customers=[];
+  }
+  filtered=[...customers];
+  if(!selectedId && customers.length) selectedId=customers[0].id;
+  applyFilters();
+  renderDetail();
+  renderTxns();
+  renderProfitability();
+  animateCounts();
+}
+function fmtDateShort(d){
+  if(!d) return '—';
+  const dt=new Date(d);
+  if(isNaN(dt)) return '—';
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* ══ LAZY-LOAD A CUSTOMER'S TRANSACTIONS ═════
+   Sales + credit_payments rows for one customer, merged into the same
+   {date,type,product,qty,unitPrice,amount,method,status} shape the
+   render functions already expect. Cached on the customer object. */
+async function loadCustomerTxns(id){
+  const c=customers.find(x=>x.id===id);
+  if(!c) return [];
+  if(c.txns) return c.txns; // cached
+  try{
+    const [sales, payments] = await Promise.all([
+      sbGet(`sales?select=date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc&limit=20`),
+      sbGet(`credit_payments?select=paid_date,amount_paid,channel&customer_id=eq.${id}&order=paid_date.desc&limit=20`)
+    ]);
+    const PROD_FROM_DB={injera:'Injera',derkosh:'Derkosh'};
+    const PM_FROM_DB={cash:'Cash',credit:'Credit',bank:'Bank Transfer',mobile:'Mobile Money'};
+    const saleTxns=(sales||[]).map(s=>({
+      date:fmtDateShort(s.date),
+      type:'Sale',
+      product:PROD_FROM_DB[s.product_type]||s.product_type,
+      qty:s.quantity+(s.product_type==='injera'?' pcs':' kg'),
+      unitPrice:parseFloat(s.unit_price||0),
+      amount:parseFloat(s.revenue||0),
+      method:PM_FROM_DB[s.payment_method]||s.payment_method,
+      status:s.settled_date?'Settled':'Unsettled',
+      _sort:new Date(s.date)
+    }));
+    const payTxns=(payments||[]).map(p=>({
+      date:fmtDateShort(p.paid_date),
+      type:'Payment',
+      product:'-',
+      qty:'-',
+      unitPrice:null,
+      amount:parseFloat(p.amount_paid||0),
+      method:PM_FROM_DB[p.channel]||p.channel||'—',
+      status:'Settled',
+      _sort:new Date(p.paid_date)
+    }));
+    c.txns=[...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort).map(({_sort,...t})=>t);
+  }catch(err){
+    console.error('Could not load transactions for customer', id, err);
+    c.txns=[];
+  }
+  return c.txns;
+}
 
 /* ══ TABLE RENDER ═══════════════════════════ */
 function applyFilters(){
@@ -814,7 +840,16 @@ function renderTxns(){
   const c=customers.find(x=>x.id===selectedId);
   document.getElementById('txnSub').textContent='- '+(c?c.name:'');
   const tb=document.getElementById('txnTbody');
-  if(!c||!c.txns||!c.txns.length){
+  if(!c){
+    tb.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">No transactions yet.</td></tr>`;
+    return;
+  }
+  if(c.txns===null){
+    tb.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">Loading transactions…</td></tr>`;
+    loadCustomerTxns(c.id).then(()=>{ if(selectedId===c.id) renderTxns(); });
+    return;
+  }
+  if(!c.txns.length){
     tb.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">No transactions yet.</td></tr>`;
     return;
   }
@@ -933,7 +968,7 @@ function openAddCustomerModal(){
   document.getElementById('addCustForm').reset();
   openModal('addCustModal');
 }
-function saveNewCustomer(e){
+async function saveNewCustomer(e){
   e.preventDefault();
   const btn=document.getElementById('ncSaveBtn');
   btn.classList.add('loading');
@@ -944,21 +979,24 @@ function saveNewCustomer(e){
   const address=document.getElementById('ncAddress').value.trim();
   const limit=parseFloat(document.getElementById('ncLimit').value)||0;
   const terms=parseInt(document.getElementById('ncTerms').value)||30;
-  setTimeout(()=>{
-    const id='c'+(customers.length+1)+'_'+Date.now();
-    customers.unshift({
-      id,name,type,phone,email,address,
-      creditLimit:limit,outstanding:0,
-      lastPurchase:'—',status:'Active',
-      since:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-      avgDays:0,lastPayment:'—',revenue:0,grossMarginPct:0,txns:[]
-    });
+  if(!name){ btn.classList.remove('loading'); toast('Please enter a customer name','error'); return; }
+  try{
+    await sbPost('customers',[{
+      name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
+      phone, email, address,
+      credit_limit:limit, payment_terms_days:terms,
+      status:'active'
+    }]);
+  }catch(err){
+    console.error('Save customer failed:', err);
     btn.classList.remove('loading');
-    closeModal('addCustModal');
-    applyFilters();
-    updateTotalCustKpi();
-    toast(name+' added as a new customer','success');
-  },600);
+    toast('Save failed: '+err.message,'error');
+    return;
+  }
+  btn.classList.remove('loading');
+  closeModal('addCustModal');
+  toast(name+' added as a new customer','success');
+  await loadCustomers();
 }
 function openPaymentModal(id){
   const cid=id||selectedId;
@@ -974,7 +1012,7 @@ function updatePayHint(){
   document.getElementById('payHint').textContent='Current outstanding: '+(c?f(c.outstanding)+' ETB':'—');
   document.getElementById('payModalSub').textContent=c?('Collecting payment from '+c.name):'Collect a credit payment from a customer';
 }
-function savePayment(e){
+async function savePayment(e){
   e.preventDefault();
   const btn=document.getElementById('paySaveBtn');
   btn.classList.add('loading');
@@ -982,20 +1020,30 @@ function savePayment(e){
   const amount=parseFloat(document.getElementById('payAmount').value)||0;
   const method=document.getElementById('payMethod').value;
   const date=document.getElementById('payDate').value;
-  setTimeout(()=>{
-    const c=customers.find(x=>x.id===cid);
-    if(c&&amount>0){
-      c.outstanding=Math.max(0,c.outstanding-amount);
-      c.lastPayment=new Date(date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-      c.txns.unshift({date:c.lastPayment,type:'Payment',product:'-',qty:'-',unitPrice:null,amount,method,status:'Settled'});
-    }
+  if(!cid||amount<=0){
     btn.classList.remove('loading');
-    closeModal('paymentModal');
-    applyFilters();
-    renderDetail();
-    renderTxns();
-    toast('Payment of '+f(amount)+' ETB recorded','success');
-  },600);
+    toast('Enter a valid customer and amount','error');
+    return;
+  }
+  try{
+    await sbPost('credit_payments',[{
+      customer_id:cid,
+      amount_paid:amount,
+      channel:PM_TO_DB[method]||(method||'').toLowerCase(),
+      paid_date:date
+    }]);
+  }catch(err){
+    console.error('Save payment failed:', err);
+    btn.classList.remove('loading');
+    toast('Save failed: '+err.message,'error');
+    return;
+  }
+  const c=customers.find(x=>x.id===cid);
+  if(c) c.txns=null; // invalidate cache so renderTxns re-fetches with the new payment
+  btn.classList.remove('loading');
+  closeModal('paymentModal');
+  toast('Payment of '+f(amount)+' ETB recorded','success');
+  await loadCustomers();
 }
 function updateTotalCustKpi(){
   const active=customers.filter(c=>c.status==='Active').length;
@@ -1371,12 +1419,17 @@ function exportFullPDF(retryCount){
    same success/error/info types, so nothing else here needed to change. */
 
 /* ══ INIT ════════════════════════════════════ */
-applyFilters();
-renderDetail();
-renderTxns();
-renderProfitability();
-animateCounts();
-if(typeof Chart!=='undefined')initAgingChart();
+(async function boot(){
+  await loadCustomers();
+  if(typeof Chart!=='undefined')initAgingChart();
+  // Arrived from another module's "New Customer" quick action (e.g. Sales)
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('action')==='new'){
+    openAddCustomerModal();
+    // Clean the URL so a refresh doesn't reopen the modal
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+})();
 </script>
 </body>
 </html>
