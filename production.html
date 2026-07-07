@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Management — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Production Management — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -76,8 +76,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .content{padding:20px 22px;flex:1}
 
 /* ══ KPI ROW ════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px;padding-top:4px}
-.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s ease,transform .2s ease}
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;padding-top:4px}
+.kc{background:#fff;border-radius:12px;padding:15px 14px 13px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;transition:box-shadow .2s ease,transform .2s ease}
 .kc:hover{box-shadow:var(--sh-hover);transform:translateY(-1px)}
 .kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .kc:hover .kc-ico{transform:scale(1.12) rotate(-4deg)}
@@ -351,6 +351,26 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
   .kpi-row{grid-template-columns:repeat(2,1fr)}
   .tb-search{display:none}
 }
+/* Phones — tighter still. Tables/weekly calendar stay horizontally
+   scrollable rather than trying to squeeze every column to fit. */
+@media (max-width:600px){
+  .content{padding:12px}
+  .kpi-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kc{padding:12px}
+  .kc-val{font-size:18px}
+  .card{padding:12px}
+  .f-grid{grid-template-columns:1fr}
+  .dv-grid{grid-template-columns:1fr}
+  .rep-grid{grid-template-columns:repeat(2,1fr)}
+  .modal-box{max-height:94vh;border-radius:12px}
+  .modal-bd{padding:16px}
+  .modal-hd,.modal-ft{padding:14px 16px}
+  .wk-cal{grid-template-columns:repeat(7,minmax(58px,1fr));overflow-x:auto;padding:6px 10px 4px}
+  .chart-wrap{min-height:200px!important;max-height:220px!important}
+}
+@media (max-width:420px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+}
 /* ══ PRINT ════════════════════════════════════════════ */
 .print-hd{display:none}
 @media print{
@@ -494,7 +514,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
               </select>
             </div>
             <div class="chart-box">
-              <div style="position:relative;flex:1;min-height:250px;max-height:280px">
+              <div class="chart-wrap" style="position:relative;flex:1;min-height:250px;max-height:280px">
                 <canvas id="trendChart"></canvas>
               </div>
             </div>
@@ -536,7 +556,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
             </a>
             <a class="qa-item" onclick="openBatchStandards()">
               <div class="qa-ico ic-p"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-              <div class="qa-txt"><h5>Batch Standards</h5><p>Manage production standards</p></div>
+              <div class="qa-txt"><h5>Efficiency Targets</h5><p>Set injera per kg targets</p></div>
               <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
             </a>
             <a class="qa-item" onclick="openProductionReport()">
@@ -1233,7 +1253,7 @@ async function loadBatchStandards(){
     });
   }catch(e){
     console.error('loadBatchStandards error', e);
-    toast('Could not load Batch Standards — using default targets.','info');
+    toast('Could not load Efficiency Targets — using default targets.','info');
   }
 }
 
@@ -1247,7 +1267,7 @@ async function saveBatchStandard(batchTypeKey, payload){
       target_injera_count: payload.count
     })
     .eq('batch_type', batchTypeKey);
-  if(error){ console.error('saveBatchStandard error', error); toast('Could not save Batch Standards.','error'); return false; }
+  if(error){ console.error('saveBatchStandard error', error); toast('Could not save Efficiency Targets.','error'); return false; }
   return true;
 }
 
@@ -1406,9 +1426,9 @@ function openAddModal(editId){
         </div>
       </div>
 
-      <!-- vs Standard row — spec §11.4 -->
-      <div id="std_row" style="background:#f6faf7;border:1px solid var(--border);border-radius:8px;padding:9px 14px;display:flex;gap:16px;font-size:12px;font-weight:700;color:var(--tm)">
-        <span>vs Standard:</span>
+      <!-- vs Target row — efficiency-based comparison -->
+      <div id="std_row" style="background:#f6faf7;border:1px solid var(--border);border-radius:8px;padding:9px 14px;display:flex;gap:16px;font-size:12px;font-weight:700;color:var(--tm);flex-wrap:wrap">
+        <span>vs Target:</span>
         <span id="std_count">Count — —</span>
         <span style="color:var(--border)">│</span>
         <span id="std_blend">Blend — —</span>
@@ -1463,26 +1483,26 @@ function recalcForm(){
   if(ct) ct.textContent = fmt2(total)+' ETB';
   if(cp) cp.textContent = qty > 0 ? fmt2(total/qty)+' ETB' : '—';
 
-  // vs Standard row — spec §3.5 Batch Variance Analysis
+  // vs Target row — efficiency-based (injera per kg), matching the
+  // Efficiency Targets screen so the two speak the same language.
   const typeEl = document.getElementById('f_type');
   const type = typeEl ? typeEl.value : 'Normal';
   const std = BATCH_STD[type] || BATCH_STD['Normal'];
+  const targetEff = stdEfficiency(std);
   const stdRow = document.getElementById('std_row');
   const stdCount = document.getElementById('std_count');
   const stdBlend = document.getElementById('std_blend');
   if(stdRow && stdCount && stdBlend){
-    const countVar = qty - std.count;
-    const blendVar = Math.round((blend - std.blend)*100)/100;
-    const countOk  = qty === 0 || countVar >= -std.count*0.10; // flag if >10% below
-    const blendOk  = blend === 0 || blendVar <= std.blend*0.05; // flag if >5% over
-    const cvSign   = countVar >= 0 ? '+' : '';
-    const bvSign   = blendVar >= 0 ? '+' : '';
-    stdCount.innerHTML = qty === 0
-      ? 'Count — —'
-      : `Count ${countOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${cvSign}${countVar}`;
-    stdBlend.innerHTML = blend === 0
-      ? 'Blend — —'
-      : `Blend ${blendOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${bvSign}${fmt1(blendVar)} kg`;
+    const actualKg = blend + corn + gomen;
+    const actualEff = actualKg>0 ? qty/actualKg : 0;
+    const effOk = qty===0 || targetEff===0 || actualEff >= targetEff*0.90; // flag if >10% below target
+    const kgOk  = actualKg===0 || stdKg(std)===0 || actualKg <= stdKg(std)*1.05; // flag if >5% over target kg
+    stdCount.innerHTML = (qty===0 || actualKg===0)
+      ? 'Efficiency — —'
+      : `Efficiency ${effOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${fmt1(actualEff)} / kg (target ${fmt1(targetEff)})`;
+    stdBlend.innerHTML = actualKg===0
+      ? 'Material — —'
+      : `Material ${kgOk?'<span style="color:#27ae60">✅</span>':'<span style="color:#e5484d">⚠️</span>'} ${fmt1(actualKg)} kg (target ${fmt1(stdKg(std))})`;
   }
 
   // Show/hide qty error
@@ -1697,6 +1717,7 @@ function refreshDashboard(){
   renderRanking();
   renderAlertCard();
   renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
+  updateTrendChart(); // rebuilds daily series from getBatches() for the selected month
 }
 
 // Invalidates the cached month and re-fetches it from Supabase, then
@@ -1793,51 +1814,79 @@ function openViewModal(id){
   `);
 }
 
-/* ── Batch Standards — editable, saved to Supabase ── */
+/* ── Efficiency Targets (formerly "Batch Standards") — editable, saved to
+   Supabase. Same underlying batch_standards table/columns as before
+   (target_blend_kg/target_corn_kg/target_gomen_kg/target_injera_count —
+   no schema change needed), but the person now sets ONE clear number per
+   batch type — "injera pieces per kg of raw material" — instead of a raw
+   piece count that didn't mean anything on its own. The target piece
+   count is derived live: count = efficiency × (blend+corn+gomen), and
+   that derived count is what actually gets saved, so Production Alerts /
+   the "vs Target" line elsewhere on the page keep working unchanged. ── */
+function stdKg(std){ return std.blend + std.corn + std.gomen; }
+function stdEfficiency(std){ const kg = stdKg(std); return kg>0 ? std.count/kg : 0; }
+
 function openBatchStandards(){
   const n = BATCH_STD.Normal, s = BATCH_STD.Special;
   openModal(`
-    <div class="modal-hd"><h3>Batch Standards</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-hd"><h3>Efficiency Targets</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-bd">
-      <p style="font-size:12.5px;color:var(--tm);margin-bottom:14px">Target material consumption and yield benchmarks per batch type, used to flag Production Alerts and the "vs Standard" comparison on the batch form. Changes save to the database and apply immediately.</p>
+      <p style="font-size:12.5px;color:var(--tm);margin-bottom:14px;line-height:1.5">Set how many <strong>injera pieces you expect per kg</strong> of raw material for each batch type. This one number drives Production Alerts and the "vs Target" line on the batch form — no need to work out a raw piece count yourself.</p>
 
+      ${['Normal','Special'].map(type=>{
+        const std = type==='Normal' ? n : s;
+        const p = type==='Normal' ? 'n' : 's';
+        const eff = stdEfficiency(std);
+        return `
       <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="tag tag-normal">Normal</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
-          <div class="f-field"><label>Blend (kg)</label><input type="number" step="0.01" min="0" id="std_n_blend" value="${n.blend}"></div>
-          <div class="f-field"><label>Corn (kg)</label><input type="number" step="0.01" min="0" id="std_n_corn" value="${n.corn}"></div>
-          <div class="f-field"><label>Gomen (kg)</label><input type="number" step="0.01" min="0" id="std_n_gomen" value="${n.gomen}"></div>
-          <div class="f-field"><label>Target Qty (pcs)</label><input type="number" step="1" min="1" id="std_n_count" value="${n.count}"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="tag ${type==='Normal'?'tag-normal':'tag-special'}">${type}</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="f-field"><label>Blend (kg)</label><input type="number" step="0.01" min="0" id="std_${p}_blend" oninput="updateStdPreview('${p}')" value="${std.blend}"></div>
+          <div class="f-field"><label>Corn (kg)</label><input type="number" step="0.01" min="0" id="std_${p}_corn" oninput="updateStdPreview('${p}')" value="${std.corn}"></div>
+          <div class="f-field"><label>Gomen (kg)</label><input type="number" step="0.01" min="0" id="std_${p}_gomen" oninput="updateStdPreview('${p}')" value="${std.gomen}"></div>
         </div>
-      </div>
-
-      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span class="tag tag-special">Special</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
-          <div class="f-field"><label>Blend (kg)</label><input type="number" step="0.01" min="0" id="std_s_blend" value="${s.blend}"></div>
-          <div class="f-field"><label>Corn (kg)</label><input type="number" step="0.01" min="0" id="std_s_corn" value="${s.corn}"></div>
-          <div class="f-field"><label>Gomen (kg)</label><input type="number" step="0.01" min="0" id="std_s_gomen" value="${s.gomen}"></div>
-          <div class="f-field"><label>Target Qty (pcs)</label><input type="number" step="1" min="1" id="std_s_count" value="${s.count}"></div>
+        <div style="background:#f6faf7;border:1px solid var(--border);border-radius:9px;padding:11px 13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="f-field" style="flex:1;min-width:160px">
+            <label style="color:#1d8c4f;font-weight:800">Target Efficiency (injera / kg)</label>
+            <input type="number" step="0.01" min="0.01" id="std_${p}_eff" oninput="updateStdPreview('${p}')" value="${fmt1(eff)}" style="border-color:#9cc9ad;font-weight:700">
+          </div>
+          <div style="font-size:12px;color:var(--tm);font-weight:600;white-space:nowrap">≈ <strong id="std_${p}_preview" style="color:var(--td);font-family:'Quicksand',sans-serif">${std.count}</strong> pcs at these kg amounts</div>
         </div>
-      </div>
+      </div>`;
+      }).join('')}
 
       <p style="font-size:11px;color:var(--tl)">Overhead is allocated per day from Monthly Overhead ÷ days in the month (currently ${fmt2(DAILY_OVERHEAD)} ETB/batch-day this period) and excluded from yield calculations per current COGS policy.</p>
     </div>
     <div class="modal-ft">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="saveStdBtn" onclick="saveBatchStandardsForm()">Save Standards</button>
+      <button class="btn btn-primary" id="saveStdBtn" onclick="saveBatchStandardsForm()">Save Targets</button>
     </div>
   `);
 }
 
+// Live-updates the "≈ N pcs" preview as blend/corn/gomen/efficiency change.
+function updateStdPreview(p){
+  const read = (id)=>parseFloat(document.getElementById(id)?.value||'0');
+  const kg  = read(`std_${p}_blend`) + read(`std_${p}_corn`) + read(`std_${p}_gomen`);
+  const eff = read(`std_${p}_eff`);
+  const prevEl = document.getElementById(`std_${p}_preview`);
+  if(prevEl) prevEl.textContent = Math.round(eff*kg);
+}
+
 async function saveBatchStandardsForm(){
   const read = (id)=>parseFloat(document.getElementById(id).value||'0');
-  const normal  = { blend: read('std_n_blend'), corn: read('std_n_corn'), gomen: read('std_n_gomen'), count: Math.round(read('std_n_count')) };
-  const special = { blend: read('std_s_blend'), corn: read('std_s_corn'), gomen: read('std_s_gomen'), count: Math.round(read('std_s_count')) };
+  const build = (p)=>{
+    const blend = read(`std_${p}_blend`), corn = read(`std_${p}_corn`), gomen = read(`std_${p}_gomen`);
+    const eff = read(`std_${p}_eff`);
+    const kg = blend+corn+gomen;
+    return { blend, corn, gomen, count: Math.round(eff*kg), eff };
+  };
+  const normal  = build('n');
+  const special = build('s');
 
   for(const [label, v] of [['Normal',normal],['Special',special]]){
-    if(v.blend<0||v.corn<0||v.gomen<0||v.count<=0){
-      toast(`${label} standard values must be positive (target quantity must be at least 1).`,'error');
+    if(v.blend<0||v.corn<0||v.gomen<0||v.eff<=0||v.count<=0){
+      toast(`${label} target efficiency and kg amounts must be positive.`,'error');
       return;
     }
   }
@@ -1848,12 +1897,12 @@ async function saveBatchStandardsForm(){
     saveBatchStandard('normal', normal),
     saveBatchStandard('special', special)
   ]);
-  if(btn){ btn.disabled=false; btn.textContent='Save Standards'; }
+  if(btn){ btn.disabled=false; btn.textContent='Save Targets'; }
   if(!okN || !okS) return; // saveBatchStandard already toasted the error
 
   BATCH_STD.Normal = normal;
   BATCH_STD.Special = special;
-  toast('Batch Standards updated.','success');
+  toast('Efficiency targets updated.','success');
   closeModal();
   refreshDashboard(); // alert counts / ranking depend on standards, recompute
 }
@@ -2298,18 +2347,52 @@ function initCountUps(){
 // (audit fix, see chat: function declarations must not live inside
 // a try block whose first statement can throw).
 let trendChart = null;
-const dayLabels = Array.from({length:31}, (_,i)=>'May '+(i+1));
-const qtyData  = [1620,1480,2050,2380,1750,1340,1980,2150,1600,2420,1280,1750,1870,2010,2400,1900,1950,4530,2020,6510,0,2400,0,0,0,1850,2240,2680,1920,2310,2050];
-const costData = qtyData.map(v=>Math.round(v*4.9*100)/100);
+let dayLabels = [];
+let qtyData  = [];
+let costData = [];
+
+// Builds one point per calendar day of the currently-selected month, summing
+// qty/total across every batch on that day — live from Supabase via
+// getBatches(), never hardcoded (same principle as renderCostBreakdown()).
+function buildTrendData(){
+  const label = currentMonth(); // e.g. "May 2026"
+  const [monName, yearStr] = label.split(' ');
+  const monIdx = MONTH_NAMES.indexOf(monName);
+  const year = parseInt(yearStr,10);
+  const daysInMonth = new Date(year, monIdx+1, 0).getDate();
+
+  const byDate = {};
+  getBatches().forEach(r=>{
+    if(!byDate[r.date]) byDate[r.date] = {qty:0,total:0};
+    byDate[r.date].qty += r.qty;
+    byDate[r.date].total += r.total;
+  });
+
+  dayLabels = []; qtyData = []; costData = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const iso = `${year}-${String(monIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    dayLabels.push(`${monName} ${d}`);
+    qtyData.push(byDate[iso] ? byDate[iso].qty : 0);
+    costData.push(byDate[iso] ? Math.round(byDate[iso].total*100)/100 : 0);
+  }
+}
 
 function updateTrendChart(){
   if(!trendChart) return;
+  buildTrendData();
   const sel = document.getElementById('trendSel').value;
   const isCost = sel==='cost';
+  trendChart.data.labels = dayLabels;
   trendChart.data.datasets[0].data = isCost?costData:qtyData;
   trendChart.data.datasets[0].label = isCost?'Production Cost (ETB)':'Injera Produced';
   trendChart.update();
 }
+
+// Guarded: at this point in script execution #msel (built by header.js
+// inside DOMContentLoaded) doesn't exist yet, so seed with 31 empty days
+// just for the chart's first paint — updateTrendChart() rebuilds it for
+// real once onMonthChange() runs after the page finishes loading.
+try{ buildTrendData(); }catch(e){ dayLabels = Array.from({length:31},(_,i)=>'Day '+(i+1)); qtyData = dayLabels.map(()=>0); costData = dayLabels.map(()=>0); }
 
 try {
   Chart.register(ChartDataLabels);
