@@ -177,17 +177,14 @@ button{font-family:inherit}
 .der-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
 .der-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;align-items:start}
 .der-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;gap:14px;margin-bottom:16px;align-items:start}
-.der-grid3>.card:nth-child(3){grid-column:3;grid-row:1 / 3}
-.der-grid3>.card:nth-child(6){grid-column:3;grid-row:2}
-@media(max-width:1180px){.der-grid3{grid-template-columns:1fr}.der-grid3>.card:nth-child(3){grid-column:1;grid-row:auto}.der-grid3>.card:nth-child(6){grid-column:1;grid-row:auto}}
+@media(max-width:1180px){.der-grid3{grid-template-columns:1fr}}
 .der-charts>.card,.der-bottom>.card{min-width:0}
 /* Fixed chart canvas heights — Chart.js's responsive + non-aspect-ratio mode
    needs a container with a real `height` (not just min/max-height) to size
    against; otherwise on tall desktop viewports the canvas stretches to fill
    whatever space a `stretch`-aligned grid row hands it. */
-.chart-frame{position:relative;height:190px}
-.chart-frame.lg{height:190px}
-.chart-frame.span2{height:420px}
+.chart-frame{position:relative;height:220px}
+.chart-frame.lg{height:220px}
 
 /* STOCK SUMMARY */
 .stk-list{padding:6px 17px 14px}
@@ -372,8 +369,7 @@ button{font-family:inherit}
   .kc{padding:13px 12px 11px}
   .der-charts,.der-bottom,.der-grid3{gap:12px}
   .chart-frame{height:220px}
-  .chart-frame.lg{height:240px}
-  .chart-frame.span2{height:220px}
+  .chart-frame.lg{height:220px}
 }
 
 /* Sidebar/topbar mobile behavior now lives in shared-shell.css (900px
@@ -521,7 +517,7 @@ button{font-family:inherit}
       <div class="card">
         <div class="card-hd"><div class="card-ttl">Cost per Kg Trend <span class="sub">(Last 6 Months)</span></div></div>
         <div class="chart-box">
-          <div class="chart-frame span2">
+          <div class="chart-frame">
             <div class="chart-loading" id="ldCT"><div class="spinner"></div></div>
             <canvas id="cCT"></canvas>
           </div>
