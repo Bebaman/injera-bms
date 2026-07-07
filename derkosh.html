@@ -2160,7 +2160,7 @@ function renderCharts(labels, perPeriod, closingSeries){
         {label:'Produced (kg)',data:producedData,backgroundColor:'#27ae60',borderRadius:5,maxBarThickness:26,datalabels:{anchor:'end',align:'top',offset:2,color:'#16261e',font:{family:'Nunito',size:9.5,weight:'700'}}},
         {label:'Sold (kg)',data:soldData,backgroundColor:'#f59e0b',borderRadius:5,maxBarThickness:26,datalabels:{anchor:'end',align:'top',offset:2,color:'#16261e',font:{family:'Nunito',size:9.5,weight:'700'}}}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,bottom:6}},
+      options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),layout:{padding:{top:22,bottom:6}},
         animation:{duration:1100,easing:'easeOutQuart'},
         plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y+' kg'}}},
         scales:{x:{grid:{display:false},ticks:TX},y:{grid:{color:'#eef3f0',lineWidth:1},min:0,ticks:TX}}},
@@ -2174,7 +2174,7 @@ function renderCharts(labels, perPeriod, closingSeries){
     chST=new Chart(document.getElementById('cST').getContext('2d'),{
       type:'line',
       data:{labels,datasets:[{label:'Closing Stock (kg)',data:closingSeries,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,0.10)',borderWidth:2.5,pointBackgroundColor:'#27ae60',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'top',anchor:'end',offset:8,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toLocaleString()}}]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26,bottom:14}},interaction:{intersect:false,mode:'index'},
+      options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),layout:{padding:{top:26,bottom:14}},interaction:{intersect:false,mode:'index'},
         animation:{duration:1100,easing:'easeOutQuart'},
         plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y+' kg'}}},
         scales:{x:{grid:{display:false},ticks:TX},y:{grid:{color:'#eef3f0'},min:0,ticks:TX}}},
@@ -2187,7 +2187,7 @@ function renderCharts(labels, perPeriod, closingSeries){
     chCT=new Chart(document.getElementById('cCT').getContext('2d'),{
       type:'line',
       data:{labels,datasets:[{label:'Cost per Kg (ETB)',data:cpkData,borderColor:'#0d9b7a',backgroundColor:'rgba(13,155,122,0.08)',borderWidth:2.5,pointBackgroundColor:'#0d9b7a',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'top',anchor:'end',offset:8,color:'#0d6b56',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v.toFixed(2)}}]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26,bottom:14}},interaction:{intersect:false,mode:'index'},
+      options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),layout:{padding:{top:26,bottom:14}},interaction:{intersect:false,mode:'index'},
         animation:{duration:1100,easing:'easeOutQuart'},
         plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y+' ETB'}}},
         scales:{x:{grid:{display:false},ticks:TX},y:{grid:{color:'#eef3f0'},ticks:TX}}},
@@ -2204,7 +2204,7 @@ function renderCharts(labels, perPeriod, closingSeries){
         {label:'Total Cost (ETB)',data:costData,borderColor:'#e5484d',backgroundColor:'rgba(229,72,77,0.06)',borderWidth:2.5,pointBackgroundColor:'#e5484d',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:6,color:'#c1272d',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}},
         {label:'Gross Profit (ETB)',data:profitData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.06)',borderWidth:2.5,pointBackgroundColor:'#2563eb',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:18,color:'#1d4ed8',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}}
       ]},
-      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:26,bottom:18}},interaction:{intersect:false,mode:'index'},
+      options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),layout:{padding:{top:26,bottom:18}},interaction:{intersect:false,mode:'index'},
         animation:{duration:1100,easing:'easeOutQuart'},
         plugins:{legend:{display:false},tooltip:{...TT,displayColors:true,boxPadding:4,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}},
         scales:{x:{grid:{display:false},ticks:TX},y:{grid:{color:'#eef3f0'},min:0,ticks:{...TX,callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}}},
