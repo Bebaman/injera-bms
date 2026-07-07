@@ -3,14 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
 <link rel="stylesheet" href="/css/shared-shell.css">
-<script src="/js/app-state.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -31,6 +25,50 @@
 .pl-layout{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start}
 .pl-side{display:flex;flex-direction:column;gap:16px}
 @media(max-width:1100px){.pl-layout{grid-template-columns:1fr}}
+
+/* ══ TABLET (≤900px) ═══════════════════════════════════ */
+@media(max-width:900px){
+  .pl-card-hd{padding:16px 18px 14px;flex-wrap:wrap;gap:10px}
+  .pl-card-hd h2{font-size:15px}
+  .pl-table th,.pl-table td{padding:9px 16px}
+  .qa-g{grid-template-columns:repeat(3,1fr);gap:7px}
+}
+
+/* ══ PHONE (≤600px) ════════════════════════════════════ */
+@media(max-width:600px){
+  .content{padding:10px!important}
+  .pl-layout{gap:12px}
+  .pl-card-hd{padding:14px 14px 12px;align-items:flex-start}
+  .pl-card-hd h2{font-size:14.5px}
+  .pl-card-hd p{font-size:11px}
+  .pl-currency{font-size:10.5px}
+  .demo-badge{font-size:8.5px;padding:2px 8px}
+  .pl-table{min-width:560px;font-size:13px}
+  .pl-table th{padding:9px 14px;font-size:10px}
+  .pl-th-sub{font-size:8.5px}
+  .pl-table td{padding:7px 14px}
+  .pl-section td{padding:12px 14px 5px;font-size:11px}
+  .pl-net td{font-size:13.5px;padding-top:12px;padding-bottom:12px}
+  .card-hd{padding:11px 14px 7px}
+  .card-ttl{font-size:13.5px}
+  .card-ttl-sub{font-size:10px}
+  .ps-item{padding:9px 14px;gap:9px}
+  .ps-ico{width:32px;height:32px}
+  .ps-ico svg{width:15px;height:15px}
+  .ps-lbl{font-size:10.5px}
+  .ps-val{font-size:13.5px}
+  .ps-chg{font-size:9px}
+  .ytd-row{padding:8px 14px;font-size:12.5px}
+  .qa-g{grid-template-columns:repeat(3,1fr);gap:6px;padding:9px 10px 11px}
+  .qa-b{padding:11px 4px;font-size:10px;gap:4px}
+  .qa-b svg{width:17px;height:17px}
+}
+
+/* ══ SMALL PHONE (≤380px) ══════════════════════════════ */
+@media(max-width:380px){
+  .qa-g{grid-template-columns:1fr;gap:6px}
+  .qa-b{flex-direction:row;justify-content:flex-start;padding:10px 12px}
+}
 
 .pl-card-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 22px 16px;border-bottom:1px solid var(--border)}
 .pl-card-hd h2{font-size:16px;font-weight:700;color:var(--td)}
@@ -189,8 +227,55 @@
 // ══════════════════════════════════════════════════════════
 // ── SUPABASE CONFIG & HELPERS ────────────────────────────
 // ══════════════════════════════════════════════════════════
-// sbGet(path) now comes from app-state.js (same 1-arg signature this page
-// already used, just with session-aware auth headers instead of the raw key).
+const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+
+async function sbGet(path){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  if(!res.ok){
+    let detail = '';
+    try{ detail = (await res.json()).message || ''; }catch(_){}
+    throw new Error(`Supabase GET ${path.split('?')[0]} failed (${res.status})${detail ? ': '+detail : ''}`);
+  }
+  return res.json();
+}
+
+// This page is read-only (reporting), but kept here for consistency with
+// the other Injera BMS modules that INSERT/UPDATE via the same pattern.
+async function sbPost(path, body){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    let detail = '';
+    try{ detail = (await res.json()).message || ''; }catch(_){}
+    throw new Error(`Supabase POST ${path.split('?')[0]} failed (${res.status})${detail ? ': '+detail : ''}`);
+  }
+  return res.json();
+}
+
+// Lightweight session reader — this page only uses it to label PDF exports
+// with the logged-in user's name; falls back gracefully if no session exists.
+function loadSession(){
+  try{
+    const raw = localStorage.getItem('injera_bms_session') || sessionStorage.getItem('injera_bms_session');
+    return raw ? JSON.parse(raw) : null;
+  }catch(_){ return null; }
+}
+
 function num(v){ return v===null || v===undefined || v==='' ? 0 : Number(v); }
 function fmtETB(n){ return num(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function pctOf(v, total){ return total ? (v/total*100) : 0; }
@@ -246,7 +331,7 @@ async function loadInvItems(){
     const items = await sbGet(`inventory_items?select=id,name`);
     INV_ITEMS_MAP = {};
     items.forEach(i=>INV_ITEMS_MAP[i.id]=i);
-  }catch(e){ console.error('Failed to load inventory items', e); }
+  }catch(e){ console.error('Failed to load inventory items', e); toast('Could not load inventory items from Supabase','error'); }
 }
 
 async function fetchPeriodSet(filterClause){
