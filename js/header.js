@@ -23,6 +23,7 @@
        notifications: [
          { type:'r', title:'Gomen Zere stock is below reorder level', sub:'Current: 2.50 kg', time:'10 min ago' }
        ],                                 // type: r|o|p|b|g — matches notif-item-ico colors
+       onViewAllNotifications: () => { ...open your page's full alerts view... }, // optional — adds a "View All" link next to "Mark all read"; omitted entirely if not supplied
        alert: {                           // optional red banner (off by default — no live page uses it yet)
          message: '<strong>2 items</strong> need reorder.',
          linkText: 'View Inventory',
@@ -37,6 +38,7 @@ let _headerConfig = {};
 
 function renderHeader(config){
   _headerConfig = config || {};
+  ensureHeaderResponsiveCSS();
   let root = document.getElementById('header-root');
   if (!root){
     root = document.createElement('div');
@@ -54,6 +56,7 @@ function renderHeader(config){
   if (_headerConfig.showMonthPicker) populateMonthSelect(_headerConfig.months || [], _headerConfig.selectedMonth);
 
   document.getElementById('bellBtn')?.addEventListener('click', toggleNotif);
+  document.getElementById('notifViewAllBtn')?.addEventListener('click', () => { closeNotif(); _headerConfig.onViewAllNotifications?.(); });
   document.getElementById('userChip')?.addEventListener('click', toggleUserPanel);
   document.getElementById('exportBtn')?.addEventListener('click', toggleExportMenu);
   document.getElementById('exportPdfBtn')?.addEventListener('click', () => { closeExportMenu(); _headerConfig.onExportPdf?.(); });
@@ -64,6 +67,45 @@ function renderHeader(config){
 
   if (typeof populateUserChrome === 'function') populateUserChrome();
   if (typeof bindGlobalChromeHandlers === 'function') bindGlobalChromeHandlers();
+}
+
+/* ── Responsive (tablet / mobile) ─────────────────────────────
+   shared-shell.css owns the desktop topbar layout untouched.
+   This injects ONE extra stylesheet (once) with media-query-only
+   rules, so nothing here overrides desktop styling at desktop
+   widths — it only reflows things at narrower viewports. */
+function ensureHeaderResponsiveCSS(){
+  if (document.getElementById('header-responsive-css')) return;
+  const style = document.createElement('style');
+  style.id = 'header-responsive-css';
+  style.textContent = `
+    /* ── Tablet (≤1024px) ── */
+    @media (max-width: 1024px){
+      .topbar{ padding-left:14px; padding-right:14px; gap:10px; }
+      .tb-ttl p{ display:none; }
+      .tb-mid{ display:none; }
+      .stat-pill{ display:none; }
+      .exp-trigger span, .exp-trigger{ font-size:12.5px; }
+      .uchip-txt span{ display:none; }
+      .notif-panel, .user-panel{ width:320px; max-width:calc(100vw - 24px); }
+    }
+    /* ── Mobile (≤640px) ── */
+    @media (max-width: 640px){
+      .topbar{ padding-left:10px; padding-right:10px; gap:8px; flex-wrap:wrap; }
+      .tb-ttl h1{ font-size:16px; }
+      .tb-ttl p{ display:none; }
+      .tb-mid{ display:none; }
+      .stat-pill{ display:none; }
+      .exp-wrap .exp-trigger span{ display:none; }
+      .exp-trigger{ padding:8px; }
+      .uchip{ padding:4px 6px; }
+      .uchip-txt{ display:none; }
+      .alert-bar-in span{ font-size:12px; }
+      .alert-bar-actions{ flex-shrink:0; }
+      .notif-panel, .user-panel{ position:fixed; left:10px; right:10px; width:auto; max-width:none; top:60px; }
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 function topbarInnerHTML(cfg){
@@ -107,7 +149,10 @@ function topbarInnerHTML(cfg){
       <div class="notif-panel" id="notifPanel">
         <div class="notif-panel-hd">
           <span class="notif-panel-title">Notifications</span>
-          <span class="notif-mark-all" onclick="markAllRead()">Mark all read</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            ${cfg.onViewAllNotifications ? `<span class="notif-mark-all" id="notifViewAllBtn">View All</span>` : ''}
+            <span class="notif-mark-all" onclick="markAllRead()">Mark all read</span>
+          </div>
         </div>
         <div id="notifList"></div>
       </div>
