@@ -88,8 +88,75 @@ function authHeaders(extra){
     'Content-Type': 'application/json'
   }, extra || {});
 }
+
+/* Refreshes the access_token using the stored refresh_token, via
+   Supabase's GoTrue endpoint. Writes the new session back to
+   whichever storage (local/session) currently holds it, preserving
+   fields login.html originally set (name, role, etc). Returns the
+   new session object, or null if refresh isn't possible/fails —
+   callers should treat null as "must log in again". */
+let _refreshInFlight = null;
+async function refreshSession(){
+  if (_refreshInFlight) return _refreshInFlight; // de-dupe concurrent refreshes
+  const session = loadSession();
+  if (!session || !session.refresh_token){ return null; }
+
+  _refreshInFlight = (async () => {
+    try{
+      const res = await fetch(`https://mfxkkaavgzyttasgqnmw.supabase.co/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'apikey': window.SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: session.refresh_token })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.access_token) return null;
+
+      const updated = Object.assign({}, session, {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token || session.refresh_token,
+        hard_expiry: Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600 * 1000)
+      });
+
+      const usedLocal = !!localStorage.getItem('injera_session');
+      const store = usedLocal ? localStorage : sessionStorage;
+      store.setItem('injera_session', JSON.stringify(updated));
+      return updated;
+    }catch(e){
+      return null;
+    }finally{
+      _refreshInFlight = null;
+    }
+  })();
+
+  return _refreshInFlight;
+}
+
+/* Central fetch wrapper: attaches auth headers, and on a 401
+   (expired/invalid JWT) refreshes the session once and retries
+   the same request before giving up. If refresh fails, clears
+   the session and bounces to login — same behavior as a manual
+   sign-out, just automatic. */
+async function sbRequest(path, options = {}){
+  const doFetch = (headers) => fetch(`${window.SB_URL}/${path}`, Object.assign({}, options, { headers }));
+
+  let res = await doFetch(authHeaders(options.headers));
+
+  if (res.status === 401){
+    const refreshed = await refreshSession();
+    if (refreshed){
+      res = await doFetch(authHeaders(options.headers));
+    } else {
+      clearSession();
+      window.location.replace('login.html');
+      throw new Error('Session expired — please sign in again.');
+    }
+  }
+  return res;
+}
+
 async function sbGet(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, { headers: authHeaders() });
+  const res = await sbRequest(path);
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
@@ -97,9 +164,9 @@ async function sbGet(path){
   return res.json();
 }
 async function sbPost(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
+  const res = await sbRequest(path, {
     method:'POST',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
+    headers: { 'Prefer':'return=representation' },
     body: JSON.stringify(body)
   });
   if(!res.ok){
@@ -109,9 +176,9 @@ async function sbPost(path, body){
   return res.json();
 }
 async function sbPatch(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
+  const res = await sbRequest(path, {
     method:'PATCH',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
+    headers: { 'Prefer':'return=representation' },
     body: JSON.stringify(body)
   });
   if(!res.ok){
@@ -121,9 +188,9 @@ async function sbPatch(path, body){
   return res.json();
 }
 async function sbDelete(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
+  const res = await sbRequest(path, {
     method:'DELETE',
-    headers: authHeaders({ 'Prefer':'return=representation' })
+    headers: { 'Prefer':'return=representation' }
   });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
