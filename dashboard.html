@@ -98,6 +98,16 @@
 .al-bd h5{font-size:var(--fs-sm);font-weight:700;color:var(--td);margin-bottom:2px;line-height:1.3}
 .al-bd p{font-size:var(--fs-xs);color:var(--tl)}
 .al-t{font-size:9px;color:var(--tl);white-space:nowrap;padding-top:2px;flex-shrink:0}
+/* ══ ALERTS MODAL ═══════════════════════════════════════ */
+.al-modal-ovl{position:fixed;inset:0;background:rgba(16,38,28,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.al-modal-ovl.show{display:flex}
+.al-modal{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(16,38,28,.25);overflow:hidden}
+.al-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.al-modal-hd h4{font-size:var(--fs-md);font-weight:800;color:var(--td);display:flex;align-items:center;gap:8px}
+.al-modal-close{width:28px;height:28px;border-radius:8px;border:none;background:#f2f6f4;color:var(--tl);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.al-modal-close:hover{background:#e3ece7;color:var(--td)}
+.al-modal-close svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.al-modal-body{flex:1;overflow-y:auto}
 
 /* ══ BOTTOM ROW ════════════════════════════════════════ */
 .bot{display:grid;grid-template-columns:minmax(0,300px) 1fr minmax(0,260px);gap:12px;margin-bottom:12px}
@@ -393,7 +403,7 @@
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts &amp; Notifications</div>
-          <a class="vall">View All</a>
+          <a class="vall" id="alertsViewAll" onclick="openAlertsModal()">View All</a>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between" id="alertsList">
           <div class="al"><div class="al-ic ai-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="al-bd"><h5>Loading alerts…</h5><p>Fetching live data</p></div><div class="al-t"></div></div>
@@ -571,6 +581,17 @@
 <div class="exp-loading" id="exportLoading">
   <div class="exp-spinner"></div>
   <p id="exportLoadingText">Preparing your export…</p>
+</div>
+
+<!-- ALERTS & NOTIFICATIONS — VIEW ALL MODAL -->
+<div class="al-modal-ovl" id="alertsModalOvl" onclick="if(event.target===this) closeAlertsModal()">
+  <div class="al-modal">
+    <div class="al-modal-hd">
+      <h4><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>All Alerts &amp; Notifications</h4>
+      <button type="button" class="al-modal-close" onclick="closeAlertsModal()" aria-label="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="al-modal-body" id="alertsModalBody"></div>
+  </div>
 </div>
 
 <!-- Confirm modal now injected lazily by app-state.js's ensureConfirmModal() -->
@@ -982,7 +1003,53 @@ function renderAlerts(){
       <div class="al-t"></div>
     </div>`;
   }).join('');
+  // Keep the "View All" link's affordance honest: hide it when there's nothing more to show.
+  const vall = document.getElementById('alertsViewAll');
+  if(vall) vall.style.display = LAST.alerts.length > 6 ? '' : 'none';
 }
+
+// ── Alerts & Notifications: "View All" modal ─────────────────────────────
+// There's no dedicated alerts/notifications page in the BMS, so "View All"
+// opens an in-page modal listing every live alert (not just the 6 shown on
+// the dashboard card).
+const ALERT_MODAL_ICONS = {
+  warn: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>'
+};
+function renderAlertsModal(){
+  const body = document.getElementById('alertsModalBody');
+  const alerts = (LAST && LAST.alerts) || [];
+  if(!alerts.length){
+    body.innerHTML = `<div class="al" style="border-bottom:none"><div class="al-bd"><h5>No active alerts</h5><p>Everything looks good</p></div></div>`;
+    return;
+  }
+  body.innerHTML = alerts.map((a,i,arr)=>{
+    const styles = [];
+    if(i===arr.length-1) styles.push('border-bottom:none');
+    if(a.link) styles.push('cursor:pointer');
+    const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
+    const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
+    return `
+    <div class="al"${styleAttr}${clickAttr}>
+      <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${ALERT_MODAL_ICONS[a.svg]||ALERT_MODAL_ICONS.check}</svg></div>
+      <div class="al-bd"><h5>${a.title}</h5><p>${a.sub}</p></div>
+      <div class="al-t"></div>
+    </div>`;
+  }).join('');
+}
+function openAlertsModal(){
+  renderAlertsModal();
+  document.getElementById('alertsModalOvl').classList.add('show');
+  document.addEventListener('keydown', alertsModalEscHandler);
+}
+function closeAlertsModal(){
+  document.getElementById('alertsModalOvl').classList.remove('show');
+  document.removeEventListener('keydown', alertsModalEscHandler);
+}
+function alertsModalEscHandler(e){ if(e.key === 'Escape') closeAlertsModal(); }
 
 function renderExpenseDonut(){
   const d = LAST;
@@ -1483,9 +1550,9 @@ function getDashboardData(){
 
 function fmtNum(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-// A4 LANDSCAPE at print resolution (300dpi): 3508 x 2480 px. We build the DOM at
-// half that (1754 x 1240) and capture with scale:2, so the final raster is still
-// 3508x2480 — crisp on paper — while keeping the DOM light to build/measure.
+// A4 LANDSCAPE, built at 1754 x 1240 CSS px and captured at scale:3.5 (see
+// renderPdfPage below), so the final raster is 6139 x 4340 — roughly 525dpi,
+// well past what a laser/inkjet printer or a zoomed-in PDF viewer can resolve.
 const PDF_PAGE_W = 1754, PDF_PAGE_H = 1240;
 
 function pdfCard(title, innerHtml, extra=''){
@@ -1507,7 +1574,7 @@ function pdfPageWrap(){
     position:'fixed', left:'-99999px', top:'0',
     width:PDF_PAGE_W+'px', height:PDF_PAGE_H+'px',
     background:'#ffffff', fontFamily:"'Nunito',sans-serif", color:'#16261e',
-    padding:'30px 36px', boxSizing:'border-box', display:'flex', flexDirection:'column'
+    padding:'22px 28px', boxSizing:'border-box', display:'flex', flexDirection:'column'
   });
   document.body.appendChild(el);
   return el;
@@ -1550,26 +1617,26 @@ function renderExportCharts(d){
   // Sized 2.35:1 to match the wide card it will sit in — object-fit:contain
   // on the <img> keeps it from ever stretching regardless of card size.
   const revCanvas = document.createElement('canvas');
-  revCanvas.width = 1410; revCanvas.height = 600;
+  revCanvas.width = 1880; revCanvas.height = 800;
   holder.appendChild(revCanvas);
   const revChart = new Chart(revCanvas.getContext('2d'), {
     type:'line',
     data:{
       labels,
       datasets:[
-        {label:'Revenue (ETB)', data:rev, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,.1)', borderWidth:4, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:2.5, pointRadius:6, fill:true, tension:.35,
-          datalabels:{align:'top',anchor:'end',offset:8,color:'#16261e',font:{family:'Nunito',size:16,weight:'700'},formatter:v=>v.toLocaleString()}},
-        {label:'Net Profit (ETB)', data:prof, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.14)', borderWidth:4, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:2.5, pointRadius:6, fill:true, tension:.35,
-          datalabels:{align:'bottom',anchor:'start',offset:8,color:'#9a7b0a',font:{family:'Nunito',size:16,weight:'700'},formatter:v=>v.toLocaleString()}}
+        {label:'Revenue (ETB)', data:rev, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,.1)', borderWidth:5, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:8, fill:true, tension:.35,
+          datalabels:{align:'top',anchor:'end',offset:10,color:'#16261e',font:{family:'Nunito',size:21,weight:'700'},formatter:v=>v.toLocaleString()}},
+        {label:'Net Profit (ETB)', data:prof, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.14)', borderWidth:5, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:8, fill:true, tension:.35,
+          datalabels:{align:'bottom',anchor:'start',offset:10,color:'#9a7b0a',font:{family:'Nunito',size:21,weight:'700'},formatter:v=>v.toLocaleString()}}
       ]
     },
     options:{
       responsive:false, animation:false,
-      layout:{padding:{top:30,right:18,bottom:4,left:4}},
+      layout:{padding:{top:40,right:24,bottom:5,left:5}},
       plugins:{legend:{display:false}},
       scales:{
-        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:15,weight:'600'},color:'#5e7268'}},
-        y:{grid:{color:'#eef3f0',lineWidth:2},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:14},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:20,weight:'600'},color:'#5e7268'}},
+        y:{grid:{color:'#eef3f0',lineWidth:2},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:18},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
       }
     }
   });
@@ -1580,11 +1647,11 @@ function renderExportCharts(d){
   const expValues = d.expenses.map(e=>parseFloat(String(e.value).replace(/,/g,'')) || 0);
   const expColors = d.expenses.map(e=>e.color || '#94a3b8');
   const expCanvas = document.createElement('canvas');
-  expCanvas.width = 560; expCanvas.height = 560;
+  expCanvas.width = 760; expCanvas.height = 760;
   holder.appendChild(expCanvas);
   const expChart = new Chart(expCanvas.getContext('2d'), {
     type:'doughnut',
-    data:{labels:expLabels, datasets:[{data:expValues, backgroundColor:expColors, borderWidth:4, borderColor:'#fff'}]},
+    data:{labels:expLabels, datasets:[{data:expValues, backgroundColor:expColors, borderWidth:5, borderColor:'#fff'}]},
     options:{responsive:false,cutout:'64%',animation:false,plugins:{legend:{display:false},datalabels:{display:false}}}
   });
   const expImg = expCanvas.toDataURL('image/png',1);
@@ -1610,27 +1677,27 @@ function buildPdfPage1(d, charts){
     </table>`;
 
   el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 1 of 2') + `
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px;flex-shrink:0">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:10px;flex-shrink:0">
       ${d.kpis.map(k=>`
-        <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
-          <div style="font-size:9.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.3px">${k.label}</div>
+        <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:10px;padding:14px 14px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px">
+          <div style="font-size:10.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.3px">${k.label}</div>
           <div>
-            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:17px;color:#16261e;line-height:1.15">${fmtNum(k.value)} <span style="font-size:9.5px;font-weight:600;color:#5e7268">${k.unit}</span></div>
+            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:23px;color:#16261e;line-height:1.15">${fmtNum(k.value)} <span style="font-size:10.5px;font-weight:600;color:#5e7268">${k.unit}</span></div>
           </div>
-          <div style="font-size:9.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':k.change.includes('▼')?'#c0392b':'#94a89f'}">${k.change}</div>
+          <div style="font-size:10.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':k.change.includes('▼')?'#c0392b':'#94a89f'}">${k.change}</div>
         </div>`).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:12px;flex:1.3;min-height:0">
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-bottom:10px;flex:1.3;min-height:0">
       ${pdfCard('Revenue Overview', `<img src="${charts.revImg}" style="width:100%;height:100%;object-fit:contain">`)}
       ${pdfCard(`Expense Breakdown — Total ${d.expenseTotal.replace(/\s+/g,' ')}`, `
         <div style="display:flex;align-items:center;gap:14px;height:100%">
-          <img src="${charts.expImg}" style="width:120px;height:120px;flex-shrink:0">
-          <div style="flex:1;display:flex;flex-direction:column;gap:7px">
-            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:600">${e.value}</span><span style="color:#16261e;font-weight:800;width:40px;text-align:right">${e.pct}</span></div>`).join('')}
+          <img src="${charts.expImg}" style="width:130px;height:130px;flex-shrink:0">
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:13px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:600">${e.value}</span><span style="color:#16261e;font-weight:800;width:42px;text-align:right">${e.pct}</span></div>`).join('')}
           </div>
         </div>`)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1.15;min-height:0">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1.15;min-height:0">
       ${pdfCard('Top Customers', custTable)}
       ${pdfCard('Inventory Status', invTable)}
     </div>
@@ -1690,12 +1757,12 @@ function buildPdfPage2(d, insightsList){
     </div>` : '<div style="font-size:11.5px;color:#94a89f">Open Business Intelligence on the dashboard to generate insights.</div>';
 
   el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 2 of 2') + `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:12px;margin-bottom:12px;flex:1;min-height:0">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;margin-bottom:10px;flex:1;min-height:0">
       ${pdfCard('Cash &amp; Loans', cashLoans)}
       ${pdfCard('Manufacturing', mfgContent)}
       ${pdfCard('Business Health', healthContent)}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:12px;flex:1.05;min-height:0">
+    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:10px;flex:1.05;min-height:0">
       ${pdfCard('Budget vs Actual', budgetContent)}
       ${pdfCard('Business Intelligence', aiContent)}
     </div>
@@ -1712,7 +1779,7 @@ function waitForImages(el){
 async function renderPdfPage(el){
   await waitForImages(el);
   await new Promise(r => setTimeout(r, 40));
-  const canvas = await html2canvas(el, { scale: 2.6, width: PDF_PAGE_W, height: PDF_PAGE_H, backgroundColor: '#ffffff', useCORS: true });
+  const canvas = await html2canvas(el, { scale: 3.5, width: PDF_PAGE_W, height: PDF_PAGE_H, backgroundColor: '#ffffff', useCORS: true });
   document.body.removeChild(el);
   return canvas;
 }
