@@ -670,9 +670,10 @@ renderHeader({
     { type:'p', title:'Loan payment due in 7 days', sub:'Dashen Bank — 12,450.00 ETB', time:'1 hr ago' },
     { type:'b', title:'Credit limit approaching', sub:'Addis Hotel — 85% of limit used', time:'2 hrs ago' },
     { type:'g', title:'Production batch completed', sub:'Batch B-003 — 1,200 pcs injera', time:'3 hrs ago' }
-  ]
+  ],
+  onViewAllNotifications: () => openAlertsModal()
 });
-// header.js doesn't wire this one up (it's page-specific, not part of the shared panel behavior)
+// header.js now supports onViewAllNotifications, wired above to the same modal as the dashboard's own "View All"
 document.getElementById('userPanelProfile')?.addEventListener('click', () => window.location.href = 'settings.html');
 
 // ── Count-up animation ───────────────────────────────────
@@ -1970,4 +1971,3 @@ function exportExcel(){
 </script>
 </body>
 </html>
-
