@@ -185,8 +185,9 @@ button{font-family:inherit}
    needs a container with a real `height` (not just min/max-height) to size
    against; otherwise on tall desktop viewports the canvas stretches to fill
    whatever space a `stretch`-aligned grid row hands it. */
-.chart-frame{position:relative;height:240px}
-.chart-frame.lg{height:260px}
+.chart-frame{position:relative;height:190px}
+.chart-frame.lg{height:190px}
+.chart-frame.span2{height:420px}
 
 /* STOCK SUMMARY */
 .stk-list{padding:6px 17px 14px}
@@ -369,9 +370,10 @@ button{font-family:inherit}
 @media(max-width:900px){
   .kpi-row{gap:10px}
   .kc{padding:13px 12px 11px}
-  .der-charts,.der-bottom{gap:12px}
+  .der-charts,.der-bottom,.der-grid3{gap:12px}
   .chart-frame{height:220px}
   .chart-frame.lg{height:240px}
+  .chart-frame.span2{height:220px}
 }
 
 /* Sidebar/topbar mobile behavior now lives in shared-shell.css (900px
@@ -519,7 +521,7 @@ button{font-family:inherit}
       <div class="card">
         <div class="card-hd"><div class="card-ttl">Cost per Kg Trend <span class="sub">(Last 6 Months)</span></div></div>
         <div class="chart-box">
-          <div class="chart-frame">
+          <div class="chart-frame span2">
             <div class="chart-loading" id="ldCT"><div class="spinner"></div></div>
             <canvas id="cCT"></canvas>
           </div>
