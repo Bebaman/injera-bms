@@ -333,6 +333,55 @@
 .ai-refresh-btn.spinning .ai-refresh-ico svg{animation:spin .8s linear infinite}
 
 /* .footer rule now in shared-shell.css */
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — TABLET & MOBILE
+   Everything above this point is the untouched desktop layout.
+   These media queries only reflow grids/spacing at narrower
+   widths; no desktop rule is overridden at desktop widths.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Tablet (≤1024px) ── */
+@media (max-width: 1024px){
+  .kpi-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .mid{grid-template-columns:1fr;gap:12px}
+  .mid > .card:last-child{min-height:280px}
+  .bot{grid-template-columns:1fr;gap:12px}
+  .kpi-row-sm{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .extra-row2{grid-template-columns:1fr}
+  .widgets-top3{grid-template-columns:1fr 1fr}
+  .widgets-top3 > .card:nth-child(3){grid-column:1 / -1}
+  .bud-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa-g{grid-template-columns:repeat(3,1fr)}
+  .card table.tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .al-modal{max-width:440px}
+}
+
+/* ── Mobile (≤640px) ── */
+@media (max-width: 640px){
+  .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kc{padding:12px 11px 11px}
+  .kc-ico{width:32px;height:32px;margin-bottom:7px}
+  .kc-ico svg{width:17px;height:17px}
+  .kc-val{font-size:16px}
+  .mid{grid-template-columns:1fr;gap:10px}
+  .bot{grid-template-columns:1fr;gap:10px}
+  .qa-g{grid-template-columns:repeat(2,1fr);gap:7px}
+  .kpi-row-sm{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .extra-row2{grid-template-columns:1fr;gap:10px}
+  .widgets-top3{grid-template-columns:1fr;gap:10px}
+  .widgets-top3 > .card:nth-child(3){grid-column:auto}
+  .bud-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .daily-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .cst-stat-row{flex-wrap:wrap;gap:10px}
+  .cst-stat:not(:last-child)::after{display:none}
+  .donut-sm-wrap{flex-wrap:wrap}
+  .card table.tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .card table.tbl th, .card table.tbl td{white-space:nowrap}
+  .al-modal{max-width:100%;max-height:88vh;border-radius:14px}
+  .al-modal-ovl{padding:10px}
+  .exp-bd{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -1921,3 +1970,4 @@ function exportExcel(){
 </script>
 </body>
 </html>
+
