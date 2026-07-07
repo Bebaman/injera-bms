@@ -25,7 +25,7 @@
 /* Shared vars (--sw,--bg,--td/tm/tl,--border,--green/red/amber,--sh,--fs-*)
    now come from shared-shell.css. Only the page-specific extra kept here. */
 :root{ --sh-hover:0 4px 14px rgba(20,40,30,.09); }
-body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:var(--fs-base);line-height:1.45;-webkit-font-smoothing:antialiased}
+body{font-family:'Nunito','Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--td);display:flex;min-height:100vh;font-size:var(--fs-base);line-height:1.45;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif;letter-spacing:.1px}
 
 /* ══ ANIMATIONS ═══════════════════════════════════════ */
@@ -124,10 +124,23 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .fbtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ══ TABLE ══════════════════════════════════════════ */
-.tbl-wrap{overflow-x:auto}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tbl{width:100%;border-collapse:collapse;font-size:var(--fs-base);white-space:nowrap}
 .tbl th{padding:9px 14px;text-align:left;font-size:var(--fs-xs);font-weight:700;color:var(--tl);background:#f6faf7;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
 .tbl td{padding:9px 14px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+/* Tighten the batch table's density at laptop widths (matching
+   derkosh.html) rather than relying on .tbl-wrap's own horizontal
+   scrollbar. Kept roomy on wide desktop monitors. */
+@media(max-width:1650px){
+  .tbl{font-size:11.6px}
+  .tbl th{padding:7px 8px;font-size:9.3px;letter-spacing:.1px}
+  .tbl td{padding:7px 8px}
+}
+@media(max-width:1180px){
+  .tbl{font-size:11px}
+  .tbl th{padding:6px 6px;font-size:8.8px}
+  .tbl td{padding:6px 6px}
+}
 .tbl tr td{transition:background .15s ease}
 .tbl tr:hover td{background:#f7fbf9}
 .tbl td.num{font-weight:600;color:var(--tm)}
@@ -252,7 +265,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .footer{text-align:center;padding:13px;font-size:var(--fs-xs);color:var(--tl);border-top:1px solid var(--border);background:#fff}
 
 /* ══ RESPONSIVE ══════════════════════════════════════ */
-@media (max-width:1400px){
+@media (max-width:1000px){
   .row-main{grid-template-columns:1fr}
   .chart-donut-row{grid-template-columns:1fr}
   .bottom3{grid-template-columns:1fr}
