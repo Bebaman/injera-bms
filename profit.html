@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Distribution — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Distribution — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
    Redirect-only pass so an expired/missing session bounces to login before any
@@ -98,6 +98,7 @@ button{font-family:inherit}
 .ic-b{background:#dfeefe}.ic-b svg{stroke:#2563eb}
 .ic-t{background:#dff6f4}.ic-t svg{stroke:#0d9b8a}
 .ic-y{background:#fdf3d8}.ic-y svg{stroke:#c99a1c}
+.ic-r{background:#fde8e8}.ic-r svg{stroke:#dc2626}
 .kc-lbl{font-size:11.5px;color:var(--tl);font-weight:600;display:block;margin-bottom:5px}
 .kc-val{font-size:20px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px;letter-spacing:.1px}
 .kc-val .u{font-size:11.5px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
@@ -251,6 +252,53 @@ button{font-family:inherit}
       <div class="dist-left">
         <div class="card">
           <div class="card-hd">
+            <div class="card-ttl">Cash Position <span class="sub" id="cpLbl">(May 2026)</span></div>
+          </div>
+          <div class="card-sub-line">Opening cash (from Settings) rolled forward through this month's ledger and owner activity</div>
+          <div class="info-note" id="cpBanner" style="display:none;background:#fef2e0;border-color:#f0d9ad">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Opening cash for this month hasn't been set in Settings yet, so ledger activity can't roll into a cash position. <a href="javascript:void(0)" onclick="rollForwardOpeningCash()" style="font-weight:800;text-decoration:underline">Roll forward from last month's closing balance</a></span>
+          </div>
+          <div class="pd-kpis">
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <span class="kc-lbl">Opening Cash</span>
+              <div class="kc-val"><span id="cpOpen">0.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <span class="kc-lbl">Cash In (Sales)</span>
+              <div class="kc-val"><span id="cpIn">0.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-r"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></div>
+              <span class="kc-lbl">Cash Out (Purchases)</span>
+              <div class="kc-val"><span id="cpOut">0.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-t"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+              <span class="kc-lbl">Owner Injections</span>
+              <div class="kc-val"><span id="cpInj">0.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+              <span class="kc-lbl">Owner Withdrawals</span>
+              <div class="kc-val"><span id="cpWd">0.00</span><span class="u">ETB</span></div>
+            </div>
+            <div class="kc" style="cursor:default">
+              <div class="kc-ico ic-p"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <span class="kc-lbl">Closing Cash</span>
+              <div class="kc-val"><span id="cpClose">0.00</span><span class="u">ETB</span></div>
+            </div>
+          </div>
+          <div class="info-note">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Closing Cash = Opening Cash + Cash In − Cash Out + Owner Injections − Owner Withdrawals − Distributed Amount. Next month's Opening Cash carries forward from this figure. Owner injections/withdrawals are capital movements — they change the cash balance but are excluded from Net Cash Profit.</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd">
             <div class="card-ttl">Profit Distribution <span class="sub" id="pdLbl">(May 2026)</span></div>
             <div class="hd-actions">
               <button class="btn-tool" onclick="openEditModal()"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>Edit Distribution %</button>
@@ -285,16 +333,7 @@ button{font-family:inherit}
           <div class="tbl-wrap">
             <table class="tbl">
               <thead><tr><th>Shareholder</th><th>Ownership % <span class="th-unit">(This Month)</span></th><th>Ownership % <span class="th-unit">(Snapshot)</span></th><th>Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
-              <tbody id="shBody">
-                <tr>
-                  <td><div class="sh-name"><div class="av">EM</div><div class="sh-name-txt"><h5>Eyasu Mesfin</h5><span>Owner</span></div></div></td>
-                  <td>80.00%</td><td>80.00%</td><td id="shAmt1">2,373.52</td><td><span class="tbl-badge">Paid</span></td>
-                </tr>
-                <tr>
-                  <td><div class="sh-name"><div class="av" style="background:linear-gradient(145deg,#f7b03a,#e8891a)">KM</div><div class="sh-name-txt"><h5>Kaleb Mekonnen</h5><span>Investor</span></div></div></td>
-                  <td>20.00%</td><td>20.00%</td><td id="shAmt2">593.38</td><td><span class="tbl-badge">Paid</span></td>
-                </tr>
-              </tbody>
+              <tbody id="shBody"></tbody>
               <tfoot><tr class="tot"><td>Total</td><td>100.00%</td><td>100.00%</td><td class="acc" id="shAmtTot">2,966.90</td><td>Paid</td></tr></tfoot>
             </table>
           </div>
@@ -397,6 +436,10 @@ button{font-family:inherit}
               <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
               <span class="qa-lbl">Shareholder Management</span>
             </div>
+            <div class="qa-item" onclick="openOwnerTxnModal()">
+              <div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="19" y1="19" x2="5" y2="19"/></svg></div>
+              <span class="qa-lbl">Record Owner Injection / Withdrawal</span>
+            </div>
             <div class="qa-item" onclick="toast('Distribution settings coming soon','info')">
               <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
               <span class="qa-lbl">Distribution Settings</span>
@@ -433,8 +476,7 @@ button{font-family:inherit}
         </div>
         <div class="split-preview" id="editPreview">
           <div class="split-row"><span>Distributable Amount</span><b id="prevDistAmt">2,966.90 ETB</b></div>
-          <div class="split-row"><span>Eyasu Mesfin (80.00%)</span><b id="prevEyasu">2,373.52 ETB</b></div>
-          <div class="split-row"><span>Kaleb Mekonnen (20.00%)</span><b id="prevKaleb">593.38 ETB</b></div>
+          <div id="prevShareholderRows"></div>
           <div class="split-row"><span>Retained in Business</span><b id="prevRetained">26,702.10 ETB</b></div>
         </div>
       </div>
@@ -488,12 +530,8 @@ button{font-family:inherit}
     <div class="modal-body">
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr><td>Eyasu Mesfin</td><td>Owner</td><td>80.00%</td><td><span class="tbl-badge">Active</span></td></tr>
-            <tr><td>Kaleb Mekonnen</td><td>Investor</td><td>20.00%</td><td><span class="tbl-badge">Active</span></td></tr>
-            <tr class="tot"><td>Total</td><td>–</td><td class="acc">100.00%</td><td>–</td></tr>
-          </tbody>
+          <thead><tr><th>Shareholder</th><th>Ownership %</th><th>Status</th></tr></thead>
+          <tbody id="shMgmtBody"></tbody>
         </table>
       </div>
       <div class="info-note" style="margin:14px 0 0">
@@ -508,101 +546,347 @@ button{font-family:inherit}
   </div>
 </div>
 
+<!-- RECORD OWNER INJECTION / WITHDRAWAL MODAL -->
+<div class="modal-overlay" id="ownerTxnModalOverlay" onclick="if(event.target===this)closeOwnerTxnModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Record Owner Injection / Withdrawal</h3><p>Capital in or out — tracked separately from Net Cash Profit</p></div>
+      <button class="modal-hdr-close" onclick="closeOwnerTxnModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <form onsubmit="submitOwnerTxnModal(event)">
+      <div class="modal-body">
+        <div class="form-grid g2">
+          <div class="fg">
+            <label>Type</label>
+            <div class="fg-wrap">
+              <select id="otType" required>
+                <option value="injection">Owner Injection (cash in)</option>
+                <option value="withdrawal">Owner Withdrawal / Draw (cash out)</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Date</label>
+            <div class="fg-wrap"><input type="date" id="otDate" required></div>
+          </div>
+          <div class="fg">
+            <label>Amount</label>
+            <div class="fg-wrap"><input type="number" id="otAmount" class="pu" min="0.01" step="0.01" required><span class="fg-suf">ETB</span></div>
+          </div>
+          <div class="fg">
+            <label>Channel</label>
+            <div class="fg-wrap">
+              <select id="otChannel" required>
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="mobile">Mobile Money</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Shareholder</label>
+            <div class="fg-wrap">
+              <select id="otShareholder"><option value="">— Unspecified —</option></select>
+            </div>
+          </div>
+          <div class="fg" style="grid-column:1/-1">
+            <label>Note (optional)</label>
+            <div class="fg-wrap"><input type="text" id="otNote" placeholder="e.g. Working capital top-up"></div>
+          </div>
+        </div>
+        <div class="info-note" style="margin-top:12px">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>This updates the Cash Position for the transaction's month — it never affects Net Cash Profit or the distribution split.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeOwnerTxnModal()">Cancel</button>
+        <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Save Transaction</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="toast-stack" id="toastStack"></div>
 
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* ══ STATE ═══════════════════════════════════ */
-const OWN = { eyasu:0.80, kaleb:0.20 };
-const history = [
-  {m:'Dec 2025', net:14880.00, pct:10.00},
-  {m:'Jan 2026', net:16420.00, pct:10.00},
-  {m:'Feb 2026', net:18750.00, pct:10.00},
-  {m:'Mar 2026', net:22310.00, pct:10.00},
-  {m:'Apr 2026', net:24850.00, pct:10.00},
-  {m:'May 2026', net:29669.00, pct:10.00},
-  {m:'Jun 2026', net:0, pct:10.00}
-];
-const MONTHS = history.map(h=>h.m);
-let curIdx = 5; // May 2026
+/* ══ STATE ═══════════════════════════════════════════
+   This page is now a live view over the real backend:
+     • monthly_cash_flow          → Net Cash Profit (the "subledger" — a view over
+                                     sales, credit_payments, purchases, payroll_detail,
+                                     petty_cash, and cash_flow_entries)
+     • channel_opening_balances   → Opening Cash — "the setting" that anchors each
+                                     month's cash position (one row per period per channel)
+     • capital_injections /
+       capital_withdrawals        → Owner injections / owner "takings", each mirrored
+                                     into cash_flow_entries by a DB trigger so they show
+                                     up in the cash balance but never in Net Cash Profit
+     • profit_distributions /
+       profit_distribution_lines  → Actually recording & paying a distribution (view:
+                                     monthly_profit_distribution)
+     • shareholders               → the live ownership split
+   Months are discovered from the data itself — not hardcoded — so this page always
+   reflects whatever periods actually exist in Settings/the ledger.
+═══════════════════════════════════════════════════ */
+let MONTHS = [];
+let history = [];
+let shareholders = [];   // [{id,name,pct}]
+let defaultPct = 10;
+let curIdx = 0;
+let dataReady = false;
 
-// ═══════════════════════════════════════════════════
-//  TOPBAR — title, month picker, and notifications now render through
-//  the shared header.js. Session/auth, sidebar, sign-out, and toast
-//  live in app-state.js / sidebar.js.
-// ═══════════════════════════════════════════════════
-renderHeader({
-  title: 'Distribution',
-  subtitle: 'Profit distribution and shareholder summary',
-  showMonthPicker: true,
-  months: MONTHS,
-  selectedMonth: MONTHS[curIdx],
-  onMonthChange: (label) => {
-    const idx = MONTHS.indexOf(label);
-    if (idx === -1) return;
-    if (history[idx].net === 0) {
-      toast('No distribution recorded yet for '+label, 'info');
-      document.getElementById('msel').value = MONTHS[curIdx];
-      return;
+function n(v){ return parseFloat(v||0); }
+function periodLabel(key){ return new Date(key+'-01T00:00:00').toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
+function avatarFor(name, i){
+  const colors = ['linear-gradient(145deg,#2f8f5b,#1d6b42)','linear-gradient(145deg,#f7b03a,#e8891a)','linear-gradient(145deg,#2563eb,#1d4ed8)','linear-gradient(145deg,#8b5cf6,#6d28d9)','linear-gradient(145deg,#0d9b8a,#0a7566)'];
+  const initials = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  return { initials, color: colors[i % colors.length] };
+}
+
+/* ══ SUPABASE LOADERS ═════════════════════════════════ */
+async function loadShareholders(){
+  try{
+    const rows = await sbGet('shareholders?select=id,name,ownership_pct,is_active&order=ownership_pct.desc');
+    const active = (rows||[]).filter(r=>r.is_active!==false);
+    if(active.length){ shareholders = active.map(r=>({id:r.id, name:r.name, pct:n(r.ownership_pct)})); return; }
+  }catch(err){ console.log('shareholders load failed, using fallback split:', err.message); }
+  shareholders = [{id:null,name:'Eyasu Mesfin',pct:80},{id:null,name:'Kaleb Mekonnen',pct:20}];
+}
+
+async function loadDefaultPct(){
+  try{
+    const rows = await sbGet('business_settings?select=default_distribution_pct&limit=1');
+    if(rows && rows[0] && rows[0].default_distribution_pct!=null) defaultPct = n(rows[0].default_distribution_pct);
+  }catch(err){ console.log('business_settings load failed, defaulting distribution % to 10:', err.message); }
+}
+
+// The real subledger — monthly_cash_flow is a Supabase VIEW, one row per period per
+// channel (cash/bank/mobile). We sum across channels for the whole-business figures
+// this page shows.
+async function loadMonthlyCashFlow(){
+  const byPeriod = {};
+  try{
+    const rows = await sbGet('monthly_cash_flow?select=*&order=period.asc');
+    (rows||[]).forEach(r=>{
+      const p = r.period;
+      if(!byPeriod[p]) byPeriod[p] = {opening:0,salesReceipts:0,arCollected:0,opPayments:0,payroll:0,pettyCash:0,closing:0};
+      const b = byPeriod[p];
+      b.opening += n(r.opening_balance); b.salesReceipts += n(r.sales_receipts); b.arCollected += n(r.ar_collected);
+      b.opPayments += n(r.op_payments); b.payroll += n(r.payroll_payments); b.pettyCash += n(r.petty_cash_payments);
+      b.closing += n(r.closing_balance);
+    });
+  }catch(err){ console.log('monthly_cash_flow load failed:', err.message); }
+  return byPeriod;
+}
+
+// cash_flow_entries also carries loan and profit-distribution-payment activity under
+// the same "financing" category, so we filter by entry_type to isolate just the
+// owner's own injections/withdrawals (never blend them into Net Cash Profit).
+async function loadOwnerActivity(period){
+  let injections = 0, withdrawals = 0;
+  try{
+    const rows = await sbGet(`cash_flow_entries?select=entry_type,amount&period=eq.${period}&entry_type=in.(capital_injection,capital_withdrawal)`);
+    (rows||[]).forEach(r=>{
+      const amt = n(r.amount);
+      if(r.entry_type==='capital_injection') injections += amt; else if(r.entry_type==='capital_withdrawal') withdrawals += amt;
+    });
+  }catch(err){ console.log('cash_flow_entries load failed for '+period+':', err.message); }
+  return { injections, withdrawals };
+}
+
+// Already-recorded-and-paid distributions, via the monthly_profit_distribution view
+// (profit_distributions joined to profit_distribution_lines joined to shareholders).
+async function loadDistributionRecord(period){
+  try{
+    const rows = await sbGet(`monthly_profit_distribution?select=*&period=eq.${period}`);
+    if(rows && rows.length){
+      return {
+        pct: n(rows[0].distribution_pct), net: n(rows[0].net_cash_profit),
+        distAmt: n(rows[0].distributable_amount), retained: n(rows[0].retained_amount),
+        shares: rows.map(r=>({ name: r.shareholder_name, pct: n(r.ownership_pct_applied), amount: n(r.shareholder_amount), status: r.payment_status==='PAID'?'Paid':'Unpaid' }))
+      };
     }
-    curIdx = idx;
-    renderMonth();
-  },
-  notifications: [
-    { type:'g', title:'May 2026 distribution recorded', sub:'2,966.90 ETB distributed', time:'1h ago' },
-    { type:'b', title:'Distribution % unchanged for 3 months', sub:'Currently set at 10.00%', time:'2h ago' }
-  ]
-});
+  }catch(err){ console.log('monthly_profit_distribution load failed for '+period+':', err.message); }
+  return null;
+}
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeSidebar();
-    closeExpDrop();
-    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+async function buildHistory(){
+  const cashByPeriod = await loadMonthlyCashFlow();
+  let periods = Object.keys(cashByPeriod).sort();
+  // Always surface the current calendar month even if Settings hasn't set an opening
+  // balance for it yet — that gap is exactly what needs fixing, not something to hide.
+  const now = new Date();
+  const curKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  if(!periods.includes(curKey)) periods.push(curKey);
+  periods.sort();
+
+  const rows = [];
+  for(const key of periods){
+    const b = cashByPeriod[key];
+    const hasOpeningBalance = !!b;
+    const { injections, withdrawals } = await loadOwnerActivity(key);
+    const distRec = await loadDistributionRecord(key);
+    const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected - b.opPayments - b.payroll - b.pettyCash) : 0;
+    rows.push({
+      key, m: periodLabel(key), hasOpeningBalance,
+      cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected) : 0,
+      cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash) : 0,
+      net, injections, withdrawals,
+      openCash: hasOpeningBalance ? b.opening : null,
+      closeCash: hasOpeningBalance ? b.closing : null,
+      pct: distRec ? distRec.pct : defaultPct,
+      recorded: !!distRec,
+      recordedShares: distRec ? distRec.shares : null,
+      recordedDistAmt: distRec ? distRec.distAmt : null,
+      recordedRetained: distRec ? distRec.retained : null
+    });
   }
-});
+  history = rows;
+  MONTHS = rows.map(r=>r.m);
+  const lastWithData = [...history].reverse().find(h=>h.hasOpeningBalance);
+  curIdx = lastWithData ? history.indexOf(lastWithData) : history.length-1;
+}
+
+async function refreshAll(){
+  await Promise.all([loadShareholders(), loadDefaultPct()]);
+  await buildHistory();
+  dataReady = true;
+}
 
 function f(n){ return (Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
+// Generalized N-way split — last shareholder absorbs the rounding remainder (same rule as before).
 function computeSplit(net, pct){
   const distAmt = net * (pct/100);
   const retained = net - distAmt;
-  let eyasu = distAmt * OWN.eyasu;
-  let kaleb = distAmt - eyasu; // remainder absorbs rounding, per spec rule
-  eyasu = Math.round(eyasu*100)/100;
-  kaleb = Math.round((distAmt - eyasu)*100)/100;
-  return { distAmt, retained, eyasu, kaleb };
+  const shares = [];
+  let allocated = 0;
+  shareholders.forEach((sh, i) => {
+    let amt;
+    if(i === shareholders.length-1){ amt = Math.round((distAmt - allocated)*100)/100; }
+    else { amt = Math.round(distAmt * (sh.pct/100) * 100)/100; allocated += amt; }
+    shares.push({ name: sh.name, pct: sh.pct, amount: amt });
+  });
+  return { distAmt, retained, shares };
+}
+
+// Recorded periods show the real, frozen amounts that were actually paid out
+// (ownership % can change over time — see ownership_history — so a recorded
+// distribution must not silently reflow if today's % is different).
+// Not-yet-recorded periods show a live preview from current ownership %.
+function getDisplaySplit(rec){
+  if(rec.recorded){ return { distAmt: rec.recordedDistAmt, retained: rec.recordedRetained, shares: rec.recordedShares, recorded:true }; }
+  const sp = computeSplit(rec.net, rec.pct);
+  return { distAmt: sp.distAmt, retained: sp.retained, shares: sp.shares.map(s=>({...s, status:'Preview'})), recorded:false };
+}
+
+function renderCashPosition(rec){
+  document.getElementById('cpLbl').textContent = '('+rec.m+')';
+  const banner = document.getElementById('cpBanner');
+  if(!rec.hasOpeningBalance){
+    document.getElementById('cpOpen').textContent = '—';
+    document.getElementById('cpIn').textContent = '—';
+    document.getElementById('cpOut').textContent = '—';
+    document.getElementById('cpInj').textContent = f(rec.injections);
+    document.getElementById('cpWd').textContent = f(rec.withdrawals);
+    document.getElementById('cpClose').textContent = '—';
+    if(banner) banner.style.display = '';
+  } else {
+    document.getElementById('cpOpen').textContent = f(rec.openCash);
+    document.getElementById('cpIn').textContent = f(rec.cashIn);
+    document.getElementById('cpOut').textContent = f(rec.cashOut);
+    document.getElementById('cpInj').textContent = f(rec.injections);
+    document.getElementById('cpWd').textContent = f(rec.withdrawals);
+    document.getElementById('cpClose').textContent = f(rec.closeCash);
+    if(banner) banner.style.display = 'none';
+  }
+}
+
+// "Connect the opening cash with the setting" — channel_opening_balances has no
+// automatic month-to-month roll-forward built into the database; someone has to
+// carry last month's closing balance into next month's opening balance. This does
+// that in one click instead of it silently going unset (which is exactly why this
+// month's ledger activity can otherwise go missing from the cash position).
+async function rollForwardOpeningCash(){
+  const rec = history[curIdx];
+  const priorIdx = history.findIndex(h=>h.key===rec.key)-1;
+  const prior = priorIdx>=0 ? history[priorIdx] : null;
+  if(!prior || !prior.hasOpeningBalance){
+    toast('No prior month with a closing balance to roll forward from','error');
+    return;
+  }
+  try{
+    const rows = await sbGet(`monthly_cash_flow?select=channel,closing_balance&period=eq.${prior.key}`);
+    const inserts = (rows||[]).map(r=>({ period: rec.key, channel: r.channel, opening_balance: r.closing_balance }));
+    if(!inserts.length) throw new Error('No channel balances found for '+prior.m);
+    await sbPost('channel_opening_balances', inserts);
+    toast('Opening cash for '+rec.m+' set from '+prior.m+"'s closing balance",'success');
+  }catch(err){
+    console.error(err);
+    toast('Could not roll forward opening cash: '+err.message,'error');
+    return;
+  }
+  await refreshAll();
+  renderMonth();
+  buildTrendChart();
+}
+
+function renderShareholderTable(disp){
+  const body = document.getElementById('shBody');
+  body.innerHTML = disp.shares.map((s,i)=>{
+    const av = avatarFor(s.name, i);
+    return `<tr>
+      <td><div class="sh-name"><div class="av" style="background:${av.color}">${av.initials}</div><div class="sh-name-txt"><h5>${s.name}</h5></div></div></td>
+      <td>${s.pct.toFixed(2)}%</td><td>${s.pct.toFixed(2)}%</td><td>${f(s.amount)}</td><td><span class="tbl-badge">${s.status||'Paid'}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('shAmtTot').textContent = f(disp.distAmt);
 }
 
 function renderMonth(){
+  if(!dataReady) return;
   const rec = history[curIdx];
   document.getElementById('msel').value = rec.m;
   document.getElementById('pdLbl').textContent = '('+rec.m+')';
   document.getElementById('pdNet').textContent = f(rec.net);
   document.getElementById('pdPct').textContent = rec.pct.toFixed(2);
-  const sp = computeSplit(rec.net, rec.pct);
-  document.getElementById('pdDistAmt').textContent = f(sp.distAmt);
-  document.getElementById('pdRetained').textContent = f(sp.retained);
-  document.getElementById('shAmt1').textContent = f(sp.eyasu);
-  document.getElementById('shAmt2').textContent = f(sp.kaleb);
-  document.getElementById('shAmtTot').textContent = f(sp.distAmt);
+  const disp = getDisplaySplit(rec);
+  document.getElementById('pdDistAmt').textContent = f(disp.distAmt);
+  document.getElementById('pdRetained').textContent = f(disp.retained);
+  renderShareholderTable(disp);
+  renderCashPosition(rec);
   renderHistory();
 }
 
 function renderHistory(){
   const body = document.getElementById('histBody');
   body.innerHTML = '';
+  let shown = 0;
   for(let i=history.length-1;i>=0;i--){
     const h = history[i];
-    if(h.net===0) continue;
-    const sp = computeSplit(h.net, h.pct);
+    if(!h.recorded && h.net===0) continue;
+    shown++;
+    const disp = getDisplaySplit(h);
     const tr = document.createElement('tr');
     if(i===curIdx) tr.className='row-cur';
-    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${h.pct.toFixed(2)}%</td><td>${f(sp.distAmt)}</td><td>${f(sp.distAmt)}</td><td>${f(sp.retained)}</td><td><span class="tbl-badge">Paid</span></td>`;
+    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${h.pct.toFixed(2)}%</td><td>${f(disp.distAmt)}</td><td>${f(disp.distAmt)}</td><td>${f(disp.retained)}</td><td><span class="tbl-badge">${h.recorded?'Paid':'Preview'}</span></td>`;
     body.appendChild(tr);
   }
+  if(!shown){
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No distributions recorded yet — use "Record Distribution" once a month has Net Cash Profit to distribute.</td></tr>';
+  }
+}
+
+function renderShareholderModalTable(){
+  const body = document.getElementById('shMgmtBody');
+  if(!body) return;
+  const total = shareholders.reduce((a,s)=>a+s.pct,0);
+  body.innerHTML = shareholders.map(s=>`<tr><td>${s.name}</td><td>${s.pct.toFixed(2)}%</td><td><span class="tbl-badge">Active</span></td></tr>`).join('')
+    + `<tr class="tot"><td>Total</td><td class="acc">${total.toFixed(2)}%</td><td>–</td></tr>`;
 }
 
 /* ══ EXPORT DROPDOWN (Distribution History card) ═ */
@@ -624,6 +908,7 @@ document.addEventListener('click', e => {
 /* ══ EDIT DISTRIBUTION % MODAL ═══════════════ */
 function openEditModal(){
   const rec = history[curIdx];
+  if(rec.recorded){ toast(rec.m+' has already been recorded — % is frozen for that month','info'); return; }
   document.getElementById('editMonth').value = rec.m;
   document.getElementById('editPct').value = rec.pct.toFixed(2);
   previewEditSplit();
@@ -635,8 +920,9 @@ function previewEditSplit(){
   const pct = parseFloat(document.getElementById('editPct').value)||0;
   const sp = computeSplit(rec.net, pct);
   document.getElementById('prevDistAmt').textContent = f(sp.distAmt)+' ETB';
-  document.getElementById('prevEyasu').textContent = f(sp.eyasu)+' ETB';
-  document.getElementById('prevKaleb').textContent = f(sp.kaleb)+' ETB';
+  document.getElementById('prevShareholderRows').innerHTML = sp.shares.map(s=>
+    `<div class="split-row"><span>${s.name} (${s.pct.toFixed(2)}%)</span><b>${f(s.amount)} ETB</b></div>`
+  ).join('');
   document.getElementById('prevRetained').textContent = f(sp.retained)+' ETB';
 }
 function submitEditModal(e){
@@ -645,12 +931,16 @@ function submitEditModal(e){
   history[curIdx].pct = pct;
   renderMonth();
   closeEditModal();
-  toast('Distribution % updated to '+pct.toFixed(2)+'%','success');
+  toast('Distribution % set to '+pct.toFixed(2)+'% for '+history[curIdx].m+' (not yet recorded)','success');
 }
 
-/* ══ RECORD DISTRIBUTION MODAL ═══════════════ */
+/* ══ RECORD DISTRIBUTION MODAL — writes profit_distributions +
+   profit_distribution_lines; setting a payment date on the lines triggers the
+   matching cash-out entry in cash_flow_entries automatically. ══ */
 function openRecordModal(){
   const rec = history[curIdx];
+  if(rec.recorded){ toast('A distribution for '+rec.m+' is already recorded','info'); return; }
+  if(!rec.hasOpeningBalance){ toast('Set opening cash for '+rec.m+' first (see the Cash Position card)','error'); return; }
   const sp = computeSplit(rec.net, rec.pct);
   document.getElementById('recMonth').textContent = rec.m;
   document.getElementById('recNet').textContent = f(rec.net)+' ETB';
@@ -660,15 +950,75 @@ function openRecordModal(){
   document.getElementById('recordModalOverlay').classList.add('show');
 }
 function closeRecordModal(){ document.getElementById('recordModalOverlay').classList.remove('show'); }
-function submitRecordModal(e){
+async function submitRecordModal(e){
   e.preventDefault();
+  const rec = history[curIdx];
+  const sp = computeSplit(rec.net, rec.pct);
+  const paymentDate = document.getElementById('recDate').value;
+  const distId = crypto.randomUUID();
+  try{
+    await sbPost('profit_distributions', [{
+      id: distId, period: rec.key, distribution_pct: rec.pct, net_cash_profit: rec.net,
+      distributable_amount: sp.distAmt, retained_amount: sp.retained
+    }]);
+    const lines = sp.shares.map(s=>{
+      const sh = shareholders.find(x=>x.name===s.name);
+      return { distribution_id: distId, shareholder_id: sh ? sh.id : null, ownership_pct_applied: s.pct, amount: s.amount, payment_date: paymentDate, payment_channel: 'bank' };
+    });
+    await sbPost('profit_distribution_lines', lines);
+    toast('Distribution recorded and paid for '+rec.m,'success');
+  }catch(err){
+    console.error(err);
+    toast('Could not record distribution: '+err.message,'error');
+    return;
+  }
   closeRecordModal();
-  toast('Distribution recorded for '+history[curIdx].m,'success');
+  await refreshAll();
+  renderMonth();
+  buildTrendChart();
 }
 
 /* ══ SHAREHOLDER MODAL ═══════════════════════ */
-function openShareholderModal(){ document.getElementById('shModalOverlay').classList.add('show'); }
+function openShareholderModal(){ renderShareholderModalTable(); document.getElementById('shModalOverlay').classList.add('show'); }
 function closeShareholderModal(){ document.getElementById('shModalOverlay').classList.remove('show'); }
+
+/* ══ OWNER INJECTION / WITHDRAWAL MODAL — writes capital_injections or
+   capital_withdrawals; a DB trigger on each mirrors the row into
+   cash_flow_entries (category 'financing') so it shows up in the cash
+   position immediately without ever touching Net Cash Profit. ══ */
+function openOwnerTxnModal(){
+  document.getElementById('otDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('otAmount').value = '';
+  document.getElementById('otNote').value = '';
+  const sel = document.getElementById('otShareholder');
+  sel.innerHTML = '<option value="">— Unspecified —</option>' + shareholders.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  document.getElementById('ownerTxnModalOverlay').classList.add('show');
+}
+function closeOwnerTxnModal(){ document.getElementById('ownerTxnModalOverlay').classList.remove('show'); }
+async function submitOwnerTxnModal(e){
+  e.preventDefault();
+  const type = document.getElementById('otType').value; // 'injection' | 'withdrawal'
+  const amount = parseFloat(document.getElementById('otAmount').value)||0;
+  if(amount <= 0){ toast('Enter an amount greater than zero','error'); return; }
+  const row = {
+    date: document.getElementById('otDate').value,
+    shareholder_name: document.getElementById('otShareholder').value || 'Unspecified',
+    amount, channel: document.getElementById('otChannel').value,
+    notes: document.getElementById('otNote').value || null
+  };
+  try{
+    await sbPost(type==='injection' ? 'capital_injections' : 'capital_withdrawals', [row]);
+    toast((type==='injection'?'Injection':'Withdrawal')+' of '+f(amount)+' ETB recorded','success');
+  }catch(err){
+    console.error(err);
+    toast('Could not save owner transaction: '+err.message,'error');
+    return;
+  }
+  closeOwnerTxnModal();
+  await refreshAll();
+  renderMonth();
+  buildTrendChart();
+}
 
 /* ══ EXPORT EXCEL (real .xlsx via SheetJS, styled like Derkosh) ── */
 function exportExcel(retryCount){
@@ -688,9 +1038,9 @@ function exportExcel(retryCount){
     const data=[hdr];
     let rowsForXlsx=[];
     for(let i=history.length-1;i>=0;i--){
-      const h=history[i]; if(h.net===0) continue;
-      const sp=computeSplit(h.net,h.pct);
-      rowsForXlsx.push([h.m, h.net, h.pct/100, sp.distAmt, sp.distAmt, sp.retained, 'Paid']);
+      const h=history[i]; if(!h.recorded && h.net===0) continue;
+      const sp=getDisplaySplit(h);
+      rowsForXlsx.push([h.m, h.net, h.pct/100, sp.distAmt, sp.distAmt, sp.retained, h.recorded?'Paid':'Preview']);
     }
     rowsForXlsx.forEach(r=>data.push(r));
     const totalRowIdx = data.length; // 0-indexed position the TOTAL row will occupy
@@ -730,6 +1080,19 @@ function exportExcel(retryCount){
 
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Distribution History');
+
+    // Second sheet: Cash Position & Owner Activity for the selected month — this is what
+    // ties the distribution back to the real ledger (sales+purchases) and Settings' opening cash.
+    const rec = history[curIdx];
+    const cpHdr=['Metric','Amount (ETB)'];
+    const cpData=[cpHdr,
+      ['Opening Cash', rec.openCash],['Cash In (Sales)', rec.cashIn],['Cash Out (Purchases/Expenses)', rec.cashOut],
+      ['Net Cash Profit', rec.net],['Owner Injections', rec.injections],['Owner Withdrawals', rec.withdrawals],
+      ['Closing Cash', rec.closeCash]];
+    const wsCp = XLSX.utils.aoa_to_sheet(cpData);
+    wsCp['!cols']=[{wch:32},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, wsCp, 'Cash Position');
+
     XLSX.writeFile(wb,'Distribution_Report_'+month+'.xlsx');
     toast('Downloaded Distribution_Report_'+month+'.xlsx ✓','success');
   } catch(err){
@@ -747,9 +1110,9 @@ function exportCSVFallback(month){
   const lines=[hdr.map(csvField).join(',')];
   let totNet=0, totDist=0, totRet=0;
   for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(h.net===0) continue;
-    const sp=computeSplit(h.net,h.pct);
-    lines.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(sp.distAmt), f(sp.distAmt), f(sp.retained), 'Paid'].map(csvField).join(','));
+    const h=history[i]; if(!h.recorded && h.net===0) continue;
+    const sp=getDisplaySplit(h);
+    lines.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(sp.distAmt), f(sp.distAmt), f(sp.retained), h.recorded?'Paid':'Preview'].map(csvField).join(','));
     totNet+=h.net; totDist+=sp.distAmt; totRet+=sp.retained;
   }
   lines.push(['TOTAL', f(totNet), '—', f(totDist), f(totDist), f(totRet), 'Paid'].map(csvField).join(','));
@@ -770,7 +1133,7 @@ function exportPDF(retryCount){
   try{
   const { jsPDF } = window.jspdf;
   const rec = history[curIdx];
-  const sp = computeSplit(rec.net, rec.pct);
+  const sp = getDisplaySplit(rec);
   const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -822,14 +1185,25 @@ function exportPDF(retryCount){
   doc.text('Shareholder Distribution — '+rec.m, marginX, y);
   y += 8;
   doc.autoTable({
-    head:[['Shareholder','Role','Ownership %','Amount (ETB)','Status']],
-    body:[['Eyasu Mesfin','Owner','80.00%',f(sp.eyasu),'Paid'],['Kaleb Mekonnen','Investor','20.00%',f(sp.kaleb),'Paid']],
-    foot:[['Total','–','100.00%',f(sp.distAmt),'Paid']],
+    head:[['Shareholder','Ownership %','Amount (ETB)','Status']],
+    body:sp.shares.map(s=>[s.name,s.pct.toFixed(2)+'%',f(s.amount),s.status||'Paid']),
+    foot:[['Total','100.00%',f(sp.distAmt),sp.recorded?'Paid':'Preview']],
     startY:y+8, margin:{left:marginX,right:marginX},
     styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
     headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
     footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
     alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  let cashY = doc.lastAutoTable.finalY + 24;
+  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Cash Position — '+rec.m, marginX, cashY);
+  doc.autoTable({
+    head:[['Opening Cash','Cash In','Cash Out','Owner Injections','Owner Withdrawals','Closing Cash']],
+    body:[[f(rec.openCash), f(rec.cashIn), f(rec.cashOut), f(rec.injections), f(rec.withdrawals), f(rec.closeCash)]],
+    startY:cashY+8, margin:{left:marginX,right:marginX},
+    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle',halign:'right'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'right'}
   });
 
   let y2 = doc.lastAutoTable.finalY + 24;
@@ -838,9 +1212,9 @@ function exportPDF(retryCount){
   const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
   const histBody=[];
   for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(h.net===0) continue;
-    const s2=computeSplit(h.net,h.pct);
-    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), 'Paid']);
+    const h=history[i]; if(!h.recorded && h.net===0) continue;
+    const s2=getDisplaySplit(h);
+    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), h.recorded?'Paid':'Preview']);
   }
   doc.autoTable({
     head:histHead, body:histBody, startY:y2+8, margin:{left:marginX,right:marginX,bottom:44},
@@ -886,7 +1260,7 @@ function exportFullPDF(retryCount){
   try{
   const { jsPDF } = window.jspdf;
   const rec = history[curIdx];
-  const sp = computeSplit(rec.net, rec.pct);
+  const sp = getDisplaySplit(rec);
   const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -965,13 +1339,29 @@ function exportFullPDF(retryCount){
   doc.addPage();
   drawHeader('Shareholder Distribution');
   doc.autoTable({
-    head:[['Shareholder','Role','Ownership %','Amount (ETB)','Status']],
-    body:[['Eyasu Mesfin','Owner','80.00%',f(sp.eyasu),'Paid'],['Kaleb Mekonnen','Investor','20.00%',f(sp.kaleb),'Paid']],
-    foot:[['Total','–','100.00%',f(sp.distAmt),'Paid']],
+    head:[['Shareholder','Ownership %','Amount (ETB)','Status']],
+    body:sp.shares.map(s=>[s.name,s.pct.toFixed(2)+'%',f(s.amount),s.status||'Paid']),
+    foot:[['Total','100.00%',f(sp.distAmt),sp.recorded?'Paid':'Preview']],
     startY:94, margin:{left:marginX,right:marginX},
     styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
     headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
     footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
+    alternateRowStyles:{fillColor:[249,251,250]}
+  });
+
+  /* ---- PAGE 2b: Cash Position & Owner Activity ---- */
+  doc.addPage();
+  drawHeader('Cash Position & Owner Activity');
+  doc.autoTable({
+    head:[['Metric','Amount (ETB)']],
+    body:[
+      ['Opening Cash', f(rec.openCash)],['Cash In (Sales)', f(rec.cashIn)],['Cash Out (Purchases/Expenses)', f(rec.cashOut)],
+      ['Net Cash Profit', f(rec.net)],['Owner Injections', f(rec.injections)],['Owner Withdrawals', f(rec.withdrawals)],
+      ['Closing Cash', f(rec.closeCash)]
+    ],
+    startY:94, margin:{left:marginX,right:marginX},
+    styles:{font:'helvetica',fontSize:9.5,cellPadding:8,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
     alternateRowStyles:{fillColor:[249,251,250]}
   });
 
@@ -981,9 +1371,9 @@ function exportFullPDF(retryCount){
   const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
   const histBody=[];
   for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(h.net===0) continue;
-    const s2=computeSplit(h.net,h.pct);
-    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), 'Paid']);
+    const h=history[i]; if(!h.recorded && h.net===0) continue;
+    const s2=getDisplaySplit(h);
+    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), h.recorded?'Paid':'Preview']);
   }
   doc.autoTable({
     head:histHead, body:histBody, startY:94, margin:{left:marginX,right:marginX,bottom:44},
@@ -1002,11 +1392,10 @@ function exportFullPDF(retryCount){
   }
 }
 
-/* ══ CHART ═══════════════════════════════════ */
+/* ══ CHART ═══════════════════════════════════
+   Built after buildHistory() resolves, since the trend data now comes
+   from real sales/purchases figures instead of a hardcoded array. */
 if(typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined'){ Chart.register(ChartDataLabels); }
-const ML=['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
-const distVals=[]; const pctVals=[];
-history.slice(0,6).forEach(h=>{ const sp=computeSplit(h.net,h.pct); distVals.push(Math.round(sp.distAmt)); pctVals.push(h.pct); });
 const hideL=id=>{const el=document.getElementById(id);if(el)el.classList.add('hide');};
 const legWire=(lid,ch)=>{
   document.querySelectorAll('#'+lid+' span').forEach(sp=>{
@@ -1021,7 +1410,12 @@ const legWire=(lid,ch)=>{
 const TT={backgroundColor:'#16261e',padding:10,cornerRadius:8,titleFont:{family:'Quicksand',size:12,weight:'700'},bodyFont:{family:'Nunito',size:11.5,weight:'600'}};
 const TX={font:{family:'Nunito',size:11},color:'#9aada5'};
 
-if(typeof Chart !== 'undefined'){
+function buildTrendChart(){
+  if(typeof Chart === 'undefined') return;
+  const ML = history.map(h=>h.m);
+  const distVals = history.map(h=>Math.round(computeSplit(h.net,h.pct).distAmt));
+  const pctVals = history.map(h=>h.pct);
+  if(window.distributionCharts && window.distributionCharts.chTrend){ window.distributionCharts.chTrend.destroy(); }
   const chTrend = new Chart(document.getElementById('cTrend').getContext('2d'),{
     data:{labels:ML,datasets:[
       {type:'bar',label:'Distributed Amount (ETB)',data:distVals,backgroundColor:'#27ae60',borderRadius:5,maxBarThickness:32,yAxisID:'y',datalabels:{anchor:'end',align:'top',offset:2,color:'#16261e',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>v.toLocaleString()}},
@@ -1041,8 +1435,41 @@ if(typeof Chart !== 'undefined'){
   window.distributionCharts = { chTrend };
 }
 
-/* ══ INIT ════════════════════════════════════ */
-renderMonth();
+/* ══ INIT ════════════════════════════════════
+   Loads shareholders + the real cash subledger + owner activity, rolls
+   the cash balance forward from Settings' opening cash, then renders.
+   The header's month picker is built here too, since the list of months
+   is now discovered from real data instead of hardcoded. */
+async function initPage(){
+  await refreshAll();
+
+  renderHeader({
+    title: 'Distribution',
+    subtitle: 'Profit distribution and shareholder summary',
+    showMonthPicker: true,
+    months: MONTHS,
+    selectedMonth: MONTHS[curIdx],
+    onMonthChange: (label) => {
+      const idx = MONTHS.indexOf(label);
+      if (idx === -1) return;
+      curIdx = idx;
+      renderMonth();
+    },
+    notifications: []
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeSidebar();
+      closeExpDrop();
+      document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    }
+  });
+
+  renderMonth();
+  buildTrendChart();
+}
+initPage();
 </script>
 </body>
 </html>
