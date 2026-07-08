@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -334,15 +339,91 @@ async function loadInvItems(){
   }catch(e){ console.error('Failed to load inventory items', e); toast('Could not load inventory items from Supabase','error'); }
 }
 
-async function fetchPeriodSet(filterClause){
-  const [sales, purchases, overhead, petty, lrs] = await Promise.all([
+// ── Usage-based material costing ─────────────────────────────
+// Weighted-average unit cost per material item, computed from purchases
+// within THIS PERIOD ONLY (not cumulative history) — same filterClause as
+// every other query on this page, so WAC, usage, and everything else are
+// all scoped to the same single month (or the same YTD range).
+//
+// GAP THIS COVERS: a month can have zero purchases for an item (bought
+// nothing that month, used existing stock instead) while usage still
+// happened — without a fallback that would silently price it at ETB 0.
+// So: if an item has no purchases THIS period, we carry forward its most
+// recent known unit price from an earlier period (asOfPeriod = the period
+// to search back from). Items that DO have purchases this period are
+// completely unaffected — this only fills gaps, never overrides real data.
+async function fetchWeightedAvgCosts(filterClause, asOfPeriod){
+  const rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type&type=eq.purchase&${filterClause}&is_deleted=eq.false`);
+  const agg = {};
+  rows.filter(p=>approved(p.approval_status)).forEach(p=>{
+    const id = p.item_id;
+    if(!agg[id]) agg[id] = {qty:0, cost:0};
+    agg[id].qty += num(p.quantity);
+    agg[id].cost += num(p.total_cost);
+  });
+  const avgByName = {};
+  Object.entries(agg).forEach(([id, a])=>{
+    const name = INV_ITEMS_MAP[id]?.name;
+    if(name && a.qty > 0) avgByName[name] = a.cost / a.qty;
+  });
+
+  const MATERIAL_NAMES = ['Injera Blend','Corn','Gomen Zere'];
+  const missing = MATERIAL_NAMES.filter(n=>!(n in avgByName));
+  if(missing.length && asOfPeriod){
+    const fallback = await fetchLastKnownCosts(missing, asOfPeriod);
+    Object.assign(avgByName, fallback); // fills gaps only, never overwrites real period data
+  }
+  return avgByName;
+}
+
+// Most recent unit price for the given material names, from any purchase
+// at or before asOfPeriod — used only as a carry-forward fallback when a
+// month has no purchases at all for that item.
+async function fetchLastKnownCosts(names, asOfPeriod){
+  const ids = names
+    .map(n => Object.entries(INV_ITEMS_MAP).find(([id,item])=>item.name===n)?.[0])
+    .filter(Boolean);
+  if(ids.length === 0) return {};
+  const idFilter = ids.map(id=>`item_id.eq.${id}`).join(',');
+  const rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type,date&type=eq.purchase&or=(${idFilter})&period=lte.${asOfPeriod}&is_deleted=eq.false&order=date.desc`);
+  const lastByItem = {};
+  rows.filter(p=>approved(p.approval_status)).forEach(p=>{
+    if(!lastByItem[p.item_id]) lastByItem[p.item_id] = p; // rows are date-desc, so first hit = most recent
+  });
+  const result = {};
+  Object.entries(lastByItem).forEach(([id, p])=>{
+    const name = INV_ITEMS_MAP[id]?.name;
+    if(name && num(p.quantity) > 0) result[name] = num(p.total_cost) / num(p.quantity);
+  });
+  return result;
+}
+
+// Actual quantity of each material consumed in production during the period
+// (confirmed batches only) — the real "usage" side of usage-based COGS.
+async function fetchUsageQty(filterClause){
+  const batches = await sbGet(`production_batches?select=period,is_deleted,production_batch_materials(item_id,quantity_used)&${filterClause}&is_deleted=eq.false`);
+  const qtyByName = {};
+  batches.forEach(b=>{
+    (b.production_batch_materials||[]).forEach(m=>{
+      const name = INV_ITEMS_MAP[m.item_id]?.name;
+      if(!name) return;
+      qtyByName[name] = (qtyByName[name]||0) + num(m.quantity_used);
+    });
+  });
+  return qtyByName;
+}
+
+async function fetchPeriodSet(filterClause, asOfPeriod){
+  const [sales, purchases, overhead, petty, lrs, usageQty, avgCosts] = await Promise.all([
     sbGet(`sales?select=product_type,revenue&${filterClause}&is_deleted=eq.false`),
     sbGet(`purchases?select=type,total_cost,approval_status,item_id,expense_categories(name)&${filterClause}&is_deleted=eq.false`),
     sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
     sbGet(`petty_cash?select=amount,expense_categories(name)&${filterClause}`),
-    sbGet(`loan_repayment_schedule?select=interest_portion,status&${filterClause}`)
+    sbGet(`loan_repayment_schedule?select=interest_portion,status&${filterClause}`),
+    fetchUsageQty(filterClause),
+    fetchWeightedAvgCosts(filterClause, asOfPeriod)
   ]);
-  return {sales, purchases, overhead, petty, lrs};
+  return {sales, purchases, overhead, petty, lrs, usageQty, avgCosts};
 }
 
 // ── Core P&L aggregation (IAS 2 basis: overhead lives in COGS, never OpEx) ──
@@ -366,14 +447,21 @@ function calcFigures(d){
   const injeraRevenue = d.sales.filter(s=>s.product_type==='injera').reduce((s,r)=>s+num(r.revenue),0);
   const derkoshRevenue = d.sales.filter(s=>s.product_type==='derkosh').reduce((s,r)=>s+num(r.revenue),0);
 
+  // Raw materials: usage-based COGS = qty actually consumed in confirmed
+  // production batches × weighted-average unit cost (matching principle —
+  // this no longer double-counts stockpiled purchases as COGS in the wrong month).
+  const injeraBlend = (d.usageQty['Injera Blend']||0) * (d.avgCosts['Injera Blend']||0);
+  const corn = (d.usageQty['Corn']||0) * (d.avgCosts['Corn']||0);
+  const gomenZere = (d.usageQty['Gomen Zere']||0) * (d.avgCosts['Gomen Zere']||0);
+
+  // Packaging: no per-batch consumption tracking exists in the schema yet
+  // (production_batches has no bag-usage field), so this stays spend-based —
+  // money spent on bags that period. Revisit once bag usage is tracked per batch.
   const itemMap = {};
   d.purchases.filter(p=>p.type==='purchase' && approved(p.approval_status)).forEach(p=>{
     const name = INV_ITEMS_MAP[p.item_id]?.name || 'Other';
     itemMap[name] = (itemMap[name]||0) + num(p.total_cost);
   });
-  const injeraBlend = itemMap['Injera Blend']||0;
-  const corn = itemMap['Corn']||0;
-  const gomenZere = itemMap['Gomen Zere']||0;
   const packaging = (itemMap['Small Bags']||0) + (itemMap['Large Bags']||0);
 
   const ohMap = {};
@@ -556,9 +644,9 @@ async function refreshPL(){
 
   try{
     const [monthData, prevData, ytdData] = await Promise.all([
-      fetchPeriodSet(`period=eq.${period}`),
-      fetchPeriodSet(`period=eq.${prevP}`),
-      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`)
+      fetchPeriodSet(`period=eq.${period}`, period),
+      fetchPeriodSet(`period=eq.${prevP}`, prevP),
+      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`, period)
     ]);
 
     let cur = calcFigures(monthData);
