@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,7 +159,7 @@
           </div>
           <div style="text-align:right">
             <div class="pl-currency">Currency: ETB</div>
-            <div class="demo-badge" id="demoBadge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Demo Data</div>
+
           </div>
         </div>
         <div class="pl-table-wrap">
@@ -413,13 +408,25 @@ async function fetchUsageQty(filterClause){
   return qtyByName;
 }
 
-async function fetchPeriodSet(filterClause, asOfPeriod){
+// loan_repayment_schedule has no `period` column — only `due_date`. Build the
+// equivalent date-range filter from the YYYY-MM period string this page uses
+// everywhere else, so it stays in sync with the sales/purchases/overhead windows.
+function periodToDueDateRange(startPeriod, endPeriod){
+  const [sy, sm] = startPeriod.split('-').map(Number);
+  const [ey, em] = endPeriod.split('-').map(Number);
+  const startDate = `${sy}-${String(sm).padStart(2,'0')}-01`;
+  const endLastDay = new Date(ey, em, 0).getDate(); // day 0 of next month = last day of this month
+  const endDate = `${ey}-${String(em).padStart(2,'0')}-${String(endLastDay).padStart(2,'0')}`;
+  return `due_date=gte.${startDate}&due_date=lte.${endDate}`;
+}
+
+async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
   const [sales, purchases, overhead, petty, lrs, usageQty, avgCosts] = await Promise.all([
     sbGet(`sales?select=product_type,revenue&${filterClause}&is_deleted=eq.false`),
     sbGet(`purchases?select=type,total_cost,approval_status,item_id,expense_categories(name)&${filterClause}&is_deleted=eq.false`),
     sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
     sbGet(`petty_cash?select=amount,expense_categories(name)&${filterClause}`),
-    sbGet(`loan_repayment_schedule?select=interest_portion,status&${filterClause}`),
+    sbGet(`loan_repayment_schedule?select=interest_portion,status&${loanDateClause}`),
     fetchUsageQty(filterClause),
     fetchWeightedAvgCosts(filterClause, asOfPeriod)
   ]);
@@ -644,56 +651,40 @@ async function refreshPL(){
 
   try{
     const [monthData, prevData, ytdData] = await Promise.all([
-      fetchPeriodSet(`period=eq.${period}`, period),
-      fetchPeriodSet(`period=eq.${prevP}`, prevP),
-      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`, period)
+      fetchPeriodSet(`period=eq.${period}`, period, periodToDueDateRange(period, period)),
+      fetchPeriodSet(`period=eq.${prevP}`, prevP, periodToDueDateRange(prevP, prevP)),
+      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`, period, periodToDueDateRange(yearStart, period))
     ]);
 
-    let cur = calcFigures(monthData);
-    let prev = calcFigures(prevData);
-    let ytd = calcFigures(ytdData);
-    let isDemo = false;
+    const cur = calcFigures(monthData);
+    const prev = calcFigures(prevData);
+    const ytd = calcFigures(ytdData);
 
-    // No live records for this month yet (common before real entries exist) —
-    // fall back to demo figures rather than showing an all-zero statement.
-    if(cur.totalRevenue === 0 && ytd.totalRevenue === 0){
-      cur = demoFiguresForMonth(period);
-      prev = demoFiguresForMonth(prevP);
-      ytd = demoFiguresForYTD(period);
-      isDemo = true;
-    }
-
-    LAST = {cur, ytd, period, isDemo};
+    LAST = {cur, ytd, period, isDemo:false};
     renderTable(cur, ytd);
     renderProfitSummary(cur, prev);
     renderYTD(ytd);
     updateHeaderLabels(period, yearStart);
-    setDemoBadge(isDemo);
+    setDemoBadge(false);
+
+    // Honest empty state — no fabricated figures, just a plain notice.
+    if(cur.totalRevenue === 0 && ytd.totalRevenue === 0){
+      toast('No entries recorded yet for this period','info');
+    }
   }catch(err){
     console.error('P&L refresh failed', err);
-    // Supabase unreachable — show demo figures instead of a dead page.
-    try{
-      const cur = demoFiguresForMonth(period);
-      const prev = demoFiguresForMonth(prevP);
-      const ytd = demoFiguresForYTD(period);
-      LAST = {cur, ytd, period, isDemo:true};
-      renderTable(cur, ytd);
-      renderProfitSummary(cur, prev);
-      renderYTD(ytd);
-      updateHeaderLabels(period, yearStart);
-      setDemoBadge(true);
-      toast('Could not reach Supabase — showing demo data','error');
-    }catch(err2){
-      document.getElementById('plBody').innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tl)">Could not load P&amp;L data — ${err.message}</td></tr>`;
-      toast('Could not load P&L data','error');
-    }
+    const msg = `Could not load P&amp;L data — ${err.message}`;
+    document.getElementById('plBody').innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tl)">${msg}</td></tr>`;
+    document.getElementById('psBody').innerHTML = `<div class="ps-item"><div class="ps-mid"><div class="ps-lbl" style="color:var(--tl)">Could not load</div></div></div>`;
+    document.getElementById('ytdBody').innerHTML = `<div class="ytd-row"><span class="yl" style="color:var(--tl)">Could not load</span></div>`;
+    toast('Could not load P&L data from Supabase','error');
   }
 }
 
 // ── Quick Actions: Excel / PDF / Print ───────────────────
 function exportExcel(retryCount){
   retryCount = retryCount || 0;
-  if(!LAST) return;
+  if(!LAST){ toast('Statement is still loading — try again in a moment','info'); return; }
   if(typeof XLSX === 'undefined'){
     if(retryCount < 6){
       setTimeout(()=>exportExcel(retryCount+1), 400);
@@ -764,7 +755,7 @@ function exportExcel(retryCount){
 
 async function exportPDF(retryCount){
   retryCount = retryCount || 0;
-  if(!LAST) return;
+  if(!LAST){ toast('Statement is still loading — try again in a moment','info'); return; }
   if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
     if(retryCount < 6){
       setTimeout(()=>exportPDF(retryCount+1), 400);
@@ -908,20 +899,39 @@ function printStatement(){
 }
 
 document.addEventListener('DOMContentLoaded', async ()=>{
-  renderHeader({
-    title: 'P&L Statement',
-    subtitle: 'Profit and Loss Statement',
-    showMonthPicker: true,
-    months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-    selectedMonth: 'May 2026',
-    onMonthChange: () => refreshPL(),
-    notifications: [
-      { type:'o', title:'Expense approval pending', sub:'Rent — 5,000.00 ETB', time:'25 min ago' },
-      { type:'g', title:'May statement ready', sub:'Net Profit: 29,669.00 ETB', time:'3 hrs ago' }
-    ]
-  });
+  try{
+    if(typeof renderHeader === 'function'){
+      renderHeader({
+        title: 'P&L Statement',
+        subtitle: 'Profit and Loss Statement',
+        showMonthPicker: true,
+        months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
+        selectedMonth: 'Jul 2026',
+        onMonthChange: () => refreshPL(),
+        notifications: [
+          { type:'o', title:'Expense approval pending', sub:'Rent — 5,000.00 ETB', time:'25 min ago' },
+          { type:'g', title:'May statement ready', sub:'Net Profit: 29,669.00 ETB', time:'3 hrs ago' }
+        ]
+      });
+    } else {
+      console.error('renderHeader() is not available — /js/header.js did not load. Header/nav will be missing but the P&L data will still load below.');
+    }
+  }catch(e){
+    console.error('Header failed to render — continuing to load P&L data anyway.', e);
+  }
+
   document.getElementById('userPanelProfile')?.addEventListener('click', () => window.location.href = 'settings.html');
-  await loadInvItems();
+
+  try{
+    await loadInvItems();
+  }catch(e){
+    console.error('Failed to load inventory items — continuing anyway.', e);
+  }
+
+  // Always attempt the P&L load, no matter what happened above — this is
+  // the fix for the page getting stuck on "Loading…" forever: previously,
+  // if renderHeader() threw (e.g. missing /js/header.js), the whole
+  // DOMContentLoaded handler aborted right there and refreshPL() never ran.
   refreshPL();
 });
 </script>
