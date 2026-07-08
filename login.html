@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mena Injera & Derkosh — Sign In</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Mena Injera & Derkosh — Sign In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -119,7 +119,7 @@
     font-size:11px;font-weight:700;color:var(--tm);cursor:pointer;
   }
   .lang svg{width:12px;height:12px;stroke:var(--tm);fill:none;stroke-width:2}
-  .card.success-mode .lang{display:none}
+  .card.success-mode .lang,.card.alt-mode .lang{display:none}
 
   /* ---- Login form state ---- */
   #view-login h2{font-size:27px;font-weight:800;color:var(--td);margin-bottom:6px}
@@ -174,6 +174,20 @@
   .err-banner.show{display:flex}
   .err-banner svg{width:15px;height:15px;stroke:var(--red);fill:none;stroke-width:2;flex-shrink:0;margin-top:1px}
   .err-banner .txt{font-size:11.5px;color:#b3261e;font-weight:600;line-height:1.4}
+
+  .ok-banner{
+    display:none;align-items:flex-start;gap:8px;background:#e5f5ed;border:1px solid #b8e6cb;
+    border-radius:9px;padding:10px 12px;margin-bottom:clamp(10px,1.8vh,16px);
+  }
+  .ok-banner.show{display:flex}
+  .ok-banner svg{width:15px;height:15px;stroke:var(--green);fill:none;stroke-width:2;flex-shrink:0;margin-top:1px}
+  .ok-banner .txt{font-size:11.5px;color:#1a6b3c;font-weight:600;line-height:1.4}
+
+  #view-forgot h2,#view-reset h2{font-size:23px;font-weight:800;color:var(--td);margin-bottom:6px}
+  #view-forgot .lead,#view-reset .lead{font-size:13px;color:var(--tm);margin-bottom:clamp(16px,2.6vh,26px);line-height:1.5}
+  .back-link{text-align:center;margin-top:clamp(14px,2.2vh,20px)}
+  .back-link a{font-size:12.5px;font-weight:700;color:var(--green);text-decoration:none}
+  .back-link a:hover{text-decoration:underline}
 
   .field.invalid input{border-color:var(--red)}
   .shake{animation:shake .35s}
@@ -312,6 +326,11 @@
 
         <form id="loginForm" novalidate>
 
+          <div class="ok-banner" id="loginOkBanner">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            <div class="txt" id="loginOkMsg"></div>
+          </div>
+
           <div class="err-banner" id="errBanner">
             <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
             <div class="txt" id="errMsg"></div>
@@ -328,7 +347,7 @@
           <div class="field" id="pwField">
             <div class="field-hd">
               <label>Password</label>
-              <a href="#">Forgot Password?</a>
+              <a href="#" id="forgotLink">Forgot Password?</a>
             </div>
             <div class="row">
               <svg class="ic-l" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -415,6 +434,77 @@
         <p class="warn-txt">If you are not <span id="warnName">this user</span>, please <a href="#" id="logoutLink">log out</a> and try again.</p>
       </div>
 
+      <!-- FORGOT PASSWORD STATE -->
+      <div id="view-forgot" style="display:none">
+        <h2>Reset Password</h2>
+        <p class="lead">Enter your email address and we'll send you a link to reset your password</p>
+
+        <form id="forgotForm" novalidate>
+
+          <div class="err-banner" id="forgotErrBanner">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            <div class="txt" id="forgotErrMsg"></div>
+          </div>
+
+          <div class="ok-banner" id="forgotOkBanner">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            <div class="txt" id="forgotOkMsg"></div>
+          </div>
+
+          <div class="field" id="forgotEmailField">
+            <label>Email Address</label>
+            <div class="row">
+              <svg class="ic-l" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+              <input id="forgotEmail" type="email" placeholder="Enter your email address" autocomplete="username" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-signin" id="forgotBtn">
+            <svg id="forgotBtnIcon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" opacity="0"/><path d="M3 7l9 6 9-6M3 7v10h18V7"/></svg>
+            <span id="forgotBtnLabel">Send Reset Link</span>
+          </button>
+        </form>
+
+        <p class="back-link"><a href="#" id="backToLoginFromForgot">&larr; Back to Sign In</a></p>
+      </div>
+
+      <!-- SET NEW PASSWORD STATE -->
+      <div id="view-reset" style="display:none">
+        <h2>Set New Password</h2>
+        <p class="lead">Choose a new password for your account</p>
+
+        <form id="resetForm" novalidate>
+
+          <div class="err-banner" id="resetErrBanner">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            <div class="txt" id="resetErrMsg"></div>
+          </div>
+
+          <div class="field" id="newPwField">
+            <label>New Password</label>
+            <div class="row">
+              <svg class="ic-l" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input id="newPw" type="password" placeholder="Enter new password" autocomplete="new-password" required>
+              <svg class="ic-r" id="newPwToggle" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          </div>
+
+          <div class="field" id="confirmPwField">
+            <label>Confirm New Password</label>
+            <div class="row">
+              <svg class="ic-l" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input id="confirmPw" type="password" placeholder="Re-enter new password" autocomplete="new-password" required>
+              <svg class="ic-r" id="confirmPwToggle" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-signin" id="resetBtn">
+            <svg id="resetBtnIcon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <span id="resetBtnLabel">Update Password</span>
+          </button>
+        </form>
+      </div>
+
     </div>
   </div>
 
@@ -450,9 +540,41 @@
     pw.type = pw.type === 'password' ? 'text' : 'password';
   });
 
+  const newPw = document.getElementById('newPw');
+  document.getElementById('newPwToggle').addEventListener('click', () => {
+    newPw.type = newPw.type === 'password' ? 'text' : 'password';
+  });
+  const confirmPw = document.getElementById('confirmPw');
+  document.getElementById('confirmPwToggle').addEventListener('click', () => {
+    confirmPw.type = confirmPw.type === 'password' ? 'text' : 'password';
+  });
+
   const viewLogin = document.getElementById('view-login');
   const viewSuccess = document.getElementById('view-success');
+  const viewForgot = document.getElementById('view-forgot');
+  const viewReset = document.getElementById('view-reset');
   const card = document.getElementById('card');
+
+  function showLoginView(){
+    viewLogin.style.display = 'block';
+    viewForgot.style.display = 'none';
+    viewReset.style.display = 'none';
+    card.classList.remove('alt-mode');
+  }
+  function showForgotView(){
+    viewLogin.style.display = 'none';
+    viewForgot.style.display = 'block';
+    viewReset.style.display = 'none';
+    card.classList.add('alt-mode');
+    document.getElementById('forgotErrBanner').classList.remove('show');
+    document.getElementById('forgotOkBanner').classList.remove('show');
+  }
+  function showResetView(){
+    viewLogin.style.display = 'none';
+    viewForgot.style.display = 'none';
+    viewReset.style.display = 'block';
+    card.classList.add('alt-mode');
+  }
   const brandBlock = document.getElementById('brandBlock');
   const badgesBlock = document.getElementById('badgesBlock');
 
@@ -470,8 +592,37 @@
   const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
 
+  // Detect a Supabase password-recovery link landing on this page
+  // (arrives as a URL hash like #access_token=...&type=recovery&...)
+  let recoveryAccessToken = null;
+  const isRecoveryLink = window.location.hash.includes('type=recovery');
+
+  (function checkRecoveryLink(){
+    if (!isRecoveryLink) return;
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const token = params.get('access_token');
+    const errDesc = params.get('error_description');
+
+    if (token){
+      recoveryAccessToken = token;
+      showResetView();
+    } else {
+      showForgotView();
+      const errBanner = document.getElementById('forgotErrBanner');
+      const errMsgEl = document.getElementById('forgotErrMsg');
+      errMsgEl.textContent = errDesc
+        ? decodeURIComponent(errDesc.replace(/\+/g, ' '))
+        : 'This reset link is invalid or has expired. Please request a new one.';
+      errBanner.classList.add('show');
+    }
+    // Strip the token out of the URL so it isn't left visible or bookmarkable
+    history.replaceState(null, '', window.location.pathname);
+  })();
+
   // Redirect straight to the dashboard if a valid, non-expired session already exists
+  // (skip this if the user just arrived via a password-recovery link)
   (function checkExistingSession(){
+    if (isRecoveryLink) return;
     const existing = loadSession();
     if (existing && existing.access_token && existing.hard_expiry > Date.now()){
       window.location.href = 'dashboard.html';
@@ -599,6 +750,7 @@
 
   function clearErrors(){
     errBanner.classList.remove('show');
+    document.getElementById('loginOkBanner').classList.remove('show');
     emailField.classList.remove('invalid');
     pwField.classList.remove('invalid');
   }
@@ -742,6 +894,133 @@
         window.location.href = 'dashboard.html';
       }
     }, 50);
+  });
+
+  // ---- Forgot Password / Reset Password wiring ----
+  document.getElementById('forgotLink').addEventListener('click', function(e){
+    e.preventDefault();
+    document.getElementById('forgotEmail').value = emailInput.value || '';
+    showForgotView();
+  });
+
+  document.getElementById('backToLoginFromForgot').addEventListener('click', function(e){
+    e.preventDefault();
+    showLoginView();
+  });
+
+  document.getElementById('forgotForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const email = document.getElementById('forgotEmail').value.trim();
+    const errBanner = document.getElementById('forgotErrBanner');
+    const errMsgEl = document.getElementById('forgotErrMsg');
+    const okBanner = document.getElementById('forgotOkBanner');
+    errBanner.classList.remove('show');
+    okBanner.classList.remove('show');
+
+    if (!email){
+      errMsgEl.textContent = 'Please enter your email address.';
+      errBanner.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('forgotBtn');
+    const label = document.getElementById('forgotBtnLabel');
+    btn.disabled = true;
+    label.textContent = 'Sending…';
+
+    try {
+      // redirectTo points back at this same page — the recovery link will
+      // land here with #access_token=...&type=recovery in the URL hash
+      const redirectTo = window.location.origin + window.location.pathname;
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      // Supabase returns 200 whether or not the email exists, to prevent
+      // account enumeration — so we always show the same neutral message.
+      if (res.ok){
+        document.getElementById('forgotOkMsg').textContent =
+          'If an account exists for that email, a password reset link has been sent. Please check your inbox.';
+        okBanner.classList.add('show');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        errMsgEl.textContent = data.msg || data.error_description || 'Something went wrong. Please try again.';
+        errBanner.classList.add('show');
+      }
+    } catch (err) {
+      errMsgEl.textContent = 'Could not reach the server. Check your internet connection and try again.';
+      errBanner.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      label.textContent = 'Send Reset Link';
+    }
+  });
+
+  document.getElementById('resetForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const newPwVal = newPw.value;
+    const confirmPwVal = confirmPw.value;
+    const errBanner = document.getElementById('resetErrBanner');
+    const errMsgEl = document.getElementById('resetErrMsg');
+    errBanner.classList.remove('show');
+
+    if (!newPwVal || newPwVal.length < 6){
+      errMsgEl.textContent = 'Password must be at least 6 characters.';
+      errBanner.classList.add('show');
+      return;
+    }
+    if (newPwVal !== confirmPwVal){
+      errMsgEl.textContent = 'Passwords do not match.';
+      errBanner.classList.add('show');
+      return;
+    }
+    if (!recoveryAccessToken){
+      errMsgEl.textContent = 'This reset link is invalid or has expired. Please request a new one.';
+      errBanner.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('resetBtn');
+    const label = document.getElementById('resetBtnLabel');
+    btn.disabled = true;
+    label.textContent = 'Updating…';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${recoveryAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: newPwVal })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok){
+        recoveryAccessToken = null;
+        showLoginView();
+        if (data.email) emailInput.value = data.email;
+        document.getElementById('loginOkMsg').textContent =
+          'Password updated successfully. Please sign in with your new password.';
+        document.getElementById('loginOkBanner').classList.add('show');
+      } else {
+        errMsgEl.textContent = data.msg || data.error_description || data.message ||
+          'Could not update password. The link may have expired — please request a new one.';
+        errBanner.classList.add('show');
+      }
+    } catch (err) {
+      errMsgEl.textContent = 'Could not reach the server. Check your internet connection and try again.';
+      errBanner.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      label.textContent = 'Update Password';
+    }
   });
 
   document.getElementById('logoutLink').addEventListener('click', function(e){
