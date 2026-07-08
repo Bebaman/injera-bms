@@ -1575,7 +1575,7 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('cli
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(ov=>closeModal(ov.id));});
 
 // ══ NOTIFICATIONS ─────────────────────────────────────────
-const NOTIF_ICONS={
+const PC_NOTIF_ICONS={
   warn:'<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   danger:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
   info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
@@ -1626,7 +1626,7 @@ function renderNotifications(){
     list.innerHTML='<div class="notif-empty"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>All clear — no alerts right now.</div>';
     return;
   }
-  list.innerHTML=alerts.map((a,i)=>`<div class="notif-item sev-${a.sev}" onclick="fireNotifAction(${i})"><div class="notif-ico">${NOTIF_ICONS[a.sev]}</div><div class="notif-bd"><strong>${x(a.title)}</strong><p>${x(a.msg)}</p></div></div>`).join('');
+  list.innerHTML=alerts.map((a,i)=>`<div class="notif-item sev-${a.sev}" onclick="fireNotifAction(${i})"><div class="notif-ico">${PC_NOTIF_ICONS[a.sev]}</div><div class="notif-bd"><strong>${x(a.title)}</strong><p>${x(a.msg)}</p></div></div>`).join('');
   window.__notifAlerts=alerts;
 }
 function fireNotifAction(i){const a=window.__notifAlerts&&window.__notifAlerts[i];if(a&&a.action)a.action();else closeNotifPanel();}
