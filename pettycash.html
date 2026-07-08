@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Petty Cash — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Petty Cash — Mena Injera & Derkosh BMS</title>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <script src="/js/app-state.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -181,9 +181,9 @@ body.offline .offline-bar{display:flex}
 
 /* BARS */
 .bar-list{padding:4px 17px 10px}
-.bar-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.bar-row{display:flex;align-items:center;gap:10px;padding:7px 0;flex-wrap:wrap}
 .bar-name{width:112px;flex-shrink:0;font-size:var(--fs-base);font-weight:600;color:var(--tm)}
-.bar-track{flex:1;height:18px;background:#eef3f0;border-radius:5px;overflow:hidden}
+.bar-track{flex:1;height:18px;background:#eef3f0;border-radius:5px;overflow:hidden;min-width:40px}
 .bar-fill{height:100%;border-radius:5px;width:0;transition:width 1.1s cubic-bezier(.22,.61,.36,1)}
 .bar-val{font-size:11px;font-weight:700;color:var(--td);white-space:nowrap;width:150px;text-align:right;flex-shrink:0}
 
@@ -218,6 +218,7 @@ body.offline .offline-bar{display:flex}
 /* FILTER PANEL */
 .filter-panel{display:none;padding:0 17px 14px;border-bottom:1px solid var(--border);background:#fafcfb}
 .filter-panel.open{display:block;animation:fadeUp .25s ease}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
 
 /* EXPORT DROPDOWN */
 .export-wrap{position:relative;display:inline-flex}
@@ -320,18 +321,51 @@ body.offline .offline-bar{display:flex}
 .footer{text-align:center;padding:13px;font-size:var(--fs-xs);color:var(--tl);border-top:1px solid var(--border);background:#fff}
 
 /* RESPONSIVE */
+/* Large tablet / small laptop (iPad landscape ≈1024px and similar) */
 @media(max-width:1180px){.kpi-row{grid-template-columns:repeat(3,1fr)}.bot-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:1100px){.pc-grid{grid-template-columns:1fr}}
+
+/* Tablet portrait (iPad ≈768–900px) */
 @media(max-width:900px){
   .kpi-row{grid-template-columns:repeat(2,1fr)}.bot-grid{grid-template-columns:1fr}.qa-g{grid-template-columns:repeat(2,1fr)}
   .stat-pill{display:none}.uchip-txt{display:none}.tb-ttl p{display:none}
+  .filter-grid{grid-template-columns:1fr 1fr}
+  .filter-grid>.f-grp:nth-child(1){grid-column:1/-1}
 }
+
+/* Phone (portrait & landscape, ≤640px) */
 @media(max-width:640px){
   .kpi-row{grid-template-columns:1fr 1fr}.bot-grid{grid-template-columns:1fr}.f-row{grid-template-columns:1fr}
   .content{padding:12px 14px}.topbar{padding:0 14px;gap:8px}
   .qa-g{grid-template-columns:repeat(2,1fr)}.hd-actions .btn span{display:none}.hd-actions .btn{padding:8px 10px}
   .pc-grid{grid-template-columns:1fr}
+  .filter-grid{grid-template-columns:1fr}
+  .filter-grid>.f-grp:nth-child(1){grid-column:auto}
+  /* Bigger touch targets for row/pagination controls */
+  .row-act{width:32px;height:32px}
+  .pg-b{min-width:34px;height:34px}
+  .row-actions{gap:6px}
+  /* Keep category bars from being clipped by the card's overflow:hidden on narrow widths */
+  .bar-name{width:auto;flex:1 1 auto;min-width:70px}
+  .bar-val{width:auto;flex:0 0 auto}
+  .bar-track{flex:1 1 100%;order:3}
+  .exp-bd{flex-wrap:wrap;justify-content:center}
+  .modal{max-width:100%}
+  .notif-panel{width:min(320px,calc(100vw - 32px));right:-8px}
 }
+
+/* Small phones (≤420px, e.g. iPhone SE) */
+@media(max-width:420px){
+  .kpi-row{grid-template-columns:1fr}
+  .qa-g{grid-template-columns:1fr 1fr;gap:7px}
+  .qa-b{padding:11px 6px;font-size:12px}
+  .kc-val{font-size:calc(var(--fs-xl) - 2px)}
+  .card-ttl{font-size:13px}
+  .exp-item span small{white-space:normal}
+}
+
+/* Smooth momentum scrolling for horizontally/vertically scrollable panels on iOS */
+.tbl-wrap,.notif-panel,.modal{-webkit-overflow-scrolling:touch}
 .print-hd{display:none}
 @media print{
   .sb,.topbar,.toast-stack,.modal-overlay,.qa-g,.hd-actions,.pg-bar,.row-actions,.export-menu,.notif-panel,.filter-panel,.info-strip{display:none!important}
@@ -480,7 +514,7 @@ body.offline .offline-bar{display:flex}
           </div>
         </div>
         <div class="filter-panel" id="filterPanel">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end">
+          <div class="filter-grid">
             <div class="f-grp"><label>Category</label>
               <select id="fCat" onchange="applyFilter()">
                 <option value="">All Categories</option>
@@ -777,7 +811,25 @@ function num(v){return v===null||v===undefined||v===''?0:Number(v);}
 function sum(rows,field){return (rows||[]).reduce((s,r)=>s+num(r[field]),0);}
 
 // ══ SESSION (loadSession/clearSession now come from app-state.js) ─────────
-let SESSION=loadSession();
+// GUARDED the same way sbFetch() above already guards its own loadSession()
+// call. Previously this was a bare `let SESSION=loadSession();` — if that
+// threw for ANY reason (app-state.js not yet loaded, blocked, or throwing on
+// a corrupted localStorage session), it silently halted every top-level
+// statement after it in this script block, which meant every addEventListener
+// setup below (menu close-on-outside-click, Escape-to-close, online/offline
+// sync) AND the DOMContentLoaded→loadAll() call at the very bottom of the
+// file never ran. Net effect: page paints, but nothing loads and no button
+// does anything — exactly the symptom reported. This can no longer happen.
+let SESSION=null;
+try{
+  if(typeof loadSession!=='function'){
+    throw new Error('loadSession() is undefined — /js/app-state.js did not load before this script ran.');
+  }
+  SESSION=loadSession();
+}catch(e){
+  console.error('[pettycash] session init failed — continuing in a degraded (logged-out) state so the rest of the page still works',e);
+  setTimeout(()=>showToast('error','Session Check Failed',e.message+' — try refreshing the page.'),300);
+}
 
 // ══ CONSTANTS ─────────────────────────────────────────────
 const CATS   = ['Transport','Communication','Packaging','Refreshments','Maintenance','Office Supplies','Other'];
