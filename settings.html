@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Mena ERP</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Settings — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -200,6 +200,20 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 @media (max-width:480px){
   .qa-grid{grid-template-columns:1fr 1fr}
 }
+
+/* ══ SYSTEM INFO / DATA MGMT (added) ══════════════════ */
+.kv-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f5f2;font-size:12.5px}
+.kv-row:last-child{border-bottom:none}
+.kv-lbl{color:var(--tl);font-weight:600}
+.kv-val{color:var(--td);font-weight:700}
+.stat-dot-sm{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0}
+.log-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f5f2;font-size:12px}
+.log-row:last-child{border-bottom:none}
+.log-txt{flex:1;min-width:0}
+.log-main{color:var(--td);font-weight:600}
+.log-sub{color:var(--tl);font-size:10.5px;margin-top:1px}
+.log-time{color:var(--tl);font-size:10.5px;white-space:nowrap;flex-shrink:0}
+.empty-note{padding:18px;text-align:center;color:var(--tl);font-size:12px}
 </style>
 </head>
 <body>
@@ -222,88 +236,46 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
     <!-- ══ BUSINESS SETTINGS PANE ══ -->
     <div class="set-pane active" id="pane-business">
-
       <div class="settings-grid">
         <!-- Business Information -->
-        <div class="card" style="grid-column:span 1">
+        <div class="card">
           <div class="card-hd"><div class="card-ttl">Business Information</div></div>
           <div class="card-bd">
             <div class="f-row">
-              <div class="f-grp">
-                <label>Business Name</label>
-                <input type="text" id="bizName" value="Mena Injera &amp; Derkosh">
-              </div>
-              <div class="f-grp">
-                <label>Business Currency</label>
-                <select id="bizCurrency" disabled>
-                  <option selected>ETB - Ethiopian Birr</option>
-                </select>
-              </div>
+              <div class="f-grp"><label>Business Name</label><input type="text" id="bizName"></div>
+              <div class="f-grp"><label>Business Currency</label><select id="bizCurrency" disabled><option selected>ETB - Ethiopian Birr</option></select></div>
             </div>
             <div class="f-row">
               <div class="f-grp">
                 <label>Fiscal Year Start Month</label>
                 <select id="bizFiscalStart">
-                  <option selected>January</option><option>February</option><option>March</option>
+                  <option>January</option><option>February</option><option>March</option>
                   <option>April</option><option>May</option><option>June</option>
                   <option>July</option><option>August</option><option>September</option>
                   <option>October</option><option>November</option><option>December</option>
                 </select>
               </div>
-              <div class="f-grp">
-                <label>Business Timezone</label>
-                <select id="bizTimezone">
-                  <option selected>(UTC+3) Africa / Addis Ababa (EAT)</option>
-                </select>
-              </div>
+              <div class="f-grp"><label>Business Timezone</label><select id="bizTimezone" disabled><option selected>(UTC+3) Africa / Addis Ababa (EAT)</option></select></div>
             </div>
             <div class="f-row">
-              <div class="f-grp">
-                <label>Business Address</label>
-                <textarea id="bizAddress" rows="2">Bole Road, Addis Ababa, Ethiopia</textarea>
-              </div>
-              <div class="f-grp">
-                <label>Phone</label>
-                <input type="text" id="bizPhone" value="+251 91 234 5678">
-              </div>
+              <div class="f-grp"><label>Business Address</label><textarea id="bizAddress" rows="2"></textarea></div>
+              <div class="f-grp"><label>Phone</label><input type="text" id="bizPhone"></div>
             </div>
             <div class="f-row">
-              <div class="f-grp">
-                <label>Email</label>
-                <input type="email" id="bizEmail" value="info@menainjera.com">
-              </div>
-              <div class="f-grp">
-                <label>Website (Optional)</label>
-                <input type="text" id="bizWebsite" value="www.menainjera.com">
-              </div>
-            </div>
-            <div class="f-row">
-              <div class="f-grp">
-                <label>Notification Email</label>
-                <input type="email" id="notifEmail" value="owner@menainjera.com">
-                <span class="hint">Where email alerts (low stock, credit overdue, approvals) are sent.</span>
-              </div>
-              <div class="f-grp">
-                <label>Notification Phone</label>
-                <input type="text" id="notifPhone" value="+251 91 234 5678">
-                <span class="hint">Where SMS alerts are sent.</span>
-              </div>
+              <div class="f-grp"><label>Email</label><input type="email" id="bizEmail"></div>
+              <div class="f-grp"><label>Website (Optional)</label><input type="text" id="bizWebsite"></div>
             </div>
           </div>
         </div>
 
         <!-- Shareholders & Ownership -->
-        <div class="card" style="grid-column:span 1">
+        <div class="card">
           <div class="card-hd"><div class="card-ttl">Shareholders &amp; Ownership</div></div>
           <div class="card-bd" style="padding-bottom:14px">
             <table class="tbl" id="shareholderTbl">
-              <thead>
-                <tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th><th></th></tr>
-              </thead>
+              <thead><tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th><th></th></tr></thead>
               <tbody id="shareholderBody"></tbody>
-              <tfoot>
-                <tr class="tot"><td colspan="2">Total Ownership</td><td colspan="3" class="tot-own" id="totalOwnership">100.00%</td></tr>
-              </tfoot>
+              <tfoot><tr class="tot"><td colspan="2">Total Ownership</td><td colspan="3" class="tot-own" id="totalOwnership">100.00%</td></tr></tfoot>
             </table>
             <button class="btn-add" onclick="openShareholderModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -313,18 +285,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         </div>
 
         <!-- Distribution Settings -->
-        <div class="card" style="grid-column:span 1">
+        <div class="card">
           <div class="card-hd"><div class="card-ttl">Distribution Settings</div></div>
           <div class="card-bd">
             <div class="f-grp" style="margin-bottom:14px">
               <label>Default Distribution %</label>
-              <div class="f-suffix"><input type="number" id="defaultDistPct" value="10.00" step="0.01"><span class="sfx">%</span></div>
+              <div class="f-suffix"><input type="number" id="defaultDistPct" step="0.01"><span class="sfx">%</span></div>
               <span class="hint">Default percentage of net cash profit to distribute each month.</span>
-            </div>
-            <div class="f-grp" style="margin-bottom:14px">
-              <label>Current Month Override % (<span id="overrideMonthLbl">May 2026</span>)</label>
-              <div class="f-suffix"><input type="number" id="overrideDistPct" value="10.00" step="0.01"><span class="sfx">%</span></div>
-              <span class="hint">Leave blank to use default.</span>
             </div>
             <div class="info-box">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -332,209 +299,33 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="settings-grid">
         <!-- Opening Balances -->
         <div class="card">
-          <div class="card-hd"><div class="card-ttl">Opening Balances (At Start of System)</div></div>
+          <div class="card-hd"><div class="card-ttl">Opening Balances <span id="obPeriodLbl" style="font-size:10.5px;color:var(--tl);font-weight:600"></span></div></div>
           <div class="card-bd">
             <div class="bal-row">
               <div class="bal-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
               <div class="bal-lbl">Cash on Hand</div>
-              <div class="bal-inp"><input type="number" id="obCash" value="5000.00" step="0.01" oninput="recalcOpeningTotal()"></div>
+              <div class="bal-inp"><input type="number" id="obCash" step="0.01" oninput="recalcOpeningTotal()"></div>
               <div class="bal-cur">ETB</div>
             </div>
             <div class="bal-row">
               <div class="bal-ic" style="background:#e0effe"><svg viewBox="0 0 24 24" style="stroke:#2563eb"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>
               <div class="bal-lbl">Bank Account</div>
-              <div class="bal-inp"><input type="number" id="obBank" value="15000.00" step="0.01" oninput="recalcOpeningTotal()"></div>
+              <div class="bal-inp"><input type="number" id="obBank" step="0.01" oninput="recalcOpeningTotal()"></div>
               <div class="bal-cur">ETB</div>
             </div>
             <div class="bal-row">
               <div class="bal-ic" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
               <div class="bal-lbl">Mobile Money</div>
-              <div class="bal-inp"><input type="number" id="obMobile" value="3000.00" step="0.01" oninput="recalcOpeningTotal()"></div>
+              <div class="bal-inp"><input type="number" id="obMobile" step="0.01" oninput="recalcOpeningTotal()"></div>
               <div class="bal-cur">ETB</div>
             </div>
             <div class="bal-total">
               <div class="bal-lbl">Total Opening Balance</div>
-              <div class="bal-total-val" id="obTotal">23,000.00</div>
+              <div class="bal-total-val" id="obTotal">0.00</div>
               <div class="bal-cur" style="color:#27ae60">ETB</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Thresholds & Limits -->
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">Thresholds &amp; Limits</div></div>
-          <div class="card-bd">
-            <div class="thresh-row">
-              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <div class="thresh-txt">
-                <div class="thresh-lbl">Expense Approval Threshold</div>
-                <div class="thresh-hint">Expenses above this amount require owner approval.</div>
-              </div>
-              <div class="thresh-inp"><input type="number" id="threshApproval" value="5000.00" step="0.01"></div>
-              <div class="bal-cur">ETB</div>
-            </div>
-            <div class="thresh-row">
-              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>
-              <div class="thresh-txt">
-                <div class="thresh-lbl">Low Stock Alert Threshold</div>
-                <div class="thresh-hint">Below this % of reorder level = REORDER. Above = LOW.</div>
-              </div>
-              <div class="thresh-inp"><input type="number" id="threshLowStock" value="50" step="1"></div>
-              <div class="bal-cur">%</div>
-            </div>
-            <div class="thresh-row">
-              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-              <div class="thresh-txt">
-                <div class="thresh-lbl">Credit Limit Warning Threshold</div>
-                <div class="thresh-hint">Warn when customer outstanding reaches this % of limit.</div>
-              </div>
-              <div class="thresh-inp"><input type="number" id="threshCredit" value="80" step="1"></div>
-              <div class="bal-cur">%</div>
-            </div>
-            <div class="thresh-row">
-              <div class="thresh-ic"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
-              <div class="thresh-txt">
-                <div class="thresh-lbl">Petty Cash Daily Limit (No Approval)</div>
-                <div class="thresh-hint">Daily petty cash expenses up to this limit do not need approval.</div>
-              </div>
-              <div class="thresh-inp"><input type="number" id="threshPetty" value="1000.00" step="0.01"></div>
-              <div class="bal-cur">ETB</div>
-            </div>
-            <div class="info-box" style="background:#eef6fb;border-color:#cfe6f6;color:#1b6ea6">
-              <svg viewBox="0 0 24 24" style="stroke:#2563eb"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              These thresholds apply across all modules that reference approvals and alerts.
-            </div>
-          </div>
-        </div>
-
-        <!-- Accounting Preferences -->
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">Accounting Preferences</div></div>
-          <div class="card-bd">
-            <div class="acct-row">
-              <div class="acct-txt">
-                <div class="acct-lbl">Use Weighted Average Cost (WAC)</div>
-                <div class="acct-hint">Use WAC for inventory valuation and production costing.</div>
-              </div>
-              <label class="toggle"><input type="checkbox" id="acctWac" checked><span class="tog-slider"></span></label>
-            </div>
-            <div class="acct-row">
-              <div class="acct-txt">
-                <div class="acct-lbl">Activate VAT</div>
-                <div class="acct-hint">Enable VAT tracking on purchases and sales.</div>
-              </div>
-              <label class="toggle"><input type="checkbox" id="acctVat" onchange="toggleVatRateField()"><span class="tog-slider"></span></label>
-            </div>
-            <div class="acct-row" id="vatRateRow" style="opacity:.45">
-              <div class="acct-txt"><div class="acct-lbl">VAT Rate (%)</div></div>
-              <div class="acct-inp"><input type="number" id="acctVatRate" value="15.00" step="0.01" disabled></div>
-            </div>
-            <div class="acct-row">
-              <div class="acct-txt"><div class="acct-lbl">Round Amounts To</div></div>
-              <div class="acct-inp" style="width:150px">
-                <select id="acctRounding">
-                  <option selected>2 Decimal Places (0.01 ETB)</option>
-                  <option>Whole Birr (1 ETB)</option>
-                </select>
-              </div>
-            </div>
-            <div class="acct-row">
-              <div class="acct-txt"><div class="acct-lbl">Bank Charge Default %</div></div>
-              <div class="acct-inp"><input type="number" id="acctBankFee" value="0.50" step="0.01"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- System Preferences -->
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">System Preferences</div></div>
-          <div class="card-bd">
-            <div class="f-grp" style="margin-bottom:12px">
-              <label>Session Timeout (Inactivity)</label>
-              <select id="sysSessionTimeout">
-                <option>1 Hour</option><option>2 Hours</option><option>4 Hours</option><option>8 Hours</option><option>Never</option>
-              </select>
-            </div>
-            <div class="f-grp" style="margin-bottom:12px">
-              <label>Language</label>
-              <select id="sysLanguage"><option selected>English</option><option>Amharic</option></select>
-            </div>
-            <div class="f-grp" style="margin-bottom:12px">
-              <label>Date Format</label>
-              <select id="sysDateFormat"><option selected>MMM DD, YYYY</option><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option></select>
-            </div>
-            <div class="f-grp" style="margin-bottom:12px">
-              <label>Number Format</label>
-              <select id="sysNumberFormat"><option selected>12,345.67</option><option>12.345,67</option></select>
-            </div>
-            <div class="f-grp" style="margin-bottom:12px">
-              <label>Theme</label>
-              <select id="sysTheme"><option selected>Light</option><option>Dark</option></select>
-            </div>
-            <div class="f-grp">
-              <label>Items Per Page (Tables)</label>
-              <select id="sysPageSize"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Notification Preferences + Quick Actions -->
-      <div class="settings-grid two">
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">Notification Preferences</div></div>
-          <div class="card-bd">
-            <table class="notif-tbl">
-              <thead><tr><th>Alert Type</th><th>Push</th><th>Email</th><th>SMS</th></tr></thead>
-              <tbody id="notifMatrixBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
-          <div class="card-bd">
-            <div class="qa-grid">
-              <div class="qa-btn" onclick="quickAction('Backup Now')">
-                <div class="qa-ic" style="background:#e0f2ee"><svg viewBox="0 0 24 24" style="stroke:#0d9b7a"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
-                <div class="qa-lbl">Backup Now</div>
-                <div class="qa-sub">Create system backup</div>
-              </div>
-              <div class="qa-btn" onclick="doExportAll()">
-                <div class="qa-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-                <div class="qa-lbl">Export All Data</div>
-                <div class="qa-sub">Export all tables to Excel</div>
-              </div>
-              <div class="qa-btn" onclick="quickAction('Export to PDF')">
-                <div class="qa-ic" style="background:#fdecea"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                <div class="qa-lbl">Export to PDF</div>
-                <div class="qa-sub">Export settings summary</div>
-              </div>
-              <div class="qa-btn" onclick="quickAction('Clear Cache')">
-                <div class="qa-ic" style="background:#fef3e2"><svg viewBox="0 0 24 24" style="stroke:#f59e0b"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></div>
-                <div class="qa-lbl">Clear Cache</div>
-                <div class="qa-sub">Improve performance</div>
-              </div>
-              <div class="qa-btn" onclick="quickAction('Audit Log')">
-                <div class="qa-ic" style="background:#e0effe"><svg viewBox="0 0 24 24" style="stroke:#2563eb"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <div class="qa-lbl">Audit Log</div>
-                <div class="qa-sub">View system audit log</div>
-              </div>
-              <div class="qa-btn" onclick="quickAction('Login Log')">
-                <div class="qa-ic" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-                <div class="qa-lbl">Login Log</div>
-                <div class="qa-sub">View login attempts</div>
-              </div>
-              <div class="qa-btn" onclick="quickAction('System Health')">
-                <div class="qa-ic" style="background:#e0f5fa"><svg viewBox="0 0 24 24" style="stroke:#0891b2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-                <div class="qa-lbl">System Health</div>
-                <div class="qa-sub">Check system status</div>
-              </div>
             </div>
           </div>
         </div>
@@ -546,19 +337,23 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
       </div>
     </div>
 
-    <!-- ══ OTHER TABS (placeholder — build out with same design system) ══ -->
+    <!-- ══ USERS & ROLES PANE ══ -->
     <div class="set-pane" id="pane-users">
       <div class="settings-grid two">
         <div class="card">
-          <div class="card-hd"><div class="card-ttl">Users</div></div>
+          <div class="card-hd"><div class="card-ttl">System Users</div></div>
           <div class="card-bd">
             <table class="tbl">
-              <thead><tr><th>User</th><th>Role</th><th>Status</th></tr></thead>
-              <tbody id="usersSummaryBody"></tbody>
+              <thead><tr><th>User</th><th>Role</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
+              <tbody id="usersBody"></tbody>
             </table>
+            <button class="btn-add" onclick="openUserModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add User
+            </button>
             <div class="info-box">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Only the Owner role can add shareholders, change ownership percentages, or deactivate shareholders. Full user management (invite, password reset, permissions) will be built out in a dedicated pass.
+              New users are created through the create-user API and default to Worker. Owners can change role or deactivate access anytime.
             </div>
           </div>
         </div>
@@ -566,46 +361,241 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">Locations</div></div>
           <div class="card-bd">
             <table class="tbl">
-              <thead><tr><th>Location</th><th>Address</th><th>Status</th></tr></thead>
+              <thead><tr><th>Location</th><th>Address</th><th>Status</th><th></th></tr></thead>
               <tbody id="locationsBody"></tbody>
             </table>
+            <button class="btn-add" onclick="openLocationModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Location
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ NOTIFICATION SETTINGS PANE ══ -->
+    <div class="set-pane" id="pane-notif">
+      <div class="settings-grid two">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Alert Delivery</div></div>
+          <div class="card-bd">
+            <div class="f-row one">
+              <div class="f-grp"><label>Notification Email</label><input type="email" id="notifEmail"><span class="hint">Where email alerts (low stock, credit overdue, approvals) are sent.</span></div>
+            </div>
+            <div class="f-row one">
+              <div class="f-grp"><label>Notification Phone</label><input type="text" id="notifPhone"><span class="hint">Where SMS alerts are sent.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Notification Preferences</div></div>
+          <div class="card-bd">
+            <table class="notif-tbl">
+              <thead><tr><th>Alert Type</th><th>Push</th><th>Email</th><th>SMS</th></tr></thead>
+              <tbody id="notifMatrixBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="save-bar">
+        <button class="btn-sec" onclick="loadFromSupabase()">Discard Changes</button>
+        <button class="btn-pri" onclick="saveBusinessSettings(this)">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- ══ APPROVAL & LIMITS PANE ══ -->
+    <div class="set-pane" id="pane-approval">
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Thresholds &amp; Limits</div></div>
+          <div class="card-bd">
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Expense Approval Threshold</div><div class="thresh-hint">Expenses above this amount require owner approval.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshApproval" step="0.01"></div>
+              <div class="bal-cur">ETB</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Low Stock Alert Threshold</div><div class="thresh-hint">Below this % of reorder level = REORDER. Above = LOW.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLowStock" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Credit Limit Warning Threshold</div><div class="thresh-hint">Warn when customer outstanding reaches this % of limit.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshCredit" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Petty Cash Daily Limit (No Approval)</div><div class="thresh-hint">Daily petty cash expenses up to this limit do not need approval.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshPetty" step="0.01"></div>
+              <div class="bal-cur">ETB</div>
+            </div>
+            <div class="info-box" style="background:#eef6fb;border-color:#cfe6f6;color:#1b6ea6">
+              <svg viewBox="0 0 24 24" style="stroke:#2563eb"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              These thresholds apply across all modules that reference approvals and alerts.
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Approval Delegations</div></div>
+          <div class="card-bd">
+            <table class="tbl">
+              <thead><tr><th>From</th><th>To</th><th>Start</th><th>End</th><th>Status</th><th></th></tr></thead>
+              <tbody id="delegationsBody"></tbody>
+            </table>
+            <button class="btn-add" onclick="openDelegationModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Delegation
+            </button>
             <div class="info-box">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Single-location setup. Add a row here when a second kitchen opens — existing records default to Main Kitchen.
+              Use this when an Owner is away and wants a Manager to approve expenses/purchases in their place for a date range.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="save-bar">
+        <button class="btn-sec" onclick="loadFromSupabase()">Discard Changes</button>
+        <button class="btn-pri" onclick="saveBusinessSettings(this)">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- ══ ACCOUNTING PANE ══ -->
+    <div class="set-pane" id="pane-accounting">
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Accounting Preferences</div></div>
+          <div class="card-bd">
+            <div class="acct-row">
+              <div class="acct-txt"><div class="acct-lbl">Use Weighted Average Cost (WAC)</div><div class="acct-hint">Use WAC for inventory valuation and production costing.</div></div>
+              <label class="toggle"><input type="checkbox" id="acctWac"><span class="tog-slider"></span></label>
+            </div>
+            <div class="acct-row">
+              <div class="acct-txt"><div class="acct-lbl">Activate VAT</div><div class="acct-hint">Enable VAT tracking on purchases and sales.</div></div>
+              <label class="toggle"><input type="checkbox" id="acctVat" onchange="toggleVatRateField()"><span class="tog-slider"></span></label>
+            </div>
+            <div class="acct-row" id="vatRateRow" style="opacity:.45">
+              <div class="acct-txt"><div class="acct-lbl">VAT Rate (%)</div></div>
+              <div class="acct-inp"><input type="number" id="acctVatRate" step="0.01" disabled></div>
+            </div>
+            <div class="acct-row">
+              <div class="acct-txt"><div class="acct-lbl">Round Amounts To</div></div>
+              <div class="acct-inp" style="width:170px">
+                <select id="acctRounding">
+                  <option>2 Decimal Places (0.01 ETB)</option>
+                  <option>Whole Birr (1 ETB)</option>
+                </select>
+              </div>
+            </div>
+            <div class="acct-row">
+              <div class="acct-txt"><div class="acct-lbl">Bank Charge Default %</div></div>
+              <div class="acct-inp"><input type="number" id="acctBankFee" step="0.01"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="save-bar">
+        <button class="btn-sec" onclick="loadFromSupabase()">Discard Changes</button>
+        <button class="btn-pri" onclick="saveBusinessSettings(this)">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- ══ DATA MANAGEMENT PANE ══ -->
+    <div class="set-pane" id="pane-data">
+      <div class="settings-grid two">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Period Close</div></div>
+          <div class="card-bd">
+            <table class="tbl">
+              <thead><tr><th>Period</th><th>Closed At</th><th>Status</th></tr></thead>
+              <tbody id="periodClosesBody"></tbody>
+            </table>
+            <button class="btn-add" onclick="closeCurrentPeriod()">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              Close Current Period
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
+          <div class="card-bd">
+            <div class="qa-grid">
+              <div class="qa-btn" onclick="doBackupNow()">
+                <div class="qa-ic" style="background:#e0f2ee"><svg viewBox="0 0 24 24" style="stroke:#0d9b7a"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+                <div class="qa-lbl">Backup Now</div>
+                <div class="qa-sub">Download JSON snapshot</div>
+              </div>
+              <div class="qa-btn" onclick="doExportAll()">
+                <div class="qa-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                <div class="qa-lbl">Export All Data</div>
+                <div class="qa-sub">Export core tables to Excel</div>
+              </div>
+              <div class="qa-btn" onclick="doClearCache()">
+                <div class="qa-ic" style="background:#fef3e2"><svg viewBox="0 0 24 24" style="stroke:#f59e0b"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></div>
+                <div class="qa-lbl">Clear Cache</div>
+                <div class="qa-sub">Clear local session cache</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="set-pane" id="pane-notif">
-      <div class="card"><div class="card-bd" style="padding:40px 17px;text-align:center;color:var(--tl)">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:var(--td);margin-bottom:6px">Notification Settings</div>
-        Not built yet — will follow the same design system when this module is scoped.
-      </div></div>
-    </div>
-    <div class="set-pane" id="pane-approval">
-      <div class="card"><div class="card-bd" style="padding:40px 17px;text-align:center;color:var(--tl)">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:var(--td);margin-bottom:6px">Approval &amp; Limits</div>
-        Not built yet — will follow the same design system when this module is scoped.
-      </div></div>
-    </div>
-    <div class="set-pane" id="pane-accounting">
-      <div class="card"><div class="card-bd" style="padding:40px 17px;text-align:center;color:var(--tl)">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:var(--td);margin-bottom:6px">Accounting</div>
-        Not built yet — will follow the same design system when this module is scoped.
-      </div></div>
-    </div>
-    <div class="set-pane" id="pane-data">
-      <div class="card"><div class="card-bd" style="padding:40px 17px;text-align:center;color:var(--tl)">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:var(--td);margin-bottom:6px">Data Management</div>
-        Not built yet — will follow the same design system when this module is scoped.
-      </div></div>
-    </div>
+
+    <!-- ══ SYSTEM INFO PANE ══ -->
     <div class="set-pane" id="pane-system">
-      <div class="card"><div class="card-bd" style="padding:40px 17px;text-align:center;color:var(--tl)">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;color:var(--td);margin-bottom:6px">System Info</div>
-        Not built yet — will follow the same design system when this module is scoped.
-      </div></div>
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">System Preferences</div></div>
+          <div class="card-bd">
+            <div class="f-grp" style="margin-bottom:12px">
+              <label>Session Timeout (Inactivity)</label>
+              <select id="sysSessionTimeout"><option>1 Hour</option><option>2 Hours</option><option>4 Hours</option><option>8 Hours</option><option>Never</option></select>
+            </div>
+            <div class="f-grp" style="margin-bottom:12px">
+              <label>Language</label>
+              <select id="sysLanguage" onchange="saveDevicePrefs()"><option selected>English</option><option>Amharic</option></select>
+              <span class="hint">Device preference — stored on this browser only.</span>
+            </div>
+            <div class="f-grp" style="margin-bottom:12px">
+              <label>Date Format</label>
+              <select id="sysDateFormat" onchange="saveDevicePrefs()"><option selected>MMM DD, YYYY</option><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option></select>
+            </div>
+            <div class="f-grp" style="margin-bottom:12px">
+              <label>Number Format</label>
+              <select id="sysNumberFormat" onchange="saveDevicePrefs()"><option selected>12,345.67</option><option>12.345,67</option></select>
+            </div>
+            <div class="f-grp" style="margin-bottom:12px">
+              <label>Theme</label>
+              <select id="sysTheme" onchange="saveDevicePrefs()"><option selected>Light</option><option>Dark</option></select>
+            </div>
+            <div class="f-grp">
+              <label>Items Per Page (Tables)</label>
+              <select id="sysPageSize" onchange="saveDevicePrefs()"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">System Health</div></div>
+          <div class="card-bd" id="systemHealthBody"><div class="empty-note">Loading…</div></div>
+        </div>
+      </div>
+      <div class="settings-grid two">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Recent Audit Log</div></div>
+          <div class="card-bd" id="auditLogBody"><div class="empty-note">Loading…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Recent Login Log</div></div>
+          <div class="card-bd" id="loginLogBody"><div class="empty-note">Loading…</div></div>
+        </div>
+      </div>
+      <div class="save-bar">
+        <button class="btn-pri" onclick="saveBusinessSettings(this)">Save Settings</button>
+      </div>
     </div>
 
   </div>
@@ -618,43 +608,74 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
   <div class="modal">
     <div class="modal-hd">
       <h3 id="shModalTitle">Add Shareholder</h3>
-      <div class="modal-x" onclick="closeShareholderModal()">
-        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </div>
+      <div class="modal-x" onclick="closeShareholderModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
     </div>
     <div class="modal-bd">
       <input type="hidden" id="shEditId">
-      <div class="f-row one">
-        <div class="f-grp">
-          <label>Full Name</label>
-          <input type="text" id="shName" placeholder="e.g. Yohannes Tesfaye">
-        </div>
+      <div class="f-row one"><div class="f-grp"><label>Full Name</label><input type="text" id="shName" placeholder="e.g. Yohannes Tesfaye"></div></div>
+      <div class="f-row">
+        <div class="f-grp"><label>Role</label><select id="shRole"><option>Owner</option><option selected>Investor</option><option>Partner</option></select></div>
+        <div class="f-grp"><label>Ownership %</label><input type="number" id="shPct" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="f-row one"><div class="f-grp"><label>Status</label><select id="shStatus"><option selected>Active</option><option>Inactive</option></select></div></div>
+      <div class="info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Ownership percentages of all active shareholders must sum to exactly 100.00%.</div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeShareholderModal()">Cancel</button><button class="btn-pri" onclick="saveShareholder()">Save Shareholder</button></div>
+  </div>
+</div>
+
+<!-- ════ USER MODAL ════ -->
+<div class="modal-overlay" id="userModalOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="userModalTitle">Add User</h3>
+      <div class="modal-x" onclick="closeUserModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="f-row one"><div class="f-grp"><label>Full Name</label><input type="text" id="userName" placeholder="e.g. Selamawit Girma"></div></div>
+      <div class="f-row one"><div class="f-grp"><label>Email</label><input type="email" id="userEmail" placeholder="name@menainjera.com"></div></div>
+      <div class="f-row one"><div class="f-grp"><label>Role</label><select id="userRole"><option value="owner">Owner</option><option value="manager">Manager</option><option value="worker" selected>Worker</option></select></div></div>
+      <div class="f-row one" id="userPasswordRow"><div class="f-grp"><label>Temporary Password</label><input type="text" id="userPassword" placeholder="Min. 8 characters"><span class="hint">Shared with the user for their first sign-in.</span></div></div>
+      <div class="info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>New accounts are created via the create-user API (/api/create-user).</div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeUserModal()">Cancel</button><button class="btn-pri" onclick="saveUser()">Save User</button></div>
+  </div>
+</div>
+
+<!-- ════ LOCATION MODAL ════ -->
+<div class="modal-overlay" id="locationModalOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="locModalTitle">Add Location</h3>
+      <div class="modal-x" onclick="closeLocationModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="f-row one"><div class="f-grp"><label>Location Name</label><input type="text" id="locName" placeholder="e.g. Bole Kitchen"></div></div>
+      <div class="f-row one"><div class="f-grp"><label>Address</label><textarea id="locAddress" rows="2"></textarea></div></div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeLocationModal()">Cancel</button><button class="btn-pri" onclick="saveLocation()">Save Location</button></div>
+  </div>
+</div>
+
+<!-- ════ DELEGATION MODAL ════ -->
+<div class="modal-overlay" id="delegationModalOverlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>Add Approval Delegation</h3>
+      <div class="modal-x" onclick="closeDelegationModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="f-row">
+        <div class="f-grp"><label>Delegated By</label><select id="delBy"></select></div>
+        <div class="f-grp"><label>Delegated To</label><select id="delTo"></select></div>
       </div>
       <div class="f-row">
-        <div class="f-grp">
-          <label>Role</label>
-          <select id="shRole"><option>Owner</option><option selected>Investor</option><option>Partner</option></select>
-        </div>
-        <div class="f-grp">
-          <label>Ownership %</label>
-          <input type="number" id="shPct" step="0.01" placeholder="0.00">
-        </div>
+        <div class="f-grp"><label>Start Date</label><input type="date" id="delFrom"></div>
+        <div class="f-grp"><label>End Date</label><input type="date" id="delToDate"></div>
       </div>
-      <div class="f-row one">
-        <div class="f-grp">
-          <label>Status</label>
-          <select id="shStatus"><option selected>Active</option><option>Inactive</option></select>
-        </div>
-      </div>
-      <div class="info-box">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Ownership percentages of all active shareholders must sum to exactly 100.00%.
-      </div>
+      <div class="f-row one"><div class="f-grp"><label>Reason</label><textarea id="delReason" rows="2" placeholder="e.g. Owner traveling abroad"></textarea></div></div>
     </div>
-    <div class="modal-ft">
-      <button class="btn-sec" onclick="closeShareholderModal()">Cancel</button>
-      <button class="btn-pri" onclick="saveShareholder()">Save Shareholder</button>
-    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeDelegationModal()">Cancel</button><button class="btn-pri" onclick="saveDelegation()">Save Delegation</button></div>
   </div>
 </div>
 
@@ -667,7 +688,7 @@ renderHeader({
   subtitle: 'System configuration and preferences',
   showMonthPicker: true,
   months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
+  selectedMonth: 'Jul 2026',
   onMonthChange: (label) => {
     const lbl = document.getElementById('overrideMonthLbl');
     if (lbl) lbl.textContent = label;
@@ -676,29 +697,67 @@ renderHeader({
 // header.js's stat-pill has no id by default; give it one so setDataStatus() below can find it.
 document.querySelector('.stat-pill').id = 'dataStatusPill';
 </script>
-
 <script>
+/* ════════════════ TABLE NAME CONSTANTS ════════════════ */
 const SETTINGS_TABLE = 'business_settings';
 const SHAREHOLDERS_TABLE = 'shareholders';
 const LOCATIONS_TABLE = 'locations';
+const USERS_TABLE = 'users';
+const DELEGATIONS_TABLE = 'approval_delegations';
+const PERIOD_CLOSES_TABLE = 'period_closes';
+const AUDIT_LOG_TABLE = 'audit_log';
+const LOGIN_LOG_TABLE = 'login_log';
+const OPENING_BAL_TABLE = 'channel_opening_balances';
 
-/* Notification alert type matrix — matches spec Part 13 alert categories */
+let businessSettingsId = null;
+let openingPeriod = null;
+
+/* Notification alert type matrix — matches spec Part 13 alert categories.
+   slug is the key used inside business_settings.notification_preferences (jsonb) */
 const NOTIF_TYPES = [
-  { name:'Low Stock / Reorder Alerts', push:true,  email:true,  sms:true  },
-  { name:'Credit Overdue Alerts',      push:true,  email:true,  sms:true  },
-  { name:'Expense Approval Alerts',    push:true,  email:true,  sms:false },
-  { name:'Loan Payment Due Alerts',    push:true,  email:true,  sms:true  },
-  { name:'Budget Variance Alerts',     push:true,  email:true,  sms:false }
+  { slug:'low_stock',        name:'Low Stock / Reorder Alerts', push:true,  email:true,  sms:true  },
+  { slug:'credit_overdue',   name:'Credit Overdue Alerts',      push:true,  email:true,  sms:true  },
+  { slug:'expense_approval', name:'Expense Approval Alerts',    push:true,  email:true,  sms:false },
+  { slug:'loan_payment_due', name:'Loan Payment Due Alerts',    push:true,  email:true,  sms:true  },
+  { slug:'budget_variance',  name:'Budget Variance Alerts',     push:true,  email:true,  sms:false }
 ];
 
-let shareholders = [
-  { id:1, _dbId:null, name:'Eyasu Mesfin',   role:'Owner',    pct:80.00, isActive:true },
-  { id:2, _dbId:null, name:'Kaleb Mekonnen', role:'Investor', pct:20.00, isActive:true }
-];
-let nextShareholderId = 3;
+let shareholders = [];
+let nextShareholderId = 1;
 let editingShareholderId = null;
+let locations = [];
+let editingLocationId = null;
+let users = [];
+let editingUserId = null;
+let delegations = [];
+let periodCloses = [];
 
 function fmt(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt2(n){ return n!=null ? parseFloat(n).toFixed(2) : '0.00'; }
+function val(id){ const el=document.getElementById(id); return el ? el.value : ''; }
+function numVal(id){ const el=document.getElementById(id); return el ? (parseFloat(el.value)||0) : 0; }
+function setVal(id,v){ const el=document.getElementById(id); if(el && v!=null) el.value=v; }
+
+function getCurrentUser(){
+  // Defensive read of the shared-shell session (matches keys used elsewhere in the app).
+  try {
+    const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session') || localStorage.getItem('bms_session');
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed.user || parsed;
+  } catch(e){ return null; }
+}
+
+function timeAgo(dateStr){
+  if(!dateStr) return '—';
+  const d = new Date(dateStr);
+  const diff = Math.floor((Date.now() - d.getTime())/1000);
+  if(diff < 60) return 'just now';
+  if(diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if(diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if(diff < 2592000) return Math.floor(diff/86400) + 'd ago';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
 
 /* ════════════════ TABS ════════════════ */
 document.querySelectorAll('.set-tab').forEach(tab=>{
@@ -713,28 +772,18 @@ document.querySelectorAll('.set-tab').forEach(tab=>{
 /* ════════════════ SHAREHOLDERS ════════════════ */
 const avatarColors = ['#27ae60','#e8891a','#2563eb','#8b5cf6','#0891b2','#e53935'];
 function initialsOf(name){
-  return name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  return (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
 }
 function renderShareholders(){
   const tbody = document.getElementById('shareholderBody');
+  if(!tbody) return;
   tbody.innerHTML = shareholders.map((s,i)=>`
     <tr>
-      <td>
-        <div class="sh-person">
-          <div class="sh-av" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(s.name)}</div>
-          <div>
-            <div class="sh-name">${s.name}</div>
-          </div>
-        </div>
-      </td>
+      <td><div class="sh-person"><div class="sh-av" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(s.name)}</div><div><div class="sh-name">${s.name}</div></div></div></td>
       <td><span class="sh-role">${s.role}</span></td>
       <td style="font-weight:700">${s.pct.toFixed(2)}%</td>
       <td><span class="pill-sm ${s.isActive ? 'pill-active' : 'pill-inactive'}">${s.isActive ? 'Active' : 'Inactive'}</span></td>
-      <td>
-        <div class="act-dots" onclick="toggleShRowMenu(event, ${s.id})">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-        </div>
-      </td>
+      <td><div class="act-dots" onclick="toggleShRowMenu(event, ${s.id})"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div></td>
     </tr>
   `).join('');
   recalcOwnershipTotal();
@@ -742,6 +791,7 @@ function renderShareholders(){
 function recalcOwnershipTotal(){
   const total = shareholders.filter(s=>s.isActive).reduce((sum,s)=>sum+s.pct,0);
   const el = document.getElementById('totalOwnership');
+  if(!el) return;
   el.textContent = total.toFixed(2) + '%';
   el.style.color = Math.abs(total-100) < 0.005 ? '#27ae60' : '#e53935';
 }
@@ -754,18 +804,9 @@ function toggleShRowMenu(e, id){
   const menu = document.createElement('div');
   menu.className = 'row-menu';
   menu.innerHTML = `
-    <div class="row-menu-item" onclick="editShareholder(${id})">
-      <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
-      Edit
-    </div>
-    <div class="row-menu-item" onclick="toggleShareholderActive(${id})">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
-      ${s.isActive ? 'Deactivate' : 'Activate'}
-    </div>
-    <div class="row-menu-item danger" onclick="deleteShareholder(${id})">
-      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-      Remove
-    </div>
+    <div class="row-menu-item" onclick="editShareholder(${id})"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</div>
+    <div class="row-menu-item" onclick="toggleShareholderActive(${id})"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>${s.isActive ? 'Deactivate' : 'Activate'}</div>
+    <div class="row-menu-item danger" onclick="deleteShareholder(${id})"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Remove</div>
   `;
   document.body.appendChild(menu);
   const rect = e.currentTarget.getBoundingClientRect();
@@ -807,7 +848,6 @@ async function deleteShareholder(id){
   renderShareholders();
   const ok = await deleteShareholderFromSupabase(s);
   if(ok) showToast('Shareholder removed');
-  renderUsers();
 }
 function openShareholderModal(){
   editingShareholderId = null;
@@ -828,7 +868,7 @@ async function saveShareholder(){
   const pct = parseFloat(document.getElementById('shPct').value);
   const isActive = document.getElementById('shStatus').value === 'Active';
   if(!name){ showToast('Please enter a shareholder name'); return; }
-  if(isNaN(pct) || pct < 0 || pct > 100){ showToast('Please enter a valid ownership percentage'); return; }
+  if(isNaN(pct) || pct <= 0 || pct > 100){ showToast('Please enter a valid ownership percentage'); return; }
 
   if(editingShareholderId){
     const s = shareholders.find(x=>x.id===editingShareholderId);
@@ -842,13 +882,347 @@ async function saveShareholder(){
     if(ok) showToast('Shareholder added');
   }
   renderShareholders();
-  renderUsers();
   closeShareholderModal();
+}
+async function saveShareholderToSupabase(s){
+  if(!db){ showToast('⚠ Offline — saved locally only, will not persist on reload'); return false; }
+  try {
+    const row = { name: s.name, role: s.role, ownership_pct: s.pct, is_active: s.isActive };
+    if(s._dbId){
+      const { error } = await db.from(SHAREHOLDERS_TABLE).update(row).eq('id', s._dbId);
+      if(error) throw error;
+    } else {
+      const { data, error } = await db.from(SHAREHOLDERS_TABLE).insert(row).select().single();
+      if(error) throw error;
+      if(data) s._dbId = data.id;
+    }
+    return true;
+  } catch(err){
+    console.log('Supabase shareholder save failed:', err.message);
+    showToast('⚠ Could not save shareholder — ' + err.message);
+    return false;
+  }
+}
+async function deleteShareholderFromSupabase(s){
+  if(!db || !s._dbId) return true;
+  try {
+    const { error } = await db.from(SHAREHOLDERS_TABLE).delete().eq('id', s._dbId);
+    if(error) throw error;
+    return true;
+  } catch(err){
+    console.log('Supabase shareholder delete failed:', err.message);
+    showToast('⚠ Could not remove shareholder — ' + err.message);
+    return false;
+  }
+}
+
+/* ════════════════ USERS (real users table) ════════════════ */
+function renderUsers(){
+  const body = document.getElementById('usersBody');
+  if(!body) return;
+  if(!users.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--tl);padding:20px">No users yet</td></tr>'; return; }
+  body.innerHTML = users.map((u,i)=>`
+    <tr>
+      <td><div class="sh-person"><div class="sh-av" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(u.name||u.email)}</div><div><div class="sh-name">${u.name||u.email}</div><div class="sh-role">${u.email}</div></div></div></td>
+      <td style="text-transform:capitalize;color:var(--tm)">${u.role}</td>
+      <td style="color:var(--tl);font-size:11.5px">${u.last_login ? timeAgo(u.last_login) : 'Never'}</td>
+      <td><span class="pill-sm ${u.is_active ? 'pill-active' : 'pill-inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td><div class="act-dots" onclick="toggleUserRowMenu(event,'${u.id}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div></td>
+    </tr>
+  `).join('');
+}
+let activeUserRowMenu = null;
+function toggleUserRowMenu(e, id){
+  e.stopPropagation();
+  if(activeUserRowMenu){ activeUserRowMenu.remove(); activeUserRowMenu = null; }
+  const u = users.find(x=>x.id===id);
+  if(!u) return;
+  const menu = document.createElement('div');
+  menu.className = 'row-menu';
+  menu.innerHTML = `
+    <div class="row-menu-item" onclick="editUser('${id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</div>
+    <div class="row-menu-item" onclick="toggleUserActive('${id}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>${u.is_active ? 'Deactivate' : 'Activate'}</div>
+  `;
+  document.body.appendChild(menu);
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = (rect.right + window.scrollX - 150) + 'px';
+  activeUserRowMenu = menu;
+  setTimeout(()=>document.addEventListener('click', closeUserRowMenuOnce), 0);
+}
+function closeUserRowMenuOnce(){
+  if(activeUserRowMenu){ activeUserRowMenu.remove(); activeUserRowMenu = null; }
+  document.removeEventListener('click', closeUserRowMenuOnce);
+}
+function openUserModal(){
+  editingUserId = null;
+  document.getElementById('userModalTitle').textContent = 'Add User';
+  document.getElementById('userName').value = '';
+  document.getElementById('userEmail').value = '';
+  document.getElementById('userEmail').disabled = false;
+  document.getElementById('userRole').value = 'worker';
+  document.getElementById('userPassword').value = '';
+  document.getElementById('userPasswordRow').style.display = '';
+  document.getElementById('userModalOverlay').classList.add('show');
+}
+function editUser(id){
+  const u = users.find(x=>x.id===id);
+  if(!u) return;
+  editingUserId = id;
+  document.getElementById('userModalTitle').textContent = 'Edit User';
+  document.getElementById('userName').value = u.name || '';
+  document.getElementById('userEmail').value = u.email;
+  document.getElementById('userEmail').disabled = true;
+  document.getElementById('userRole').value = u.role;
+  document.getElementById('userPasswordRow').style.display = 'none';
+  document.getElementById('userModalOverlay').classList.add('show');
+}
+function closeUserModal(){
+  document.getElementById('userModalOverlay').classList.remove('show');
+}
+async function saveUser(){
+  const name = document.getElementById('userName').value.trim();
+  const email = document.getElementById('userEmail').value.trim();
+  const role = document.getElementById('userRole').value;
+  if(!name || !email){ showToast('Please enter a name and email'); return; }
+  if(!db){ showToast('⚠ Offline — could not save user'); return; }
+
+  if(editingUserId){
+    try {
+      const { error } = await db.from(USERS_TABLE).update({ name, role }).eq('id', editingUserId);
+      if(error) throw error;
+      showToast('User updated');
+      closeUserModal();
+      loadFromSupabase();
+    } catch(err){
+      showToast('⚠ Could not update user — ' + err.message);
+    }
+  } else {
+    const password = document.getElementById('userPassword').value;
+    if(!password || password.length < 8){ showToast('Please set a temporary password (min. 8 characters)'); return; }
+    try {
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, role, password })
+      });
+      const result = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(result.error || 'Request failed (' + res.status + ')');
+      showToast('User created');
+      closeUserModal();
+      loadFromSupabase();
+    } catch(err){
+      showToast('⚠ Could not create user — ' + err.message);
+    }
+  }
+}
+async function toggleUserActive(id){
+  closeUserRowMenuOnce();
+  const u = users.find(x=>x.id===id);
+  if(!u || !db) return;
+  try {
+    const { error } = await db.from(USERS_TABLE).update({ is_active: !u.is_active }).eq('id', id);
+    if(error) throw error;
+    u.is_active = !u.is_active;
+    renderUsers();
+    showToast((u.name||u.email) + (u.is_active ? ' activated' : ' deactivated'));
+  } catch(err){
+    showToast('⚠ Could not update user — ' + err.message);
+  }
+}
+
+/* ════════════════ LOCATIONS ════════════════ */
+function renderLocations(){
+  const body = document.getElementById('locationsBody');
+  if(!body) return;
+  if(!locations.length){ body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--tl);padding:20px">No locations yet</td></tr>'; return; }
+  body.innerHTML = locations.map(l=>`
+    <tr>
+      <td style="font-weight:700">${l.name}</td>
+      <td style="color:var(--tm)">${l.address || '<span style="color:var(--tl)">Not set</span>'}</td>
+      <td><span class="pill-sm ${l.isActive ? 'pill-active' : 'pill-inactive'}">${l.isActive ? 'Active' : 'Inactive'}</span></td>
+      <td><div class="act-dots" onclick="toggleLocRowMenu(event,'${l._dbId}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div></td>
+    </tr>
+  `).join('');
+}
+let activeLocRowMenu = null;
+function toggleLocRowMenu(e, id){
+  e.stopPropagation();
+  if(activeLocRowMenu){ activeLocRowMenu.remove(); activeLocRowMenu = null; }
+  const l = locations.find(x=>x._dbId===id);
+  if(!l) return;
+  const menu = document.createElement('div');
+  menu.className = 'row-menu';
+  menu.innerHTML = `
+    <div class="row-menu-item" onclick="editLocation('${id}')">Edit</div>
+    <div class="row-menu-item" onclick="toggleLocationActive('${id}')">${l.isActive ? 'Deactivate' : 'Activate'}</div>
+  `;
+  document.body.appendChild(menu);
+  const rect = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = (rect.right + window.scrollX - 150) + 'px';
+  activeLocRowMenu = menu;
+  setTimeout(()=>document.addEventListener('click', closeLocRowMenuOnce), 0);
+}
+function closeLocRowMenuOnce(){
+  if(activeLocRowMenu){ activeLocRowMenu.remove(); activeLocRowMenu = null; }
+  document.removeEventListener('click', closeLocRowMenuOnce);
+}
+function openLocationModal(){
+  editingLocationId = null;
+  document.getElementById('locModalTitle').textContent = 'Add Location';
+  document.getElementById('locName').value = '';
+  document.getElementById('locAddress').value = '';
+  document.getElementById('locationModalOverlay').classList.add('show');
+}
+function editLocation(id){
+  const l = locations.find(x=>x._dbId===id);
+  if(!l) return;
+  editingLocationId = id;
+  document.getElementById('locModalTitle').textContent = 'Edit Location';
+  document.getElementById('locName').value = l.name;
+  document.getElementById('locAddress').value = l.address;
+  document.getElementById('locationModalOverlay').classList.add('show');
+}
+function closeLocationModal(){
+  document.getElementById('locationModalOverlay').classList.remove('show');
+}
+async function saveLocation(){
+  const name = document.getElementById('locName').value.trim();
+  const address = document.getElementById('locAddress').value.trim();
+  if(!name){ showToast('Please enter a location name'); return; }
+  if(!db){ showToast('⚠ Offline — could not save location'); return; }
+  try {
+    if(editingLocationId){
+      const { error } = await db.from(LOCATIONS_TABLE).update({ name, address }).eq('id', editingLocationId);
+      if(error) throw error;
+    } else {
+      const { error } = await db.from(LOCATIONS_TABLE).insert({ name, address });
+      if(error) throw error;
+    }
+    showToast('Location saved');
+    closeLocationModal();
+    loadFromSupabase();
+  } catch(err){
+    showToast('⚠ Could not save location — ' + err.message);
+  }
+}
+async function toggleLocationActive(id){
+  closeLocRowMenuOnce();
+  const l = locations.find(x=>x._dbId===id);
+  if(!l || !db) return;
+  try {
+    const { error } = await db.from(LOCATIONS_TABLE).update({ is_active: !l.isActive }).eq('id', id);
+    if(error) throw error;
+    l.isActive = !l.isActive;
+    renderLocations();
+    showToast(l.name + (l.isActive ? ' activated' : ' deactivated'));
+  } catch(err){
+    showToast('⚠ Could not update location — ' + err.message);
+  }
+}
+
+/* ════════════════ APPROVAL DELEGATIONS ════════════════ */
+function renderDelegations(){
+  const body = document.getElementById('delegationsBody');
+  if(!body) return;
+  if(!delegations.length){ body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--tl);padding:20px">No delegations set up</td></tr>'; return; }
+  body.innerHTML = delegations.map(d=>`
+    <tr>
+      <td style="font-weight:700">${d.delegator ? d.delegator.name : '—'}</td>
+      <td style="font-weight:700">${d.delegatee ? d.delegatee.name : '—'}</td>
+      <td style="color:var(--tm)">${d.from_date}</td>
+      <td style="color:var(--tm)">${d.to_date}</td>
+      <td><span class="pill-sm ${d.is_active ? 'pill-active' : 'pill-inactive'}">${d.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td><div class="act-dots" onclick="toggleDelegationActive('${d.id}')" title="Toggle active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg></div></td>
+    </tr>
+  `).join('');
+}
+function openDelegationModal(){
+  const bySel = document.getElementById('delBy');
+  const toSel = document.getElementById('delTo');
+  const opts = users.map(u=>`<option value="${u.id}">${u.name||u.email} (${u.role})</option>`).join('');
+  bySel.innerHTML = opts;
+  toSel.innerHTML = opts;
+  const me = getCurrentUser();
+  if(me && me.id && users.some(u=>u.id===me.id)) bySel.value = me.id;
+  document.getElementById('delFrom').value = '';
+  document.getElementById('delToDate').value = '';
+  document.getElementById('delReason').value = '';
+  document.getElementById('delegationModalOverlay').classList.add('show');
+}
+function closeDelegationModal(){
+  document.getElementById('delegationModalOverlay').classList.remove('show');
+}
+async function saveDelegation(){
+  const delegated_by = document.getElementById('delBy').value;
+  const delegated_to = document.getElementById('delTo').value;
+  const from_date = document.getElementById('delFrom').value;
+  const to_date = document.getElementById('delToDate').value;
+  const reason = document.getElementById('delReason').value.trim();
+  if(!delegated_by || !delegated_to){ showToast('Please choose both users'); return; }
+  if(delegated_by === delegated_to){ showToast('Cannot delegate to the same user'); return; }
+  if(!from_date || !to_date){ showToast('Please set a start and end date'); return; }
+  if(!db){ showToast('⚠ Offline — could not save delegation'); return; }
+  try {
+    const { error } = await db.from(DELEGATIONS_TABLE).insert({ delegated_by, delegated_to, from_date, to_date, reason, is_active: true });
+    if(error) throw error;
+    showToast('Delegation added');
+    closeDelegationModal();
+    loadFromSupabase();
+  } catch(err){
+    showToast('⚠ Could not save delegation — ' + err.message);
+  }
+}
+async function toggleDelegationActive(id){
+  const d = delegations.find(x=>x.id===id);
+  if(!d || !db) return;
+  try {
+    const { error } = await db.from(DELEGATIONS_TABLE).update({ is_active: !d.is_active }).eq('id', id);
+    if(error) throw error;
+    d.is_active = !d.is_active;
+    renderDelegations();
+  } catch(err){
+    showToast('⚠ Could not update delegation — ' + err.message);
+  }
+}
+
+/* ════════════════ PERIOD CLOSE ════════════════ */
+function renderPeriodCloses(){
+  const body = document.getElementById('periodClosesBody');
+  if(!body) return;
+  if(!periodCloses.length){ body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--tl);padding:20px">No periods closed yet</td></tr>'; return; }
+  body.innerHTML = periodCloses.map(p=>`
+    <tr>
+      <td style="font-weight:700">${p.period}</td>
+      <td style="color:var(--tm)">${new Date(p.closed_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
+      <td><span class="pill-sm ${p.locked ? 'pill-inactive' : 'pill-active'}">${p.locked ? 'Closed & Locked' : 'Open'}</span></td>
+    </tr>
+  `).join('');
+}
+async function closeCurrentPeriod(){
+  const now = new Date();
+  const defaultPeriod = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const period = prompt('Close which period? (YYYY-MM)', defaultPeriod);
+  if(!period) return;
+  if(periodCloses.some(p=>p.period===period)){ showToast(period + ' is already closed'); return; }
+  if(!confirm('Close and lock period ' + period + '? This should only be done once all entries for the period are finalized.')) return;
+  if(!db){ showToast('⚠ Offline — could not close period'); return; }
+  try {
+    const me = getCurrentUser();
+    const { error } = await db.from(PERIOD_CLOSES_TABLE).insert({ period, closed_by: me ? me.id : null, locked: true });
+    if(error) throw error;
+    showToast('Period ' + period + ' closed and locked');
+    loadFromSupabase();
+  } catch(err){
+    showToast('⚠ Could not close period — ' + err.message);
+  }
 }
 
 /* ════════════════ NOTIFICATION MATRIX ════════════════ */
 function renderNotifMatrix(){
   const tbody = document.getElementById('notifMatrixBody');
+  if(!tbody) return;
   tbody.innerHTML = NOTIF_TYPES.map((n,i)=>`
     <tr>
       <td>${n.name}</td>
@@ -876,40 +1250,176 @@ function toggleVatRateField(){
   inp.disabled = !on;
 }
 
-/* ════════════════ DATA MANAGEMENT QUICK ACTIONS (page-specific) ════════════════ */
-function quickAction(label){
-  showToast(label + ' — coming soon');
+/* ════════════════ DEVICE (BROWSER-LOCAL) PREFERENCES ════════════════ */
+const DEVICE_PREFS_KEY = 'mena_device_prefs';
+function applySavedDevicePrefs(){
+  try {
+    const raw = localStorage.getItem(DEVICE_PREFS_KEY);
+    if(!raw) return;
+    const p = JSON.parse(raw);
+    setVal('sysLanguage', p.language);
+    setVal('sysDateFormat', p.dateFormat);
+    setVal('sysNumberFormat', p.numberFormat);
+    setVal('sysTheme', p.theme);
+    setVal('sysPageSize', p.pageSize);
+  } catch(e){ /* ignore malformed local prefs */ }
 }
-function doExportAll(){
-  showToast('Preparing export of all tables...');
-  setTimeout(()=>showToast('Export ready — check your downloads'), 900);
+function saveDevicePrefs(){
+  const p = {
+    language: val('sysLanguage'),
+    dateFormat: val('sysDateFormat'),
+    numberFormat: val('sysNumberFormat'),
+    theme: val('sysTheme'),
+    pageSize: val('sysPageSize')
+  };
+  localStorage.setItem(DEVICE_PREFS_KEY, JSON.stringify(p));
+  showToast('Device preference saved');
 }
 
-/* ════════════════ SUPABASE: BUSINESS SETTINGS ════════════════ */
+/* ════════════════ DATA MANAGEMENT: QUICK ACTIONS ════════════════ */
+async function doBackupNow(){
+  if(!db){ showToast('⚠ Offline — cannot create backup'); return; }
+  showToast('Preparing backup...');
+  try {
+    const tables = ['business_settings','shareholders','locations','users','customers','suppliers','inventory_items'];
+    const backup = { created_at: new Date().toISOString(), tables: {} };
+    for(const t of tables){
+      const { data, error } = await db.from(t).select('*');
+      if(error) throw error;
+      backup.tables[t] = data;
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mena-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup downloaded');
+  } catch(err){
+    showToast('⚠ Backup failed — ' + err.message);
+  }
+}
+function loadSheetJs(){
+  return new Promise((resolve, reject)=>{
+    if(window.XLSX){ resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = ()=>resolve();
+    s.onerror = ()=>reject(new Error('Could not load export library'));
+    document.head.appendChild(s);
+  });
+}
+async function doExportAll(){
+  if(!db){ showToast('⚠ Offline — cannot export'); return; }
+  showToast('Preparing export of all tables...');
+  try {
+    await loadSheetJs();
+    const tables = ['purchases','sales','production_batches','derkosh_batches','petty_cash','monthly_overhead','payroll_detail','customers','suppliers','inventory_items'];
+    const wb = XLSX.utils.book_new();
+    for(const t of tables){
+      const { data, error } = await db.from(t).select('*');
+      if(error) continue;
+      const ws = XLSX.utils.json_to_sheet((data && data.length) ? data : [{ note:'No data' }]);
+      XLSX.utils.book_append_sheet(wb, ws, t.slice(0,31));
+    }
+    XLSX.writeFile(wb, 'mena-export-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    showToast('Export ready — check your downloads');
+  } catch(err){
+    showToast('⚠ Export failed — ' + err.message);
+  }
+}
+function doClearCache(){
+  try {
+    const keep = ['injera_session','bms_session'];
+    Object.keys(sessionStorage).forEach(k=>{ if(!keep.includes(k)) sessionStorage.removeItem(k); });
+    showToast('Local cache cleared');
+  } catch(e){
+    showToast('Local cache cleared');
+  }
+}
+
+/* ════════════════ SYSTEM HEALTH / AUDIT / LOGIN LOG ════════════════ */
+async function loadSystemHealth(){
+  const body = document.getElementById('systemHealthBody');
+  if(!body || !db) return;
+  try {
+    const tables = ['users','purchases','sales','production_batches','customers'];
+    const results = await Promise.all(tables.map(t=>db.from(t).select('*', { count:'exact', head:true })));
+    let html = '';
+    tables.forEach((t,i)=>{
+      const c = results[i].count != null ? results[i].count : '—';
+      html += `<div class="kv-row"><span class="kv-lbl">${t.replace(/_/g,' ')}</span><span class="kv-val">${c}</span></div>`;
+    });
+    html += `<div class="kv-row"><span class="kv-lbl">Database</span><span class="kv-val" style="color:#27ae60">Connected</span></div>`;
+    html += `<div class="kv-row"><span class="kv-lbl">Timezone</span><span class="kv-val">Africa/Addis_Ababa (EAT)</span></div>`;
+    html += `<div class="kv-row"><span class="kv-lbl">System Version</span><span class="kv-val">v37</span></div>`;
+    body.innerHTML = html;
+  } catch(err){
+    body.innerHTML = '<div class="empty-note">Could not load system health — ' + err.message + '</div>';
+  }
+}
+async function loadAuditLog(){
+  const body = document.getElementById('auditLogBody');
+  if(!body || !db) return;
+  try {
+    const { data, error } = await db.from(AUDIT_LOG_TABLE)
+      .select('*, actor:users!audit_log_user_id_fkey(name)')
+      .order('created_at', { ascending:false }).limit(15);
+    if(error) throw error;
+    if(!data || !data.length){ body.innerHTML = '<div class="empty-note">No activity recorded yet.</div>'; return; }
+    const actionLabel = { insert:'created', update:'updated', delete:'deleted' };
+    body.innerHTML = data.map(r=>`
+      <div class="log-row">
+        <div class="log-txt"><div class="log-main">${r.actor ? r.actor.name : 'System'} ${actionLabel[r.action]||r.action} ${r.table_name.replace(/_/g,' ')}</div></div>
+        <div class="log-time">${timeAgo(r.created_at)}</div>
+      </div>
+    `).join('');
+  } catch(err){
+    body.innerHTML = '<div class="empty-note">Could not load audit log — ' + err.message + '</div>';
+  }
+}
+async function loadLoginLog(){
+  const body = document.getElementById('loginLogBody');
+  if(!body || !db) return;
+  try {
+    const { data, error } = await db.from(LOGIN_LOG_TABLE).select('*').order('created_at', { ascending:false }).limit(15);
+    if(error) throw error;
+    if(!data || !data.length){ body.innerHTML = '<div class="empty-note">No login attempts recorded yet.</div>'; return; }
+    const outcomeLabel = { success:'Signed in', wrong_password:'Wrong password', not_found:'Unknown email', locked:'Account locked' };
+    body.innerHTML = data.map(r=>`
+      <div class="log-row">
+        <div class="log-txt"><div class="log-main">${r.email}</div><div class="log-sub" style="color:${r.outcome==='success' ? '#27ae60' : '#e53935'}">${outcomeLabel[r.outcome]||r.outcome}</div></div>
+        <div class="log-time">${timeAgo(r.created_at)}</div>
+      </div>
+    `).join('');
+  } catch(err){
+    body.innerHTML = '<div class="empty-note">Could not load login log — ' + err.message + '</div>';
+  }
+}
+
+/* ════════════════ SUPABASE: LOAD / SAVE BUSINESS SETTINGS ════════════════ */
 function setDataStatus(state, label){
-  // state: 'ok' | 'error' | 'loading'
   const pill = document.getElementById('dataStatusPill');
+  if(!pill) return;
   const dot = pill.querySelector('.stat-dot');
   pill.lastChild.textContent = label;
   if(state === 'ok'){
     pill.style.background = '#eef8f2'; pill.style.borderColor = '#b5ddc5'; pill.style.color = '#1a6b3c';
-    dot.style.background = '#27ae60';
+    if(dot) dot.style.background = '#27ae60';
   } else if(state === 'error'){
     pill.style.background = '#fdecea'; pill.style.borderColor = '#f6cdc9'; pill.style.color = '#b3261e';
-    dot.style.background = '#e53935';
+    if(dot) dot.style.background = '#e53935';
   } else {
     pill.style.background = '#fef3e2'; pill.style.borderColor = '#f6dfb0'; pill.style.color = '#8a6100';
-    dot.style.background = '#f59e0b';
+    if(dot) dot.style.background = '#f59e0b';
   }
 }
 
 async function loadFromSupabase(){
   if(!db){
     setDataStatus('error', 'Offline — showing local defaults');
-    recalcOpeningTotal();
-    renderShareholders();
-    renderLocations();
-    renderUsers();
+    recalcOpeningTotal(); renderShareholders(); renderLocations(); renderUsers();
     return;
   }
   setDataStatus('loading', 'Loading...');
@@ -918,42 +1428,60 @@ async function loadFromSupabase(){
     if(sErr) throw sErr;
     if(settingsRows && settingsRows.length){
       const r = settingsRows[0];
-      if(r.business_name) document.getElementById('bizName').value = r.business_name;
-      if(r.business_address) document.getElementById('bizAddress').value = r.business_address;
-      if(r.business_phone) document.getElementById('bizPhone').value = r.business_phone;
-      if(r.business_email) document.getElementById('bizEmail').value = r.business_email;
-      if(r.business_website) document.getElementById('bizWebsite').value = r.business_website;
-      if(r.fiscal_year_start_month) document.getElementById('bizFiscalStart').value = r.fiscal_year_start_month;
-      if(r.notification_email) document.getElementById('notifEmail').value = r.notification_email;
-      if(r.notification_phone) document.getElementById('notifPhone').value = r.notification_phone;
-      if(r.default_distribution_pct != null) document.getElementById('defaultDistPct').value = parseFloat(r.default_distribution_pct).toFixed(2);
-      if(r.approval_threshold_etb != null) document.getElementById('threshApproval').value = parseFloat(r.approval_threshold_etb).toFixed(2);
-      if(r.low_stock_threshold_pct != null) document.getElementById('threshLowStock').value = parseFloat(r.low_stock_threshold_pct);
-      if(r.credit_limit_warning_pct != null) document.getElementById('threshCredit').value = parseFloat(r.credit_limit_warning_pct);
-      if(r.petty_cash_daily_limit != null) document.getElementById('threshPetty').value = parseFloat(r.petty_cash_daily_limit).toFixed(2);
-      if(r.bank_charge_default_pct != null) document.getElementById('acctBankFee').value = parseFloat(r.bank_charge_default_pct).toFixed(2);
-      if(r.vat_rate_pct != null) document.getElementById('acctVatRate').value = parseFloat(r.vat_rate_pct).toFixed(2);
-      if(r.session_timeout_minutes != null) {
-        const map = {60:'1 Hour',120:'2 Hours',240:'4 Hours',480:'8 Hours',0:'Never'};
-        document.getElementById('sysSessionTimeout').value = map[r.session_timeout_minutes] || '4 Hours';
+      businessSettingsId = r.id;
+      setVal('bizName', r.business_name);
+      setVal('bizAddress', r.business_address);
+      setVal('bizPhone', r.business_phone);
+      setVal('bizEmail', r.business_email);
+      setVal('bizWebsite', r.business_website);
+      setVal('bizFiscalStart', r.fiscal_year_start_month || 'January');
+      setVal('notifEmail', r.notification_email);
+      setVal('notifPhone', r.notification_phone);
+      setVal('defaultDistPct', fmt2(r.default_distribution_pct));
+      setVal('threshApproval', fmt2(r.approval_threshold_etb));
+      setVal('threshLowStock', r.low_stock_threshold_pct);
+      setVal('threshCredit', r.credit_limit_warning_pct);
+      setVal('threshPetty', fmt2(r.petty_cash_daily_limit));
+      setVal('acctBankFee', fmt2(r.bank_charge_default_pct));
+      setVal('acctVatRate', fmt2(r.vat_rate_pct));
+      document.getElementById('acctVat').checked = !!r.is_vat_registered;
+      toggleVatRateField();
+      document.getElementById('acctWac').checked = r.use_wac !== false;
+      document.getElementById('acctRounding').value = r.rounding_mode === 'whole' ? 'Whole Birr (1 ETB)' : '2 Decimal Places (0.01 ETB)';
+      const tsMap = {60:'1 Hour',120:'2 Hours',240:'4 Hours',480:'8 Hours',0:'Never'};
+      document.getElementById('sysSessionTimeout').value = tsMap[r.session_timeout_minutes] ?? '4 Hours';
+      if(r.notification_preferences){
+        NOTIF_TYPES.forEach(n=>{
+          const p = r.notification_preferences[n.slug];
+          if(p){ n.push = !!p.push; n.email = !!p.email; n.sms = !!p.sms; }
+        });
       }
-      if(typeof r.is_vat_registered === 'boolean'){
-        document.getElementById('acctVat').checked = r.is_vat_registered;
-        toggleVatRateField();
-      }
-      if(r.cash_on_hand_opening != null) document.getElementById('obCash').value = parseFloat(r.cash_on_hand_opening).toFixed(2);
-      if(r.bank_account_opening != null) document.getElementById('obBank').value = parseFloat(r.bank_account_opening).toFixed(2);
-      if(r.mobile_money_opening != null) document.getElementById('obMobile').value = parseFloat(r.mobile_money_opening).toFixed(2);
     }
+    renderNotifMatrix();
+
+    const { data: obRows, error: obErr } = await db.from(OPENING_BAL_TABLE).select('*').order('period', { ascending:true });
+    if(obErr) throw obErr;
+    if(obRows && obRows.length){
+      openingPeriod = obRows[0].period;
+      const rowsForPeriod = obRows.filter(r=>r.period===openingPeriod);
+      const cash = rowsForPeriod.find(r=>r.channel==='cash');
+      const bank = rowsForPeriod.find(r=>r.channel==='bank');
+      const mobile = rowsForPeriod.find(r=>r.channel==='mobile');
+      setVal('obCash', cash ? fmt2(cash.opening_balance) : '0.00');
+      setVal('obBank', bank ? fmt2(bank.opening_balance) : '0.00');
+      setVal('obMobile', mobile ? fmt2(mobile.opening_balance) : '0.00');
+    } else {
+      const now = new Date();
+      openingPeriod = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    }
+    document.getElementById('obPeriodLbl').textContent = '(' + openingPeriod + ')';
     recalcOpeningTotal();
 
-    const { data: shRows, error: shErr } = await db.from(SHAREHOLDERS_TABLE).select('*').order('ownership_pct',{ascending:false});
+    const { data: shRows, error: shErr } = await db.from(SHAREHOLDERS_TABLE).select('*').order('ownership_pct', { ascending:false });
     if(shErr) throw shErr;
     if(shRows && shRows.length){
       shareholders = shRows.map((r,i)=>({
-        id: i+1,
-        _dbId: r.id,
-        name: r.name,
+        id: i+1, _dbId: r.id, name: r.name,
         role: r.role || (i===0 ? 'Owner' : 'Investor'),
         pct: parseFloat(r.ownership_pct || 0),
         isActive: r.is_active !== false
@@ -963,52 +1491,34 @@ async function loadFromSupabase(){
     renderShareholders();
 
     const { data: locRows, error: locErr } = await db.from(LOCATIONS_TABLE).select('*');
-    if(!locErr && locRows && locRows.length){
+    if(!locErr && locRows){
       locations = locRows.map(r=>({ _dbId:r.id, name:r.name, address:r.address||'', isActive: r.is_active !== false }));
     }
     renderLocations();
+
+    const { data: userRows, error: userErr } = await db.from(USERS_TABLE).select('*').order('created_at', { ascending:true });
+    if(!userErr && userRows){ users = userRows; }
     renderUsers();
+
+    const { data: delRows, error: delErr } = await db.from(DELEGATIONS_TABLE)
+      .select('*, delegator:users!approval_delegations_delegated_by_fkey(name), delegatee:users!approval_delegations_delegated_to_fkey(name)')
+      .order('created_at', { ascending:false });
+    if(!delErr && delRows){ delegations = delRows; }
+    renderDelegations();
+
+    const { data: pcRows, error: pcErr } = await db.from(PERIOD_CLOSES_TABLE).select('*').order('period', { ascending:false });
+    if(!pcErr && pcRows){ periodCloses = pcRows; }
+    renderPeriodCloses();
+
+    loadSystemHealth();
+    loadAuditLog();
+    loadLoginLog();
 
     setDataStatus('ok', 'Data is up to date');
   } catch(err){
     console.log('Supabase load failed, using local defaults:', err.message);
-    recalcOpeningTotal();
-    renderShareholders();
-    renderLocations();
-    renderUsers();
+    recalcOpeningTotal(); renderShareholders(); renderLocations(); renderUsers();
     setDataStatus('error', 'Could not reach database');
-  }
-}
-
-async function saveShareholderToSupabase(s){
-  if(!db){ showToast('⚠ Offline — saved locally only, will not persist on reload'); return false; }
-  try {
-    const row = { name: s.name, role: s.role, ownership_pct: s.pct, is_active: s.isActive };
-    if(s._dbId){
-      const { error } = await db.from(SHAREHOLDERS_TABLE).update(row).eq('id', s._dbId);
-      if(error) throw error;
-    } else {
-      const { data, error } = await db.from(SHAREHOLDERS_TABLE).insert(row).select().single();
-      if(error) throw error;
-      if(data) s._dbId = data.id;
-    }
-    return true;
-  } catch(err){
-    console.log('Supabase shareholder save failed (local only):', err.message);
-    showToast('⚠ Could not save shareholder to database — ' + err.message);
-    return false;
-  }
-}
-async function deleteShareholderFromSupabase(s){
-  if(!db || !s._dbId) return true;
-  try {
-    const { error } = await db.from(SHAREHOLDERS_TABLE).delete().eq('id', s._dbId);
-    if(error) throw error;
-    return true;
-  } catch(err){
-    console.log('Supabase shareholder delete failed:', err.message);
-    showToast('⚠ Could not remove shareholder from database — ' + err.message);
-    return false;
   }
 }
 
@@ -1020,48 +1530,61 @@ async function saveBusinessSettings(btn){
     return;
   }
   btn.innerHTML = '<span class="spin"></span>';
+
+  const notifPrefs = {};
+  NOTIF_TYPES.forEach(n=>{ notifPrefs[n.slug] = { push:n.push, email:n.email, sms:n.sms }; });
+
   const row = {
-    business_name: document.getElementById('bizName').value,
-    business_address: document.getElementById('bizAddress').value,
-    business_phone: document.getElementById('bizPhone').value,
-    business_email: document.getElementById('bizEmail').value,
-    business_website: document.getElementById('bizWebsite').value,
-    fiscal_year_start_month: document.getElementById('bizFiscalStart').value,
-    notification_email: document.getElementById('notifEmail').value,
-    notification_phone: document.getElementById('notifPhone').value,
-    default_distribution_pct: parseFloat(document.getElementById('defaultDistPct').value) || 0,
-    approval_threshold_etb: parseFloat(document.getElementById('threshApproval').value) || 0,
-    low_stock_threshold_pct: parseFloat(document.getElementById('threshLowStock').value) || 0,
-    credit_limit_warning_pct: parseFloat(document.getElementById('threshCredit').value) || 0,
-    petty_cash_daily_limit: parseFloat(document.getElementById('threshPetty').value) || 0,
-    bank_charge_default_pct: parseFloat(document.getElementById('acctBankFee').value) || 0,
-    vat_rate_pct: parseFloat(document.getElementById('acctVatRate').value) || 0,
-    session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value] ?? 240,
+    business_name: val('bizName'),
+    business_address: val('bizAddress'),
+    business_phone: val('bizPhone'),
+    business_email: val('bizEmail'),
+    business_website: val('bizWebsite'),
+    fiscal_year_start_month: val('bizFiscalStart'),
+    notification_email: val('notifEmail'),
+    notification_phone: val('notifPhone'),
+    default_distribution_pct: numVal('defaultDistPct'),
+    approval_threshold_etb: numVal('threshApproval'),
+    low_stock_threshold_pct: numVal('threshLowStock'),
+    credit_limit_warning_pct: numVal('threshCredit'),
+    petty_cash_daily_limit: numVal('threshPetty'),
+    bank_charge_default_pct: numVal('acctBankFee'),
+    vat_rate_pct: numVal('acctVatRate'),
     is_vat_registered: document.getElementById('acctVat').checked,
+    use_wac: document.getElementById('acctWac').checked,
+    rounding_mode: document.getElementById('acctRounding').value === 'Whole Birr (1 ETB)' ? 'whole' : '2dp',
+    session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value] ?? 240,
     business_timezone: 'Africa/Addis_Ababa',
-    cash_on_hand_opening: parseFloat(document.getElementById('obCash').value) || 0,
-    bank_account_opening: parseFloat(document.getElementById('obBank').value) || 0,
-    mobile_money_opening: parseFloat(document.getElementById('obMobile').value) || 0
+    notification_preferences: notifPrefs
   };
+
   if(!db){
     btn.textContent = original;
     showToast('⚠ Offline — changes are not saved to the database');
     return;
   }
   try {
-    const { data: existing, error: exErr } = await db.from(SETTINGS_TABLE).select('id').limit(1);
-    if(exErr) throw exErr;
-    if(existing && existing.length){
-      const { error } = await db.from(SETTINGS_TABLE).update(row).eq('id', existing[0].id);
+    if(businessSettingsId){
+      const { error } = await db.from(SETTINGS_TABLE).update(row).eq('id', businessSettingsId);
       if(error) throw error;
     } else {
-      const { error } = await db.from(SETTINGS_TABLE).insert(row);
+      const { data, error } = await db.from(SETTINGS_TABLE).insert(row).select().single();
       if(error) throw error;
+      businessSettingsId = data.id;
+    }
+    if(openingPeriod){
+      const obRows = [
+        { period: openingPeriod, channel:'cash',   opening_balance: numVal('obCash') },
+        { period: openingPeriod, channel:'bank',   opening_balance: numVal('obBank') },
+        { period: openingPeriod, channel:'mobile', opening_balance: numVal('obMobile') }
+      ];
+      const { error: obErr } = await db.from(OPENING_BAL_TABLE).upsert(obRows, { onConflict:'period,channel' });
+      if(obErr) throw obErr;
     }
     showToast('Settings saved successfully');
     setDataStatus('ok', 'Data is up to date');
   } catch(err){
-    console.log('Supabase settings save failed (local only):', err.message);
+    console.log('Supabase settings save failed:', err.message);
     showToast('⚠ Could not save to database — ' + err.message);
     setDataStatus('error', 'Save failed');
   } finally {
@@ -1069,42 +1592,9 @@ async function saveBusinessSettings(btn){
   }
 }
 
-/* ════════════════ LOCATIONS ════════════════ */
-let locations = [
-  { _dbId:null, name:'Main Kitchen', address:'', isActive:true }
-];
-function renderLocations(){
-  const body = document.getElementById('locationsBody');
-  if(!body) return;
-  body.innerHTML = locations.map((l,i)=>`
-    <tr>
-      <td style="font-weight:700">${l.name}</td>
-      <td style="color:var(--tm)">${l.address || '<span style="color:var(--tl)">Not set</span>'}</td>
-      <td><span class="pill-sm ${l.isActive ? 'pill-active' : 'pill-inactive'}">${l.isActive ? 'Active' : 'Inactive'}</span></td>
-    </tr>
-  `).join('');
-}
-
-/* ════════════════ USERS (read-only summary — full CRUD lives in Users & Roles) ═══ */
-function renderUsers(){
-  const body = document.getElementById('usersSummaryBody');
-  if(!body) return;
-  body.innerHTML = shareholders.map((s,i)=>`
-    <tr>
-      <td>
-        <div class="sh-person">
-          <div class="sh-av" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(s.name)}</div>
-          <div class="sh-name">${s.name}</div>
-        </div>
-      </td>
-      <td style="color:var(--tm)">${s.role}</td>
-      <td><span class="pill-sm ${s.isActive ? 'pill-active' : 'pill-inactive'}">${s.isActive ? 'Active' : 'Inactive'}</span></td>
-    </tr>
-  `).join('');
-}
-
 /* ════════════════ INIT ════════════════ */
 renderNotifMatrix();
+applySavedDevicePrefs();
 loadFromSupabase();
 </script>
 </body>
