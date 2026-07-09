@@ -155,7 +155,7 @@ html,body{overflow-x:hidden;max-width:100%}
 .cal-nav-b svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .cal-month-lbl{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:700;color:var(--td);min-width:130px;text-align:center}
 .cal-legend{font-size:11px;color:var(--tm);font-weight:600;display:flex;align-items:center;white-space:nowrap}
-.cal-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.cal-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle;box-shadow:0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0,0,0,.08)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .cal-wd{text-align:center;font-size:10.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;padding-bottom:4px}
 .cal-day{min-height:64px;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;background:#fff;display:flex;flex-direction:column;gap:4px;transition:all .12s}
@@ -496,10 +496,10 @@ html,body{overflow-x:hidden;max-width:100%}
         <div class="cal-month-lbl" id="calMonthLbl"></div>
         <div class="cal-nav-b" onclick="calShiftMonth(1)"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
         <div style="flex:1"></div>
-        <div class="cal-legend"><span class="cal-dot" style="background:#b3261e"></span>Overdue
-          <span class="cal-dot" style="background:#9a6a0a;margin-left:10px"></span>Due
-          <span class="cal-dot" style="background:#5a6e65;margin-left:10px"></span>Scheduled
-          <span class="cal-dot" style="background:#1a6b3c;margin-left:10px"></span>Paid</div>
+        <div class="cal-legend"><span class="cal-dot" style="background:#ef4444"></span>Overdue
+          <span class="cal-dot" style="background:#f59e0b;margin-left:10px"></span>Due
+          <span class="cal-dot" style="background:#3b82f6;margin-left:10px"></span>Scheduled
+          <span class="cal-dot" style="background:#22c55e;margin-left:10px"></span>Paid</div>
       </div>
       <div class="cal-grid" id="calWeekdays">
         <div class="cal-wd">Sun</div><div class="cal-wd">Mon</div><div class="cal-wd">Tue</div><div class="cal-wd">Wed</div><div class="cal-wd">Thu</div><div class="cal-wd">Fri</div><div class="cal-wd">Sat</div>
@@ -883,7 +883,7 @@ function calShiftMonth(delta){
   renderCalendar();
 }
 function calDotColor(status){
-  return status==='Overdue' ? '#b3261e' : status==='Upcoming' ? '#9a6a0a' : status==='Paid' ? '#1a6b3c' : '#5a6e65';
+  return status==='Overdue' ? '#ef4444' : status==='Upcoming' ? '#f59e0b' : status==='Paid' ? '#22c55e' : '#3b82f6';
 }
 function renderCalendar(){
   const { year, month } = calState;
@@ -930,10 +930,10 @@ function renderCalDayDetail(key, dayEvents){
     <div class="cal-detail-card">
       <div class="cal-detail-hd">Payments due — ${lbl}</div>
       ${dayEvents.map(e=>`
-        <div class="cal-detail-row">
+        <div class="cal-detail-row" style="border-left:3px solid ${calDotColor(e.status)}">
           <div class="l">${e.lender} <span style="color:var(--tl);font-weight:600">— Installment #${e.n}</span></div>
           <div style="display:flex;align-items:center;gap:10px">
-            <div class="r" style="color:${e.status==='Overdue'?'#b3261e':e.status==='Paid'?'#1a6b3c':'var(--td)'}">${fmt(e.amount)} ETB</div>
+            <div class="r" style="color:${e.status==='Overdue'?'#ef4444':e.status==='Paid'?'#16a34a':'var(--td)'}">${fmt(e.amount)} ETB</div>
             ${statusPill(e.status)}
           </div>
         </div>
@@ -1318,3 +1318,4 @@ loadLoansFromSupabase();
 </script>
 </body>
 </html>
+
