@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loans — Mena Injera &amp; Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-<title>Loans — Mena Injera &amp; Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,7 +24,10 @@ const db = createClient(
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 /* ══ CARD ═══════════════════════════════════════════ */
-.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;min-width:0}
+html,body{overflow-x:hidden;max-width:100%}
+.bot2{min-width:0}
+.bot2>div{min-width:0;max-width:100%}
 .card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px}
 .card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
 .card-sub{font-size:11px;color:var(--tl);font-weight:500;margin-top:2px}
@@ -144,6 +147,30 @@ const db = createClient(
 .info-box strong{color:#1a6b3c}
 
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
+
+/* ══ PAYMENT CALENDAR ═══════════════════════════════ */
+.cal-hd{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.cal-nav-b{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tm)}
+.cal-nav-b:hover{background:var(--bg)}
+.cal-nav-b svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.cal-month-lbl{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:700;color:var(--td);min-width:130px;text-align:center}
+.cal-legend{font-size:11px;color:var(--tm);font-weight:600;display:flex;align-items:center;white-space:nowrap}
+.cal-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-wd{text-align:center;font-size:10.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;padding-bottom:4px}
+.cal-day{min-height:64px;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;background:#fff;display:flex;flex-direction:column;gap:4px;transition:all .12s}
+.cal-day:hover{border-color:#9bcbaf;background:#f7fbf9}
+.cal-day.blank{visibility:hidden;cursor:default}
+.cal-day.today{border-color:#27ae60;box-shadow:0 0 0 1px #27ae60 inset}
+.cal-day.sel{background:#eaf7f0;border-color:#27ae60}
+.cal-day-num{font-size:11.5px;font-weight:700;color:var(--td)}
+.cal-day-dots{display:flex;gap:3px;flex-wrap:wrap}
+.cal-day-amt{font-size:9.5px;color:var(--tm);font-weight:600;margin-top:auto}
+.cal-detail-card{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.cal-detail-hd{font-size:12.5px;font-weight:700;color:var(--td);margin-bottom:8px}
+.cal-detail-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:12px}
+.cal-detail-row .l{font-weight:700;color:var(--td)}
+.cal-detail-row .r{font-weight:700}
 
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -269,7 +296,7 @@ const db = createClient(
           </table>
           </div>
           <div style="padding:12px 17px;text-align:center;border-top:1px solid var(--border)">
-            <a class="vall" style="justify-content:center;cursor:pointer" onclick="showToast('Full payment calendar coming soon')">View All Payments</a>
+            <a class="vall" style="justify-content:center;cursor:pointer" onclick="openCalendarModal()">View All Payments</a>
           </div>
         </div>
 
@@ -327,6 +354,16 @@ const db = createClient(
       </div>
       <div class="f-row">
         <div class="f-grp">
+          <label>Loan Reference No.</label>
+          <input type="text" id="lRefNo" placeholder="Auto-generated" readonly style="background:var(--bg);color:var(--tm)">
+        </div>
+        <div class="f-grp">
+          <label>Disbursement Channel</label>
+          <select id="lChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp">
           <label>Principal Amount (ETB)</label>
           <input type="number" id="lPrincipal" placeholder="0.00" step="0.01" min="0">
         </div>
@@ -347,9 +384,21 @@ const db = createClient(
       </div>
       <div class="f-row">
         <div class="f-grp">
-          <label>Disbursement Channel</label>
-          <select id="lChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+          <label>Grace Period (Days)</label>
+          <input type="number" id="lGrace" placeholder="0" step="1" min="0" value="0">
         </div>
+        <div class="f-grp">
+          <label>Late Payment Fee (%)</label>
+          <input type="number" id="lLateFee" placeholder="0.00" step="0.01" min="0" value="0">
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp" style="grid-column:1/-1">
+          <label>Collateral / Guarantor</label>
+          <input type="text" id="lCollateral" placeholder="e.g. Vehicle title, or guarantor name">
+        </div>
+      </div>
+      <div class="f-row">
         <div class="f-grp">
           <label>Status</label>
           <select id="lStatus"><option>Active</option><option>Paid Off</option><option>Defaulted</option></select>
@@ -434,6 +483,36 @@ const db = createClient(
   </div>
 </div>
 
+<!-- ════ PAYMENT CALENDAR MODAL ════ -->
+<div class="modal-overlay" id="calendarModalOverlay" onclick="if(event.target===this)closeCalendarModal()">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h3>Payment Calendar</h3>
+      <div class="modal-x" onclick="closeCalendarModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="cal-hd">
+        <div class="cal-nav-b" onclick="calShiftMonth(-1)"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="cal-month-lbl" id="calMonthLbl"></div>
+        <div class="cal-nav-b" onclick="calShiftMonth(1)"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        <div style="flex:1"></div>
+        <div class="cal-legend"><span class="cal-dot" style="background:#b3261e"></span>Overdue
+          <span class="cal-dot" style="background:#9a6a0a;margin-left:10px"></span>Due
+          <span class="cal-dot" style="background:#5a6e65;margin-left:10px"></span>Scheduled
+          <span class="cal-dot" style="background:#1a6b3c;margin-left:10px"></span>Paid</div>
+      </div>
+      <div class="cal-grid" id="calWeekdays">
+        <div class="cal-wd">Sun</div><div class="cal-wd">Mon</div><div class="cal-wd">Tue</div><div class="cal-wd">Wed</div><div class="cal-wd">Thu</div><div class="cal-wd">Fri</div><div class="cal-wd">Sat</div>
+      </div>
+      <div class="cal-grid" id="calDaysGrid"></div>
+      <div id="calDayDetail"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeCalendarModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
@@ -445,6 +524,7 @@ const TODAY = new Date('2026-06-01T00:00:00');
 let nextLoanId = 5;
 let loans = [
   { id:1, lender:'Awash Bank', principal:100000, rate:12, term:24, disbDate:'2025-01-15', channel:'Bank',
+    refNo:'LN-0001', gracePeriodDays:5, lateFeeRate:2, collateral:'Vehicle title — Toyota Vitz (2019)',
     monthlyPayment:4674.20, outstanding:53077.60, status:'Active', paidCount:4,
     scheduleFixed:[
       {n:1, due:'Feb 15, 2025', payment:4674.20, interest:1000.00, principal:3674.20, balance:96325.80, status:'Paid', actual:'Feb 15, 2025'},
@@ -457,21 +537,22 @@ let loans = [
     ]
   },
   { id:2, lender:'Cooperative Bank', principal:50000, rate:14, term:18, disbDate:'2025-03-10', channel:'Bank',
+    refNo:'LN-0002', gracePeriodDays:3, lateFeeRate:2.5, collateral:'Guarantor — Selamawit Tesfaye',
     monthlyPayment:3193.90, outstanding:15969.50, status:'Active', paidCount:1 },
   { id:3, lender:'Abay Microfinance', principal:30000, rate:18, term:12, disbDate:'2025-06-05', channel:'Mobile Money',
+    refNo:'LN-0003', gracePeriodDays:0, lateFeeRate:3, collateral:'Unsecured (group guarantee)',
     monthlyPayment:2797.18, outstanding:27971.80, status:'Active', paidCount:1 },
   { id:4, lender:'Commercial Bank', principal:80000, rate:11, term:36, disbDate:'2024-09-01', channel:'Bank',
+    refNo:'LN-0004', gracePeriodDays:5, lateFeeRate:2, collateral:'Equipment lien — bakery ovens',
     monthlyPayment:2598.99, outstanding:0, status:'Paid Off', paidCount:36 }
 ];
 
 /* Cumulative to-date totals — shown in Loan Summary, updated when a payment is recorded */
 let totals = { interestPaid:12456.70, principalRepaid:70524.40 };
 
-let upcomingPayments = [
-  { lender:'Awash Bank', due:'Jun 15, 2026', amount:4674.20 },
-  { lender:'Cooperative Bank', due:'Jun 10, 2026', amount:3193.90 },
-  { lender:'Abay Microfinance', due:'Jun 05, 2026', amount:2797.18 }
-];
+/* Upcoming payments are derived live from each active loan's amortization schedule
+   (see getNextPayments()) rather than hand-maintained, so they can never drift out
+   of sync with paidCount / new loans / recorded payments. */
 
 let state = { page:1, perPage:10 };
 let openRowMenuEl = null;
@@ -482,12 +563,12 @@ function fmtDate(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
-function daysUntil(dateLabel){
-  const d = new Date(dateLabel);
+function daysUntil(dueDate){
+  const d = (dueDate instanceof Date) ? dueDate : new Date(dueDate);
   const diff = Math.round((d-TODAY)/86400000);
-  if(diff<0) return {txt:`${Math.abs(diff)} days overdue`, cls:'pill-overdue'};
+  if(diff<0) return {txt:`${Math.abs(diff)} day${Math.abs(diff)===1?'':'s'} overdue`, cls:'pill-overdue'};
   if(diff===0) return {txt:'Due today', cls:'pill-upcoming'};
-  return {txt:`Due in ${diff} days`, cls:'pill-upcoming'};
+  return {txt:`Due in ${diff} day${diff===1?'':'s'}`, cls:'pill-upcoming'};
 }
 function loanById(id){ return loans.find(l=>l.id===Number(id)); }
 
@@ -530,11 +611,26 @@ function amortize(loan){
     });
     balance = closing;
   }
-  // Apply paidCount / status overrides consistently
+  // Apply paidCount / status overrides consistently, and flag genuinely overdue
+  // installments (past due date + grace period) with an automatic late fee —
+  // any real loan module needs this instead of leaving late payments as "Upcoming".
+  const grace = loan.gracePeriodDays || 0;
+  const lateFeeRate = loan.lateFeeRate || 0;
   rows.forEach((r,idx)=>{
+    r.lateFee = 0;
     if(loan.status==='Paid Off'){ r.status='Paid'; if(r.actual==='-') r.actual=r.due; }
     else if(idx < loan.paidCount){ r.status='Paid'; if(r.actual==='-'||!r.actual) r.actual=r.due; }
-    else if(idx === loan.paidCount){ r.status='Upcoming'; r.actual='-'; }
+    else if(idx === loan.paidCount){
+      const dueDate = new Date(r.due);
+      const daysLate = Math.round((TODAY-dueDate)/86400000);
+      if(daysLate > grace){
+        r.status = 'Overdue';
+        r.lateFee = +((r.payment * lateFeeRate/100)).toFixed(2);
+      } else {
+        r.status = 'Upcoming';
+      }
+      r.actual='-';
+    }
     else { r.status='Scheduled'; r.actual='-'; }
   });
   return rows;
@@ -663,15 +759,15 @@ function renderSchedule(){
   // show only first 7 rows inline (matches reference); full 24 available via "View Full Schedule"
   const visible = rows.slice(0,7);
   document.getElementById('schedBody').innerHTML = visible.map(r=>`
-    <tr class="${r.status==='Upcoming'?'hl-row':''}">
+    <tr class="${r.status==='Upcoming'||r.status==='Overdue'?'hl-row':''}">
       <td>${r.n}</td>
-      <td style="${r.status==='Upcoming'?'color:#e53935;font-weight:700':''}">${r.due}</td>
+      <td style="${r.status==='Overdue'?'color:#b3261e;font-weight:700':(r.status==='Upcoming'?'color:#e53935;font-weight:700':'')}">${r.due}</td>
       <td>${fmt(r.payment)}</td>
       <td>${fmt(r.interest)}</td>
       <td>${fmt(r.principal)}</td>
-      <td>${fmt(r.payment)}</td>
+      <td>${fmt(r.payment + (r.lateFee||0))}${r.lateFee>0?`<br><span style="font-size:9.5px;color:#b3261e;font-weight:700">+${fmt(r.lateFee)} late fee</span>`:''}</td>
       <td>${fmt(r.balance)}</td>
-      <td style="${r.status==='Upcoming'?'color:#e53935;font-weight:700':(r.status==='Paid'?'color:#1a6b3c;font-weight:700':'color:var(--tl)')}">${r.status}</td>
+      <td style="${r.status==='Overdue'?'color:#b3261e;font-weight:700':(r.status==='Upcoming'?'color:#e53935;font-weight:700':(r.status==='Paid'?'color:#1a6b3c;font-weight:700':'color:var(--tl)'))}">${r.status}</td>
       <td>${r.actual}</td>
     </tr>
   `).join('');
@@ -691,9 +787,9 @@ function openFullScheduleModal(){
   document.getElementById('fullSchedTitle').textContent = `Full Repayment Schedule — ${loan.lender}`;
   const rows = amortize(loan);
   document.getElementById('fullSchedBody').innerHTML = rows.map(r=>`
-    <tr class="${r.status==='Upcoming'?'hl-row':''}">
+    <tr class="${r.status==='Upcoming'||r.status==='Overdue'?'hl-row':''}">
       <td>${r.n}</td><td>${r.due}</td><td>${fmt(r.payment)}</td><td>${fmt(r.interest)}</td>
-      <td>${fmt(r.principal)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.balance)}</td>
+      <td>${fmt(r.principal)}</td><td>${fmt(r.payment + (r.lateFee||0))}${r.lateFee>0?` <span style="font-size:9.5px;color:#b3261e;font-weight:700">(+${fmt(r.lateFee)} fee)</span>`:''}</td><td>${fmt(r.balance)}</td>
       <td>${statusPill(r.status)}</td><td>${r.actual}</td>
     </tr>
   `).join('');
@@ -702,13 +798,26 @@ function openFullScheduleModal(){
 function closeFullScheduleModal(){ document.getElementById('fullSchedModalOverlay').classList.remove('show'); }
 
 /* ════════════════ LOAN SUMMARY (right column) ════════════════ */
+function getNextPayments(){
+  // One "next payment" per active loan, derived live from its amortization
+  // schedule — this can never drift out of sync the way a hand-maintained
+  // upcoming-payments list could (e.g. after adding a loan or recording a payment).
+  return loans.filter(l=>l.status==='Active').map(loan=>{
+    const rows = amortize(loan);
+    const next = rows[loan.paidCount];
+    return next ? { lender:loan.lender, loanId:loan.id, due:next.due, dueDate:new Date(next.due), amount: next.payment + (next.lateFee||0), status:next.status } : null;
+  }).filter(Boolean).sort((a,b)=>a.dueDate-b.dueDate);
+}
+
 function renderSummary(){
   const active = loans.filter(l=>l.status==='Active');
   const paidOff = loans.filter(l=>l.status==='Paid Off');
   const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
   const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
   const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
-  const nextDue = upcomingPayments.length ? upcomingPayments.slice().sort((a,b)=>new Date(a.due)-new Date(b.due))[0] : null;
+  const nextPayments = getNextPayments();
+  const nextDue = nextPayments.length ? nextPayments[0] : null;
+  const overdueCount = nextPayments.filter(p=>p.status==='Overdue').length;
 
   const rows = [
     { ic:'#e5f5ed', stroke:'#27ae60', path:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>', label:'Total Principal Borrowed', val:fmt(totalPrincipal), unit:'ETB' },
@@ -718,7 +827,8 @@ function renderSummary(){
     { ic:'#f3e8fd', stroke:'#8b5cf6', path:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>', label:'Monthly Payments (All Loans)', val:fmt(totalMonthly), unit:'ETB' },
     { ic:'#e0f5fa', stroke:'#0891b2', path:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', label:'Next Payment Due (All Loans)', val: nextDue ? nextDue.due : '—' },
     { ic:'#e5f5ed', stroke:'#27ae60', path:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', label:'Active Loans', val: active.length },
-    { ic:'#eef1f0', stroke:'#5a6e65', path:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>', label:'Paid Off Loans', val: paidOff.length }
+    { ic:'#eef1f0', stroke:'#5a6e65', path:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>', label:'Paid Off Loans', val: paidOff.length },
+    { ic:'#fdecea', stroke:'#b3261e', path:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>', label:'Overdue Payments', val: overdueCount, cls: overdueCount>0?'red':'' }
   ];
 
   document.getElementById('summaryList').innerHTML = rows.map(r=>`
@@ -732,12 +842,13 @@ function renderSummary(){
 
 /* ════════════════ UPCOMING PAYMENTS ════════════════ */
 function renderUpcoming(){
-  document.getElementById('upcomingBody').innerHTML = upcomingPayments.map(p=>{
-    const d = daysUntil(p.due);
+  const nextPayments = getNextPayments();
+  document.getElementById('upcomingBody').innerHTML = nextPayments.map(p=>{
+    const d = daysUntil(p.dueDate);
     return `
       <tr>
         <td style="font-weight:700">${p.lender}</td>
-        <td style="color:#e53935;font-weight:700">${p.due}</td>
+        <td style="color:${p.status==='Overdue'?'#b3261e':'#e53935'};font-weight:700">${p.due}</td>
         <td>${fmt(p.amount)}</td>
         <td><span class="pill-sm ${d.cls}">${d.txt}</span></td>
       </tr>
@@ -745,16 +856,113 @@ function renderUpcoming(){
   }).join('') || `<tr class="empty-row"><td colspan="4">No upcoming payments.</td></tr>`;
 }
 
+/* ════════════════ PAYMENT CALENDAR ════════════════ */
+let calState = { year: TODAY.getFullYear(), month: TODAY.getMonth(), selectedKey: null };
+
+function getAllPaymentEvents(){
+  // Every scheduled installment, across every loan — this is what actually powers
+  // the "View All Payments" calendar instead of the previous placeholder toast.
+  const events = [];
+  loans.forEach(loan=>{
+    amortize(loan).forEach(r=>{
+      const dt = new Date(r.due);
+      events.push({
+        loanId: loan.id, lender: loan.lender, date: dt,
+        key: `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`,
+        amount: r.payment + (r.lateFee||0), status: r.status, n: r.n
+      });
+    });
+  });
+  return events;
+}
+function calShiftMonth(delta){
+  calState.month += delta;
+  if(calState.month<0){ calState.month=11; calState.year--; }
+  if(calState.month>11){ calState.month=0; calState.year++; }
+  calState.selectedKey = null;
+  renderCalendar();
+}
+function calDotColor(status){
+  return status==='Overdue' ? '#b3261e' : status==='Upcoming' ? '#9a6a0a' : status==='Paid' ? '#1a6b3c' : '#5a6e65';
+}
+function renderCalendar(){
+  const { year, month } = calState;
+  const monthLbl = new Date(year, month, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  document.getElementById('calMonthLbl').textContent = monthLbl;
+
+  const events = getAllPaymentEvents();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  let cells = '';
+  for(let i=0;i<firstWeekday;i++) cells += `<div class="cal-day blank"></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const key = `${year}-${month}-${day}`;
+    const dayEvents = events.filter(e=>e.key===key);
+    const isToday = (year===TODAY.getFullYear() && month===TODAY.getMonth() && day===TODAY.getDate());
+    const total = dayEvents.reduce((s,e)=>s+e.amount,0);
+    cells += `
+      <div class="cal-day ${isToday?'today':''} ${calState.selectedKey===key?'sel':''}" onclick="calSelectDay('${key}')">
+        <div class="cal-day-num">${day}</div>
+        <div class="cal-day-dots">${dayEvents.map(e=>`<span class="cal-dot" style="background:${calDotColor(e.status)}"></span>`).join('')}</div>
+        ${dayEvents.length ? `<div class="cal-day-amt">${fmt(total)} ETB</div>` : ''}
+      </div>`;
+  }
+  document.getElementById('calDaysGrid').innerHTML = cells;
+
+  if(calState.selectedKey){
+    const dayEvents = events.filter(e=>e.key===calState.selectedKey);
+    renderCalDayDetail(calState.selectedKey, dayEvents);
+  } else {
+    document.getElementById('calDayDetail').innerHTML = '';
+  }
+}
+function calSelectDay(key){
+  calState.selectedKey = (calState.selectedKey===key) ? null : key;
+  renderCalendar();
+}
+function renderCalDayDetail(key, dayEvents){
+  const box = document.getElementById('calDayDetail');
+  if(!dayEvents.length){ box.innerHTML=''; return; }
+  const [y,m,d] = key.split('-').map(Number);
+  const lbl = new Date(y,m,d).toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  box.innerHTML = `
+    <div class="cal-detail-card">
+      <div class="cal-detail-hd">Payments due — ${lbl}</div>
+      ${dayEvents.map(e=>`
+        <div class="cal-detail-row">
+          <div class="l">${e.lender} <span style="color:var(--tl);font-weight:600">— Installment #${e.n}</span></div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="r" style="color:${e.status==='Overdue'?'#b3261e':e.status==='Paid'?'#1a6b3c':'var(--td)'}">${fmt(e.amount)} ETB</div>
+            ${statusPill(e.status)}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+function openCalendarModal(){
+  calState.year = TODAY.getFullYear();
+  calState.month = TODAY.getMonth();
+  calState.selectedKey = null;
+  renderCalendar();
+  document.getElementById('calendarModalOverlay').classList.add('show');
+}
+function closeCalendarModal(){ document.getElementById('calendarModalOverlay').classList.remove('show'); }
+
 /* ════════════════ ADD / EDIT LOAN MODAL ════════════════ */
 function openLoanModal(){
   document.getElementById('loanModalTitle').textContent = 'Add New Loan';
   document.getElementById('lId').value = '';
   document.getElementById('lLender').value = '';
+  document.getElementById('lRefNo').value = `LN-${String(nextLoanId).padStart(4,'0')}`;
   document.getElementById('lPrincipal').value = '';
   document.getElementById('lRate').value = '';
   document.getElementById('lTerm').value = '';
   document.getElementById('lDate').value = '';
   document.getElementById('lChannel').value = 'Bank';
+  document.getElementById('lGrace').value = 0;
+  document.getElementById('lLateFee').value = 0;
+  document.getElementById('lCollateral').value = '';
   document.getElementById('lStatus').value = 'Active';
   document.getElementById('lNotes').value = '';
   updatePmtPreview();
@@ -766,11 +974,15 @@ function editLoan(id){
   document.getElementById('loanModalTitle').textContent = 'Edit Loan';
   document.getElementById('lId').value = l.id;
   document.getElementById('lLender').value = l.lender;
+  document.getElementById('lRefNo').value = l.refNo || `LN-${String(l.id).padStart(4,'0')}`;
   document.getElementById('lPrincipal').value = l.principal;
   document.getElementById('lRate').value = l.rate;
   document.getElementById('lTerm').value = l.term;
   document.getElementById('lDate').value = l.disbDate;
   document.getElementById('lChannel').value = l.channel;
+  document.getElementById('lGrace').value = l.gracePeriodDays || 0;
+  document.getElementById('lLateFee').value = l.lateFeeRate || 0;
+  document.getElementById('lCollateral').value = l.collateral || '';
   document.getElementById('lStatus').value = l.status;
   document.getElementById('lNotes').value = l.notes||'';
   updatePmtPreview();
@@ -803,11 +1015,15 @@ function updatePmtPreview(){
 function saveLoan(){
   const id = document.getElementById('lId').value;
   const lender = document.getElementById('lLender').value.trim();
+  const refNo = document.getElementById('lRefNo').value.trim();
   const principal = parseFloat(document.getElementById('lPrincipal').value);
   const rate = parseFloat(document.getElementById('lRate').value);
   const term = parseInt(document.getElementById('lTerm').value);
   const disbDate = document.getElementById('lDate').value;
   const channel = document.getElementById('lChannel').value;
+  const gracePeriodDays = parseInt(document.getElementById('lGrace').value)||0;
+  const lateFeeRate = parseFloat(document.getElementById('lLateFee').value)||0;
+  const collateral = document.getElementById('lCollateral').value.trim();
   const status = document.getElementById('lStatus').value;
   const notes = document.getElementById('lNotes').value;
 
@@ -819,12 +1035,12 @@ function saveLoan(){
 
   if(id){
     const l = loanById(id);
-    Object.assign(l, { lender, principal, rate, term, disbDate, channel, status, notes, monthlyPayment });
+    Object.assign(l, { lender, principal, rate, term, disbDate, channel, gracePeriodDays, lateFeeRate, collateral, status, notes, monthlyPayment });
     if(status==='Paid Off'){ l.outstanding = 0; l.paidCount = l.term; }
     showToast('Loan updated successfully');
   } else {
     loans.push({
-      id: nextLoanId++, lender, principal, rate, term, disbDate, channel, status, notes,
+      id: nextLoanId++, lender, refNo, principal, rate, term, disbDate, channel, gracePeriodDays, lateFeeRate, collateral, status, notes,
       monthlyPayment, outstanding: principal, paidCount: 0
     });
     showToast('New loan added successfully');
@@ -851,7 +1067,6 @@ function deleteLoan(id){
   if(!l) return;
   if(!confirm(`Delete the ${l.lender} loan? This cannot be undone.`)) return;
   loans = loans.filter(x=>x.id!==id);
-  upcomingPayments = upcomingPayments.filter(p=>p.lender!==l.lender);
   showToast(`${l.lender} loan deleted`);
   renderRegister();
   renderSchedule();
@@ -876,7 +1091,8 @@ function refreshPaymentPreview(){
   const rows = amortize(loan);
   const next = rows[loan.paidCount];
   if(!next){ box.textContent = 'This loan has no remaining scheduled payments.'; return; }
-  box.innerHTML = `Next payment for <strong>${loan.lender}</strong>: due ${next.due} — <strong>${fmt(next.payment)} ETB</strong> (Interest ${fmt(next.interest)} + Principal ${fmt(next.principal)})`;
+  const total = next.payment + (next.lateFee||0);
+  box.innerHTML = `Next payment for <strong>${loan.lender}</strong>: due ${next.due} — <strong>${fmt(total)} ETB</strong> (Interest ${fmt(next.interest)} + Principal ${fmt(next.principal)}${next.lateFee>0?` + <span style="color:#b3261e">Late Fee ${fmt(next.lateFee)}</span>`:''})${next.status==='Overdue'?` <span style="color:#b3261e;font-weight:700">— Overdue</span>`:''}`;
 }
 function confirmPayment(){
   const sel = document.getElementById('pyLoanSel');
@@ -895,16 +1111,12 @@ function confirmPayment(){
     loan.status = 'Paid Off';
     loan.outstanding = 0;
   }
-  upcomingPayments = upcomingPayments.filter(p=>p.lender!==loan.lender);
-  const rows2 = amortize(loan);
-  const followUp = rows2[loan.paidCount];
-  if(followUp && loan.status==='Active'){
-    upcomingPayments.push({ lender:loan.lender, due:followUp.due, amount:followUp.payment });
-  }
+  // Next payment (if any) is picked up automatically by getNextPayments() —
+  // no manual bookkeeping array to keep in sync.
 
   savePaymentToSupabase(loan, next, actualDate);
   closePaymentModal();
-  showToast(`Payment recorded for ${loan.lender}`);
+  showToast(`Payment recorded for ${loan.lender}${next.lateFee>0?` (incl. ${fmt(next.lateFee)} ETB late fee)`:''}`);
   renderRegister();
   renderSchedule();
 }
@@ -916,8 +1128,10 @@ function openLoanDetails(){
   if(!loan) return;
   const rows = amortize(loan);
   const paid = rows.filter(r=>r.status==='Paid').length;
+  const totalInterestFullTerm = rows.reduce((s,r)=>s+r.interest,0);
   document.getElementById('detailsBody').innerHTML = `
     <div class="sum-row"><div class="sum-lbl">Lender</div><div class="sum-val">${loan.lender}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Loan Reference No.</div><div class="sum-val">${loan.refNo || `LN-${String(loan.id).padStart(4,'0')}`}</div></div>
     <div class="sum-row"><div class="sum-lbl">Principal Amount</div><div class="sum-val">${fmt(loan.principal)} <span class="u">ETB</span></div></div>
     <div class="sum-row"><div class="sum-lbl">Interest Rate (Annual)</div><div class="sum-val">${loan.rate.toFixed(2)}%</div></div>
     <div class="sum-row"><div class="sum-lbl">Term</div><div class="sum-val">${loan.term} Months</div></div>
@@ -925,7 +1139,11 @@ function openLoanDetails(){
     <div class="sum-row"><div class="sum-lbl">Disbursement Channel</div><div class="sum-val">${loan.channel}</div></div>
     <div class="sum-row"><div class="sum-lbl">Monthly Payment</div><div class="sum-val">${fmt(loan.monthlyPayment)} <span class="u">ETB</span></div></div>
     <div class="sum-row"><div class="sum-lbl">Outstanding Balance</div><div class="sum-val red">${fmt(loan.outstanding)} <span class="u">ETB</span></div></div>
+    <div class="sum-row"><div class="sum-lbl">Total Interest (Full Term)</div><div class="sum-val">${fmt(totalInterestFullTerm)} <span class="u">ETB</span></div></div>
     <div class="sum-row"><div class="sum-lbl">Payments Made</div><div class="sum-val">${paid} of ${loan.term}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Grace Period</div><div class="sum-val">${loan.gracePeriodDays||0} days</div></div>
+    <div class="sum-row"><div class="sum-lbl">Late Payment Fee</div><div class="sum-val">${(loan.lateFeeRate||0).toFixed(2)}% of installment</div></div>
+    <div class="sum-row"><div class="sum-lbl">Collateral / Guarantor</div><div class="sum-val" style="text-align:right;font-size:12px">${loan.collateral || '—'}</div></div>
     <div class="sum-row"><div class="sum-lbl">Status</div><div class="sum-val">${loan.status}</div></div>
     ${loan.notes ? `<div class="sum-row" style="align-items:flex-start"><div class="sum-lbl">Notes</div><div class="sum-val" style="text-align:right;font-weight:600;font-size:12px;color:var(--tm)">${loan.notes}</div></div>` : ''}
   `;
