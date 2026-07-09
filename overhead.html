@@ -3,11 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <title>Monthly Overhead — Mena Injera & Derkosh BMS</title>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,9 +93,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .view-exp:hover{background:#e0f4ea}
 
 /* ══ TABLE ══════════════════════════════════════════ */
-.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-.tbl th{padding:9px 14px;text-align:left;font-size:10.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-.tbl td{padding:10px 14px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+.tbl th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.tbl th.wrap{white-space:normal;line-height:1.25;vertical-align:bottom}
+.tbl td{padding:9px 10px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl tr:hover td{background:#f7fbf9}
 .tbl .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none}
 .tbl .tot td:nth-child(2){color:#1a2e25}
@@ -156,7 +152,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .sum-val.dn{color:#e53935;display:flex;align-items:center;gap:3px;font-size:12.5px}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
-.bot2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:16px;align-items:start}
+.bot2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:16px;align-items:start;min-width:0}
+.bot2 > div{min-width:0}
+.card{min-width:0}
+
+/* ══ SECTION HEADER (Payroll divider) ═══════════════════ */
+.sec-hd{display:flex;align-items:center;gap:9px;margin:6px 0 14px}
+.sec-ttl{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td)}
 
 /* ══ FOOTER ════════════════════════════════════════ */
 .footer{text-align:center;padding:12px;font-size:11px;color:var(--tl);border-top:1px solid var(--border);background:#fff}
@@ -208,10 +210,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .sum-grid{grid-template-columns:1fr}
   .card{overflow:hidden;min-width:0;max-width:100%}
   .top-actions{flex-wrap:wrap}
-  table{font-size:11px}
+  .tbl{font-size:11px}
+  .exp-bd{flex-direction:column;align-items:flex-start}
+  .dnut{align-self:center}
 }
 @media (max-width:480px){
   .kc{min-width:160px}
+  .content{padding:14px 12px}
+  .tbl th,.tbl td{padding:7px 8px}
+  .sec-ttl{font-size:14.5px}
+  .pl-hd{flex-direction:column;align-items:flex-start}
+  .btn-new{width:100%;justify-content:center}
 }
 </style>
 </head>
@@ -280,7 +289,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
     </div>
 
-    <!-- MAIN TWO-COLUMN AREA -->
+    <!-- OVERHEAD TWO-COLUMN AREA -->
     <div class="bot2">
 
       <!-- LEFT COLUMN -->
@@ -305,7 +314,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <thead>
               <tr>
                 <th>#</th><th>Overhead Category</th><th>Description</th>
-                <th class="num">Monthly Amount (ETB)</th><th class="num">Daily Rate (ETB)</th><th class="num">% of Total</th><th></th>
+                <th class="num wrap">Monthly Amount<br>(ETB)</th><th class="num wrap">Daily Rate<br>(ETB)</th><th class="num">% of Total</th><th></th>
               </tr>
             </thead>
             <tbody id="ohTblBody"></tbody>
@@ -319,75 +328,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               </tr>
             </tfoot>
           </table>
-          </div>
-        </div>
-
-        <!-- Payroll Detail -->
-        <div class="card">
-          <div class="pl-hd">
-            <div class="pl-hd-l">
-              <div class="card-ttl-ic" style="background:#f3e8fd">
-                <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              </div>
-              <div class="card-ttl">Payroll Detail <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="prMonthLbl">- May 2026</span></div>
-            </div>
-            <button class="btn-new" onclick="openPayrollModal()">
-              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Payroll
-            </button>
-          </div>
-          <div style="overflow-x:auto">
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th>#</th><th>Employee Name</th><th>Role / Position</th><th class="num">Days Worked</th>
-                <th class="num">Gross Pay (ETB)</th><th class="num">Advance (ETB)</th><th class="num">Other Deductions (ETB)</th>
-                <th class="num">Net Pay (ETB)</th><th>Payment Date</th><th>Payment Channel</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="prTblBody"></tbody>
-            <tfoot>
-              <tr class="tot">
-                <td colspan="3">Total</td>
-                <td class="num" id="prTotDays"></td>
-                <td class="num" id="prTotGross"></td>
-                <td class="num" id="prTotAdv"></td>
-                <td class="num" id="prTotOther"></td>
-                <td class="num" id="prTotNet"></td>
-                <td colspan="3"></td>
-              </tr>
-            </tfoot>
-          </table>
-          </div>
-          <div class="tbl-ft">
-            <span class="tbl-ft-lbl">Total Employees: <strong id="prEmpCount">5</strong></span>
-            <a class="vall" onclick="toast('Full payroll report view coming soon')" style="cursor:pointer">View full payroll report
-              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card">
-          <div class="card-hd" style="padding-bottom:0">
-            <div class="card-ttl">Quick Actions</div>
-          </div>
-          <div class="qa-grid">
-            <div class="qa-card" onclick="openOverheadModal()">
-              <div class="qa-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-              <div class="qa-txt"><h5>Add Overhead</h5><span>Record new overhead expense</span></div>
-              <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-            </div>
-            <div class="qa-card" onclick="openPayrollModal()">
-              <div class="qa-ico ic-p"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-              <div class="qa-txt"><h5>Add Payroll</h5><span>Record payroll payment</span></div>
-              <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-            </div>
-            <div class="qa-card" onclick="toast('Overhead & payroll reports coming soon')">
-              <div class="qa-ico ic-b"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-              <div class="qa-txt"><h5>View Reports</h5><span>Overhead &amp; payroll reports</span></div>
-              <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-            </div>
           </div>
         </div>
 
@@ -449,7 +389,163 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
 
       </div><!-- /right column -->
-    </div><!-- /two-column area -->
+    </div><!-- /overhead two-column area -->
+
+    <!-- PAYROLL SECTION HEADER -->
+    <div class="sec-hd">
+      <div class="card-ttl-ic" style="background:#f3e8fd">
+        <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h2 class="sec-ttl">Payroll <span style="font-weight:600;color:var(--tl);font-size:13px;margin-left:2px" id="prSecMonthLbl">- May 2026</span></h2>
+    </div>
+
+    <!-- PAYROLL KPI ROW -->
+    <div class="kpi-row" id="prKpiRow">
+      <div class="kc">
+        <div class="kc-ico ic-b">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <span class="kc-lbl">Total Gross Pay</span>
+        <div class="kc-val"><span id="kpiPrGross" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-sub">Employees Paid <strong id="kpiPrCountSub" style="color:var(--td)">5</strong></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-r">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <span class="kc-lbl">Total Deductions</span>
+        <div class="kc-val"><span id="kpiPrDed" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-sub">Advances + Other <strong id="kpiPrDedPct" style="color:var(--td)">0%</strong></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-g">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <span class="kc-lbl">Total Net Paid</span>
+        <div class="kc-val"><span id="kpiPrNet" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-sub">of Total Overhead <strong id="kpiPrNetPct" style="color:var(--td)">0%</strong></div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-p">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <span class="kc-lbl">Avg Net Pay / Employee</span>
+        <div class="kc-val"><span id="kpiPrAvgNet" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-sub" id="kpiPrDaysSub">Avg 31 days present</div>
+      </div>
+    </div>
+
+    <!-- PAYROLL TWO-COLUMN AREA -->
+    <div class="bot2">
+
+      <!-- LEFT: Payroll Detail -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="pl-hd">
+            <div class="pl-hd-l">
+              <div class="card-ttl-ic" style="background:#f3e8fd">
+                <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div class="card-ttl">Payroll Detail <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="prMonthLbl">- May 2026</span></div>
+            </div>
+            <button class="btn-new" onclick="openPayrollModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Payroll
+            </button>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>#</th><th>Employee</th><th>Role</th><th class="num wrap">Days<br>Worked</th>
+                <th class="num wrap">Gross Pay<br>(ETB)</th><th class="num wrap">Advance<br>(ETB)</th><th class="num wrap">Other Ded.<br>(ETB)</th>
+                <th class="num wrap">Net Pay<br>(ETB)</th><th class="wrap">Payment<br>Date</th><th>Channel</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="prTblBody"></tbody>
+            <tfoot>
+              <tr class="tot">
+                <td colspan="3">Total</td>
+                <td class="num" id="prTotDays"></td>
+                <td class="num" id="prTotGross"></td>
+                <td class="num" id="prTotAdv"></td>
+                <td class="num" id="prTotOther"></td>
+                <td class="num" id="prTotNet"></td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+          <div class="tbl-ft">
+            <span class="tbl-ft-lbl">Total Employees: <strong id="prEmpCount">5</strong></span>
+            <a class="vall" onclick="toast('Full payroll report view coming soon')" style="cursor:pointer">View full payroll report
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+          </div>
+        </div>
+      </div><!-- /payroll left column -->
+
+      <!-- RIGHT: Payroll Breakdown + Summary -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Payroll by Channel -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Payroll by Channel <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prDnutMonthLbl">- May 2026</span></div>
+          </div>
+          <div class="exp-bd">
+            <div class="dnut">
+              <canvas id="prDonut" width="130" height="130"></canvas>
+              <div class="dnut-lbl">
+                <span>Net Paid</span>
+                <strong id="prDnutTotalLbl">0.00<br>ETB</strong>
+              </div>
+            </div>
+            <div class="exp-leg" id="prDnutLegend"></div>
+          </div>
+        </div>
+
+        <!-- Payroll Summary -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Payroll Summary <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prSumMonthLbl">- May 2026</span></div>
+          </div>
+          <div class="sum-grid">
+            <div class="sum-row"><span class="sum-lbl">Total Gross Pay</span><span class="sum-val" id="prSumGross">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Total Deductions</span><span class="sum-val" id="prSumDed">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Total Net Paid</span><span class="sum-val" id="prSumNet">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Employees Paid</span><span class="sum-val" id="prSumCount">0</span></div>
+            <div class="sum-row"><span class="sum-lbl">Avg Net Pay / Employee</span><span class="sum-val" id="prSumAvg">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Avg Days Present</span><span class="sum-val" id="prSumAvgDays">0</span></div>
+          </div>
+        </div>
+
+      </div><!-- /payroll right column -->
+    </div><!-- /payroll two-column area -->
+
+    <!-- Quick Actions -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd" style="padding-bottom:0">
+        <div class="card-ttl">Quick Actions</div>
+      </div>
+      <div class="qa-grid">
+        <div class="qa-card" onclick="openOverheadModal()">
+          <div class="qa-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+          <div class="qa-txt"><h5>Add Overhead</h5><span>Record new overhead expense</span></div>
+          <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="qa-card" onclick="openPayrollModal()">
+          <div class="qa-ico ic-p"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <div class="qa-txt"><h5>Add Payroll</h5><span>Record payroll payment</span></div>
+          <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="qa-card" onclick="toast('Overhead & payroll reports coming soon')">
+          <div class="qa-ico ic-b"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div class="qa-txt"><h5>View Reports</h5><span>Overhead &amp; payroll reports</span></div>
+          <div class="qa-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+    </div>
 
   </div><!-- /content -->
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
@@ -647,11 +743,14 @@ let trendHistory = [
   {label:'Apr 2026', value:10870}
 ];
 
-let donutChart, trendChart;
+let donutChart, trendChart, prDonutChart;
 let activeRowMenu = null;
 const CAT_COLORS = {
   'Labor / Wages':'#1d5c38','Rent':'#27ae60','Electricity':'#f59e0b',
   'Maintenance':'#2563eb','Water':'#8b5cf6','Other Overhead':'#eab308','Depreciation':'#94a3b8'
+};
+const CHANNEL_COLORS = {
+  'Cash':'#27ae60','CBE':'#2563eb','Bank Transfer':'#1d4ed8','Mobile Money':'#8b5cf6'
 };
 
 /* ════════════════ COMPUTED GETTERS ════════════════ */
@@ -738,6 +837,84 @@ function renderPayrollTable(){
   document.getElementById('prTotNet').textContent = fmt(totNet);
   document.getElementById('prEmpCount').textContent = rows.length;
   document.getElementById('prMonthLbl').textContent = '- '+monthLabel(currentMonth);
+  document.getElementById('prSecMonthLbl').textContent = '- '+monthLabel(currentMonth);
+  document.getElementById('prDnutMonthLbl').textContent = '- '+monthLabel(currentMonth);
+  document.getElementById('prSumMonthLbl').textContent = '- '+monthLabel(currentMonth);
+}
+
+/* ════════════════ RENDER: PAYROLL KPIs + SUMMARY ════════════════ */
+function renderPayrollKpisAndSummary(){
+  const rows = payrollMonthRows();
+  const count = rows.length;
+  const totGross = rows.reduce((s,r)=>s+grossPay(r),0);
+  const totAdv = rows.reduce((s,r)=>s+Number(r.advance),0);
+  const totOther = rows.reduce((s,r)=>s+Number(r.other),0);
+  const totDed = totAdv + totOther;
+  const totNet = rows.reduce((s,r)=>s+netPay(r),0);
+  const avgNet = count>0 ? totNet/count : 0;
+  const avgDays = count>0 ? rows.reduce((s,r)=>s+Number(r.daysPresent),0)/count : 0;
+  const overheadTotal = totalOverhead();
+  const netPctOfOverhead = overheadTotal>0 ? (totNet/overheadTotal*100) : 0;
+  const dedPct = totGross>0 ? (totDed/totGross*100) : 0;
+
+  document.getElementById('kpiPrGross').setAttribute('data-target', totGross);
+  document.getElementById('kpiPrDed').setAttribute('data-target', totDed);
+  document.getElementById('kpiPrNet').setAttribute('data-target', totNet);
+  document.getElementById('kpiPrAvgNet').setAttribute('data-target', avgNet.toFixed(2));
+  document.getElementById('kpiPrCountSub').textContent = count;
+  document.getElementById('kpiPrDedPct').textContent = dedPct.toFixed(1)+'%';
+  document.getElementById('kpiPrNetPct').textContent = netPctOfOverhead.toFixed(1)+'%';
+  document.getElementById('kpiPrDaysSub').textContent = 'Avg '+avgDays.toFixed(1)+' days present';
+
+  document.getElementById('prSumGross').textContent = fmt(totGross)+' ETB';
+  document.getElementById('prSumDed').textContent = fmt(totDed)+' ETB';
+  document.getElementById('prSumNet').textContent = fmt(totNet)+' ETB';
+  document.getElementById('prSumCount').textContent = count;
+  document.getElementById('prSumAvg').textContent = fmt(avgNet)+' ETB';
+  document.getElementById('prSumAvgDays').textContent = avgDays.toFixed(1);
+
+  runKpiAnimations();
+}
+
+/* ════════════════ RENDER: PAYROLL BY CHANNEL DONUT ════════════════ */
+function renderPayrollDonut(){
+  const rows = payrollMonthRows();
+  const byChannel = {};
+  rows.forEach(r=>{ byChannel[r.channel] = (byChannel[r.channel]||0) + netPay(r); });
+  const channels = Object.keys(byChannel).filter(c=>byChannel[c]>0);
+  const total = channels.reduce((s,c)=>s+byChannel[c],0);
+
+  document.getElementById('prDnutTotalLbl').innerHTML = fmt(total)+'<br>ETB';
+
+  const legend = document.getElementById('prDnutLegend');
+  legend.innerHTML = channels.map(c=>{
+    const pct = total>0 ? (byChannel[c]/total*100).toFixed(1) : '0.0';
+    const color = CHANNEL_COLORS[c] || '#9aada5';
+    return `<div class="exp-r">
+      <div class="exp-r-l"><div class="exp-d" style="background:${color}"></div><span class="exp-n">${c}</span></div>
+      <span class="exp-v">${fmt(byChannel[c])} <span class="exp-p">(${pct}%)</span></span>
+    </div>`;
+  }).join('');
+
+  const ctx = document.getElementById('prDonut').getContext('2d');
+  if(prDonutChart) prDonutChart.destroy();
+  prDonutChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: channels,
+      datasets:[{
+        data: channels.map(c=>byChannel[c]),
+        backgroundColor: channels.map(c=>CHANNEL_COLORS[c]||'#9aada5'),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options:{
+      cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.raw)+' ETB'}}, datalabels:{display:false} },
+      animation:{ animateRotate:true, duration:700 }
+    }
+  });
 }
 
 /* ════════════════ RENDER: KPIs + SUMMARY ════════════════ */
@@ -861,7 +1038,9 @@ function renderAll(){
   renderOverheadTable();
   renderPayrollTable();
   renderKpisAndSummary();
+  renderPayrollKpisAndSummary();
   renderDonut();
+  renderPayrollDonut();
   renderTrendChart();
 }
 
