@@ -21,7 +21,11 @@ window.SB_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
    so an expired/missing session bounces to login before anything
    renders. Skips itself on login.html (no redirect loop). */
 (function earlyAuthCheck(){
-  if (/login\.html$/i.test(window.location.pathname)) return;
+  // cleanUrls (vercel.json) serves this page at /login, not /login.html, so
+  // window.location.pathname never ends in ".html" — the old /login\.html$/
+  // check never matched, meaning this guard never skipped itself on the
+  // login page and a missing/expired session there could redirect-loop.
+  if (/(^|\/)login(\.html)?\/?$/i.test(window.location.pathname)) return;
   function loadSessionEarly(){
     try {
       const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session');
@@ -31,9 +35,66 @@ window.SB_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
   const s = loadSessionEarly();
   if (!s || !s.access_token || (s.hard_expiry && s.hard_expiry < Date.now())){
     try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
-    window.location.replace('login.html');
+    window.location.replace('login');
   }
 })();
+
+/* ── Access-token refresh ────────────────────────────────────
+   Supabase access tokens expire ~1hr; nothing was renewing them,
+   so a tab left open past that got silent auth failures (every
+   request quietly falling back to the anon key) until a manual
+   reload. This decodes the JWT's exp claim and proactively
+   refreshes using the stored refresh_token a few minutes before
+   it expires. Purely additive — every page's own fetch helpers
+   already call loadSession() fresh per-request, so they pick up
+   the renewed token automatically with no changes on their end. */
+function _decodeJwtExp(token){
+  try{
+    let b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    const payload = JSON.parse(atob(b64));
+    return payload.exp ? payload.exp * 1000 : null; // ms since epoch
+  } catch(e){ return null; }
+}
+let _refreshTimer = null;
+async function refreshAccessToken(){
+  const session = loadSession();
+  if (!session || !session.refresh_token) return false;
+  try{
+    const authBase = window.SB_URL.replace(/\/rest\/v1\/?$/, '');
+    const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': window.SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
+    const data = await res.json();
+    if (!data.access_token) throw new Error('Refresh response had no access_token');
+    // hard_expiry (the "Remember Me" ceiling) is intentionally left untouched —
+    // a refreshed access_token must not extend that separate hard cutoff.
+    const updated = Object.assign({}, session, {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || session.refresh_token
+    });
+    const usedLocal = !!localStorage.getItem('injera_session');
+    (usedLocal ? localStorage : sessionStorage).setItem('injera_session', JSON.stringify(updated));
+    scheduleTokenRefresh();
+    return true;
+  }catch(e){
+    console.error('[app-state] token refresh failed', e);
+    return false;
+  }
+}
+function scheduleTokenRefresh(){
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+  const session = loadSession();
+  if (!session || !session.access_token) return;
+  const expMs = _decodeJwtExp(session.access_token);
+  if (!expMs) return;
+  const delay = Math.max(expMs - Date.now() - 5*60*1000, 10*1000); // refresh 5min early, floor 10s
+  _refreshTimer = setTimeout(refreshAccessToken, delay);
+}
+if (!/(^|\/)login(\.html)?\/?$/i.test(window.location.pathname)) scheduleTokenRefresh();
 
 /* ── Session ─────────────────────────────────────────────────
    Shape matches what login.html writes:
@@ -88,69 +149,8 @@ function authHeaders(extra){
     'Content-Type': 'application/json'
   }, extra || {});
 }
-
-/* ── Token refresh (added 2026-07) ───────────────────────────────
-   Supabase access tokens expire after about an hour. Without this, any page
-   left open longer than that starts throwing "JWT expired" 401s on every
-   request instead of quietly refreshing — which is exactly the bug this fixes.
-   _refreshPromise coalesces concurrent refreshes into one: Supabase rotates
-   the refresh_token on each use, so pages that fire many requests at once
-   (dashboard.html fires 20+ in parallel) would otherwise have all but the
-   first refresh call fail and kill the session outright. */
-let _refreshPromise = null;
-async function refreshAccessToken(){
-  if(_refreshPromise) return _refreshPromise;
-  _refreshPromise = (async () => {
-    const session = loadSession();
-    if(!session || !session.refresh_token) return null;
-    try{
-      const authBase = window.SB_URL.replace(/\/rest\/v1$/, '');
-      const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
-        method: 'POST',
-        headers: { apikey: window.SB_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: session.refresh_token })
-      });
-      if(!res.ok) return null;
-      const data = await res.json();
-      if(!data.access_token) return null;
-      const updated = { ...session, access_token: data.access_token, refresh_token: data.refresh_token || session.refresh_token };
-      if(localStorage.getItem('injera_session')) localStorage.setItem('injera_session', JSON.stringify(updated));
-      else sessionStorage.setItem('injera_session', JSON.stringify(updated));
-      return updated;
-    }catch(e){ return null; }
-  })();
-  try{ return await _refreshPromise; } finally { _refreshPromise = null; }
-}
-
-/* Every sbGet/sbPost/sbPatch/sbDelete call goes through this. On a 401 it tries
-   refreshAccessToken() once and retries the same request with the new token —
-   authHeaders() re-reads the session from storage, so the retry picks it up
-   automatically. If the refresh itself fails (refresh_token also expired/
-   revoked), the session is genuinely over, not just stale — clear it and
-   send the person back to login rather than let every request on the page
-   keep failing silently. */
-async function sbFetch(method, path, body){
-  const doFetch = () => fetch(`${window.SB_URL}/${path}`, {
-    method,
-    headers: authHeaders(method !== 'GET' ? { 'Prefer':'return=representation' } : undefined),
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
-  let res = await doFetch();
-  if(res.status === 401){
-    const refreshed = await refreshAccessToken();
-    if(refreshed){
-      res = await doFetch();
-    } else {
-      clearSession();
-      window.location.replace('login.html');
-      throw new Error('Session expired — redirecting to login.');
-    }
-  }
-  return res;
-}
-
 async function sbGet(path){
-  const res = await sbFetch('GET', path);
+  const res = await fetch(`${window.SB_URL}/${path}`, { headers: authHeaders() });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
@@ -158,7 +158,11 @@ async function sbGet(path){
   return res.json();
 }
 async function sbPost(path, body){
-  const res = await sbFetch('POST', path, body);
+  const res = await fetch(`${window.SB_URL}/${path}`, {
+    method:'POST',
+    headers: authHeaders({ 'Prefer':'return=representation' }),
+    body: JSON.stringify(body)
+  });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Save failed (${res.status})`);
@@ -166,7 +170,11 @@ async function sbPost(path, body){
   return res.json();
 }
 async function sbPatch(path, body){
-  const res = await sbFetch('PATCH', path, body);
+  const res = await fetch(`${window.SB_URL}/${path}`, {
+    method:'PATCH',
+    headers: authHeaders({ 'Prefer':'return=representation' }),
+    body: JSON.stringify(body)
+  });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Update failed (${res.status})`);
@@ -174,7 +182,10 @@ async function sbPatch(path, body){
   return res.json();
 }
 async function sbDelete(path){
-  const res = await sbFetch('DELETE', path);
+  const res = await fetch(`${window.SB_URL}/${path}`, {
+    method:'DELETE',
+    headers: authHeaders({ 'Prefer':'return=representation' })
+  });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Delete failed (${res.status})`);
@@ -286,7 +297,7 @@ function signOut(){
     onConfirm: () => {
       try{ if (window.db && window.db.auth) window.db.auth.signOut(); }catch(e){}
       clearSession();
-      window.location.href = 'login.html';
+      window.location.href = 'login';
     }
   });
 }
