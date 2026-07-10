@@ -812,7 +812,8 @@ async function refreshDashboard(){
       cashFlowRows, stockAlertRows,
       loanSummaryRows, customersRows, budgetRows, batchStandardRows,
       salesToday, expenseToday, pettyToday, productionToday,
-      pendingApprovals, customerProfitability, businessSettingsRows
+      pendingApprovals, customerProfitability, businessSettingsRows,
+      allPurchasesByItem, allUsageByItem, openingBalances
     ] = await Promise.all([
       sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -837,25 +838,13 @@ async function refreshDashboard(){
       sbGet(`production_batches?select=injera_qty&date=eq.${today}&is_deleted=eq.false`),
       sbGet(`purchases?select=id,total_cost,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false`),
       sbGet(`customer_profitability?select=*`),
-      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences&limit=1`)
+      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences&limit=1`),
+      // ── Inventory forecast inputs (added 2026-07) — real purchase-in / usage-out history,
+      // used to compute average daily usage and days-of-stock-remaining per item. ──
+      sbGet(`purchases?select=item_id,quantity,date&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=not.is.null`),
+      sbGet(`production_batch_materials?select=item_id,quantity_used,production_batches!inner(date,is_deleted)&production_batches.is_deleted=eq.false`),
+      sbGet(`inventory_opening_balances?select=item_id,opening_qty`)
     ]);
-
-    // ── Inventory forecast inputs (added 2026-07) — fetched separately from the main batch
-    // above on purpose. These are the newest, least-battle-tested queries on this page (one
-    // uses a PostgREST embedded-resource filter that's harder to get exactly right); isolating
-    // them means that if any of the three has a problem, only the inventory forecast degrades
-    // to its no-usage-history fallback — the rest of the dashboard (KPIs, every chart, alerts)
-    // still renders normally instead of the whole page freezing on "Loading…".
-    let allPurchasesByItem = [], allUsageByItem = [], openingBalances = [];
-    try {
-      [allPurchasesByItem, allUsageByItem, openingBalances] = await Promise.all([
-        sbGet(`purchases?select=item_id,quantity,date&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=not.is.null`),
-        sbGet(`production_batch_materials?select=item_id,quantity_used,production_batches!inner(date,is_deleted)&production_batches.is_deleted=eq.false`),
-        sbGet(`inventory_opening_balances?select=item_id,opening_qty`)
-      ]);
-    } catch(invErr) {
-      console.warn('Inventory forecast data unavailable, falling back to reorder-level-only check:', invErr.message);
-    }
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
     const CREDIT_WARNING_PCT = (businessSettingsRows && businessSettingsRows[0] && businessSettingsRows[0].credit_limit_warning_pct != null)
@@ -1076,31 +1065,29 @@ async function refreshDashboard(){
       salesTodayTotal, expenseTodayTotal, injeraTodayTotal, netProfitToday,
       loanSummaryRows, loanTotalOutstanding, budgetTiles, healthOverall, healthPillars, healthLabel, alerts
     };
-    try{ renderKpis(); }catch(e){ console.error('renderKpis failed:', e); }
-    try{ renderAlerts(); }catch(e){ console.error('renderAlerts failed:', e); }
-    try{
-      // Feed the same live alerts into the header bell (was hardcoded demo data before 2026-07).
-      // alerts[].icon is 'ai-r'/'ai-o'/'ai-p'/'ai-b'/'ai-g' — header.js expects the bare letter.
-      // Each icon maps to a Settings > Notification Settings alert-type slug so its "Push" toggle
-      // actually gates whether it reaches the bell. 'ai-g' (production completed) has no matching
-      // Settings toggle — there's no preference for it, so it's always shown.
-      const ALERT_ICON_TO_SLUG = { 'ai-r':'low_stock', 'ai-o':'expense_approval', 'ai-p':'loan_payment_due', 'ai-b':'credit_overdue' };
-      const pushFilteredAlerts = alerts.filter(a=>{
-        const slug = ALERT_ICON_TO_SLUG[a.icon];
-        if(!slug) return true; // no matching preference (e.g. ai-g) — always show
-        const pref = NOTIF_PREFS[slug];
-        return !pref || pref.push !== false; // default to shown if preferences haven't been saved yet
-      });
-      if (typeof refreshNotifications === 'function') {
-        refreshNotifications(pushFilteredAlerts.map(a => ({ type: (a.icon||'ai-g').replace('ai-',''), title: a.title, sub: a.sub, time: '' })));
-      }
-    }catch(e){ console.error('Header notification refresh failed:', e); }
-    try{ renderExpenseDonut(); }catch(e){ console.error('renderExpenseDonut failed:', e); }
-    try{ renderTopCustomers(); }catch(e){ console.error('renderTopCustomers failed:', e); }
-    try{ await renderRevenueChart(period); }catch(e){ console.error('renderRevenueChart failed:', e); }
-    try{ renderSecondaryPanels(); }catch(e){ console.error('renderSecondaryPanels failed:', e); }
-    try{ document.getElementById('healthLbl').textContent = healthLabel; }catch(e){ console.error('healthLbl update failed:', e); }
-    if(aiLoaded) try{ renderAIInsights(); }catch(e){ console.error('renderAIInsights failed:', e); } // keep Business Intelligence panel in sync when period changes
+    renderKpis();
+    renderAlerts();
+    // Feed the same live alerts into the header bell (was hardcoded demo data before 2026-07).
+    // alerts[].icon is 'ai-r'/'ai-o'/'ai-p'/'ai-b'/'ai-g' — header.js expects the bare letter.
+    // Each icon maps to a Settings > Notification Settings alert-type slug so its "Push" toggle
+    // actually gates whether it reaches the bell. 'ai-g' (production completed) has no matching
+    // Settings toggle — there's no preference for it, so it's always shown.
+    const ALERT_ICON_TO_SLUG = { 'ai-r':'low_stock', 'ai-o':'expense_approval', 'ai-p':'loan_payment_due', 'ai-b':'credit_overdue' };
+    const pushFilteredAlerts = alerts.filter(a=>{
+      const slug = ALERT_ICON_TO_SLUG[a.icon];
+      if(!slug) return true; // no matching preference (e.g. ai-g) — always show
+      const pref = NOTIF_PREFS[slug];
+      return !pref || pref.push !== false; // default to shown if preferences haven't been saved yet
+    });
+    if (typeof refreshNotifications === 'function') {
+      refreshNotifications(pushFilteredAlerts.map(a => ({ type: (a.icon||'ai-g').replace('ai-',''), title: a.title, sub: a.sub, time: '' })));
+    }
+    renderExpenseDonut();
+    renderTopCustomers();
+    await renderRevenueChart(period);
+    renderSecondaryPanels();
+    document.getElementById('healthLbl').textContent = healthLabel;
+    if(aiLoaded) renderAIInsights(); // keep Business Intelligence panel in sync when period changes
   }catch(err){
     console.error('Dashboard load failed', err);
     const kpiRow = document.getElementById('kpiRow');
