@@ -50,8 +50,15 @@ const NAV_ITEMS = [
 ];
 
 function currentPageFilename(){
-  const path = window.location.pathname;
-  return path.substring(path.lastIndexOf('/') + 1) || 'dashboard.html';
+  // cleanUrls (vercel.json) serves pages without the .html extension, so
+  // window.location.pathname is e.g. "/pettycash-9", not "/pettycash-9.html".
+  // NAV_ITEMS' href/aliases are still .html-suffixed (they're also used as
+  // real hrefs), so normalize back to that form for the comparison in
+  // isActiveNavItem() below — otherwise the active-page highlight never matches.
+  const path = window.location.pathname.replace(/\/+$/, '');
+  let base = path.substring(path.lastIndexOf('/') + 1) || 'dashboard';
+  if (!/\.html$/i.test(base)) base += '.html';
+  return base;
 }
 function isActiveNavItem(item){
   const current = currentPageFilename();
