@@ -714,8 +714,22 @@ function showToast(msg, type = 'ok') {
 //  SUPABASE DATA LOADING
 // ═══════════════════════════════════════════════════
 async function loadAll() {
-  await Promise.all([loadCustomers(), loadSales()]);
+  await Promise.all([loadCustomers(), loadSales(), loadBusinessSettings()]);
   buildCharts();
+}
+
+// Live VAT rate + credit-limit warning threshold from Settings (business_settings) —
+// added 2026-07 so this page no longer hardcodes 15% / 80%.
+let VAT_RATE_PCT = 15;
+let CREDIT_WARNING_PCT = 80;
+async function loadBusinessSettings() {
+  try {
+    const rows = await sbGet('business_settings?select=vat_rate_pct,credit_limit_warning_pct&limit=1');
+    if (rows && rows[0]) {
+      if (rows[0].vat_rate_pct != null) VAT_RATE_PCT = parseFloat(rows[0].vat_rate_pct);
+      if (rows[0].credit_limit_warning_pct != null) CREDIT_WARNING_PCT = parseFloat(rows[0].credit_limit_warning_pct);
+    }
+  } catch (err) { console.log('business_settings load failed, using defaults (15% VAT, 80% credit warning):', err.message); }
 }
 
 async function loadCustomers() {
@@ -1284,7 +1298,7 @@ function recalc() {
   // VAT calculation
   const vatOn = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
   if (vatOn) {
-    const vatAmt   = rev * 0.15;
+    const vatAmt   = rev * (VAT_RATE_PCT/100);
     const vatTotal = rev + vatAmt;
     document.getElementById('f-vat-amt').textContent   = vatAmt.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     document.getElementById('f-vat-total').textContent = vatTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1304,6 +1318,7 @@ function recalc() {
     document.getElementById('f-ar-after').textContent   = fmt(after) + ' ETB';
     const st = document.getElementById('f-ar-status');
     if (after > limit && limit > 0) { st.textContent='Over credit limit'; st.style.color='#b71c1c'; }
+    else if (limit > 0 && (after/limit)*100 >= CREDIT_WARNING_PCT) { st.textContent=`Approaching credit limit (${Math.round((after/limit)*100)}% used)`; st.style.color='#b8860b'; }
     else { st.textContent='Within credit limit'; st.style.color='#19733f'; }
     document.getElementById('f-arbox').classList.add('show');
   } else { document.getElementById('f-arbox').classList.remove('show'); }
@@ -1319,7 +1334,7 @@ async function saveSale() {
   if (!date||!custId||!qty||!price) { showToast('Please fill in all required fields', 'err'); return; }
   const revenue = qty * price;
   const vatOn      = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
-  const vat_rate_pct = vatOn ? 15.00 : 0.00;
+  const vat_rate_pct = vatOn ? VAT_RATE_PCT : 0.00;
   // revenue, vat_amount, and period are all computed server-side by the sales_before
   // trigger — we don't need to (and shouldn't try to) set them from the client.
   const payload = { date, product_type: PROD_TO_DB[prod] || prod.toLowerCase(), customer_id:custId, quantity:qty, unit_price:price, payment_method: PM_TO_DB[method] || method.toLowerCase(), vat_rate_pct };
@@ -1513,8 +1528,8 @@ function exportPDF(e) {
     </tr>`).join('');
 
   const vatOn   = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
-  const vatAmt  = vatOn ? total * 0.15 : 0;
-  const vatLine = vatOn ? `<tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Output VAT (15%)</td><td><strong style="color:#19733f">${fmt(vatAmt)} ETB</strong></td><td></td></tr>
+  const vatAmt  = vatOn ? total * (VAT_RATE_PCT/100) : 0;
+  const vatLine = vatOn ? `<tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Output VAT (${VAT_RATE_PCT}%)</td><td><strong style="color:#19733f">${fmt(vatAmt)} ETB</strong></td><td></td></tr>
   <tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Total inc. VAT</td><td><strong style="color:#19733f">${fmt(total+vatAmt)} ETB</strong></td><td></td></tr>` : '';
 
   const html = `<!DOCTYPE html>
@@ -1912,7 +1927,7 @@ function exportExcel(e) {
   const exportVatOn = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
   const txnRows = allSales.map(r => {
     const rev      = parseFloat(r.revenue || 0);
-    const vatRate  = r.vat_rate_pct != null ? parseFloat(r.vat_rate_pct) : (exportVatOn ? 15 : 0);
+    const vatRate  = r.vat_rate_pct != null ? parseFloat(r.vat_rate_pct) : (exportVatOn ? VAT_RATE_PCT : 0);
     const vatAmt   = rev * (vatRate / 100);
     return [
       r.date ? fmtDate(r.date) : '—',

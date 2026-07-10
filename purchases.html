@@ -1878,7 +1878,7 @@ async function saveVatSettings(){
   vatSettings = { isRegistered, ratePct };
   try {
     if(businessSettingsId){
-      const { error } = await db.from('business_settings').update({ is_vat_registered: isRegistered }).eq('id', businessSettingsId);
+      const { error } = await db.from('business_settings').update({ is_vat_registered: isRegistered, vat_rate_pct: ratePct }).eq('id', businessSettingsId);
       if(error) throw error;
     }
     toggleVatFieldInModal();
@@ -2557,7 +2557,7 @@ async function loadBusinessSettingsFromSupabase(){
       EXPENSE_APPROVAL_THRESHOLD = parseFloat(data.approval_threshold_etb ?? 1000);
       vatSettings = {
         isRegistered: !!data.is_vat_registered,
-        ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15) // rate isn't its own column; 15% is Ethiopia's standard rate per spec
+        ratePct: data.vat_rate_pct != null ? parseFloat(data.vat_rate_pct) : 15 // now a real column (added 2026-07) — 15 stays only as a last-resort fallback if the row is missing it
       };
       // bank_charge_default_pct confirmed against the live schema (2026-07-08) — a percentage,
       // not the old localStorage {type,value} shape. Falls back to 0.5% if the row is missing it.

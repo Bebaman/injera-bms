@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>Customers — Mena Injera & Derkosh BMS</title>
-<script>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+<script>
 /* ════ EARLY AUTH CHECK ════
    Redirect-only pass so an expired/missing session bounces to login before any
    CDN libraries or page content load. app-state.js (loaded later, near the end
@@ -224,6 +224,7 @@ html{scroll-behavior:smooth}
 .det-item .v{font-size:13px;font-weight:700;color:var(--td)}
 .det-item .v.red{color:#e5484d}
 .det-item .v.green{color:#19733f}
+.det-item .v.amber{color:#b8860b}
 .det-empty{padding:40px 20px;text-align:center;color:var(--tl);font-size:12px}
 
 /* AGING DONUT LEGEND */
@@ -435,7 +436,7 @@ html{scroll-behavior:smooth}
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl">Customer Profitability <span class="sub">(May 2026)</span></div>
-          <div class="hd-actions"><button class="btn-tool" onclick="toast('Full profitability report coming soon','info')">View Full Report</button></div>
+          <div class="hd-actions"><button class="btn-tool" onclick="openFullProfitabilityReport()">View Full Report</button></div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl">
@@ -470,7 +471,7 @@ html{scroll-behavior:smooth}
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl">Recent Transactions <span class="sub" id="txnSub">- Addis Hotel</span></div>
-          <div class="hd-actions"><button class="btn-tool" onclick="toast('Full transaction history coming soon','info')">View All Transactions</button></div>
+          <div class="hd-actions"><button class="btn-tool" onclick="openCustomerLedger()">View All Transactions</button></div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl">
@@ -487,12 +488,12 @@ html{scroll-behavior:smooth}
         <div class="qa-grid">
           <div class="qa-btn" onclick="openAddCustomerModal()"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg><span>Add New Customer</span></div>
           <div class="qa-btn" onclick="openPaymentModal()"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span>Record Payment</span></div>
-          <div class="qa-btn" onclick="toast('Customer statement coming soon','info')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Customer Statement</span></div>
-          <div class="qa-btn" onclick="toast('Credit limit adjustment coming soon','info')"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><span>Credit Limit Adjustment</span></div>
-          <div class="qa-btn" onclick="toast('Customer ledger coming soon','info')"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Customer Ledger</span></div>
-          <div class="qa-btn" onclick="toast('Profitability report coming soon','info')"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>Profitability Report</span></div>
+          <div class="qa-btn" onclick="generateCustomerStatement()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Customer Statement</span></div>
+          <div class="qa-btn" onclick="openCreditAdjustmentModal()"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><span>Credit Limit Adjustment</span></div>
+          <div class="qa-btn" onclick="openCustomerLedger()"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Customer Ledger</span></div>
+          <div class="qa-btn" onclick="openFullProfitabilityReport()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>Profitability Report</span></div>
           <div class="qa-btn" onclick="exportCSV()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export Customers</span></div>
-          <div class="qa-btn" onclick="toast('Import customers coming soon','info')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Import Customers</span></div>
+          <div class="qa-btn" onclick="openModal('importModal')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Import Customers</span></div>
         </div>
       </div>
     </div>
@@ -508,7 +509,7 @@ html{scroll-behavior:smooth}
     <form id="addCustForm" onsubmit="saveNewCustomer(event)">
       <div class="modal-hdr">
         <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
-        <div class="modal-hdr-txt"><h3>Add New Customer</h3><p>Create a new customer record</p></div>
+        <div class="modal-hdr-txt"><h3 id="custModalTitle">Add New Customer</h3><p id="custModalSub">Create a new customer record</p></div>
         <button type="button" class="modal-hdr-close" onclick="closeModal('addCustModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <div class="modal-body">
@@ -547,6 +548,84 @@ html{scroll-behavior:smooth}
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- FULL PROFITABILITY REPORT MODAL -->
+<div class="modal-overlay" id="fullProfitModal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Full Profitability Report</h3><p>All customers, ranked by revenue</p></div>
+      <button type="button" class="modal-hdr-close" onclick="closeModal('fullProfitModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Customer</th><th>Total Revenue (ETB)</th><th>% of Total</th><th>Gross Profit (ETB)</th><th>Gross Margin %</th><th>Outstanding (ETB)</th><th>Avg Days to Pay</th></tr></thead>
+          <tbody id="fullProfitTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeModal('fullProfitModal')">Close</button>
+      <button type="button" class="btn-solid" onclick="exportFullProfitabilityPdf()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-txt">Download PDF</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER LEDGER / ALL TRANSACTIONS MODAL -->
+<div class="modal-overlay" id="ledgerModal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Customer Ledger</h3><p id="ledgerSub">Full transaction history</p></div>
+      <button type="button" class="modal-hdr-close" onclick="closeModal('ledgerModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Amount</th><th>Method</th><th>Running Balance</th></tr></thead>
+          <tbody id="ledgerTbody"><tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeModal('ledgerModal')">Close</button>
+      <button type="button" class="btn-solid" onclick="generateCustomerStatement()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="btn-txt">Download Statement (PDF)</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT CUSTOMERS MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Import Customers</h3><p>From a CSV or Excel file</p></div>
+      <button type="button" class="modal-hdr-close" onclick="closeModal('importModal')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="importStep1">
+        <p style="font-size:12.5px;color:var(--tl);margin-bottom:10px">
+          File needs a header row with at least a <strong>Name</strong> column. Optional columns: Type (Hotel/Restaurant/Wholesale/Retail), Phone, Email, Address, Credit Limit, Payment Terms (days).
+        </p>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" onchange="handleImportFile(event)" style="width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px">
+      </div>
+      <div id="importStep2" style="display:none">
+        <p style="font-size:12.5px;color:var(--tl);margin-bottom:10px"><span id="importCount"></span> — review below, then confirm.</p>
+        <div class="tbl-wrap" style="max-height:320px;overflow-y:auto">
+          <table class="tbl">
+            <thead><tr><th>Name</th><th>Type</th><th>Phone</th><th>Email</th><th>Credit Limit</th><th>Terms</th></tr></thead>
+            <tbody id="importPreviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button type="button" class="btn-solid" id="importConfirmBtn" style="display:none" onclick="confirmImport()"><span class="btn-spin"></span><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span class="btn-txt">Import Customers</span></button>
+    </div>
   </div>
 </div>
 
@@ -610,6 +689,19 @@ renderHeader({
 const TYPE_CLASS={Hotel:'type-hotel',Restaurant:'type-restaurant',Wholesale:'type-wholesale',Retail:'type-retail'};
 let customers=[];
 let selectedId=null;
+let CREDIT_WARNING_PCT=80; // from Settings > Approval & Limits > credit_limit_warning_pct — added 2026-07
+async function loadBusinessSettings(){
+  try{
+    const rows=await sbGet('business_settings?select=credit_limit_warning_pct&limit=1');
+    if(rows && rows[0] && rows[0].credit_limit_warning_pct!=null) CREDIT_WARNING_PCT=parseFloat(rows[0].credit_limit_warning_pct);
+  }catch(err){ console.log('business_settings load failed, defaulting credit warning to 80%:', err.message); }
+}
+function creditUtilClass(utilStr){
+  const u=parseFloat(utilStr);
+  if(u>=100) return 'red';
+  if(u>=CREDIT_WARNING_PCT) return 'amber';
+  return '';
+}
 let filtered=[...customers];
 let curPage=1;
 const PAGE_SIZE=5;
@@ -784,8 +876,8 @@ function toggleRowMenu(e,id){
   menu.innerHTML=`
     <button onclick="selectCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Details</button>
     <button onclick="openPaymentModal('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Record Payment</button>
-    <button onclick="toast('Edit customer coming soon','info');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Customer</button>
-    <button class="danger" onclick="toast('Customer deactivated','success');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</button>
+    <button onclick="openEditCustomerModal('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Customer</button>
+    <button class="danger" onclick="deactivateCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</button>
   `;
   document.body.appendChild(menu);
   rowMenuEl=menu;
@@ -815,7 +907,7 @@ function renderDetail(){
             <span class="det-badge">${c.type}</span>
           </div>
         </div>
-        <button class="det-edit" onclick="toast('Edit customer coming soon','info')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</button>
+        <button class="det-edit" onclick="openEditCustomerModal('${c.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</button>
       </div>
       <div class="det-contact">
         <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.81.3 1.6.54 2.36a2 2 0 01-.45 2.11L8.09 9.31a16 16 0 006.6 6.6l1.12-1.11a2 2 0 012.11-.45c.76.24 1.55.42 2.36.54A2 2 0 0122 16.92z"/></svg>${c.phone}</div>
@@ -826,8 +918,8 @@ function renderDetail(){
       <div class="det-grid">
         <div class="det-item"><h5>Credit Limit</h5><div class="v">${f(c.creditLimit)} ETB</div></div>
         <div class="det-item"><h5>Outstanding A/R</h5><div class="v ${c.outstanding>0?'red':''}">${f(c.outstanding)} ETB</div></div>
-        <div class="det-item"><h5>Payment Terms</h5><div class="v">${c.creditLimit>0?'30 Days':'—'}</div></div>
-        <div class="det-item"><h5>Credit Utilization</h5><div class="v">${util}%</div></div>
+        <div class="det-item"><h5>Payment Terms</h5><div class="v">${c.creditLimit>0?c.paymentTermsDays+' Days':'—'}</div></div>
+        <div class="det-item"><h5>Credit Utilization</h5><div class="v ${creditUtilClass(util)}">${util}%</div></div>
         <div class="det-item"><h5>Customer Since</h5><div class="v">${c.since}</div></div>
         <div class="det-item"><h5>Avg Days to Pay</h5><div class="v">${c.avgDays} Days</div></div>
         <div class="det-item"><h5>Status</h5><div class="v ${c.status==='Active'?'green':''}">${c.status}</div></div>
@@ -868,12 +960,9 @@ function renderTxns(){
 }
 
 /* ══ PROFITABILITY TABLE ════════════════════ */
-function renderProfitability(){
-  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
-  const top5=[...customers].sort((a,b)=>b.revenue-a.revenue).slice(0,5);
-  const tb=document.getElementById('profitTbody');
+function buildProfitabilityRows(list, totalRevAll){
   let sumRev=0,sumGP=0,sumOut=0,sumDaysWeighted=0;
-  tb.innerHTML=top5.map(c=>{
+  const rows=list.map(c=>{
     const pct=(c.revenue/totalRevAll*100);
     const gp=c.revenue*(c.grossMarginPct/100);
     sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;sumDaysWeighted+=c.avgDays*c.revenue;
@@ -886,15 +975,30 @@ function renderProfitability(){
       <td class="${c.outstanding>0?'amt-red':''}">${f(c.outstanding)}</td>
       <td>${c.avgDays.toFixed(1)}</td>
     </tr>`;
-  }).join('') + `<tr class="tot">
+  }).join('');
+  const totalRow=`<tr class="tot">
       <td>Total</td>
       <td class="acc">${f(sumRev)}</td>
-      <td class="acc">${(sumRev/totalRevAll*100).toFixed(1)}%</td>
+      <td class="acc">${sumRev&&totalRevAll?(sumRev/totalRevAll*100).toFixed(1):'0.0'}%</td>
       <td class="acc">${f(sumGP)}</td>
-      <td class="acc">${(sumGP/sumRev*100).toFixed(1)}%</td>
+      <td class="acc">${sumGP&&sumRev?(sumGP/sumRev*100).toFixed(1):'0.0'}%</td>
       <td class="acc">${f(sumOut)}</td>
-      <td class="acc">${(sumDaysWeighted/sumRev).toFixed(1)}</td>
+      <td class="acc">${sumRev?(sumDaysWeighted/sumRev).toFixed(1):'0.0'}</td>
     </tr>`;
+  return rows+totalRow;
+}
+function renderProfitability(){
+  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
+  const top5=[...customers].sort((a,b)=>b.revenue-a.revenue).slice(0,5);
+  document.getElementById('profitTbody').innerHTML=buildProfitabilityRows(top5, totalRevAll);
+}
+// "View Full Report" (top of the Profitability card) and "Profitability Report" (Quick
+// Actions) both open this — same underlying data, just every customer instead of the top 5.
+function openFullProfitabilityReport(){
+  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
+  const all=[...customers].sort((a,b)=>b.revenue-a.revenue);
+  document.getElementById('fullProfitTbody').innerHTML=buildProfitabilityRows(all, totalRevAll);
+  openModal('fullProfitModal');
 }
 
 /* ══ KPI COUNT-UP ═══════════════════════════ */
@@ -964,9 +1068,38 @@ function closeExpDrop(){
 /* ══ MODALS ═════════════════════════════════ */
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
+let editingCustomerId=null;
 function openAddCustomerModal(){
+  editingCustomerId=null;
   document.getElementById('addCustForm').reset();
+  document.getElementById('custModalTitle').textContent='Add New Customer';
+  document.getElementById('custModalSub').textContent='Create a new customer record';
+  document.querySelector('#ncSaveBtn .btn-txt').textContent='Save Customer';
   openModal('addCustModal');
+}
+function openEditCustomerModal(id){
+  const c=customers.find(x=>x.id===id);
+  if(!c){ toast('Customer not found','error'); return; }
+  editingCustomerId=id;
+  document.getElementById('ncName').value=c.name;
+  document.getElementById('ncType').value=c.type;
+  document.getElementById('ncPhone').value=c.phone;
+  document.getElementById('ncEmail').value=c.email;
+  document.getElementById('ncAddress').value=c.address;
+  document.getElementById('ncLimit').value=c.creditLimit;
+  document.getElementById('ncTerms').value=c.paymentTermsDays;
+  document.getElementById('custModalTitle').textContent='Edit Customer';
+  document.getElementById('custModalSub').textContent=c.name;
+  document.querySelector('#ncSaveBtn .btn-txt').textContent='Save Changes';
+  openModal('addCustModal');
+}
+// Opens the same Edit modal, focused on the Credit Limit field — this is what the
+// "Credit Limit Adjustment" quick action does; there's no separate audit-trail table
+// for credit changes, so it reuses the real edit flow rather than being its own feature.
+function openCreditAdjustmentModal(){
+  if(!selectedId){ toast('Select a customer first','info'); return; }
+  openEditCustomerModal(selectedId);
+  setTimeout(()=>{ const el=document.getElementById('ncLimit'); el?.focus(); el?.select(); }, 50);
 }
 async function saveNewCustomer(e){
   e.preventDefault();
@@ -981,12 +1114,20 @@ async function saveNewCustomer(e){
   const terms=parseInt(document.getElementById('ncTerms').value)||30;
   if(!name){ btn.classList.remove('loading'); toast('Please enter a customer name','error'); return; }
   try{
-    await sbPost('customers',[{
-      name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
-      contact_phone:phone, contact_email:email, address,
-      credit_limit:limit, payment_terms_days:terms,
-      is_active:true
-    }]);
+    if(editingCustomerId){
+      await sbPatch(`customers?id=eq.${editingCustomerId}`,{
+        name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
+        contact_phone:phone, contact_email:email, address,
+        credit_limit:limit, payment_terms_days:terms
+      });
+    } else {
+      await sbPost('customers',[{
+        name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
+        contact_phone:phone, contact_email:email, address,
+        credit_limit:limit, payment_terms_days:terms,
+        is_active:true
+      }]);
+    }
   }catch(err){
     console.error('Save customer failed:', err);
     btn.classList.remove('loading');
@@ -995,8 +1136,29 @@ async function saveNewCustomer(e){
   }
   btn.classList.remove('loading');
   closeModal('addCustModal');
-  toast(name+' added as a new customer','success');
+  toast(editingCustomerId ? name+' updated' : name+' added as a new customer','success');
+  editingCustomerId=null;
   await loadCustomers();
+}
+async function deactivateCustomer(id){
+  const c=customers.find(x=>x.id===id);
+  if(!c) return;
+  showConfirm({
+    title:'Deactivate Customer',
+    message:`Deactivate ${c.name}? They'll no longer appear as an active customer, but their transaction history is kept.`,
+    confirmLabel:'Deactivate',
+    onConfirm: async () => {
+      try{
+        await sbPatch(`customers?id=eq.${id}`,{is_active:false});
+        toast(c.name+' deactivated','success');
+        if(selectedId===id) selectedId=null;
+        await loadCustomers();
+      }catch(err){
+        console.error('Deactivate customer failed:', err);
+        toast('Could not deactivate: '+err.message,'error');
+      }
+    }
+  });
 }
 function openPaymentModal(id){
   const cid=id||selectedId;
@@ -1450,12 +1612,300 @@ function exportFullPDF(retryCount){
   }
 }
 
+/* ══ FULL PROFITABILITY REPORT — PDF ══════════════════════ */
+function exportFullProfitabilityPdf(){
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
+    toast('Could not load the PDF engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 32;
+    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,60,'F');
+    doc.setFillColor(...green); doc.rect(0,56,pageW,4,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('Customer Profitability Report', marginX, 32);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh — all customers, ranked by revenue', marginX, 47);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 32, {align:'right'});
+
+    const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
+    const all=[...customers].sort((a,b)=>b.revenue-a.revenue);
+    let sumRev=0,sumGP=0,sumOut=0,sumDaysWeighted=0;
+    const body=all.map(c=>{
+      const pct=(c.revenue/totalRevAll*100);
+      const gp=c.revenue*(c.grossMarginPct/100);
+      sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;sumDaysWeighted+=c.avgDays*c.revenue;
+      return [c.name, f(c.revenue), pct.toFixed(1)+'%', f(gp), c.grossMarginPct.toFixed(1)+'%', f(c.outstanding), c.avgDays.toFixed(1)];
+    });
+    const foot=[['Total', f(sumRev), '100.0%', f(sumGP), sumRev?(sumGP/sumRev*100).toFixed(1):'0.0'+'%', f(sumOut), sumRev?(sumDaysWeighted/sumRev).toFixed(1):'0.0']];
+
+    doc.autoTable({
+      head:[['Customer','Revenue (ETB)','% of Total','Gross Profit (ETB)','GP %','Outstanding (ETB)','Avg Days to Pay']],
+      body, foot,
+      startY: 78,
+      margin:{left:marginX,right:marginX,bottom:46},
+      styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+      footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
+      alternateRowStyles:{fillColor:[249,251,250]},
+      columnStyles:{0:{fontStyle:'bold'},5:{textColor:[197,36,41],fontStyle:'bold'}}
+    });
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setDrawColor(...border);
+      doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
+      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+    }
+    doc.save('Customer_Profitability_Report_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('Profitability report downloaded','success');
+  }catch(err){
+    console.error('Profitability PDF export failed:', err);
+    toast('PDF export failed — please try again','error');
+  }
+}
+
+/* ══ CUSTOMER LEDGER (all transactions, no cap) ══════════════════════ */
+async function openCustomerLedger(){
+  if(!selectedId){ toast('Select a customer first','info'); return; }
+  const c=customers.find(x=>x.id===selectedId);
+  if(!c) return;
+  document.getElementById('ledgerSub').textContent=c.name+' — complete transaction history';
+  document.getElementById('ledgerTbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">Loading…</td></tr>';
+  openModal('ledgerModal');
+  try{
+    const all=await fetchAllCustomerTxns(c.id);
+    ledgerData=all; // cached for the statement PDF, so it doesn't re-fetch
+    if(!all.length){
+      document.getElementById('ledgerTbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">No transactions yet.</td></tr>';
+      return;
+    }
+    // Running balance, oldest first: sales add to what's owed, payments reduce it.
+    const chronological=[...all].sort((a,b)=>a._sort-b._sort);
+    let bal=0;
+    const withBalance=chronological.map(t=>{
+      bal += t.type==='Sale' ? t.amount : -t.amount;
+      return {...t, balance:bal};
+    });
+    document.getElementById('ledgerTbody').innerHTML=[...withBalance].reverse().map(t=>`
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.type}</td>
+        <td>${t.product||'—'}</td>
+        <td>${t.qty||'—'}</td>
+        <td>${t.unitPrice!==null&&t.unitPrice!==undefined?f(t.unitPrice):'-'}</td>
+        <td>${f(t.amount)}</td>
+        <td>${t.method}</td>
+        <td style="font-weight:700">${f(t.balance)}</td>
+      </tr>
+    `).join('');
+  }catch(err){
+    console.error('Ledger load failed:', err);
+    document.getElementById('ledgerTbody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">Could not load transactions — '+err.message+'</td></tr>';
+  }
+}
+let ledgerData=[];
+// Same shape/logic as loadCustomerTxns() but without the limit=20 cap — used for the
+// Customer Ledger modal and Statement PDF, which are specifically about seeing everything.
+async function fetchAllCustomerTxns(id){
+  const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc`) || [];
+  const saleIds = sales.map(s=>s.id);
+  const payments = saleIds.length
+    ? await sbGet(`credit_payments?select=payment_date,amount_paid,channel,sale_id&sale_id=in.(${saleIds.join(',')})&order=payment_date.desc`) || []
+    : [];
+  const PROD_FROM_DB={injera:'Injera',derkosh:'Derkosh'};
+  const PM_FROM_DB={cash:'Cash',credit:'Credit',bank:'Bank Transfer',mobile:'Mobile Money'};
+  const saleTxns=sales.map(s=>({
+    date:fmtDateShort(s.date), type:'Sale', product:PROD_FROM_DB[s.product_type]||s.product_type,
+    qty:s.quantity+(s.product_type==='injera'?' pcs':' kg'), unitPrice:parseFloat(s.unit_price||0),
+    amount:parseFloat(s.revenue||0), method:PM_FROM_DB[s.payment_method]||s.payment_method,
+    status:s.settled_date?'Settled':'Unsettled', _sort:new Date(s.date)
+  }));
+  const payTxns=payments.map(p=>({
+    date:fmtDateShort(p.payment_date), type:'Payment', product:'—', qty:'—', unitPrice:null,
+    amount:parseFloat(p.amount_paid||0), method:PM_FROM_DB[p.channel]||p.channel,
+    status:'Settled', _sort:new Date(p.payment_date)
+  }));
+  return [...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort);
+}
+
+/* ══ CUSTOMER STATEMENT — PDF ══════════════════════ */
+async function generateCustomerStatement(){
+  if(!selectedId){ toast('Select a customer first','info'); return; }
+  const c=customers.find(x=>x.id===selectedId);
+  if(!c) return;
+  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
+    toast('Could not load the PDF engine. Check your connection and try again.','error');
+    return;
+  }
+  try{
+    const txns = ledgerData.length ? ledgerData : await fetchAllCustomerTxns(c.id);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginX = 40;
+    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
+    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+
+    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,64,'F');
+    doc.setFillColor(...green); doc.rect(0,60,pageW,4,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('Customer Statement', marginX, 32);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(200,225,212);
+    doc.text('Mena Injera & Derkosh', marginX, 49);
+    doc.setFontSize(9); doc.setTextColor(220,235,227);
+    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 32, {align:'right'});
+
+    doc.setTextColor(...textDark); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text(c.name, marginX, 90);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...textMid);
+    doc.text([c.phone||'—', c.email||'—', c.address||'—'].filter(Boolean).join('  ·  '), marginX, 105);
+
+    const util=c.creditLimit>0?((c.outstanding/c.creditLimit)*100).toFixed(1):'0.0';
+    const kpis=[
+      {lbl:'CREDIT LIMIT',val:f(c.creditLimit)+' ETB'},
+      {lbl:'OUTSTANDING A/R',val:f(c.outstanding)+' ETB'},
+      {lbl:'CREDIT UTILIZATION',val:util+'%'},
+      {lbl:'PAYMENT TERMS',val:c.paymentTermsDays+' Days'}
+    ];
+    const gap=10, cardW=(pageW-marginX*2-gap*3)/4, cardH=48, y=122;
+    kpis.forEach((k,i)=>{
+      const x=marginX+i*(cardW+gap);
+      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
+      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.8);
+      doc.text(k.lbl, x+9, y+16);
+      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11.5);
+      doc.text(k.val, x+9, y+35);
+    });
+
+    let bal=0;
+    const chronological=[...txns].sort((a,b)=>a._sort-b._sort);
+    const withBalance=chronological.map(t=>{ bal += t.type==='Sale'?t.amount:-t.amount; return {...t, balance:bal}; });
+    const body=[...withBalance].reverse().map(t=>[t.date, t.type, t.product||'—', f(t.amount), t.method, f(t.balance)]);
+
+    doc.autoTable({
+      head:[['Date','Type','Product','Amount (ETB)','Method','Running Balance (ETB)']],
+      body,
+      startY: y+cardH+20,
+      margin:{left:marginX,right:marginX,bottom:46},
+      styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
+      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
+      alternateRowStyles:{fillColor:[249,251,250]},
+      columnStyles:{0:{fontStyle:'bold'}}
+    });
+    const pageH = doc.internal.pageSize.getHeight();
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setDrawColor(...border);
+      doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
+      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+    }
+    doc.save('Statement_'+c.name.replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('Statement downloaded','success');
+  }catch(err){
+    console.error('Statement PDF export failed:', err);
+    toast('Statement export failed — please try again','error');
+  }
+}
+
+/* ══ IMPORT CUSTOMERS (CSV / Excel) ══════════════════════ */
+let importedRows=[];
+function handleImportFile(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){ toast('Could not load the import engine. Check your connection and try again.','error'); return; }
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result, {type:'binary'});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet, {defval:''});
+      importedRows=rows.map(r=>{
+        // Tolerant of common header variants — case/spacing-insensitive lookup.
+        const get=(...keys)=>{
+          for(const k of keys){
+            const foundKey=Object.keys(r).find(rk=>rk.trim().toLowerCase()===k);
+            if(foundKey && String(r[foundKey]).trim()!=='') return String(r[foundKey]).trim();
+          }
+          return '';
+        };
+        const typeRaw=get('type')||'Retail';
+        const typeMatch=['Hotel','Restaurant','Wholesale','Retail'].find(t=>t.toLowerCase()===typeRaw.toLowerCase())||'Retail';
+        return {
+          name:get('name','customer name','customer'),
+          type:typeMatch,
+          phone:get('phone','phone number'),
+          email:get('email'),
+          address:get('address'),
+          creditLimit:parseFloat(get('credit limit','creditlimit'))||0,
+          paymentTermsDays:parseInt(get('payment terms','payment terms (days)','terms'))||30
+        };
+      }).filter(r=>r.name); // a row with no name isn't a usable customer record
+      if(!importedRows.length){
+        toast('No valid rows found — make sure there\'s a Name column with data','error');
+        return;
+      }
+      document.getElementById('importCount').textContent=importedRows.length+' customer'+(importedRows.length===1?'':'s')+' found';
+      document.getElementById('importPreviewBody').innerHTML=importedRows.map(r=>`
+        <tr><td style="font-weight:700">${r.name}</td><td>${r.type}</td><td>${r.phone||'—'}</td><td>${r.email||'—'}</td><td>${f(r.creditLimit)}</td><td>${r.paymentTermsDays}d</td></tr>
+      `).join('');
+      document.getElementById('importStep1').style.display='none';
+      document.getElementById('importStep2').style.display='';
+      document.getElementById('importConfirmBtn').style.display='';
+    }catch(err){
+      console.error('Import parse failed:', err);
+      toast('Could not read that file — '+err.message,'error');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+async function confirmImport(){
+  if(!importedRows.length) return;
+  const btn=document.getElementById('importConfirmBtn');
+  btn.classList.add('loading');
+  try{
+    await sbPost('customers', importedRows.map(r=>({
+      name:r.name, type:CTYPE_TO_DB[r.type]||r.type.toLowerCase(),
+      contact_phone:r.phone, contact_email:r.email, address:r.address,
+      credit_limit:r.creditLimit, payment_terms_days:r.paymentTermsDays,
+      is_active:true
+    })));
+    toast(importedRows.length+' customers imported','success');
+    closeModal('importModal');
+    importedRows=[];
+    document.getElementById('importFile').value='';
+    document.getElementById('importStep1').style.display='';
+    document.getElementById('importStep2').style.display='none';
+    document.getElementById('importConfirmBtn').style.display='none';
+    await loadCustomers();
+  }catch(err){
+    console.error('Import save failed:', err);
+    toast('Import failed: '+err.message,'error');
+  }finally{
+    btn.classList.remove('loading');
+  }
+}
+
 /* toast(msg,type) now comes from app-state.js — same toastStack pattern,
    same success/error/info types, so nothing else here needed to change. */
 
 /* ══ INIT ════════════════════════════════════ */
 (async function boot(){
-  await loadCustomers();
+  await Promise.all([loadCustomers(), loadBusinessSettings()]);
   if(typeof Chart!=='undefined')initAgingChart();
   // Arrived from another module's "New Customer" quick action (e.g. Sales)
   const params=new URLSearchParams(window.location.search);

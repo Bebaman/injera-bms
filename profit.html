@@ -636,6 +636,7 @@ let MONTHS = [];
 let history = [];
 let shareholders = [];   // [{id,name,pct}]
 let defaultPct = 10;
+let ROUNDING_UNIT = 0.01; // from Settings > Accounting > rounding_mode: 0.01 = 2dp, 1 = whole ETB
 let curIdx = 0;
 let dataReady = false;
 
@@ -659,9 +660,12 @@ async function loadShareholders(){
 
 async function loadDefaultPct(){
   try{
-    const rows = await sbGet('business_settings?select=default_distribution_pct&limit=1');
+    const rows = await sbGet('business_settings?select=default_distribution_pct,rounding_mode&limit=1');
     if(rows && rows[0] && rows[0].default_distribution_pct!=null) defaultPct = n(rows[0].default_distribution_pct);
-  }catch(err){ console.log('business_settings load failed, defaulting distribution % to 10:', err.message); }
+    // rounding_mode from Settings > Accounting (added 2026-07) — '2dp' = nearest 0.01 ETB,
+    // 'whole' = nearest 1 ETB. Governs how each shareholder's distribution amount is rounded.
+    if(rows && rows[0] && rows[0].rounding_mode === 'whole') ROUNDING_UNIT = 1;
+  }catch(err){ console.log('business_settings load failed, defaulting distribution % to 10 and rounding to 2dp:', err.message); }
 }
 
 // The real subledger — monthly_cash_flow is a Supabase VIEW, one row per period per
@@ -757,7 +761,8 @@ async function refreshAll(){
   dataReady = true;
 }
 
-function f(n){ return (Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function roundAmt(n){ return Math.round(n/ROUNDING_UNIT)*ROUNDING_UNIT; }
+function f(n){ const dp = ROUNDING_UNIT<1?2:0; return roundAmt(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
 
 // Generalized N-way split — last shareholder absorbs the rounding remainder (same rule as before).
 function computeSplit(net, pct){
@@ -767,8 +772,8 @@ function computeSplit(net, pct){
   let allocated = 0;
   shareholders.forEach((sh, i) => {
     let amt;
-    if(i === shareholders.length-1){ amt = Math.round((distAmt - allocated)*100)/100; }
-    else { amt = Math.round(distAmt * (sh.pct/100) * 100)/100; allocated += amt; }
+    if(i === shareholders.length-1){ amt = roundAmt(distAmt - allocated); }
+    else { amt = roundAmt(distAmt * (sh.pct/100)); allocated += amt; }
     shares.push({ name: sh.name, pct: sh.pct, amount: amt });
   });
   return { distAmt, retained, shares };

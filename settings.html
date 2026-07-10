@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Settings — Mena ERP</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -138,7 +133,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .notif-tbl td:first-child{text-align:left;font-weight:600}
 
 /* ══ QUICK ACTIONS ══════════════════════════════════ */
-.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .qa-btn{display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px 10px;cursor:pointer;transition:all .12s}
 .qa-btn:hover{background:var(--bg);border-color:#b5ddc5;transform:translateY(-1px)}
 .qa-ic{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center}
@@ -214,6 +209,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .log-sub{color:var(--tl);font-size:10.5px;margin-top:1px}
 .log-time{color:var(--tl);font-size:10.5px;white-space:nowrap;flex-shrink:0}
 .empty-note{padding:18px;text-align:center;color:var(--tl);font-size:12px}
+.tbl-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tbl-wrap .tbl{min-width:460px}
+@media (max-width:480px){
+  .tbl-wrap .tbl{min-width:420px}
+}
 </style>
 </head>
 <body>
@@ -226,7 +226,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
     <!-- TABS -->
     <div class="set-tabs" id="setTabs">
       <div class="set-tab active" data-tab="business">Business Settings</div>
-      <div class="set-tab" data-tab="users">Users &amp; Roles</div>
+      <div class="set-tab" data-tab="users" id="usersTab">Users &amp; Roles</div>
       <div class="set-tab" data-tab="notif">Notification Settings</div>
       <div class="set-tab" data-tab="approval">Approval &amp; Limits</div>
       <div class="set-tab" data-tab="accounting">Accounting</div>
@@ -272,11 +272,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Shareholders &amp; Ownership</div></div>
           <div class="card-bd" style="padding-bottom:14px">
+            <div class="tbl-wrap">
             <table class="tbl" id="shareholderTbl">
               <thead><tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th><th></th></tr></thead>
               <tbody id="shareholderBody"></tbody>
               <tfoot><tr class="tot"><td colspan="2">Total Ownership</td><td colspan="3" class="tot-own" id="totalOwnership">100.00%</td></tr></tfoot>
             </table>
+            </div>
             <button class="btn-add" onclick="openShareholderModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Shareholder
@@ -329,6 +331,24 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             </div>
           </div>
         </div>
+
+        <!-- Inventory Opening Balances -->
+        <div class="card" style="grid-column:span 2">
+          <div class="card-hd"><div class="card-ttl">Inventory Opening Balances <span id="invObPeriodLbl" style="font-size:10.5px;color:var(--tl);font-weight:600"></span></div></div>
+          <div class="card-bd">
+            <div class="info-box" style="margin-bottom:12px">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              How much of each item you physically had on hand before you started logging purchases in this system. Without this, stock and reorder forecasts on the Dashboard undercount by whatever you already had.
+            </div>
+            <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Item</th><th>Opening Qty</th><th>Unit Cost (optional)</th><th>Opening Value</th></tr></thead>
+              <tbody id="invOpeningBody"></tbody>
+            </table>
+            </div>
+            <button class="btn-pri" style="margin-top:12px" onclick="saveInventoryOpeningBalances(this)">Save Inventory Opening Balances</button>
+          </div>
+        </div>
       </div>
 
       <div class="save-bar">
@@ -343,10 +363,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">System Users</div></div>
           <div class="card-bd">
+            <div class="tbl-wrap">
             <table class="tbl">
               <thead><tr><th>User</th><th>Role</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
               <tbody id="usersBody"></tbody>
             </table>
+            </div>
             <button class="btn-add" onclick="openUserModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add User
@@ -360,10 +382,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Locations</div></div>
           <div class="card-bd">
+            <div class="tbl-wrap">
             <table class="tbl">
               <thead><tr><th>Location</th><th>Address</th><th>Status</th><th></th></tr></thead>
               <tbody id="locationsBody"></tbody>
             </table>
+            </div>
             <button class="btn-add" onclick="openLocationModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Location
@@ -390,10 +414,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Notification Preferences</div></div>
           <div class="card-bd">
+            <div class="tbl-wrap">
             <table class="notif-tbl">
               <thead><tr><th>Alert Type</th><th>Push</th><th>Email</th><th>SMS</th></tr></thead>
               <tbody id="notifMatrixBody"></tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>
@@ -405,7 +431,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
     <!-- ══ APPROVAL & LIMITS PANE ══ -->
     <div class="set-pane" id="pane-approval">
-      <div class="settings-grid">
+      <div class="settings-grid two">
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Thresholds &amp; Limits</div></div>
           <div class="card-bd">
@@ -443,10 +469,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Approval Delegations</div></div>
           <div class="card-bd">
+            <div class="tbl-wrap">
             <table class="tbl">
-              <thead><tr><th>From</th><th>To</th><th>Start</th><th>End</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>From</th><th>To</th><th>Period</th><th>Status</th><th></th></tr></thead>
               <tbody id="delegationsBody"></tbody>
             </table>
+            </div>
             <button class="btn-add" onclick="openDelegationModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Delegation
@@ -466,7 +494,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
     <!-- ══ ACCOUNTING PANE ══ -->
     <div class="set-pane" id="pane-accounting">
-      <div class="settings-grid">
+      <div class="settings-grid" style="grid-template-columns:1fr;max-width:520px">
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Accounting Preferences</div></div>
           <div class="card-bd">
@@ -484,7 +512,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             </div>
             <div class="acct-row">
               <div class="acct-txt"><div class="acct-lbl">Round Amounts To</div></div>
-              <div class="acct-inp" style="width:170px">
+              <div class="acct-inp" style="width:190px">
                 <select id="acctRounding">
                   <option>2 Decimal Places (0.01 ETB)</option>
                   <option>Whole Birr (1 ETB)</option>
@@ -510,10 +538,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Period Close</div></div>
           <div class="card-bd">
+            <div class="tbl-wrap">
             <table class="tbl">
               <thead><tr><th>Period</th><th>Closed At</th><th>Status</th></tr></thead>
               <tbody id="periodClosesBody"></tbody>
             </table>
+            </div>
             <button class="btn-add" onclick="closeCurrentPeriod()">
               <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               Close Current Period
@@ -547,7 +577,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
     <!-- ══ SYSTEM INFO PANE ══ -->
     <div class="set-pane" id="pane-system">
-      <div class="settings-grid">
+      <div class="settings-grid two">
         <div class="card">
           <div class="card-hd"><div class="card-ttl">System Preferences</div></div>
           <div class="card-bd">
@@ -685,14 +715,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 <script>
 renderHeader({
   title: 'Settings',
-  subtitle: 'System configuration and preferences',
-  showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'Jul 2026',
-  onMonthChange: (label) => {
-    const lbl = document.getElementById('overrideMonthLbl');
-    if (lbl) lbl.textContent = label;
-  }
+  subtitle: 'System configuration and preferences'
 });
 // header.js's stat-pill has no id by default; give it one so setDataStatus() below can find it.
 document.querySelector('.stat-pill').id = 'dataStatusPill';
@@ -739,13 +762,30 @@ function numVal(id){ const el=document.getElementById(id); return el ? (parseFlo
 function setVal(id,v){ const el=document.getElementById(id); if(el && v!=null) el.value=v; }
 
 function getCurrentUser(){
-  // Defensive read of the shared-shell session (matches keys used elsewhere in the app).
-  try {
-    const raw = localStorage.getItem('injera_session') || sessionStorage.getItem('injera_session') || localStorage.getItem('bms_session');
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed.user || parsed;
-  } catch(e){ return null; }
+  // window.currentUser = {id, name, role} is populated by populateUserChrome()
+  // in app-state.js, called automatically by sidebar.js/header.js on load.
+  // (Real injera_session shape is flat: {access_token, user_id, name, role, ...}
+  //  — no nested .user object — so we rely on the already-normalized global instead
+  //  of re-parsing the session ourselves.)
+  return window.currentUser || null;
+}
+function isOwner(){ return getCurrentUser()?.role === 'owner'; }
+function isOwnerOrManager(){ return ['owner','manager'].includes(getCurrentUser()?.role); }
+function applyRoleGating(){
+  // Matches profit.html: "Only the Owner role can add or deactivate shareholders."
+  const shAddBtn = document.querySelector('#pane-business .btn-add');
+  if(shAddBtn) shAddBtn.style.display = isOwner() ? '' : 'none';
+  document.querySelectorAll('#shareholderBody .act-dots').forEach(el => el.style.visibility = isOwner() ? '' : 'hidden');
+  // Matches the old sidebar-level "Manage Users" gating (owner/manager only) that applied
+  // when this was a separate manage-users.html page — now the whole tab is gated the same way.
+  const usersTab = document.getElementById('usersTab');
+  if(usersTab){
+    usersTab.style.display = isOwnerOrManager() ? '' : 'none';
+    if(!isOwnerOrManager() && usersTab.classList.contains('active')) switchToTab('business');
+  }
+  const userAddBtn = document.querySelector('#pane-users .btn-add');
+  if(userAddBtn) userAddBtn.style.display = isOwnerOrManager() ? '' : 'none';
+  document.querySelectorAll('#usersBody .act-dots').forEach(el => el.style.visibility = isOwnerOrManager() ? '' : 'hidden');
 }
 
 function timeAgo(dateStr){
@@ -760,14 +800,25 @@ function timeAgo(dateStr){
 }
 
 /* ════════════════ TABS ════════════════ */
+function switchToTab(tabName){
+  const tab = document.querySelector(`.set-tab[data-tab="${tabName}"]`);
+  const pane = document.getElementById('pane-'+tabName);
+  if(!tab || !pane || tab.style.display === 'none') return false;
+  document.querySelectorAll('.set-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.set-pane').forEach(p=>p.classList.remove('active'));
+  tab.classList.add('active');
+  pane.classList.add('active');
+  return true;
+}
 document.querySelectorAll('.set-tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('.set-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.set-pane').forEach(p=>p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('pane-'+tab.dataset.tab).classList.add('active');
-  });
+  tab.addEventListener('click', ()=>switchToTab(tab.dataset.tab));
 });
+// Deep-link support — e.g. the user panel's "Manage Users" shortcut links to
+// settings.html#users and expects to land directly on that tab (added 2026-07,
+// replacing the old separate manage-users.html page).
+if(window.location.hash){
+  switchToTab(window.location.hash.slice(1));
+}
 
 /* ════════════════ SHAREHOLDERS ════════════════ */
 const avatarColors = ['#27ae60','#e8891a','#2563eb','#8b5cf6','#0891b2','#e53935'];
@@ -787,6 +838,7 @@ function renderShareholders(){
     </tr>
   `).join('');
   recalcOwnershipTotal();
+  applyRoleGating();
 }
 function recalcOwnershipTotal(){
   const total = shareholders.filter(s=>s.isActive).reduce((sum,s)=>sum+s.pct,0);
@@ -837,17 +889,23 @@ async function toggleShareholderActive(id){
   s.isActive = !s.isActive;
   renderShareholders();
   const ok = await saveShareholderToSupabase(s);
-  if(ok) showToast(s.name + (s.isActive ? ' activated' : ' deactivated'));
+  if(ok) toast(s.name + (s.isActive ? ' activated' : ' deactivated'), 'success');
   renderUsers();
 }
 async function deleteShareholder(id){
   const s = shareholders.find(x=>x.id===id);
   if(!s) return;
-  if(!confirm('Remove ' + s.name + ' from shareholders? This cannot be undone for future records.')) return;
-  shareholders = shareholders.filter(x=>x.id!==id);
-  renderShareholders();
-  const ok = await deleteShareholderFromSupabase(s);
-  if(ok) showToast('Shareholder removed');
+  showConfirm({
+    title: 'Remove Shareholder',
+    message: 'Remove ' + s.name + ' from shareholders? This cannot be undone for future records.',
+    confirmLabel: 'Remove',
+    onConfirm: async () => {
+      shareholders = shareholders.filter(x=>x.id!==id);
+      renderShareholders();
+      const ok = await deleteShareholderFromSupabase(s);
+      if(ok) toast('Shareholder removed', 'success');
+    }
+  });
 }
 function openShareholderModal(){
   editingShareholderId = null;
@@ -874,18 +932,18 @@ async function saveShareholder(){
     const s = shareholders.find(x=>x.id===editingShareholderId);
     s.name = name; s.role = role; s.pct = pct; s.isActive = isActive;
     const ok = await saveShareholderToSupabase(s);
-    if(ok) showToast('Shareholder updated');
+    if(ok) toast('Shareholder updated', 'success');
   } else {
     const s = { id: nextShareholderId++, _dbId:null, name, role, pct, isActive };
     shareholders.push(s);
     const ok = await saveShareholderToSupabase(s);
-    if(ok) showToast('Shareholder added');
+    if(ok) toast('Shareholder added', 'success');
   }
   renderShareholders();
   closeShareholderModal();
 }
 async function saveShareholderToSupabase(s){
-  if(!db){ showToast('⚠ Offline — saved locally only, will not persist on reload'); return false; }
+  if(!db){ toast('⚠ Offline — saved locally only, will not persist on reload', 'error'); return false; }
   try {
     const row = { name: s.name, role: s.role, ownership_pct: s.pct, is_active: s.isActive };
     if(s._dbId){
@@ -899,7 +957,7 @@ async function saveShareholderToSupabase(s){
     return true;
   } catch(err){
     console.log('Supabase shareholder save failed:', err.message);
-    showToast('⚠ Could not save shareholder — ' + err.message);
+    toast('⚠ Could not save shareholder — ' + err.message, 'error');
     return false;
   }
 }
@@ -911,7 +969,7 @@ async function deleteShareholderFromSupabase(s){
     return true;
   } catch(err){
     console.log('Supabase shareholder delete failed:', err.message);
-    showToast('⚠ Could not remove shareholder — ' + err.message);
+    toast('⚠ Could not remove shareholder — ' + err.message, 'error');
     return false;
   }
 }
@@ -920,7 +978,7 @@ async function deleteShareholderFromSupabase(s){
 function renderUsers(){
   const body = document.getElementById('usersBody');
   if(!body) return;
-  if(!users.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--tl);padding:20px">No users yet</td></tr>'; return; }
+  if(!users.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--tl);padding:20px">No users yet</td></tr>'; applyRoleGating(); return; }
   body.innerHTML = users.map((u,i)=>`
     <tr>
       <td><div class="sh-person"><div class="sh-av" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(u.name||u.email)}</div><div><div class="sh-name">${u.name||u.email}</div><div class="sh-role">${u.email}</div></div></div></td>
@@ -930,6 +988,7 @@ function renderUsers(){
       <td><div class="act-dots" onclick="toggleUserRowMenu(event,'${u.id}')"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div></td>
     </tr>
   `).join('');
+  applyRoleGating();
 }
 let activeUserRowMenu = null;
 function toggleUserRowMenu(e, id){
@@ -985,34 +1044,39 @@ async function saveUser(){
   const email = document.getElementById('userEmail').value.trim();
   const role = document.getElementById('userRole').value;
   if(!name || !email){ showToast('Please enter a name and email'); return; }
-  if(!db){ showToast('⚠ Offline — could not save user'); return; }
+  if(!db){ toast('⚠ Offline — could not save user', 'error'); return; }
 
   if(editingUserId){
     try {
       const { error } = await db.from(USERS_TABLE).update({ name, role }).eq('id', editingUserId);
       if(error) throw error;
-      showToast('User updated');
+      toast('User updated', 'success');
       closeUserModal();
       loadFromSupabase();
     } catch(err){
-      showToast('⚠ Could not update user — ' + err.message);
+      toast('⚠ Could not update user — ' + err.message, 'error');
     }
   } else {
     const password = document.getElementById('userPassword').value;
     if(!password || password.length < 8){ showToast('Please set a temporary password (min. 8 characters)'); return; }
+    const session = loadSession();
+    if(!session || !session.access_token){ toast('Your session has expired — please sign in again.', 'error'); return; }
     try {
       const res = await fetch('/api/create-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
         body: JSON.stringify({ name, email, role, password })
       });
       const result = await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(result.error || 'Request failed (' + res.status + ')');
-      showToast('User created');
+      toast('User created', 'success');
       closeUserModal();
       loadFromSupabase();
     } catch(err){
-      showToast('⚠ Could not create user — ' + err.message);
+      toast('⚠ Could not create user — ' + err.message, 'error');
     }
   }
 }
@@ -1025,9 +1089,9 @@ async function toggleUserActive(id){
     if(error) throw error;
     u.is_active = !u.is_active;
     renderUsers();
-    showToast((u.name||u.email) + (u.is_active ? ' activated' : ' deactivated'));
+    toast((u.name||u.email) + (u.is_active ? ' activated' : ' deactivated'), 'success');
   } catch(err){
-    showToast('⚠ Could not update user — ' + err.message);
+    toast('⚠ Could not update user — ' + err.message, 'error');
   }
 }
 
@@ -1091,7 +1155,7 @@ async function saveLocation(){
   const name = document.getElementById('locName').value.trim();
   const address = document.getElementById('locAddress').value.trim();
   if(!name){ showToast('Please enter a location name'); return; }
-  if(!db){ showToast('⚠ Offline — could not save location'); return; }
+  if(!db){ toast('⚠ Offline — could not save location', 'error'); return; }
   try {
     if(editingLocationId){
       const { error } = await db.from(LOCATIONS_TABLE).update({ name, address }).eq('id', editingLocationId);
@@ -1100,11 +1164,11 @@ async function saveLocation(){
       const { error } = await db.from(LOCATIONS_TABLE).insert({ name, address });
       if(error) throw error;
     }
-    showToast('Location saved');
+    toast('Location saved', 'success');
     closeLocationModal();
     loadFromSupabase();
   } catch(err){
-    showToast('⚠ Could not save location — ' + err.message);
+    toast('⚠ Could not save location — ' + err.message, 'error');
   }
 }
 async function toggleLocationActive(id){
@@ -1116,9 +1180,9 @@ async function toggleLocationActive(id){
     if(error) throw error;
     l.isActive = !l.isActive;
     renderLocations();
-    showToast(l.name + (l.isActive ? ' activated' : ' deactivated'));
+    toast(l.name + (l.isActive ? ' activated' : ' deactivated'), 'success');
   } catch(err){
-    showToast('⚠ Could not update location — ' + err.message);
+    toast('⚠ Could not update location — ' + err.message, 'error');
   }
 }
 
@@ -1126,13 +1190,13 @@ async function toggleLocationActive(id){
 function renderDelegations(){
   const body = document.getElementById('delegationsBody');
   if(!body) return;
-  if(!delegations.length){ body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--tl);padding:20px">No delegations set up</td></tr>'; return; }
+  if(!delegations.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--tl);padding:20px">No delegations set up</td></tr>'; return; }
+  const fmtShortDate = s => s ? new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
   body.innerHTML = delegations.map(d=>`
     <tr>
       <td style="font-weight:700">${d.delegator ? d.delegator.name : '—'}</td>
       <td style="font-weight:700">${d.delegatee ? d.delegatee.name : '—'}</td>
-      <td style="color:var(--tm)">${d.from_date}</td>
-      <td style="color:var(--tm)">${d.to_date}</td>
+      <td style="color:var(--tm)">${fmtShortDate(d.from_date)} – ${fmtShortDate(d.to_date)}</td>
       <td><span class="pill-sm ${d.is_active ? 'pill-active' : 'pill-inactive'}">${d.is_active ? 'Active' : 'Inactive'}</span></td>
       <td><div class="act-dots" onclick="toggleDelegationActive('${d.id}')" title="Toggle active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg></div></td>
     </tr>
@@ -1163,15 +1227,15 @@ async function saveDelegation(){
   if(!delegated_by || !delegated_to){ showToast('Please choose both users'); return; }
   if(delegated_by === delegated_to){ showToast('Cannot delegate to the same user'); return; }
   if(!from_date || !to_date){ showToast('Please set a start and end date'); return; }
-  if(!db){ showToast('⚠ Offline — could not save delegation'); return; }
+  if(!db){ toast('⚠ Offline — could not save delegation', 'error'); return; }
   try {
     const { error } = await db.from(DELEGATIONS_TABLE).insert({ delegated_by, delegated_to, from_date, to_date, reason, is_active: true });
     if(error) throw error;
-    showToast('Delegation added');
+    toast('Delegation added', 'success');
     closeDelegationModal();
     loadFromSupabase();
   } catch(err){
-    showToast('⚠ Could not save delegation — ' + err.message);
+    toast('⚠ Could not save delegation — ' + err.message, 'error');
   }
 }
 async function toggleDelegationActive(id){
@@ -1183,7 +1247,7 @@ async function toggleDelegationActive(id){
     d.is_active = !d.is_active;
     renderDelegations();
   } catch(err){
-    showToast('⚠ Could not update delegation — ' + err.message);
+    toast('⚠ Could not update delegation — ' + err.message, 'error');
   }
 }
 
@@ -1206,17 +1270,23 @@ async function closeCurrentPeriod(){
   const period = prompt('Close which period? (YYYY-MM)', defaultPeriod);
   if(!period) return;
   if(periodCloses.some(p=>p.period===period)){ showToast(period + ' is already closed'); return; }
-  if(!confirm('Close and lock period ' + period + '? This should only be done once all entries for the period are finalized.')) return;
-  if(!db){ showToast('⚠ Offline — could not close period'); return; }
-  try {
-    const me = getCurrentUser();
-    const { error } = await db.from(PERIOD_CLOSES_TABLE).insert({ period, closed_by: me ? me.id : null, locked: true });
-    if(error) throw error;
-    showToast('Period ' + period + ' closed and locked');
-    loadFromSupabase();
-  } catch(err){
-    showToast('⚠ Could not close period — ' + err.message);
-  }
+  showConfirm({
+    title: 'Close Period',
+    message: 'Close and lock period ' + period + '? This should only be done once all entries for the period are finalized.',
+    confirmLabel: 'Close Period',
+    onConfirm: async () => {
+      if(!db){ toast('⚠ Offline — could not close period', 'error'); return; }
+      try {
+        const me = getCurrentUser();
+        const { error } = await db.from(PERIOD_CLOSES_TABLE).insert({ period, closed_by: me ? me.id : null, locked: true });
+        if(error) throw error;
+        toast('Period ' + period + ' closed and locked', 'success');
+        loadFromSupabase();
+      } catch(err){
+        toast('⚠ Could not close period — ' + err.message, 'error');
+      }
+    }
+  });
 }
 
 /* ════════════════ NOTIFICATION MATRIX ════════════════ */
@@ -1239,6 +1309,59 @@ function recalcOpeningTotal(){
   const bank = parseFloat(document.getElementById('obBank').value) || 0;
   const mobile = parseFloat(document.getElementById('obMobile').value) || 0;
   document.getElementById('obTotal').textContent = fmt(cash+bank+mobile);
+}
+
+/* ════════════════ INVENTORY OPENING BALANCES ════════════════ */
+const INVENTORY_ITEMS_TABLE = 'inventory_items';
+const INVENTORY_OPENING_TABLE = 'inventory_opening_balances';
+let inventoryItemsList = [];
+let inventoryOpeningRows = []; // rows for openingPeriod only, keyed by item_id
+
+function renderInventoryOpeningBalances(){
+  const body = document.getElementById('invOpeningBody');
+  if(!body) return;
+  if(!inventoryItemsList.length){ body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--tl);padding:20px">No active inventory items found</td></tr>'; return; }
+  body.innerHTML = inventoryItemsList.map(item=>{
+    const existing = inventoryOpeningRows.find(r=>r.item_id===item.id);
+    const qty = existing ? parseFloat(existing.opening_qty)||0 : 0;
+    const value = existing ? parseFloat(existing.opening_value)||0 : 0;
+    const unitCost = qty > 0 ? (value/qty) : 0;
+    return `
+      <tr data-item-id="${item.id}">
+        <td style="font-weight:700">${item.name} <span style="color:var(--tl);font-weight:600">(${item.unit||''})</span></td>
+        <td><input type="number" step="0.01" class="inv-ob-qty" value="${qty || ''}" placeholder="0" style="width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:7px" oninput="recalcInvOpeningValue('${item.id}')"></td>
+        <td><input type="number" step="0.01" class="inv-ob-cost" value="${unitCost ? unitCost.toFixed(2) : ''}" placeholder="0.00" style="width:100px;padding:6px 8px;border:1px solid var(--border);border-radius:7px" oninput="recalcInvOpeningValue('${item.id}')"></td>
+        <td style="font-weight:700;color:var(--tm)"><span class="inv-ob-value">${fmt2(value)}</span> ETB</td>
+      </tr>`;
+  }).join('');
+}
+function recalcInvOpeningValue(itemId){
+  const row = document.querySelector(`#invOpeningBody tr[data-item-id="${itemId}"]`);
+  if(!row) return;
+  const qty = parseFloat(row.querySelector('.inv-ob-qty').value) || 0;
+  const cost = parseFloat(row.querySelector('.inv-ob-cost').value) || 0;
+  row.querySelector('.inv-ob-value').textContent = fmt2(qty*cost);
+}
+async function saveInventoryOpeningBalances(btn){
+  if(!db){ toast('⚠ Offline — could not save inventory opening balances', 'error'); return; }
+  if(!openingPeriod){ toast('⚠ Opening period not loaded yet — try again in a moment', 'error'); return; }
+  const original = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span>';
+  try{
+    const rows = Array.from(document.querySelectorAll('#invOpeningBody tr[data-item-id]')).map(tr=>{
+      const itemId = tr.dataset.itemId;
+      const qty = parseFloat(tr.querySelector('.inv-ob-qty').value) || 0;
+      const cost = parseFloat(tr.querySelector('.inv-ob-cost').value) || 0;
+      return { period: openingPeriod, item_id: itemId, opening_qty: qty, opening_value: qty*cost };
+    });
+    const { error } = await db.from(INVENTORY_OPENING_TABLE).upsert(rows, { onConflict: 'period,item_id' });
+    if(error) throw error;
+    toast('Inventory opening balances saved', 'success');
+  }catch(err){
+    toast('⚠ Could not save inventory opening balances — ' + err.message, 'error');
+  }finally{
+    btn.textContent = original;
+  }
 }
 
 /* ════════════════ VAT FIELD TOGGLE ════════════════ */
@@ -1273,12 +1396,12 @@ function saveDevicePrefs(){
     pageSize: val('sysPageSize')
   };
   localStorage.setItem(DEVICE_PREFS_KEY, JSON.stringify(p));
-  showToast('Device preference saved');
+  toast('Device preference saved', 'success');
 }
 
 /* ════════════════ DATA MANAGEMENT: QUICK ACTIONS ════════════════ */
 async function doBackupNow(){
-  if(!db){ showToast('⚠ Offline — cannot create backup'); return; }
+  if(!db){ toast('⚠ Offline — cannot create backup', 'error'); return; }
   showToast('Preparing backup...');
   try {
     const tables = ['business_settings','shareholders','locations','users','customers','suppliers','inventory_items'];
@@ -1295,9 +1418,9 @@ async function doBackupNow(){
     a.download = 'mena-backup-' + new Date().toISOString().slice(0,10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Backup downloaded');
+    toast('Backup downloaded', 'success');
   } catch(err){
-    showToast('⚠ Backup failed — ' + err.message);
+    toast('⚠ Backup failed — ' + err.message, 'error');
   }
 }
 function loadSheetJs(){
@@ -1311,7 +1434,7 @@ function loadSheetJs(){
   });
 }
 async function doExportAll(){
-  if(!db){ showToast('⚠ Offline — cannot export'); return; }
+  if(!db){ toast('⚠ Offline — cannot export', 'error'); return; }
   showToast('Preparing export of all tables...');
   try {
     await loadSheetJs();
@@ -1324,18 +1447,18 @@ async function doExportAll(){
       XLSX.utils.book_append_sheet(wb, ws, t.slice(0,31));
     }
     XLSX.writeFile(wb, 'mena-export-' + new Date().toISOString().slice(0,10) + '.xlsx');
-    showToast('Export ready — check your downloads');
+    toast('Export ready — check your downloads', 'success');
   } catch(err){
-    showToast('⚠ Export failed — ' + err.message);
+    toast('⚠ Export failed — ' + err.message, 'error');
   }
 }
 function doClearCache(){
   try {
     const keep = ['injera_session','bms_session'];
     Object.keys(sessionStorage).forEach(k=>{ if(!keep.includes(k)) sessionStorage.removeItem(k); });
-    showToast('Local cache cleared');
+    toast('Local cache cleared', 'success');
   } catch(e){
-    showToast('Local cache cleared');
+    toast('Local cache cleared', 'success');
   }
 }
 
@@ -1477,6 +1600,13 @@ async function loadFromSupabase(){
     document.getElementById('obPeriodLbl').textContent = '(' + openingPeriod + ')';
     recalcOpeningTotal();
 
+    const { data: invItemRows, error: invItemErr } = await db.from(INVENTORY_ITEMS_TABLE).select('*').eq('is_active', true).order('name', { ascending:true });
+    if(!invItemErr && invItemRows){ inventoryItemsList = invItemRows; }
+    const { data: invObRows, error: invObErr } = await db.from(INVENTORY_OPENING_TABLE).select('*').eq('period', openingPeriod);
+    if(!invObErr && invObRows){ inventoryOpeningRows = invObRows; }
+    document.getElementById('invObPeriodLbl').textContent = '(' + openingPeriod + ')';
+    renderInventoryOpeningBalances();
+
     const { data: shRows, error: shErr } = await db.from(SHAREHOLDERS_TABLE).select('*').order('ownership_pct', { ascending:false });
     if(shErr) throw shErr;
     if(shRows && shRows.length){
@@ -1560,7 +1690,7 @@ async function saveBusinessSettings(btn){
 
   if(!db){
     btn.textContent = original;
-    showToast('⚠ Offline — changes are not saved to the database');
+    toast('⚠ Offline — changes are not saved to the database', 'error');
     return;
   }
   try {
@@ -1581,11 +1711,11 @@ async function saveBusinessSettings(btn){
       const { error: obErr } = await db.from(OPENING_BAL_TABLE).upsert(obRows, { onConflict:'period,channel' });
       if(obErr) throw obErr;
     }
-    showToast('Settings saved successfully');
+    toast('Settings saved successfully', 'success');
     setDataStatus('ok', 'Data is up to date');
   } catch(err){
     console.log('Supabase settings save failed:', err.message);
-    showToast('⚠ Could not save to database — ' + err.message);
+    toast('⚠ Could not save to database — ' + err.message, 'error');
     setDataStatus('error', 'Save failed');
   } finally {
     btn.textContent = original;

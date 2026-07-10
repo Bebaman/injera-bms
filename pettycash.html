@@ -844,6 +844,7 @@ let allData=[], filtered=[], page=1, PER=8, sortCol='date', sortDir=-1;
 function currentPeriod(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 let curMonth=currentPeriod(), editId=null, delId=null, repTotal=0;
 let PREV_SPENT=0, OPENING_BAL=0; // pulled live from Supabase in loadAll() — no demo data
+let PETTY_CASH_DAILY_LIMIT=0; // from business_settings.petty_cash_daily_limit — 0 means "no limit set"
 let tChart=null, dChart=null;
 
 // ══ LOOKUP CACHES (expense_categories) ────────────────────
@@ -931,15 +932,20 @@ async function loadAll(){
   showLoading();
   try{
     await ensureLookups();
-    const[rows,flowsIn,openBal,prevSpent]=await Promise.all([
+    const[rows,flowsIn,openBal,prevSpent,settingsRows]=await Promise.all([
       sbGet(`petty_cash?select=*,expense_categories(name),users(name)&period=eq.${curMonth}&order=date.desc`),
       sbGet(`cash_flow_entries?select=amount&channel=eq.cash&direction=eq.in&period=eq.${curMonth}`),
       getOpeningBalance(curMonth),
-      getPrevMonthSpent(curMonth)
+      getPrevMonthSpent(curMonth),
+      sbGet(`business_settings?select=petty_cash_daily_limit&limit=1`)
     ]);
     OPENING_BAL=openBal;PREV_SPENT=prevSpent;
     repTotal=sum(flowsIn,'amount');
     allData=(rows||[]).map(mapRow); // real data only — empty month shows empty, no fallback
+    // Live daily limit from Settings (added 2026-07) — used as a soft warning on save, not a hard
+    // block: this app has no approval workflow for petty cash entries to route an over-limit
+    // entry to, so we warn and let the person confirm rather than silently blocking their entry.
+    PETTY_CASH_DAILY_LIMIT = (settingsRows && settingsRows[0] && settingsRows[0].petty_cash_daily_limit != null) ? parseFloat(settingsRows[0].petty_cash_daily_limit) : 0;
   }catch(e){
     console.error('[pettycash] loadAll failed',e);
     allData=[];OPENING_BAL=0;PREV_SPENT=0;repTotal=0;
@@ -1216,6 +1222,25 @@ function validateEntry(){
 }
 async function saveEntry(){
   if(!validateEntry())return;
+  const date=document.getElementById('f-date').value;
+  const amount=parseFloat(document.getElementById('f-amt').value);
+  if(PETTY_CASH_DAILY_LIMIT > 0){
+    const sameDayTotal = allData
+      .filter(e=>e.date===date && e.id!==editId)
+      .reduce((s,e)=>s+(parseFloat(e.amount)||0), 0) + amount;
+    if(sameDayTotal > PETTY_CASH_DAILY_LIMIT){
+      showConfirm({
+        title: 'Over Daily Petty Cash Limit',
+        message: `This brings ${date}'s petty cash total to ${sameDayTotal.toFixed(2)} ETB, above your ${PETTY_CASH_DAILY_LIMIT.toFixed(2)} ETB daily limit (set in Settings). Save anyway?`,
+        confirmLabel: 'Save Anyway',
+        onConfirm: () => doSaveEntry()
+      });
+      return; // wait for the modal's decision — doSaveEntry() only runs if they confirm
+    }
+  }
+  await doSaveEntry();
+}
+async function doSaveEntry(){
   const btn=document.getElementById('saveBtn');btn.disabled=true;
   btn.innerHTML='<span class="spin-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></span> Saving…';
   const date=document.getElementById('f-date').value,category=document.getElementById('f-cat').value,description=document.getElementById('f-desc').value.trim();
