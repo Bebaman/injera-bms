@@ -70,12 +70,12 @@ function populateUserChrome(){
   const panelName = document.querySelector('.user-panel-name h4'); if (panelName) panelName.textContent = session.name || 'Unknown User';
   const panelRole = document.querySelector('.user-panel-name span'); if (panelRole) panelRole.textContent = `${roleLbl} · ${window.APP_SETTINGS.companyName}`;
 
-  // Only owners/managers see the "Manage Users" shortcut / sidebar link
+  // Only owners/managers see the "Add User" shortcut in the user panel.
+  // (The old separate "Manage Users" sidebar link is gone — user management now
+  // lives in Settings > Users & Roles, which gates its own tab visibility itself.)
   const isOwnerOrManager = ['owner','manager'].includes(session.role);
   const addUserItem = document.getElementById('userPanelAddUser');
   if (addUserItem) addUserItem.style.display = isOwnerOrManager ? '' : 'none';
-  const manageUsersNav = document.querySelector('.sb-a[href="manage-users.html"]');
-  if (manageUsersNav) manageUsersNav.style.display = isOwnerOrManager ? '' : 'none';
 }
 
 /* ── Supabase REST helpers ───────────────────────────────────── */
@@ -88,8 +88,69 @@ function authHeaders(extra){
     'Content-Type': 'application/json'
   }, extra || {});
 }
+
+/* ── Token refresh (added 2026-07) ───────────────────────────────
+   Supabase access tokens expire after about an hour. Without this, any page
+   left open longer than that starts throwing "JWT expired" 401s on every
+   request instead of quietly refreshing — which is exactly the bug this fixes.
+   _refreshPromise coalesces concurrent refreshes into one: Supabase rotates
+   the refresh_token on each use, so pages that fire many requests at once
+   (dashboard.html fires 20+ in parallel) would otherwise have all but the
+   first refresh call fail and kill the session outright. */
+let _refreshPromise = null;
+async function refreshAccessToken(){
+  if(_refreshPromise) return _refreshPromise;
+  _refreshPromise = (async () => {
+    const session = loadSession();
+    if(!session || !session.refresh_token) return null;
+    try{
+      const authBase = window.SB_URL.replace(/\/rest\/v1$/, '');
+      const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: window.SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: session.refresh_token })
+      });
+      if(!res.ok) return null;
+      const data = await res.json();
+      if(!data.access_token) return null;
+      const updated = { ...session, access_token: data.access_token, refresh_token: data.refresh_token || session.refresh_token };
+      if(localStorage.getItem('injera_session')) localStorage.setItem('injera_session', JSON.stringify(updated));
+      else sessionStorage.setItem('injera_session', JSON.stringify(updated));
+      return updated;
+    }catch(e){ return null; }
+  })();
+  try{ return await _refreshPromise; } finally { _refreshPromise = null; }
+}
+
+/* Every sbGet/sbPost/sbPatch/sbDelete call goes through this. On a 401 it tries
+   refreshAccessToken() once and retries the same request with the new token —
+   authHeaders() re-reads the session from storage, so the retry picks it up
+   automatically. If the refresh itself fails (refresh_token also expired/
+   revoked), the session is genuinely over, not just stale — clear it and
+   send the person back to login rather than let every request on the page
+   keep failing silently. */
+async function sbFetch(method, path, body){
+  const doFetch = () => fetch(`${window.SB_URL}/${path}`, {
+    method,
+    headers: authHeaders(method !== 'GET' ? { 'Prefer':'return=representation' } : undefined),
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  let res = await doFetch();
+  if(res.status === 401){
+    const refreshed = await refreshAccessToken();
+    if(refreshed){
+      res = await doFetch();
+    } else {
+      clearSession();
+      window.location.replace('login.html');
+      throw new Error('Session expired — redirecting to login.');
+    }
+  }
+  return res;
+}
+
 async function sbGet(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, { headers: authHeaders() });
+  const res = await sbFetch('GET', path);
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
@@ -97,11 +158,7 @@ async function sbGet(path){
   return res.json();
 }
 async function sbPost(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'POST',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
-    body: JSON.stringify(body)
-  });
+  const res = await sbFetch('POST', path, body);
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Save failed (${res.status})`);
@@ -109,11 +166,7 @@ async function sbPost(path, body){
   return res.json();
 }
 async function sbPatch(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'PATCH',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
-    body: JSON.stringify(body)
-  });
+  const res = await sbFetch('PATCH', path, body);
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Update failed (${res.status})`);
@@ -121,10 +174,7 @@ async function sbPatch(path, body){
   return res.json();
 }
 async function sbDelete(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'DELETE',
-    headers: authHeaders({ 'Prefer':'return=representation' })
-  });
+  const res = await sbFetch('DELETE', path);
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(detail || `Delete failed (${res.status})`);
