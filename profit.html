@@ -374,28 +374,38 @@ button{font-family:inherit}
           <div class="sum-list">
             <div class="sum-row">
               <div class="sum-ic ic-g"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Total Distributed (All Time)</span><span class="sum-val">18,534.75 ETB</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Distributed (All Time)</span><span class="sum-val" id="sumDistributed">0.00 ETB</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-o"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Total Retained in Business (All Time)</span><span class="sum-val">137,428.25 ETB</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Retained in Business (All Time)</span><span class="sum-val" id="sumRetained">0.00 ETB</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-b"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Months with Distribution</span><span class="sum-val">8 Months</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Months with Distribution</span><span class="sum-val" id="sumMonthsCount">0 Months</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-p"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Average Distribution %</span><span class="sum-val">10.5%</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Average Distribution %</span><span class="sum-val" id="sumAvgPct">0.0%</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-t"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Total Distributable Profit</span><span class="sum-val">156,963.00 ETB</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Distributable Profit (Recorded Months)</span><span class="sum-val" id="sumDistributableProfit">0.00 ETB</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-y"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-              <div class="sum-bd"><span class="sum-lbl">Total Net Cash Profit (All Time)</span><span class="sum-val">156,963.00 ETB</span></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Net Cash Profit (All Time)</span><span class="sum-val" id="sumNetAllTime">0.00 ETB</span></div>
             </div>
+          </div>
+        </div>
+
+        <div class="card" id="ownerActivityCard">
+          <div class="card-hd"><div class="card-ttl">Owner Injection / Withdrawal History <span class="sub" id="oaLbl">(this month)</span></div></div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Date</th><th>Type</th><th>Shareholder</th><th>Channel</th><th>Amount (ETB)</th><th>Note</th></tr></thead>
+              <tbody id="ownerActivityBody"></tbody>
+            </table>
           </div>
         </div>
 
@@ -403,6 +413,7 @@ button{font-family:inherit}
           <div class="card-hd"><div class="card-ttl">Distribution Trend <span class="sub">(Last 6 Months)</span></div></div>
           <div class="chart-box">
             <div class="leg" id="legTrend">
+
               <span data-ds="0"><span class="leg-ln" style="background:#27ae60"></span>Distributed Amount (ETB)</span>
               <span data-ds="1"><span class="leg-ln" style="background:#f59e0b"></span>Distribution %</span>
             </div>
@@ -761,8 +772,84 @@ async function refreshAll(){
   dataReady = true;
 }
 
-function roundAmt(n){ return Math.round(n/ROUNDING_UNIT)*ROUNDING_UNIT; }
-function f(n){ const dp = ROUNDING_UNIT<1?2:0; return roundAmt(n).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+// ── Distribution Summary (All Time) — queried directly rather than derived from
+// the limited `history` window, so it's accurate even for periods further back
+// than the month picker currently shows.
+async function loadAllTimeSummary(){
+  let dist = [];
+  try{ dist = await sbGet('profit_distributions?select=distribution_pct,net_cash_profit,distributable_amount,retained_amount,period') || []; }
+  catch(err){ console.log('profit_distributions summary load failed:', err.message); }
+
+  let cashRows = [];
+  try{ cashRows = await sbGet('monthly_cash_flow?select=period,sales_receipts,ar_collected,op_payments,payroll_payments,petty_cash_payments') || []; }
+  catch(err){ console.log('monthly_cash_flow summary load failed:', err.message); }
+
+  const netByPeriod = {};
+  cashRows.forEach(r=>{
+    netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.sales_receipts)+n(r.ar_collected)-n(r.op_payments)-n(r.payroll_payments)-n(r.petty_cash_payments);
+  });
+  const totalNetAllTime = Object.values(netByPeriod).reduce((a,b)=>a+b,0);
+
+  return {
+    totalDistributed: dist.reduce((a,r)=>a+n(r.distributable_amount),0),
+    totalRetained: dist.reduce((a,r)=>a+n(r.retained_amount),0),
+    monthsWithDist: dist.length,
+    avgPct: dist.length ? dist.reduce((a,r)=>a+n(r.distribution_pct),0)/dist.length : 0,
+    totalDistributableProfit: dist.reduce((a,r)=>a+n(r.net_cash_profit),0),
+    totalNetAllTime
+  };
+}
+
+function renderSummary(sum){
+  document.getElementById('sumDistributed').textContent = f(sum.totalDistributed)+' ETB';
+  document.getElementById('sumRetained').textContent = f(sum.totalRetained)+' ETB';
+  document.getElementById('sumMonthsCount').textContent = sum.monthsWithDist+' Month'+(sum.monthsWithDist===1?'':'s');
+  document.getElementById('sumAvgPct').textContent = sum.avgPct.toFixed(1)+'%';
+  document.getElementById('sumDistributableProfit').textContent = f(sum.totalDistributableProfit)+' ETB';
+  document.getElementById('sumNetAllTime').textContent = f(sum.totalNetAllTime)+' ETB';
+}
+
+// ── Owner Injection / Withdrawal History — the raw capital_injections /
+// capital_withdrawals rows for the selected month, so it's clear who moved what,
+// when, and through which channel (not just the month's totals).
+async function loadOwnerActivityHistory(period){
+  const rangeStart = period+'-01';
+  const rangeEnd = period+'-31';
+  let rows = [];
+  try{
+    const inj = await sbGet(`capital_injections?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lte.${rangeEnd}&order=date.desc`) || [];
+    rows = rows.concat(inj.map(r=>({...r, kind:'Injection'})));
+  }catch(err){ console.log('capital_injections history load failed for '+period+':', err.message); }
+  try{
+    const wd = await sbGet(`capital_withdrawals?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lte.${rangeEnd}&order=date.desc`) || [];
+    rows = rows.concat(wd.map(r=>({...r, kind:'Withdrawal'})));
+  }catch(err){ console.log('capital_withdrawals history load failed for '+period+':', err.message); }
+  rows.sort((a,b)=> (a.date<b.date?1:-1));
+  return rows;
+}
+
+function renderOwnerActivityHistory(rows, monthLabel){
+  document.getElementById('oaLbl').textContent = '('+monthLabel+')';
+  const body = document.getElementById('ownerActivityBody');
+  if(!rows.length){
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">No owner injections or withdrawals recorded for '+monthLabel+'</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r=>{
+    const channelLbl = r.channel==='cash'?'Cash':(r.channel==='bank'?'Bank':'Mobile Money');
+    return `<tr>
+      <td>${new Date(r.date+'T00:00:00').toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td><span class="tbl-badge">${r.kind}</span></td>
+      <td>${r.shareholder_name||'—'}</td>
+      <td>${channelLbl}</td>
+      <td>${f(n(r.amount))}</td>
+      <td>${r.notes||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function roundAmt(v){ return Math.round(v/ROUNDING_UNIT)*ROUNDING_UNIT; }
+function f(v){ const dp = ROUNDING_UNIT<1?2:0; return roundAmt(v).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
 
 // Generalized N-way split — last shareholder absorbs the rounding remainder (same rule as before).
 function computeSplit(net, pct){
@@ -836,6 +923,7 @@ async function rollForwardOpeningCash(){
     return;
   }
   await refreshAll();
+  loadAllTimeSummary().then(renderSummary);
   renderMonth();
   buildTrendChart();
 }
@@ -865,6 +953,7 @@ function renderMonth(){
   renderShareholderTable(disp);
   renderCashPosition(rec);
   renderHistory();
+  loadOwnerActivityHistory(rec.key).then(rows => renderOwnerActivityHistory(rows, rec.m));
 }
 
 function renderHistory(){
@@ -979,6 +1068,7 @@ async function submitRecordModal(e){
   }
   closeRecordModal();
   await refreshAll();
+  loadAllTimeSummary().then(renderSummary);
   renderMonth();
   buildTrendChart();
 }
@@ -1021,6 +1111,7 @@ async function submitOwnerTxnModal(e){
   }
   closeOwnerTxnModal();
   await refreshAll();
+  loadAllTimeSummary().then(renderSummary);
   renderMonth();
   buildTrendChart();
 }
@@ -1447,6 +1538,7 @@ function buildTrendChart(){
    is now discovered from real data instead of hardcoded. */
 async function initPage(){
   await refreshAll();
+  loadAllTimeSummary().then(renderSummary);
 
   renderHeader({
     title: 'Distribution',
