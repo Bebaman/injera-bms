@@ -814,14 +814,17 @@ function renderSummary(sum){
 // when, and through which channel (not just the month's totals).
 async function loadOwnerActivityHistory(period){
   const rangeStart = period+'-01';
-  const rangeEnd = period+'-31';
+  const [yy, mm] = period.split('-').map(Number);
+  const nextY = mm===12 ? yy+1 : yy;
+  const nextM = mm===12 ? 1 : mm+1;
+  const rangeEndExclusive = nextY+'-'+String(nextM).padStart(2,'0')+'-01'; // first day of next month — avoids invalid "-31" on short months
   let rows = [];
   try{
-    const inj = await sbGet(`capital_injections?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lte.${rangeEnd}&order=date.desc`) || [];
+    const inj = await sbGet(`capital_injections?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lt.${rangeEndExclusive}&order=date.desc`) || [];
     rows = rows.concat(inj.map(r=>({...r, kind:'Injection'})));
   }catch(err){ console.log('capital_injections history load failed for '+period+':', err.message); }
   try{
-    const wd = await sbGet(`capital_withdrawals?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lte.${rangeEnd}&order=date.desc`) || [];
+    const wd = await sbGet(`capital_withdrawals?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lt.${rangeEndExclusive}&order=date.desc`) || [];
     rows = rows.concat(wd.map(r=>({...r, kind:'Withdrawal'})));
   }catch(err){ console.log('capital_withdrawals history load failed for '+period+':', err.message); }
   rows.sort((a,b)=> (a.date<b.date?1:-1));
@@ -1050,15 +1053,22 @@ async function submitRecordModal(e){
   const sp = computeSplit(rec.net, rec.pct);
   const paymentDate = document.getElementById('recDate').value;
   const distId = crypto.randomUUID();
+  // profit_distribution_lines.shareholder_id is required — if the shareholders table
+  // failed to load and we're on the hardcoded fallback (no real ids), stop before
+  // writing anything rather than leaving an orphan profit_distributions header row.
+  const lines = sp.shares.map(s=>{
+    const sh = shareholders.find(x=>x.name===s.name);
+    return { distribution_id: distId, shareholder_id: sh ? sh.id : null, ownership_pct_applied: s.pct, amount: s.amount, payment_date: paymentDate, payment_channel: 'bank' };
+  });
+  if(lines.some(l=>!l.shareholder_id)){
+    toast('Could not match every shareholder to a real record — reload the page and try again','error');
+    return;
+  }
   try{
     await sbPost('profit_distributions', [{
       id: distId, period: rec.key, distribution_pct: rec.pct, net_cash_profit: rec.net,
       distributable_amount: sp.distAmt, retained_amount: sp.retained
     }]);
-    const lines = sp.shares.map(s=>{
-      const sh = shareholders.find(x=>x.name===s.name);
-      return { distribution_id: distId, shareholder_id: sh ? sh.id : null, ownership_pct_applied: s.pct, amount: s.amount, payment_date: paymentDate, payment_channel: 'bank' };
-    });
     await sbPost('profit_distribution_lines', lines);
     toast('Distribution recorded and paid for '+rec.m,'success');
   }catch(err){
