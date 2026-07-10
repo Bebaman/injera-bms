@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,7 +47,6 @@
   .pl-card-hd h2{font-size:14.5px}
   .pl-card-hd p{font-size:11px}
   .pl-currency{font-size:10.5px}
-  .demo-badge{font-size:8.5px;padding:2px 8px}
   .pl-table{min-width:560px;font-size:13px}
   .pl-table th{padding:9px 14px;font-size:10px}
   .pl-th-sub{font-size:8.5px}
@@ -74,8 +78,6 @@
 .pl-card-hd h2{font-size:16px;font-weight:700;color:var(--td)}
 .pl-card-hd p{font-size:var(--fs-xs);color:var(--tl);margin-top:3px}
 .pl-currency{font-size:var(--fs-xs);font-weight:700;color:var(--tm);white-space:nowrap;padding-top:3px}
-.demo-badge{display:none;align-items:center;gap:4px;background:#fef2e0;color:#92620a;border:1px solid #f0d9a8;padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-top:6px}
-.demo-badge svg{width:10px;height:10px;stroke:#92620a;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 
 .pl-table-wrap{overflow-x:auto}
 .pl-table{width:100%;border-collapse:collapse;font-size:var(--fs-base);min-width:620px}
@@ -281,6 +283,44 @@ function fmtETB(n){ return num(n).toLocaleString('en-US',{minimumFractionDigits:
 function pctOf(v, total){ return total ? (v/total*100) : 0; }
 function approved(status){ return ['auto_approved','approved'].includes(status); }
 
+// ── Toast notifications ──────────────────────────────────
+// Self-contained on purpose: this page previously called toast() assuming it
+// came from a shared script that doesn't exist here, which meant EVERY error
+// handler in this file threw a *second*, unrelated "toast is not defined"
+// error the moment it tried to notify the user — masking whatever the real
+// problem was. This page no longer depends on any external script for it.
+function toast(message, type){
+  type = type || 'info';
+  let container = document.getElementById('toastStack');
+  if(!container){
+    // Defensive fallback only — #toastStack should already exist in this page's HTML.
+    container = document.createElement('div');
+    container.id = 'toastStack';
+    container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px;pointer-events:none;';
+    document.body.appendChild(container);
+  }
+  const colors = {
+    info:    { bg:'#eef6f1', border:'#c9e4d4', text:'#1B4332' },
+    success: { bg:'#eafbf1', border:'#a8e6c1', text:'#166534' },
+    error:   { bg:'#fdecec', border:'#f5b8b8', text:'#8a2323' }
+  };
+  const c = colors[type] || colors.info;
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  // Inline styles guarantee this looks right even if shared-shell.css's own
+  // .toast-stack/.toast rules aren't loaded — if they ARE loaded, these
+  // inline styles simply take precedence, so it's safe either way.
+  el.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.text};padding:10px 16px;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.12);opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease;pointer-events:auto;`;
+  container.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translateY(0)'; });
+  setTimeout(()=>{
+    el.style.opacity='0';
+    el.style.transform='translateY(8px)';
+    setTimeout(()=>el.remove(), 250);
+  }, 3800);
+}
+
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTH_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 function labelToPeriod(label){
@@ -347,8 +387,15 @@ async function loadInvItems(){
 // recent known unit price from an earlier period (asOfPeriod = the period
 // to search back from). Items that DO have purchases this period are
 // completely unaffected — this only fills gaps, never overrides real data.
+// Every helper below is resilient: if its own sbGet() call fails, it logs the
+// error and returns a safe empty default instead of throwing — matching the
+// cash flow page's pattern, so one bad table never blocks the whole P&L.
 async function fetchWeightedAvgCosts(filterClause, asOfPeriod){
-  const rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type&type=eq.purchase&${filterClause}&is_deleted=eq.false`);
+  let rows = [];
+  try{
+    rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type&type=eq.purchase&${filterClause}&is_deleted=eq.false`);
+  }catch(e){ console.error('fetchWeightedAvgCosts: purchases query failed', e); }
+
   const agg = {};
   rows.filter(p=>approved(p.approval_status)).forEach(p=>{
     const id = p.item_id;
@@ -380,7 +427,10 @@ async function fetchLastKnownCosts(names, asOfPeriod){
     .filter(Boolean);
   if(ids.length === 0) return {};
   const idFilter = ids.map(id=>`item_id.eq.${id}`).join(',');
-  const rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type,date&type=eq.purchase&or=(${idFilter})&period=lte.${asOfPeriod}&is_deleted=eq.false&order=date.desc`);
+  let rows = [];
+  try{
+    rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type,date&type=eq.purchase&or=(${idFilter})&period=lte.${asOfPeriod}&is_deleted=eq.false&order=date.desc`);
+  }catch(e){ console.error('fetchLastKnownCosts: purchases query failed', e); }
   const lastByItem = {};
   rows.filter(p=>approved(p.approval_status)).forEach(p=>{
     if(!lastByItem[p.item_id]) lastByItem[p.item_id] = p; // rows are date-desc, so first hit = most recent
@@ -396,7 +446,10 @@ async function fetchLastKnownCosts(names, asOfPeriod){
 // Actual quantity of each material consumed in production during the period
 // (confirmed batches only) — the real "usage" side of usage-based COGS.
 async function fetchUsageQty(filterClause){
-  const batches = await sbGet(`production_batches?select=period,is_deleted,production_batch_materials(item_id,quantity_used)&${filterClause}&is_deleted=eq.false`);
+  let batches = [];
+  try{
+    batches = await sbGet(`production_batches?select=period,is_deleted,production_batch_materials(item_id,quantity_used)&${filterClause}&is_deleted=eq.false`);
+  }catch(e){ console.error('fetchUsageQty: production_batches query failed', e); }
   const qtyByName = {};
   batches.forEach(b=>{
     (b.production_batch_materials||[]).forEach(m=>{
@@ -420,17 +473,41 @@ function periodToDueDateRange(startPeriod, endPeriod){
   return `due_date=gte.${startDate}&due_date=lte.${endDate}`;
 }
 
+// Fetches every table this page needs for one period. Uses Promise.allSettled
+// (not Promise.all) so ONE failing table — a schema mismatch, a network blip —
+// can never block the rest. Every source independently falls back to an empty
+// array, which naturally renders as zero for every line item, exactly like the
+// cash flow statement page. Returns { ...data, ok } where ok is false only if
+// something actually failed, so the caller can show a soft warning without
+// ever blocking the render.
 async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
-  const [sales, purchases, overhead, petty, lrs, usageQty, avgCosts] = await Promise.all([
+  const results = await Promise.allSettled([
     sbGet(`sales?select=product_type,revenue&${filterClause}&is_deleted=eq.false`),
     sbGet(`purchases?select=type,total_cost,approval_status,item_id,expense_categories(name)&${filterClause}&is_deleted=eq.false`),
     sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
     sbGet(`petty_cash?select=amount,expense_categories(name)&${filterClause}`),
-    sbGet(`loan_repayment_schedule?select=interest_portion,status&${loanDateClause}`),
+    sbGet(`loan_repayment_schedule?select=interest_portion&${loanDateClause}`),
     fetchUsageQty(filterClause),
     fetchWeightedAvgCosts(filterClause, asOfPeriod)
   ]);
-  return {sales, purchases, overhead, petty, lrs, usageQty, avgCosts};
+
+  const [salesR, purchasesR, overheadR, pettyR, lrsR, usageQtyR, avgCostsR] = results;
+  const val = (r, fallback) => r.status === 'fulfilled' ? r.value : fallback;
+
+  results.forEach((r, i)=>{
+    if(r.status === 'rejected') console.error(`fetchPeriodSet: query #${i} failed`, r.reason);
+  });
+
+  return {
+    sales:     val(salesR, []),
+    purchases: val(purchasesR, []),
+    overhead:  val(overheadR, []),
+    petty:     val(pettyR, []),
+    lrs:       val(lrsR, []),
+    usageQty:  val(usageQtyR, {}),
+    avgCosts:  val(avgCostsR, {}),
+    ok: !results.some(r => r.status === 'rejected')
+  };
 }
 
 // ── Core P&L aggregation (IAS 2 basis: overhead lives in COGS, never OpEx) ──
@@ -496,42 +573,17 @@ function calcFigures(d){
   const marketing = expMap['Marketing']||0;
   const otherOperatingExpenses = (expMap['Bank Charges']||0) + (expMap['Other']||0);
 
-  const interestExpense = d.lrs.filter(l=>l.status==='paid').reduce((s,l)=>s+num(l.interest_portion),0);
+  // Accrual basis: count all interest that accrued (due_date fell in this
+  // period), regardless of whether it's been paid yet. This intentionally
+  // differs from the Cash Flow page, which filters by status='paid' and
+  // actual_payment_date — correct there, since a cash flow statement should
+  // only reflect cash that actually moved. A P&L should reflect what was
+  // owed for the period, so an unpaid/overdue interest charge still counts.
+  const interestExpense = d.lrs.reduce((s,l)=>s+num(l.interest_portion),0);
 
   return deriveTotals({ injeraRevenue, derkoshRevenue,
     injeraBlend, corn, gomenZere, packaging, labor, electricity, water, rent, maintenance, otherOverhead,
     deliveryOut, marketing, otherOperatingExpenses, interestExpense });
-}
-
-// ── Demo data (fallback) ──────────────────────────────────
-// Used only when a month has no live Supabase records yet (e.g. before
-// real transactions are entered) or if the API is unreachable. Numbers
-// below are seeded from the original May 2026 mockup, with Jan–Apr backed
-// out from its stated Year-to-Date figures so the demo YTD column matches
-// that mockup exactly. June is a modest projected continuation.
-const DEMO_CATEGORIES = {
-  '2026-01': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
-  '2026-02': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
-  '2026-03': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
-  '2026-04': {injeraRevenue:96206.00,derkoshRevenue:15857.50,injeraBlend:39113.75,corn:10165.00,gomenZere:1876.25,packaging:2840.00,labor:15000.00,electricity:1212.50,water:850.00,rent:1500.00,maintenance:712.50,otherOverhead:0,deliveryOut:3312.50,marketing:800.00,otherOperatingExpenses:857.50,interestExpense:2000.00},
-  '2026-05': {injeraRevenue:95321.00,derkoshRevenue:14390.00,injeraBlend:38965.00,corn:10230.00,gomenZere:1845.00,packaging:2840.00,labor:15000.00,electricity:1250.00,water:850.00,rent:1500.00,maintenance:750.00,otherOverhead:0,deliveryOut:3200.00,marketing:750.00,otherOperatingExpenses:862.00,interestExpense:2000.00},
-  '2026-06': {injeraRevenue:100087.00,derkoshRevenue:15253.00,injeraBlend:40524.00,corn:10537.00,gomenZere:1900.00,packaging:2982.00,labor:15000.00,electricity:1300.00,water:867.00,rent:1500.00,maintenance:788.00,otherOverhead:0,deliveryOut:3360.00,marketing:825.00,otherOperatingExpenses:879.00,interestExpense:2000.00}
-};
-const DEMO_CAT_KEYS = ['injeraRevenue','derkoshRevenue','injeraBlend','corn','gomenZere','packaging','labor','electricity','water','rent','maintenance','otherOverhead','deliveryOut','marketing','otherOperatingExpenses','interestExpense'];
-function demoCatFor(period){ return DEMO_CATEGORIES[period] || DEMO_CATEGORIES['2026-05']; }
-function demoFiguresForMonth(period){ return deriveTotals(demoCatFor(period)); }
-function demoFiguresForYTD(period){
-  const [yr, mo] = period.split('-').map(Number);
-  const sum = {}; DEMO_CAT_KEYS.forEach(k=>sum[k]=0);
-  for(let m=1; m<=mo; m++){
-    const cat = demoCatFor(`${yr}-${String(m).padStart(2,'0')}`);
-    DEMO_CAT_KEYS.forEach(k=>sum[k]+=cat[k]);
-  }
-  return deriveTotals(sum);
-}
-function setDemoBadge(show){
-  const el = document.getElementById('demoBadge');
-  if(el) el.style.display = show ? 'inline-flex' : 'none';
 }
 
 // ── Shared row builder (used by both the table render and Excel export) ──
@@ -552,7 +604,7 @@ function buildPLRows(cur, ytd){
   rows.push({type:'row', label:'Water', curV:cur.water, ytdV:ytd.water});
   rows.push({type:'row', label:'Rent', curV:cur.rent, ytdV:ytd.rent});
   rows.push({type:'row', label:'Maintenance', curV:cur.maintenance, ytdV:ytd.maintenance});
-  if(cur.otherOverhead || ytd.otherOverhead) rows.push({type:'row', label:'Other Overhead', curV:cur.otherOverhead, ytdV:ytd.otherOverhead});
+  rows.push({type:'row', label:'Other Overhead', curV:cur.otherOverhead, ytdV:ytd.otherOverhead});
   rows.push({type:'total', label:'Total COGS', curV:cur.totalCOGS, ytdV:ytd.totalCOGS, cls:'pl-total'});
 
   rows.push({type:'total', label:'Gross Profit', curV:cur.grossProfit, ytdV:ytd.grossProfit, cls:'pl-gross'});
@@ -643,41 +695,42 @@ function updateHeaderLabels(period, yearStart){
 // ══════════════════════════════════════════════════════════
 async function refreshPL(){
   const msel = document.getElementById('msel');
-  const period = labelToPeriod(msel.value);
+  // #msel is created by the external header.js, not by this file's own HTML.
+  // If that script is missing/failed, msel is null — fall back to the current
+  // real-world month instead of crashing the whole page on this one line.
+  const period = msel && msel.value
+    ? labelToPeriod(msel.value)
+    : (()=>{ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
   const prevP = shiftPeriod(period, -1);
   const year = period.split('-')[0];
   const yearStart = `${year}-01`;
   PREV_PERIOD = prevP;
 
-  try{
-    const [monthData, prevData, ytdData] = await Promise.all([
-      fetchPeriodSet(`period=eq.${period}`, period, periodToDueDateRange(period, period)),
-      fetchPeriodSet(`period=eq.${prevP}`, prevP, periodToDueDateRange(prevP, prevP)),
-      fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`, period, periodToDueDateRange(yearStart, period))
-    ]);
+  const [monthData, prevData, ytdData] = await Promise.all([
+    fetchPeriodSet(`period=eq.${period}`, period, periodToDueDateRange(period, period)),
+    fetchPeriodSet(`period=eq.${prevP}`, prevP, periodToDueDateRange(prevP, prevP)),
+    fetchPeriodSet(`period=gte.${yearStart}&period=lte.${period}`, period, periodToDueDateRange(yearStart, period))
+  ]);
 
-    const cur = calcFigures(monthData);
-    const prev = calcFigures(prevData);
-    const ytd = calcFigures(ytdData);
+  // Each fetchPeriodSet() above never throws — a failing table just falls back
+  // to an empty array/object, so calcFigures() always produces a full set of
+  // particulars with real numbers or honest zeros. The statement always
+  // renders; ok just controls whether we also warn that something failed.
+  const cur = calcFigures(monthData);
+  const prev = calcFigures(prevData);
+  const ytd = calcFigures(ytdData);
 
-    LAST = {cur, ytd, period, isDemo:false};
-    renderTable(cur, ytd);
-    renderProfitSummary(cur, prev);
-    renderYTD(ytd);
-    updateHeaderLabels(period, yearStart);
-    setDemoBadge(false);
+  LAST = {cur, ytd, period};
+  renderTable(cur, ytd);
+  renderProfitSummary(cur, prev);
+  renderYTD(ytd);
+  updateHeaderLabels(period, yearStart);
 
-    // Honest empty state — no fabricated figures, just a plain notice.
-    if(cur.totalRevenue === 0 && ytd.totalRevenue === 0){
-      toast('No entries recorded yet for this period','info');
-    }
-  }catch(err){
-    console.error('P&L refresh failed', err);
-    const msg = `Could not load P&amp;L data — ${err.message}`;
-    document.getElementById('plBody').innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tl)">${msg}</td></tr>`;
-    document.getElementById('psBody').innerHTML = `<div class="ps-item"><div class="ps-mid"><div class="ps-lbl" style="color:var(--tl)">Could not load</div></div></div>`;
-    document.getElementById('ytdBody').innerHTML = `<div class="ytd-row"><span class="yl" style="color:var(--tl)">Could not load</span></div>`;
-    toast('Could not load P&L data from Supabase','error');
+  const ok = monthData.ok && prevData.ok && ytdData.ok;
+  if(!ok){
+    toast('Some data for this period could not be loaded','error');
+  } else if(cur.totalRevenue === 0 && ytd.totalRevenue === 0){
+    toast('No entries recorded yet for this period','info');
   }
 }
 
@@ -695,12 +748,12 @@ function exportExcel(retryCount){
     return;
   }
   try{
-    const {cur, ytd, period, isDemo} = LAST;
+    const {cur, ytd, period} = LAST;
     const monthLbl = periodToLabel(period);
     const plRows = buildPLRows(cur, ytd);
 
     const aoa = [
-      [isDemo ? 'Mena Injera & Derkosh — Profit & Loss Statement (Demo Data)' : 'Mena Injera & Derkosh — Profit & Loss Statement','','','',''],
+      ['Mena Injera & Derkosh — Profit & Loss Statement','','','',''],
       [document.getElementById('plDateLbl').textContent,'','','',''],
       ['','','','',''],
       ['Particulars', `This Month (${monthLbl})`, '% of Revenue', `Year to Date (${monthLbl})`, '% of Revenue']
@@ -770,7 +823,7 @@ async function exportPDF(retryCount){
   loading.classList.add('show');
   try{
     const { jsPDF } = window.jspdf;
-    const {cur, ytd, period, isDemo} = LAST;
+    const {cur, ytd, period} = LAST;
     const monthLbl = periodToLabel(period);
     const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -792,7 +845,7 @@ async function exportPDF(retryCount){
       doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
       doc.text('MI', marginX+19, 42, {align:'center'});
       doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-      doc.text(isDemo ? 'Profit & Loss Statement (Demo Data)' : 'Profit & Loss Statement', marginX+52, 34);
+      doc.text('Profit & Loss Statement', marginX+52, 34);
       doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
       doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
       doc.setFontSize(9); doc.setTextColor(220,235,227);
@@ -898,15 +951,36 @@ function printStatement(){
   setTimeout(()=>window.print(), 300);
 }
 
+function nextPeriodKey(mk){ return shiftPeriod(mk, 1); }
+
+// Rolling month window, same as the Cash Flow page: 23 months back, 6 forward
+// from today — computed fresh on every load instead of a hardcoded list, so
+// this never goes stale and always includes the current month.
+function monthOptionKeys(){
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  let earliest = todayKey;
+  for(let i=0;i<23;i++) earliest = shiftPeriod(earliest, -1);
+  let latest = todayKey;
+  for(let i=0;i<6;i++) latest = nextPeriodKey(latest);
+  const keys = [];
+  let cur = earliest;
+  while(cur <= latest){ keys.push(cur); cur = nextPeriodKey(cur); }
+  return { keys, todayKey };
+}
+
 document.addEventListener('DOMContentLoaded', async ()=>{
+  const { keys, todayKey } = monthOptionKeys();
+  const initialKey = keys.includes(todayKey) ? todayKey : keys[keys.length-1];
+
   try{
     if(typeof renderHeader === 'function'){
       renderHeader({
         title: 'P&L Statement',
         subtitle: 'Profit and Loss Statement',
         showMonthPicker: true,
-        months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
-        selectedMonth: 'Jul 2026',
+        months: keys.map(k => periodToLabel(k)),
+        selectedMonth: periodToLabel(initialKey),
         onMonthChange: () => refreshPL(),
         notifications: [
           { type:'o', title:'Expense approval pending', sub:'Rent — 5,000.00 ETB', time:'25 min ago' },
