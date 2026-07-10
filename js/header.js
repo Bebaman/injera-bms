@@ -62,7 +62,7 @@ function renderHeader(config){
   document.getElementById('exportPdfBtn')?.addEventListener('click', () => { closeExportMenu(); _headerConfig.onExportPdf?.(); });
   document.getElementById('exportXlsBtn')?.addEventListener('click', () => { closeExportMenu(); _headerConfig.onExportXlsx?.(); });
   document.getElementById('userPanelSignOut')?.addEventListener('click', signOut);
-  document.getElementById('userPanelAddUser')?.addEventListener('click', () => window.location.href = 'manage-users.html');
+  document.getElementById('userPanelAddUser')?.addEventListener('click', () => window.location.href = 'settings.html#users');
   document.getElementById('userPanelSettings')?.addEventListener('click', () => window.location.href = 'settings.html');
 
   if (typeof populateUserChrome === 'function') populateUserChrome();
