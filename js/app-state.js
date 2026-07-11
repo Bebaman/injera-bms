@@ -47,7 +47,20 @@ window.SB_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
    refreshes using the stored refresh_token a few minutes before
    it expires. Purely additive — every page's own fetch helpers
    already call loadSession() fresh per-request, so they pick up
-   the renewed token automatically with no changes on their end. */
+   the renewed token automatically with no changes on their end.
+
+   MULTI-TAB SAFETY: this runs independently in every open tab. An
+   earlier version had no coordination between tabs, so two tabs
+   open around the same ~1hr mark would both fire a refresh within
+   moments of each other; the first rotated the refresh_token, the
+   second then reused the now-stale one, which Supabase's reuse
+   detection rejects (400 refresh_token_already_used) — and it
+   revokes the whole session, forcing a full re-login. That's what
+   was actually behind "have to log in again every day". Fixed via
+   a short localStorage lock (only one tab refreshes at a time),
+   jitter (despreads simultaneous timers across tabs), and a
+   `storage` listener so other tabs reschedule off the winning
+   tab's new token instead of racing their own refresh. */
 function _decodeJwtExp(token){
   try{
     let b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
@@ -56,10 +69,29 @@ function _decodeJwtExp(token){
     return payload.exp ? payload.exp * 1000 : null; // ms since epoch
   } catch(e){ return null; }
 }
+const REFRESH_LOCK_KEY = 'injera_refresh_lock';
+const REFRESH_LOCK_TTL = 10000; // 10s — comfortably longer than one refresh round-trip
+function _acquireRefreshLock(){
+  try{
+    const held = parseInt(localStorage.getItem(REFRESH_LOCK_KEY) || '0', 10);
+    if (held && (Date.now() - held) < REFRESH_LOCK_TTL) return false; // another tab has it
+    localStorage.setItem(REFRESH_LOCK_KEY, String(Date.now()));
+    return true;
+  }catch(e){ return true; } // localStorage unavailable — don't block refresh over it
+}
+function _releaseRefreshLock(){
+  try{ localStorage.removeItem(REFRESH_LOCK_KEY); }catch(e){}
+}
 let _refreshTimer = null;
 async function refreshAccessToken(){
   const session = loadSession();
   if (!session || !session.refresh_token) return false;
+  if (!_acquireRefreshLock()){
+    // Another tab is refreshing right now. Don't race it — just check back
+    // shortly and reschedule off whatever token it ends up saving.
+    setTimeout(scheduleTokenRefresh, 2000);
+    return false;
+  }
   try{
     const authBase = window.SB_URL.replace(/\/rest\/v1\/?$/, '');
     const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
@@ -83,6 +115,8 @@ async function refreshAccessToken(){
   }catch(e){
     console.error('[app-state] token refresh failed', e);
     return false;
+  }finally{
+    _releaseRefreshLock();
   }
 }
 function scheduleTokenRefresh(){
@@ -91,10 +125,19 @@ function scheduleTokenRefresh(){
   if (!session || !session.access_token) return;
   const expMs = _decodeJwtExp(session.access_token);
   if (!expMs) return;
-  const delay = Math.max(expMs - Date.now() - 5*60*1000, 10*1000); // refresh 5min early, floor 10s
+  // +0-3s jitter so tabs that computed the exact same delay from the exact
+  // same token don't all fire in the same instant.
+  const jitter = Math.floor(Math.random() * 3000);
+  const delay = Math.max(expMs - Date.now() - 5*60*1000, 10*1000) + jitter; // refresh ~5min early, floor 10s
   _refreshTimer = setTimeout(refreshAccessToken, delay);
 }
 if (!/(^|\/)login(\.html)?\/?$/i.test(window.location.pathname)) scheduleTokenRefresh();
+// Whenever ANY tab (including a successful refresh in this one) updates the
+// stored session, every other tab reschedules off the new token instead of
+// keeping its own stale timer — this is what actually closes the race.
+window.addEventListener('storage', (e) => {
+  if (e.key === 'injera_session') scheduleTokenRefresh();
+});
 
 /* ── Session ─────────────────────────────────────────────────
    Shape matches what login.html writes:
