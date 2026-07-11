@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventory — Mena Injera &amp; Derkosh BMS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -454,14 +459,14 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
    formulas — computed server-side from purchases + production/derkosh usage in the live system.
    Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
 const invItems = [
-  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05' },
-  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null },
-  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03' },
-  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null },
-  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null },
-  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null },
-  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null },
-  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null }
+  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05', leadTimeDays:7, safetyStockDays:3 },
+  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null, leadTimeDays:4, safetyStockDays:2 },
+  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03', leadTimeDays:2, safetyStockDays:1 },
+  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null, leadTimeDays:10, safetyStockDays:4 },
+  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null, leadTimeDays:10, safetyStockDays:4 },
+  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null, leadTimeDays:1, safetyStockDays:0 },
+  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null, leadTimeDays:5, safetyStockDays:2 },
+  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null, leadTimeDays:7, safetyStockDays:3 }
 ];
 
 const recentPurchases = [
@@ -1128,19 +1133,50 @@ function submitStockTransfer(){
   showToast(`Transferred ${fmt(qty)} ${item.unit} of ${itemName}: ${from} → ${to}`);
 }
 
-/* ════════════════ ITEM SETTINGS (Reorder Level & Expiry Date) ════════════════ */
+/* ════════════════ ITEM SETTINGS (Reorder Level, Lead Time & Expiry Date) ════════════════ */
 const icSettings = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+/* Usage-based reorder suggestion: (Avg Daily Usage) × (Lead Time + Safety Stock, in days).
+   This is a SUGGESTION only — the actual `reorder` field driving alerts stays manual so a
+   noisy single month of usage or an unreliable supplier doesn't silently move the trigger
+   point. The Item Settings modal shows both side by side with a one-click "Use Suggested". */
+function suggestedReorder(item){
+  const avgDaily = (item.used||0)/30;
+  const leadTime = item.leadTimeDays ?? 5;
+  const safety = item.safetyStockDays ?? 2;
+  return avgDaily * (leadTime+safety);
+}
 function openItemSettingsModal(itemName){
   const item = invItems.find(i=>i.name===itemName);
   if(!item) return;
   const hasExpiry = !!item.expiryDate;
+  const avgDaily = (item.used||0)/30;
+  const suggested = suggestedReorder(item);
   const body = `
     <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       These are master settings for <strong>${item.name}</strong> — they drive Stock Alerts, Reorder status, and the Expiry Report.</div>
+
+    <div class="frm-row">
+      <div class="frm-grp" id="isLeadGrp"><label class="frm-lbl">Lead Time (days)</label>
+        <input class="frm-in" type="number" min="0" step="1" id="isLead" value="${item.leadTimeDays ?? 5}" oninput="refreshSuggestedReorder('${item.name}')">
+        <div class="frm-hint">Days from placing an order to receiving stock.</div></div>
+      <div class="frm-grp" id="isSafetyGrp"><label class="frm-lbl">Safety Stock (days)</label>
+        <input class="frm-in" type="number" min="0" step="1" id="isSafety" value="${item.safetyStockDays ?? 2}" oninput="refreshSuggestedReorder('${item.name}')">
+        <div class="frm-hint">Buffer for demand spikes or delivery delays.</div></div>
+    </div>
+
+    <div class="frm-info-box" style="background:#f0f8f4;border-color:#bcdece;flex-direction:column;align-items:stretch;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11.5px;color:var(--tm);font-weight:600">Usage-Based Suggestion</span>
+        <button type="button" class="btn-s" style="padding:5px 12px;font-size:11.5px" onclick="applySuggestedReorder('${item.name}')">Use Suggested</button>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:var(--td)" id="isSuggestedVal">${fmt(suggested)} ${item.unit}</div>
+      <div class="frm-hint" id="isSuggestedFormula" style="margin-top:0">${fmt(avgDaily)} ${item.unit}/day usage × (${item.leadTimeDays ?? 5} lead + ${item.safetyStockDays ?? 2} safety days)</div>
+    </div>
+
     <div class="frm-grp" id="isReorderGrp">
       <label class="frm-lbl">Reorder Level (${item.unit}) <span class="req">*</span></label>
       <input class="frm-in" type="number" min="0" step="0.01" id="isReorder" value="${item.reorder ?? ''}">
-      <div class="frm-hint">Alerts fire as LOW at this level, REORDER NOW at 60% of it.</div>
+      <div class="frm-hint">Alerts fire as LOW at this level, REORDER NOW at 60% of it. Manually confirmed — not auto-changed by usage.</div>
       <div class="frm-err">Enter a reorder level of 0 or more.</div>
     </div>
     <div class="frm-grp">
@@ -1161,10 +1197,32 @@ function openItemSettingsModal(itemName){
     <button class="btn-p" onclick="submitItemSettings('${item.name}')">${icCheck}Save Settings</button>`;
   openModal({ title:'Item Settings', sub:item.name, iconClass:'ic-p', icon:icSettings, bodyHtml:body, footerHtml:footer });
 }
+function refreshSuggestedReorder(itemName){
+  const item = invItems.find(i=>i.name===itemName);
+  if(!item) return;
+  const lead = parseFloat(document.getElementById('isLead').value)||0;
+  const safety = parseFloat(document.getElementById('isSafety').value)||0;
+  const avgDaily = (item.used||0)/30;
+  const suggested = avgDaily*(lead+safety);
+  document.getElementById('isSuggestedVal').textContent = fmt(suggested)+' '+item.unit;
+  document.getElementById('isSuggestedFormula').textContent = `${fmt(avgDaily)} ${item.unit}/day usage × (${lead} lead + ${safety} safety days)`;
+}
+function applySuggestedReorder(itemName){
+  const item = invItems.find(i=>i.name===itemName);
+  if(!item) return;
+  const lead = parseFloat(document.getElementById('isLead').value)||0;
+  const safety = parseFloat(document.getElementById('isSafety').value)||0;
+  const avgDaily = (item.used||0)/30;
+  const suggested = avgDaily*(lead+safety);
+  document.getElementById('isReorder').value = suggested.toFixed(2);
+  document.getElementById('isReorderGrp').classList.remove('err');
+}
 function submitItemSettings(itemName){
   const item = invItems.find(i=>i.name===itemName);
   if(!item) return;
   const reorder = parseFloat(document.getElementById('isReorder').value);
+  const leadTimeDays = parseFloat(document.getElementById('isLead').value);
+  const safetyStockDays = parseFloat(document.getElementById('isSafety').value);
   const hasExpiry = document.getElementById('isHasExpiry').checked;
   const expiryVal = document.getElementById('isExpiry').value;
   const bad = !(reorder>=0);
@@ -1172,6 +1230,8 @@ function submitItemSettings(itemName){
   if(bad) return;
 
   item.reorder = +reorder.toFixed(2);
+  item.leadTimeDays = leadTimeDays>=0 ? leadTimeDays : item.leadTimeDays;
+  item.safetyStockDays = safetyStockDays>=0 ? safetyStockDays : item.safetyStockDays;
   item.expiryDate = hasExpiry && expiryVal ? expiryVal : null;
   recomputeStatus(item);
 
