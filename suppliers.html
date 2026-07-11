@@ -3,11 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <title>Suppliers — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -164,7 +159,7 @@ const db = createClient(
 .qa-btn span{font-size:11px;font-weight:700;color:var(--td);line-height:1.25}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
-.bot2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+.bot2{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start;min-width:0}
 
 /* .footer rule now in shared-shell.css */
 
@@ -187,6 +182,32 @@ const db = createClient(
 .btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
 .btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
 
+/* ══ MARKET DAY TOGGLE PILLS ═════════════════════════ */
+.day-pill{width:38px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--tm);font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;transition:all .12s}
+.day-pill:hover{background:var(--bg)}
+.day-pill.on{background:#1d5c38;border-color:#1d5c38;color:#fff}
+
+/* ══ PRICE COMPARISON MODAL ═════════════════════════ */
+.pc-modal{max-width:760px;width:92vw}
+.pc-tabs{display:flex;gap:4px;padding:0 22px;border-bottom:1px solid var(--border);background:#fbfcfb}
+.pc-tab{background:none;border:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--tl);padding:11px 14px;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px}
+.pc-tab.on{color:#1d5c38;border-bottom-color:#1d5c38}
+.pc-tab:hover:not(.on){color:var(--tm)}
+.pc-best-row{background:#f0faf4}
+.pc-best-badge{display:inline-flex;align-items:center;gap:3px;background:#e5f6ec;color:#1d5c38;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;margin-left:6px;white-space:nowrap}
+.pc-item-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.pc-item-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.pc-item-hd h4{margin:0;font-size:13.5px;color:var(--td)}
+.pc-item-hd span{font-size:11px;color:var(--tl);font-weight:600}
+.pc-spark{display:flex;align-items:flex-end;gap:2px;height:26px}
+.pc-spark div{flex:1;background:#cfe4d6;border-radius:1px;min-height:2px}
+
+@media (max-width:700px){
+  .pc-modal{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0}
+  .pc-tabs{padding:0 14px}
+  .pc-tab{padding:11px 10px;font-size:12.5px}
+}
+
 /* fadeIn/popIn now come from shared-shell.css; fadeUp is page-specific */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .card,.kc{animation:fadeUp .3s ease both}
@@ -205,16 +226,31 @@ const db = createClient(
    now render #notifPanel/#userPanel/#sbOverlay using shared-shell.css's own
    (dropdown-style) versions of these, not this page's slide-in-from-right design. */
 
+/* No horizontal scrollbars anywhere: KPIs wrap to their own rows, tables
+   reflow into stacked label/value cards below the breakpoint instead of
+   scrolling sideways. */
+html,body{overflow-x:hidden}
+.card,.kpi-row,.bot2{max-width:100%}
+
 @media (max-width:900px){
-  .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-  .kc{min-width:180px;flex-shrink:0;scroll-snap-align:start}
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
   .bot2{display:flex;flex-direction:column}
   .card{overflow:hidden;min-width:0;max-width:100%}
   .pg{flex-wrap:wrap;gap:8px}
-  table.tbl{display:block;overflow-x:auto;white-space:nowrap}
+}
+@media (max-width:700px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  table.tbl,table.tbl thead{display:none}
+  table.tbl tbody{display:block}
+  table.tbl tr{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  table.tbl tr.tot{border-top:1.5px solid var(--border)}
+  table.tbl td{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0;border:none;white-space:normal;text-align:right}
+  table.tbl td::before{content:attr(data-label);font-size:10.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;text-align:left;flex-shrink:0}
+  table.tbl td:empty::before{content:none}
+  table.tbl td[data-label]:last-child{justify-content:flex-end}
 }
 @media (max-width:480px){
-  .kc{min-width:160px}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
   .qa-grid{grid-template-columns:1fr 1fr}
 }
 </style>
@@ -306,7 +342,7 @@ const db = createClient(
             </div>
           </div>
 
-          <div style="overflow-x:auto">
+          <div style="min-width:0">
           <table class="tbl">
             <thead><tr>
               <th>Supplier Name</th><th>Category</th><th>Phone</th>
@@ -330,21 +366,21 @@ const db = createClient(
               <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               Supplier Performance <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px" id="perfMonthLbl">(May 2026)</span>
             </div>
-            <button class="vall" onclick="showToast('Full supplier performance report coming soon')">View Full Report</button>
+            <button class="vall" onclick="openPerformanceModal()">View Full Report</button>
           </div>
-          <div style="overflow-x:auto">
+          <div style="min-width:0">
           <table class="tbl">
             <thead><tr>
               <th>Supplier</th><th>Total Purchases (ETB)</th><th>% of Total</th>
               <th>Avg. Price - Blend (ETB/kg)</th><th>Vs. Market Avg.</th>
               <th>Orders This Month</th><th>On-Time Delivery</th>
             </tr></thead>
-            <tbody>
-              <tr><td>Awash Grain Suppliers</td><td>51,040.00</td><td>57.4%</td><td>916.67</td><td class="chg-dn">▼ 1.8%</td><td>2</td><td>100%</td></tr>
-              <tr><td>Ethiopia Milling PLC</td><td>31,450.00</td><td>35.4%</td><td>925.00</td><td class="chg-up">▲ 0.5%</td><td>1</td><td>100%</td></tr>
-              <tr><td>Adama Grain Traders</td><td>4,200.00</td><td>4.7%</td><td>930.00</td><td class="chg-up">▲ 1.0%</td><td>1</td><td>100%</td></tr>
-              <tr><td>Other Suppliers</td><td>2,152.00</td><td>2.5%</td><td>—</td><td>—</td><td>3</td><td>66.7%</td></tr>
-              <tr class="tot"><td>Total</td><td>88,842.00</td><td>100%</td><td>916.67</td><td class="chg-dn">▼ 1.8%</td><td>7</td><td>95.2%</td></tr>
+            <tbody id="perfTbody">
+              <tr><td data-label="Supplier">Awash Grain Suppliers</td><td data-label="Total Purchases (ETB)">51,040.00</td><td data-label="% of Total">57.4%</td><td data-label="Avg. Price - Blend (ETB/kg)">916.67</td><td data-label="Vs. Market Avg." class="chg-dn">▼ 1.8%</td><td data-label="Orders This Month">2</td><td data-label="On-Time Delivery">100%</td></tr>
+              <tr><td data-label="Supplier">Ethiopia Milling PLC</td><td data-label="Total Purchases (ETB)">31,450.00</td><td data-label="% of Total">35.4%</td><td data-label="Avg. Price - Blend (ETB/kg)">925.00</td><td data-label="Vs. Market Avg." class="chg-up">▲ 0.5%</td><td data-label="Orders This Month">1</td><td data-label="On-Time Delivery">100%</td></tr>
+              <tr><td data-label="Supplier">Adama Grain Traders</td><td data-label="Total Purchases (ETB)">4,200.00</td><td data-label="% of Total">4.7%</td><td data-label="Avg. Price - Blend (ETB/kg)">930.00</td><td data-label="Vs. Market Avg." class="chg-up">▲ 1.0%</td><td data-label="Orders This Month">1</td><td data-label="On-Time Delivery">100%</td></tr>
+              <tr><td data-label="Supplier">Other Suppliers</td><td data-label="Total Purchases (ETB)">2,152.00</td><td data-label="% of Total">2.5%</td><td data-label="Avg. Price - Blend (ETB/kg)">—</td><td data-label="Vs. Market Avg.">—</td><td data-label="Orders This Month">3</td><td data-label="On-Time Delivery">66.7%</td></tr>
+              <tr class="tot"><td data-label="Total">Total</td><td data-label="Total Purchases (ETB)">88,842.00</td><td data-label="% of Total">100%</td><td data-label="Avg. Price - Blend (ETB/kg)">916.67</td><td data-label="Vs. Market Avg." class="chg-dn">▼ 1.8%</td><td data-label="Orders This Month">7</td><td data-label="On-Time Delivery">95.2%</td></tr>
             </tbody>
           </table>
           </div>
@@ -378,8 +414,8 @@ const db = createClient(
         <div class="card">
           <div class="card-hd">
             <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
-            <select class="rsel" id="ptRange" onchange="renderPriceTrend()">
-              <option>Last 6 Months</option><option>Last 12 Months</option>
+            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
+              <option>Last 6 Months</option>
             </select>
           </div>
           <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
@@ -397,25 +433,29 @@ const db = createClient(
               <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
               <span>Add New Supplier</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Opening supplier ledger...')">
+            <div class="qa-btn" onclick="openLedgerModal()">
               <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
               <span>Supplier Ledger</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Generating purchase report...')">
+            <div class="qa-btn" onclick="openPurchaseReportModal()">
               <div class="qa-ic" style="background:#eef1ee"><svg viewBox="0 0 24 24" style="stroke:#5a6e65"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
               <span>Purchase Report</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Opening price comparison...')">
+            <div class="qa-btn" onclick="openPriceComparisonModal()">
               <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-4-4L3 15.6"/></svg></div>
               <span>Price Comparison</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Opening supplier performance...')">
+            <div class="qa-btn" onclick="openPerformanceModal()">
               <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
               <span>Supplier Performance</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Opening top suppliers report...')">
+            <div class="qa-btn" onclick="openTopSuppliersModal()">
               <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
               <span>Top Suppliers Report</span>
+            </div>
+            <div class="qa-btn" onclick="openRestockCalendarModal()">
+              <div class="qa-ic" style="background:#fdf2f8"><svg viewBox="0 0 24 24" style="stroke:#db2777"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+              <span>Restock Calendar</span>
             </div>
             <div class="qa-btn" onclick="exportAllSuppliersExcel()">
               <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
@@ -425,7 +465,7 @@ const db = createClient(
               <div class="qa-ic" style="background:#fdecea"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <span>Export Suppliers (PDF)</span>
             </div>
-            <div class="qa-btn" onclick="showToast('Import Suppliers coming soon')">
+            <div class="qa-btn" onclick="openImportSuppliersModal()">
               <div class="qa-ic" style="background:#e0f5fa"><svg viewBox="0 0 24 24" style="stroke:#0891b2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
               <span>Import Suppliers</span>
             </div>
@@ -462,6 +502,9 @@ const db = createClient(
         </div>
       </div>
       <div class="frm-row">
+        <div class="frm-grp"><label>Contact Person</label><input type="text" id="supContactPerson" placeholder="e.g. Ato Girma Wolde"></div>
+      </div>
+      <div class="frm-row">
         <div class="frm-grp"><label>Phone</label><input type="text" id="supPhone" placeholder="+251 91 123 4111"></div>
         <div class="frm-grp"><label>Email</label><input type="text" id="supEmail" placeholder="info@supplier.com"></div>
       </div>
@@ -476,10 +519,155 @@ const db = createClient(
           <select id="supCurrency"><option>ETB</option><option>USD</option></select>
         </div>
       </div>
+      <div class="frm-row" style="margin-bottom:0">
+        <div class="frm-grp">
+          <label>Buying Schedule</label>
+          <div id="supMarketDays" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+          <span style="font-size:10.5px;color:var(--tl);font-weight:600;margin-top:2px">Leave all unselected if this supplier can be bought from any day. Select specific days only if they only sell on fixed market days.</span>
+        </div>
+      </div>
     </div>
     <div class="modal-ft">
       <button class="btn-sec" onclick="closeAddSupplierModal()">Cancel</button>
       <button class="btn-pri" onclick="saveSupplier()">Save Supplier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SUPPLIER LEDGER MODAL ════ -->
+<div class="modal-overlay" id="ledgerModalOverlay" onclick="if(event.target===this)closeModal('ledgerModalOverlay')">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-hd">
+      <h3>Supplier Ledger</h3>
+      <div class="modal-x" onclick="closeModal('ledgerModalOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <div class="frm-grp" style="margin-bottom:14px">
+        <label>Supplier</label>
+        <select id="ledgerSupSel" onchange="renderLedger()"></select>
+      </div>
+      <div style="min-width:0">
+      <table class="tbl">
+        <thead><tr><th>Date</th><th>Description</th><th>Amount (ETB)</th><th>Running Balance</th></tr></thead>
+        <tbody id="ledgerTbody"></tbody>
+      </table>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('ledgerModalOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PURCHASE REPORT MODAL ════ -->
+<div class="modal-overlay" id="purchaseReportOverlay" onclick="if(event.target===this)closeModal('purchaseReportOverlay')">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-hd">
+      <h3>Purchase Report</h3>
+      <div class="modal-x" onclick="closeModal('purchaseReportOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" id="purchaseReportBody"></div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('purchaseReportOverlay')">Close</button>
+      <button class="btn-pri" onclick="exportAllSuppliersExcel()">Export (Excel)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PRICE COMPARISON MODAL ════ -->
+<div class="modal-overlay" id="priceComparisonOverlay" onclick="if(event.target===this)closeModal('priceComparisonOverlay')">
+  <div class="modal-box pc-modal">
+    <div class="modal-hd">
+      <h3>Price Comparison</h3>
+      <div class="modal-x" onclick="closeModal('priceComparisonOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="pc-tabs">
+      <button class="pc-tab on" id="pcTabItemBtn" onclick="switchPriceCompTab('item')">By Item</button>
+      <button class="pc-tab" id="pcTabSupBtn" onclick="switchPriceCompTab('supplier')">By Supplier</button>
+    </div>
+    <div class="modal-bd">
+      <div id="pcTabItem">
+        <div class="frm-grp" style="margin-bottom:14px">
+          <label>Item</label>
+          <select id="pcItemSel" onchange="renderPriceCompByItem()"></select>
+        </div>
+        <div id="pcItemBody"></div>
+      </div>
+      <div id="pcTabSup" style="display:none">
+        <div class="frm-grp" style="margin-bottom:14px">
+          <label>Supplier</label>
+          <select id="pcSupSel" onchange="renderPriceCompBySupplier()"></select>
+        </div>
+        <div id="pcSupBody"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('priceComparisonOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SUPPLIER PERFORMANCE (FULL REPORT) MODAL ════ -->
+<div class="modal-overlay" id="performanceModalOverlay" onclick="if(event.target===this)closeModal('performanceModalOverlay')">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-hd">
+      <h3>Supplier Performance — Full Report</h3>
+      <div class="modal-x" onclick="closeModal('performanceModalOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" id="performanceModalBody"></div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('performanceModalOverlay')">Close</button>
+      <button class="btn-pri" onclick="exportAllSuppliersPDF()">Export (PDF)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ TOP SUPPLIERS REPORT MODAL ════ -->
+<div class="modal-overlay" id="topSuppliersOverlay" onclick="if(event.target===this)closeModal('topSuppliersOverlay')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-hd">
+      <h3>Top Suppliers Report</h3>
+      <div class="modal-x" onclick="closeModal('topSuppliersOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" id="topSuppliersBody"></div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('topSuppliersOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RESTOCK CALENDAR MODAL ════ -->
+<div class="modal-overlay" id="restockCalendarOverlay" onclick="if(event.target===this)closeModal('restockCalendarOverlay')">
+  <div class="modal-box" style="max-width:660px">
+    <div class="modal-hd">
+      <h3>Restock Calendar</h3>
+      <div class="modal-x" onclick="closeModal('restockCalendarOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd" id="restockCalendarBody"></div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('restockCalendarOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ IMPORT SUPPLIERS MODAL ════ -->
+<div class="modal-overlay" id="importSuppliersOverlay" onclick="if(event.target===this)closeModal('importSuppliersOverlay')">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-hd">
+      <h3>Import Suppliers</h3>
+      <div class="modal-x" onclick="closeModal('importSuppliersOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <p style="font-size:12.5px;color:var(--tm);line-height:1.6;margin-bottom:14px">Upload a CSV file with columns: <b>Name, Category, Phone, Email, Address, Payment Terms, Status</b>. Existing suppliers with a matching name will be skipped.</p>
+      <div class="frm-grp">
+        <label>CSV File</label>
+        <input type="file" id="importFileInput" accept=".csv" style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:'Nunito',sans-serif">
+      </div>
+      <div id="importPreview" style="margin-top:14px;font-size:12px;color:var(--tl)"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeModal('importSuppliersOverlay')">Cancel</button>
+      <button class="btn-pri" onclick="importSuppliersFromCSV()">Import</button>
     </div>
   </div>
 </div>
@@ -513,55 +701,118 @@ renderHeader({
    (allTime / month / lastPurchase / priceHistory) are computed from the
    `purchases` table in production; seeded here with figures matching the
    reference design so the module renders identically before Supabase is live. */
+/* marketDays: [] = orderable/deliverable any day. Non-empty = the supplier
+   (typically an open-air market vendor) only sells on those weekdays —
+   1=Sun...7=Sat, matching event_create_v0's day convention. Used by the
+   Restock Calendar quick action to warn when stock will run out before the
+   next day this supplier can actually be bought from. */
+/* itemsSupplied: line items this supplier actually sells, each with its own
+   unit price + 6-month history — the real basis for price comparison (a
+   blended avgPriceBlend alone can't answer "who's cheapest for X"). Item
+   `name` is the join key used to group the same item across suppliers; once
+   the Inventory module is linked these will carry a shared itemId instead. */
 let suppliers = [
-  {id:'s1', name:'Awash Grain Suppliers', category:'Grain', phone:'+251 91 123 4111', email:'info@awashgrain.com', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:142350.00, month:51040.00, lastPurchase:'2026-05-29', unit:'kg', avgPriceBlend:916.67, vsMarketPct:-1.8,
-    priceHistory:[935.00,938.33,930.00,928.33,933.33,916.67]},
-  {id:'s2', name:'Ethiopia Milling PLC', category:'Grain', phone:'+251 91 234 2222', email:'sales@ethiomilling.com', address:'Kaliti, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-    allTime:98600.00, month:31450.00, lastPurchase:'2026-05-28', unit:'kg', avgPriceBlend:925.00, vsMarketPct:0.5,
-    priceHistory:[940.00,936.00,922.00,918.00,927.50,925.00]},
-  {id:'s3', name:'Alemu Packaging', category:'Packaging', phone:'+251 91 234 3333', email:'orders@alemupack.com', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:37820.00, month:5800.00, lastPurchase:'2026-05-27', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[3.60,3.65,3.70,3.75,3.80,3.90]},
-  {id:'s4', name:'Habesha Transport', category:'Services', phone:'+251 91 234 4444', email:'dispatch@habeshatransport.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-    allTime:18750.00, month:2100.00, lastPurchase:'2026-05-26', unit:'trip', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[1900,1950,2000,2050,2080,2100]},
-  {id:'s5', name:'Tigray Water Supply', category:'Utilities', phone:'+251 91 234 5555', email:'info@tigraywater.com', address:'Piassa, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:12550.00, month:850.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[780,800,820,830,840,850]},
-  {id:'s6', name:'Adama Grain Traders', category:'Grain', phone:'+251 91 234 6666', email:'contact@adamagrain.com', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
-    allTime:29400.00, month:4200.00, lastPurchase:'2026-05-24', unit:'kg', avgPriceBlend:930.00, vsMarketPct:1.0,
-    priceHistory:[918,920,924,926,928,930]},
-  {id:'s7', name:'Berhan Bank', category:'Services', phone:'+251 11 551 7171', email:'support@berhanbank.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:4820.00, month:306.39, lastPurchase:'2026-05-06', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[210,180,240,190,220,306]},
-  {id:'s8', name:'Ethio Electric', category:'Utilities', phone:'+251 11 552 0202', email:'billing@ethioelectric.gov.et', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-    allTime:21300.00, month:7052.30, lastPurchase:'2026-05-06', unit:'month', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[1732,2376,1776,1662,1618,7052]},
-  {id:'s9', name:'Yimaru Transport', category:'Services', phone:'+251 91 234 7777', email:'info@yimarutransport.com', address:'Gerji, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-    allTime:9840.00, month:1138.91, lastPurchase:'2026-05-02', unit:'trip', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[1800,1650,1400,1200,1100,1139]},
-  {id:'s10', name:'Zemen Packaging', category:'Packaging', phone:'+251 91 234 8888', email:'sales@zemenpack.com', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:15680.00, month:1876.40, lastPurchase:'2026-05-15', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[1.70,1.75,1.80,1.85,1.90,1.93]},
-  {id:'s11', name:'Addis Water Utility', category:'Utilities', phone:'+251 11 553 0303', email:'billing@addiswater.gov.et', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-    allTime:6600.00, month:1200.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[900,950,1000,1100,1150,1200]},
-  {id:'s12', name:'Bole Feed Co', category:'Grain', phone:'+251 91 234 9999', email:'info@bolefeed.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
-    allTime:22150.00, month:0, lastPurchase:'2026-04-18', unit:'kg', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[905,908,910,912,915,0]},
-  {id:'s13', name:'Merkato Sacks Ltd', category:'Packaging', phone:'+251 91 235 1111', email:'sales@merkatosacks.com', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:8900.00, month:0, lastPurchase:'2026-04-11', unit:'pcs', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[3.50,3.55,3.60,3.62,3.65,0]},
-  {id:'s14', name:'Nile Cleaning Services', category:'Services', phone:'+251 91 235 2222', email:'contact@nileclean.com', address:'Lideta, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-    allTime:5400.00, month:0, lastPurchase:'2026-04-09', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[400,420,440,450,460,0]},
-  {id:'s15', name:'Kaleb Maintenance', category:'Services', phone:'+251 91 235 3333', email:'kaleb.maint@gmail.com', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-    allTime:3200.00, month:0, lastPurchase:'2026-03-22', unit:'ls', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[300,310,320,0,0,0]},
-  {id:'s16', name:'Sunrise Grain Depot', category:'Grain', phone:'+251 91 235 4444', email:'info@sunrisegrain.com', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:false,
-    allTime:11400.00, month:0, lastPurchase:'2026-01-14', unit:'kg', avgPriceBlend:null, vsMarketPct:null,
-    priceHistory:[895,900,905,0,0,0]}
+  {id:'s1', name:'Awash Grain Suppliers', category:'Grain', phone:'+251 91 123 4111', email:'info@awashgrain.com', contactPerson:'Ato Girma Wolde', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:142350.00, month:51040.00, lastPurchase:'2026-05-29', unit:'kg', avgPriceBlend:916.67, vsMarketPct:-1.8, marketDays:[4,6],
+    priceHistory:[935.00,938.33,930.00,928.33,933.33,916.67],
+    itemsSupplied:[
+      {name:'Teff (White)', unit:'kg', price:918.00, history:[935,938,930,928,933,918]},
+      {name:'Teff (Mixed)', unit:'kg', price:860.00, history:[875,872,868,865,862,860]},
+      {name:'Wheat Flour', unit:'kg', price:62.00, history:[58,59,60,60,61,62]}
+    ]},
+  {id:'s2', name:'Ethiopia Milling PLC', category:'Grain', phone:'+251 91 234 2222', email:'sales@ethiomilling.com', contactPerson:'W/ro Selamawit Tesfaye', address:'Kaliti, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:98600.00, month:31450.00, lastPurchase:'2026-05-28', unit:'kg', avgPriceBlend:925.00, vsMarketPct:0.5, marketDays:[],
+    priceHistory:[940.00,936.00,922.00,918.00,927.50,925.00],
+    itemsSupplied:[
+      {name:'Teff (White)', unit:'kg', price:928.00, history:[940,936,922,918,927,928]},
+      {name:'Barley', unit:'kg', price:48.00, history:[44,45,46,46,47,48]}
+    ]},
+  {id:'s3', name:'Alemu Packaging', category:'Packaging', phone:'+251 91 234 3333', email:'orders@alemupack.com', contactPerson:'Ato Alemu Bekele', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:37820.00, month:5800.00, lastPurchase:'2026-05-27', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[3.60,3.65,3.70,3.75,3.80,3.90],
+    itemsSupplied:[
+      {name:'Injera Packaging Bags', unit:'pcs', price:3.90, history:[3.60,3.65,3.70,3.75,3.80,3.90]},
+      {name:'Sealing Tape', unit:'roll', price:45.00, history:[40,41,42,43,44,45]}
+    ]},
+  {id:'s4', name:'Habesha Transport', category:'Services', phone:'+251 91 234 4444', email:'dispatch@habeshatransport.com', contactPerson:'Ato Dawit Assefa', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:18750.00, month:2100.00, lastPurchase:'2026-05-26', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[1900,1950,2000,2050,2080,2100],
+    itemsSupplied:[
+      {name:'Delivery Trip (Local)', unit:'trip', price:2100.00, history:[1900,1950,2000,2050,2080,2100]}
+    ]},
+  {id:'s5', name:'Tigray Water Supply', category:'Utilities', phone:'+251 91 234 5555', email:'info@tigraywater.com', contactPerson:'W/ro Hiwot Gebre', address:'Piassa, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:12550.00, month:850.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[780,800,820,830,840,850],
+    itemsSupplied:[
+      {name:'Water Supply (Monthly)', unit:'month', price:850.00, history:[780,800,820,830,840,850]}
+    ]},
+  {id:'s6', name:'Adama Grain Traders', category:'Grain', phone:'+251 91 234 6666', email:'contact@adamagrain.com', contactPerson:'Ato Mulugeta Fikru', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+    allTime:29400.00, month:4200.00, lastPurchase:'2026-05-24', unit:'kg', avgPriceBlend:930.00, vsMarketPct:1.0, marketDays:[4,6],
+    priceHistory:[918,920,924,926,928,930],
+    itemsSupplied:[
+      {name:'Teff (White)', unit:'kg', price:932.00, history:[918,920,924,926,928,932]},
+      {name:'Teff (Mixed)', unit:'kg', price:872.00, history:[860,862,865,868,870,872]}
+    ]},
+  {id:'s7', name:'Berhan Bank', category:'Services', phone:'+251 11 551 7171', email:'support@berhanbank.com', contactPerson:'W/ro Meron Tadesse', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:4820.00, month:306.39, lastPurchase:'2026-05-06', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[210,180,240,190,220,306],
+    itemsSupplied:[
+      {name:'Transaction & Service Fees', unit:'ls', price:306.39, history:[210,180,240,190,220,306]}
+    ]},
+  {id:'s8', name:'Ethio Electric', category:'Utilities', phone:'+251 11 552 0202', email:'billing@ethioelectric.gov.et', contactPerson:'Ato Yonas Kebede', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:21300.00, month:7052.30, lastPurchase:'2026-05-06', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[1732,2376,1776,1662,1618,7052],
+    itemsSupplied:[
+      {name:'Electricity Supply (Monthly)', unit:'month', price:7052.30, history:[1732,2376,1776,1662,1618,7052]}
+    ]},
+  {id:'s9', name:'Yimaru Transport', category:'Services', phone:'+251 91 234 7777', email:'info@yimarutransport.com', contactPerson:'Ato Yimaru Desta', address:'Gerji, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:9840.00, month:1138.91, lastPurchase:'2026-05-02', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[1800,1650,1400,1200,1100,1139],
+    itemsSupplied:[
+      {name:'Delivery Trip (Local)', unit:'trip', price:1139.00, history:[1800,1650,1400,1200,1100,1139]}
+    ]},
+  {id:'s10', name:'Zemen Packaging', category:'Packaging', phone:'+251 91 234 8888', email:'sales@zemenpack.com', contactPerson:'W/ro Zemen Alemayehu', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:15680.00, month:1876.40, lastPurchase:'2026-05-15', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[1.70,1.75,1.80,1.85,1.90,1.93],
+    itemsSupplied:[
+      {name:'Injera Packaging Bags', unit:'pcs', price:1.93, history:[1.70,1.75,1.80,1.85,1.90,1.93]}
+    ]},
+  {id:'s11', name:'Addis Water Utility', category:'Utilities', phone:'+251 11 553 0303', email:'billing@addiswater.gov.et', contactPerson:'Ato Samuel Getachew', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+    allTime:6600.00, month:1200.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[900,950,1000,1100,1150,1200],
+    itemsSupplied:[
+      {name:'Water Supply (Monthly)', unit:'month', price:1200.00, history:[900,950,1000,1100,1150,1200]}
+    ]},
+  {id:'s12', name:'Bole Feed Co', category:'Grain', phone:'+251 91 234 9999', email:'info@bolefeed.com', contactPerson:'Ato Teshome Wolde', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+    allTime:22150.00, month:0, lastPurchase:'2026-04-18', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
+    priceHistory:[905,908,910,912,915,0],
+    itemsSupplied:[
+      {name:'Teff (Mixed)', unit:'kg', price:915.00, history:[905,908,910,912,915,915]}
+    ]},
+  {id:'s13', name:'Merkato Sacks Ltd', category:'Packaging', phone:'+251 91 235 1111', email:'sales@merkatosacks.com', contactPerson:'W/ro Aster Haile', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:8900.00, month:0, lastPurchase:'2026-04-11', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[3.50,3.55,3.60,3.62,3.65,0],
+    itemsSupplied:[
+      {name:'Sacks (50kg)', unit:'pcs', price:3.65, history:[3.50,3.55,3.60,3.62,3.65,3.65]}
+    ]},
+  {id:'s14', name:'Nile Cleaning Services', category:'Services', phone:'+251 91 235 2222', email:'contact@nileclean.com', contactPerson:'Ato Biniam Tsegaye', address:'Lideta, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+    allTime:5400.00, month:0, lastPurchase:'2026-04-09', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[400,420,440,450,460,0],
+    itemsSupplied:[
+      {name:'Facility Cleaning (Monthly)', unit:'ls', price:460.00, history:[400,420,440,450,460,460]}
+    ]},
+  {id:'s15', name:'Kaleb Maintenance', category:'Services', phone:'+251 91 235 3333', email:'kaleb.maint@gmail.com', contactPerson:'Ato Kaleb Amanuel', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+    allTime:3200.00, month:0, lastPurchase:'2026-03-22', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+    priceHistory:[300,310,320,0,0,0],
+    itemsSupplied:[
+      {name:'Equipment Maintenance', unit:'ls', price:320.00, history:[300,310,320,320,320,320]}
+    ]},
+  {id:'s16', name:'Sunrise Grain Depot', category:'Grain', phone:'+251 91 235 4444', email:'info@sunrisegrain.com', contactPerson:'Ato Fitsum Abera', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:false,
+    allTime:11400.00, month:0, lastPurchase:'2026-01-14', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
+    priceHistory:[895,900,905,0,0,0],
+    itemsSupplied:[
+      {name:'Teff (White)', unit:'kg', price:905.00, history:[895,900,905,905,905,905]}
+    ]}
 ];
 const priceMonths = ['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
 let selectedSupplierId = 's1';
@@ -612,20 +863,20 @@ function renderSupplierList(){
   } else {
     tbody.innerHTML = pageItems.map(s => `
       <tr class="sup-row ${s.id===selectedSupplierId?'sel':''}" onclick="selectSupplier('${s.id}')">
-        <td style="font-weight:700">${s.name}</td>
-        <td><span class="pill-sm ${catClass(s.category)}">${s.category}</span></td>
-        <td>${s.phone||'—'}</td>
-        <td>${fmt(s.allTime)}</td>
-        <td style="font-weight:700;color:#27ae60">${fmt(s.month)}</td>
-        <td>${fmtDate(s.lastPurchase)}</td>
-        <td><span class="pill-sm ${s.isActive?'pill-done':'pill-rej'}">${s.isActive?'Active':'Inactive'}</span></td>
+        <td data-label="Supplier Name" style="font-weight:700">${s.name}</td>
+        <td data-label="Category"><span class="pill-sm ${catClass(s.category)}">${s.category}</span></td>
+        <td data-label="Phone">${s.phone||'—'}</td>
+        <td data-label="Total (All Time)">${fmt(s.allTime)}</td>
+        <td data-label="This Month" style="font-weight:700;color:#27ae60">${fmt(s.month)}</td>
+        <td data-label="Last Purchase">${fmtDate(s.lastPurchase)}</td>
+        <td data-label="Status"><span class="pill-sm ${s.isActive?'pill-done':'pill-rej'}">${s.isActive?'Active':'Inactive'}</span></td>
         <td onclick="event.stopPropagation()">
           <div class="act-dots" onclick="toggleRowMenu(event,'${s.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg>
-            <div class="row-menu" id="menu-${s.id}">
+            <div class="row-menu" id="menu-${s.id}" onclick="event.stopPropagation()">
               <a onclick="editSupplier('${s.id}')">Edit</a>
               <a onclick="selectSupplier('${s.id}');closeAllRowMenus()">View Details</a>
-              <a onclick="toggleSupplierActive('${s.id}')">${s.isActive?'Deactivate':'Reactivate'}</a>
+              <a onclick="toggleSupplierActive('${s.id}');closeAllRowMenus()">${s.isActive?'Deactivate':'Reactivate'}</a>
             </div>
           </div>
         </td>
@@ -683,6 +934,11 @@ function selectSupplier(id){
   renderPriceTrend();
 }
 
+function marketDaysLabel(s){
+  if(!s.marketDays || s.marketDays.length===0) return 'Any day';
+  const names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return s.marketDays.map(d=>names[d-1]).join(', ');
+}
 function renderDetails(s){
   const html = `
     <div class="sd-top">
@@ -693,6 +949,7 @@ function renderDetails(s){
           <span class="sd-tag">${s.category} Supplier</span>
         </div>
         <div class="sd-contact">
+          <div><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 10-16 0"/><circle cx="12" cy="7" r="4"/></svg>${s.contactPerson||'No contact person on file'}</div>
           <div><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.34 1.9.62 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.28 1.85.49 2.81.62A2 2 0 0122 16.92z"/></svg>${s.phone||'—'}</div>
           <div><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${s.email||'—'}</div>
           <div><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>${s.address||'—'}</div>
@@ -708,6 +965,8 @@ function renderDetails(s){
       <div class="sd-cell"><label>Last Purchase</label><span>${fmtDate(s.lastPurchase)}</span></div>
       <div class="sd-cell"><label>Status</label><span>${s.isActive?'Active':'Inactive'}</span></div>
       <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
+      <div class="sd-cell"><label>Buying Schedule</label><span>${marketDaysLabel(s)}</span></div>
+      <div class="sd-cell"></div>
     </div>
   `;
   document.getElementById('supplierDetailsBody').innerHTML = html;
@@ -799,17 +1058,37 @@ function renderAll(){
   renderPriceTrend();
 }
 /* ════════════════ ADD / EDIT SUPPLIER MODAL ════════════════ */
+const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']; // index 0-6 -> display; stored days are 1-7 (Sun=1)
+let selectedMarketDays = [];
+
+function renderMarketDayPicker(){
+  const box = document.getElementById('supMarketDays');
+  box.innerHTML = DAY_LABELS.map((lbl,i)=>{
+    const dayNum = i+1;
+    const on = selectedMarketDays.includes(dayNum);
+    return `<div class="day-pill ${on?'on':''}" onclick="toggleMarketDay(${dayNum})" title="${on?'Buys on this day':'Any day'}">${lbl}</div>`;
+  }).join('');
+}
+function toggleMarketDay(dayNum){
+  const i = selectedMarketDays.indexOf(dayNum);
+  if(i>-1) selectedMarketDays.splice(i,1); else selectedMarketDays.push(dayNum);
+  renderMarketDayPicker();
+}
+
 function openAddSupplierModal(){
   document.getElementById('supModalTitle').textContent = 'Add New Supplier';
   document.getElementById('supEditId').value = '';
   document.getElementById('supName').value = '';
   document.getElementById('supCategory').value = 'Grain';
   document.getElementById('supStatus').value = 'Active';
+  document.getElementById('supContactPerson').value = '';
   document.getElementById('supPhone').value = '';
   document.getElementById('supEmail').value = '';
   document.getElementById('supAddress').value = '';
   document.getElementById('supTerms').value = 'Cash on Delivery';
   document.getElementById('supCurrency').value = 'ETB';
+  selectedMarketDays = [];
+  renderMarketDayPicker();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function editSupplier(id){
@@ -820,11 +1099,14 @@ function editSupplier(id){
   document.getElementById('supName').value = s.name;
   document.getElementById('supCategory').value = s.category;
   document.getElementById('supStatus').value = s.isActive ? 'Active' : 'Inactive';
+  document.getElementById('supContactPerson').value = s.contactPerson||'';
   document.getElementById('supPhone').value = s.phone||'';
   document.getElementById('supEmail').value = s.email||'';
   document.getElementById('supAddress').value = s.address||'';
   document.getElementById('supTerms').value = s.terms||'Cash on Delivery';
   document.getElementById('supCurrency').value = s.currency||'ETB';
+  selectedMarketDays = (s.marketDays||[]).slice();
+  renderMarketDayPicker();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function closeAddSupplierModal(){
@@ -837,15 +1119,20 @@ function saveSupplier(){
   const dupe = suppliers.some(s=>s.name.toLowerCase()===name.toLowerCase() && s.id!==editId);
   if(dupe){ showToast('Supplier already exists'); return; }
 
+  const newCategory = document.getElementById('supCategory').value;
+  const prevCategory = editId ? supplierById(editId).category : null;
+
   const fields = {
     name,
-    category: document.getElementById('supCategory').value,
+    category: newCategory,
     isActive: document.getElementById('supStatus').value==='Active',
+    contactPerson: document.getElementById('supContactPerson').value.trim(),
     phone: document.getElementById('supPhone').value.trim(),
     email: document.getElementById('supEmail').value.trim(),
     address: document.getElementById('supAddress').value.trim(),
     terms: document.getElementById('supTerms').value,
-    currency: document.getElementById('supCurrency').value
+    currency: document.getElementById('supCurrency').value,
+    marketDays: selectedMarketDays.slice().sort()
   };
 
   let s;
@@ -865,14 +1152,343 @@ function saveSupplier(){
   closeAddSupplierModal();
   renderSupplierList();
   renderKPIs();
-  showToast(editId ? 'Supplier updated' : 'Supplier added');
+  if(s.id===selectedSupplierId){ renderDetails(s); renderPriceTrend(); }
+  if(editId && prevCategory && prevCategory!==newCategory){
+    showToast(`Supplier updated — category changed to ${newCategory}`);
+  } else {
+    showToast(editId ? 'Supplier updated' : 'Supplier added');
+  }
+}
+
+/* ════════════════ GENERIC MODAL HELPER ════════════════ */
+function closeModal(id){
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ════════════════ SUPPLIER LEDGER ════════════════ */
+function openLedgerModal(){
+  const sel = document.getElementById('ledgerSupSel');
+  sel.innerHTML = suppliers.map(s=>`<option value="${s.id}" ${s.id===selectedSupplierId?'selected':''}>${s.name}</option>`).join('');
+  renderLedger();
+  document.getElementById('ledgerModalOverlay').classList.add('show');
+}
+function renderLedger(){
+  const s = supplierById(document.getElementById('ledgerSupSel').value);
+  if(!s) return;
+  // Synthesize a simple ledger from priceHistory-derived monthly activity, since
+  // no dedicated ledger/transactions table exists yet in this module.
+  let balance = 0;
+  const rows = priceMonths.map((m,i)=>{
+    const amt = i===priceMonths.length-1 ? s.month : Math.round(s.allTime/priceMonths.length);
+    balance += amt;
+    return {date:m, desc:'Purchases — '+s.category, amt};
+  });
+  document.getElementById('ledgerTbody').innerHTML = rows.map(r=>`
+    <tr>
+      <td data-label="Date">${r.date}</td>
+      <td data-label="Description">${r.desc}</td>
+      <td data-label="Amount (ETB)">${fmt(r.amt)}</td>
+      <td data-label="Running Balance">${fmt(rows.slice(0,rows.indexOf(r)+1).reduce((a,x)=>a+x.amt,0))}</td>
+    </tr>`).join('');
+}
+
+/* ════════════════ PURCHASE REPORT ════════════════ */
+function openPurchaseReportModal(){
+  const active = suppliers.filter(s=>s.isActive);
+  const totalAll = suppliers.reduce((a,s)=>a+s.allTime,0);
+  const totalMonth = suppliers.reduce((a,s)=>a+s.month,0);
+  const top = suppliers.slice().sort((a,b)=>b.month-a.month).slice(0,5);
+  document.getElementById('purchaseReportBody').innerHTML = `
+    <div class="sd-grid" style="border:1px solid var(--border);border-radius:10px;margin-bottom:16px">
+      <div class="sd-cell"><label>Total Purchases (All Time)</label><span>${fmt(totalAll)} ETB</span></div>
+      <div class="sd-cell"><label>Total Purchases (This Month)</label><span>${fmt(totalMonth)} ETB</span></div>
+      <div class="sd-cell"><label>Active Suppliers</label><span>${active.length}</span></div>
+      <div class="sd-cell"><label>Suppliers With Orders This Month</label><span>${suppliers.filter(s=>s.month>0).length}</span></div>
+    </div>
+    <div class="card-ttl" style="margin-bottom:8px">Top 5 Purchases This Month</div>
+    <div style="min-width:0">
+    <table class="tbl">
+      <thead><tr><th>Supplier</th><th>Category</th><th>This Month (ETB)</th></tr></thead>
+      <tbody>${top.map(s=>`<tr><td data-label="Supplier">${s.name}</td><td data-label="Category"><span class="pill-sm ${catClass(s.category)}">${s.category}</span></td><td data-label="This Month (ETB)">${fmt(s.month)}</td></tr>`).join('')}</tbody>
+    </table>
+    </div>
+  `;
+  document.getElementById('purchaseReportOverlay').classList.add('show');
+}
+
+/* ════════════════ PRICE COMPARISON ════════════════
+   Two views on the same underlying itemsSupplied data:
+   - By Item: pick one item, see every supplier who sells it, cheapest flagged
+   - By Supplier: pick one supplier, see everything they sell with 6-mo trend
+   This is the standard procurement pattern — an item-vs-vendor matrix for
+   sourcing decisions, plus a per-vendor catalog for account review — rather
+   than a single blended-price ranking, since two suppliers rarely sell an
+   identical basket of goods. */
+function allItemNames(){
+  const set = new Set();
+  suppliers.forEach(s=>(s.itemsSupplied||[]).forEach(it=>set.add(it.name)));
+  return Array.from(set).sort();
+}
+function openPriceComparisonModal(){
+  const itemSel = document.getElementById('pcItemSel');
+  itemSel.innerHTML = allItemNames().map(n=>`<option value="${n}">${n}</option>`).join('');
+  const supSel = document.getElementById('pcSupSel');
+  supSel.innerHTML = suppliers.map(s=>`<option value="${s.id}" ${s.id===selectedSupplierId?'selected':''}>${s.name}</option>`).join('');
+  switchPriceCompTab('item');
+  renderPriceCompByItem();
+  renderPriceCompBySupplier();
+  document.getElementById('priceComparisonOverlay').classList.add('show');
+}
+function switchPriceCompTab(which){
+  document.getElementById('pcTabItem').style.display = which==='item' ? '' : 'none';
+  document.getElementById('pcTabSup').style.display = which==='supplier' ? '' : 'none';
+  document.getElementById('pcTabItemBtn').classList.toggle('on', which==='item');
+  document.getElementById('pcTabSupBtn').classList.toggle('on', which==='supplier');
+}
+function sparkline(history){
+  const max = Math.max(...history, 0.0001);
+  return `<div class="pc-spark">${history.map(v=>`<div style="height:${Math.max(8,(v/max*100))}%" title="${fmt(v)}"></div>`).join('')}</div>`;
+}
+function renderPriceCompByItem(){
+  const itemName = document.getElementById('pcItemSel').value;
+  if(!itemName){ document.getElementById('pcItemBody').innerHTML = '<p style="font-size:12.5px;color:var(--tl)">No items on file yet.</p>'; return; }
+  const rows = suppliers
+    .filter(s=>s.isActive)
+    .map(s=>({s, item:(s.itemsSupplied||[]).find(it=>it.name===itemName)}))
+    .filter(r=>r.item);
+  const cheapest = rows.slice().sort((a,b)=>a.item.price-b.item.price)[0];
+  const avg = rows.reduce((a,r)=>a+r.item.price,0) / (rows.length||1);
+
+  document.getElementById('pcItemBody').innerHTML = `
+    <div class="sd-grid" style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px">
+      <div class="sd-cell"><label>Active Suppliers Offering This Item</label><span>${rows.length}</span></div>
+      <div class="sd-cell"><label>Average Price</label><span>${rows.length?fmt(avg)+' ETB/'+cheapest.item.unit:'—'}</span></div>
+    </div>
+    <div style="min-width:0">
+    <table class="tbl">
+      <thead><tr><th>Supplier</th><th>Category</th><th>Price</th><th>Unit</th><th>6-Month Trend</th><th>Last Purchase</th></tr></thead>
+      <tbody>${rows.sort((a,b)=>a.item.price-b.item.price).map(r=>`
+        <tr class="${r.s.id===cheapest.s.id && rows.length>1?'pc-best-row':''}">
+          <td data-label="Supplier" style="font-weight:700">${r.s.name}${r.s.id===cheapest.s.id && rows.length>1?'<span class="pc-best-badge">✓ Best Price</span>':''}</td>
+          <td data-label="Category"><span class="pill-sm ${catClass(r.s.category)}">${r.s.category}</span></td>
+          <td data-label="Price">${fmt(r.item.price)} ETB</td>
+          <td data-label="Unit">${r.item.unit}</td>
+          <td data-label="6-Month Trend">${sparkline(r.item.history)}</td>
+          <td data-label="Last Purchase">${fmtDate(r.s.lastPurchase)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    ${rows.length===0?'':
+      rows.length===1
+        ? `<p style="font-size:11.5px;color:var(--tl);margin-top:12px">${cheapest.s.name} is currently the only active supplier on file for ${itemName}, at ${fmt(cheapest.item.price)} ETB/${cheapest.item.unit}.</p>`
+        : `<p style="font-size:11.5px;color:var(--tl);margin-top:12px">✓ ${cheapest.s.name} currently offers the best price for ${itemName}, at ${fmt(cheapest.item.price)} ETB/${cheapest.item.unit} — ${fmt(avg-cheapest.item.price)} ETB below the average across suppliers.</p>`
+    }
+  `;
+}
+function renderPriceCompBySupplier(){
+  const s = supplierById(document.getElementById('pcSupSel').value);
+  if(!s){ document.getElementById('pcSupBody').innerHTML=''; return; }
+  const items = s.itemsSupplied||[];
+  document.getElementById('pcSupBody').innerHTML = `
+    <div class="sd-top" style="margin-bottom:14px">
+      <div class="sd-av">${initials(s.name)}</div>
+      <div style="min-width:0">
+        <div class="sd-name"><h3>${s.name}</h3><span class="sd-tag">${s.category} Supplier</span></div>
+        <div class="sd-contact">
+          <div><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 10-16 0"/><circle cx="12" cy="7" r="4"/></svg>${s.contactPerson||'No contact person on file'}</div>
+        </div>
+      </div>
+    </div>
+    ${items.length===0 ? '<p style="font-size:12.5px;color:var(--tl)">No individual item prices on file for this supplier yet.</p>' : items.map(it=>{
+      const othersSellingIt = suppliers.filter(o=>o.id!==s.id && o.isActive && (o.itemsSupplied||[]).some(x=>x.name===it.name));
+      const cheaperElsewhere = othersSellingIt
+        .map(o=>({o, price:o.itemsSupplied.find(x=>x.name===it.name).price}))
+        .filter(x=>x.price<it.price)
+        .sort((a,b)=>a.price-b.price)[0];
+      return `
+      <div class="pc-item-card">
+        <div class="pc-item-hd">
+          <h4>${it.name}</h4>
+          <span>${fmt(it.price)} ETB / ${it.unit}</span>
+        </div>
+        ${sparkline(it.history)}
+        <p style="font-size:11px;color:var(--tl);margin:8px 0 0">
+          ${cheaperElsewhere
+            ? `⚠ ${cheaperElsewhere.o.name} sells this for ${fmt(cheaperElsewhere.price)} ETB/${it.unit} — ${fmt(it.price-cheaperElsewhere.price)} ETB cheaper.`
+            : othersSellingIt.length>0
+              ? `✓ Best price on file among ${othersSellingIt.length+1} suppliers selling this item.`
+              : 'Only this supplier has pricing on file for this item.'}
+        </p>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+/* ════════════════ SUPPLIER PERFORMANCE — FULL REPORT ════════════════ */
+function openPerformanceModal(){
+  const rows = document.getElementById('perfTbody').innerHTML;
+  document.getElementById('performanceModalBody').innerHTML = `
+    <p style="font-size:12px;color:var(--tm);margin-bottom:12px">Full breakdown of purchases, pricing, and on-time delivery by supplier for the current period.</p>
+    <div style="min-width:0">
+    <table class="tbl">
+      <thead><tr>
+        <th>Supplier</th><th>Total Purchases (ETB)</th><th>% of Total</th>
+        <th>Avg. Price (ETB/kg)</th><th>Vs. Market Avg.</th>
+        <th>Orders This Month</th><th>On-Time Delivery</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+  `;
+  document.getElementById('performanceModalOverlay').classList.add('show');
+}
+
+/* ════════════════ TOP SUPPLIERS REPORT ════════════════ */
+function openTopSuppliersModal(){
+  const top = suppliers.filter(s=>s.isActive).slice().sort((a,b)=>b.allTime-a.allTime).slice(0,10);
+  const maxVal = top.length ? top[0].allTime : 1;
+  document.getElementById('topSuppliersBody').innerHTML = top.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="width:22px;font-size:12px;font-weight:700;color:var(--tl)">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;color:var(--td);margin-bottom:4px">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
+          <span style="flex-shrink:0;margin-left:8px">${fmt(s.allTime)} ETB</span>
+        </div>
+        <div style="height:7px;background:#eef1ee;border-radius:20px;overflow:hidden">
+          <div style="height:100%;width:${(s.allTime/maxVal*100).toFixed(1)}%;background:#27ae60;border-radius:20px"></div>
+        </div>
+      </div>
+    </div>
+  `).join('') || '<p style="font-size:12.5px;color:var(--tl)">No active suppliers with purchase history.</p>';
+  document.getElementById('topSuppliersOverlay').classList.add('show');
+}
+
+/* ════════════════ RESTOCK CALENDAR ════════════════
+   Stock-coverage countdown will connect to the Inventory module's per-item
+   quantity + usage-rate data once that data model is shared; a supplier is
+   linked here by category as a stand-in for a direct item↔supplier FK. Market
+   day logic (the part that doesn't depend on inventory) is fully live now:
+   for each supplier with fixed market days, we compute the next date they can
+   actually be bought from. */
+function nextMarketDate(marketDays, fromDate){
+  if(!marketDays || marketDays.length===0) return null; // any day
+  const d = new Date(fromDate);
+  for(let i=0;i<8;i++){
+    const check = new Date(d); check.setDate(d.getDate()+i);
+    const dow = check.getDay()+1; // JS 0=Sun -> our 1=Sun convention
+    if(marketDays.includes(dow)) return check;
+  }
+  return null;
+}
+function openRestockCalendarModal(){
+  const today = new Date();
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const fixedSchedule = suppliers.filter(s=>s.isActive && s.marketDays && s.marketDays.length>0);
+  const anytimeSuppliers = suppliers.filter(s=>s.isActive && (!s.marketDays || s.marketDays.length===0));
+
+  const rows = fixedSchedule.map(s=>{
+    const next = nextMarketDate(s.marketDays, today);
+    const daysAway = next ? Math.round((next-today)/86400000) : null;
+    return {s, next, daysAway};
+  }).sort((a,b)=>(a.daysAway??99)-(b.daysAway??99));
+
+  document.getElementById('restockCalendarBody').innerHTML = `
+    <p style="font-size:12px;color:var(--tm);line-height:1.6;margin-bottom:14px">
+      Suppliers below only sell on fixed market days. Plan purchases around these dates so production isn't disrupted.
+      Once Inventory is connected, this view will also show exact days-of-stock-left per item and flag any supplier
+      whose next market day falls after your stock runs out.
+    </p>
+    ${rows.length===0 ? '<p style="font-size:12.5px;color:var(--tl)">No suppliers currently have a fixed market-day schedule — add one via Edit Supplier.</p>' : `
+    <div style="min-width:0">
+    <table class="tbl">
+      <thead><tr><th>Supplier</th><th>Category</th><th>Market Days</th><th>Next Buy Day</th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td data-label="Supplier" style="font-weight:700">${r.s.name}</td>
+            <td data-label="Category"><span class="pill-sm ${catClass(r.s.category)}">${r.s.category}</span></td>
+            <td data-label="Market Days">${marketDaysLabel(r.s)}</td>
+            <td data-label="Next Buy Day">${r.next ? dayNames[r.next.getDay()]+', '+r.next.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + (r.daysAway===0?' (today)':' ('+r.daysAway+'d away)') : '—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`}
+    <div class="card-ttl" style="margin:18px 0 8px">Anytime Suppliers (${anytimeSuppliers.length})</div>
+    <p style="font-size:12px;color:var(--tl)">${anytimeSuppliers.length ? anytimeSuppliers.map(s=>s.name).join(', ') : 'None on file.'} — can be ordered from any day, no calendar restriction.</p>
+  `;
+  document.getElementById('restockCalendarOverlay').classList.add('show');
+}
+
+/* ════════════════ IMPORT SUPPLIERS (CSV) ════════════════ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const inp = document.getElementById('importFileInput');
+  if(inp) inp.addEventListener('change', previewImportFile);
+});
+let pendingImportRows = [];
+function openImportSuppliersModal(){
+  pendingImportRows = [];
+  const inp = document.getElementById('importFileInput');
+  if(inp) inp.value = '';
+  document.getElementById('importPreview').textContent = '';
+  document.getElementById('importSuppliersOverlay').classList.add('show');
+}
+function previewImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const lines = ev.target.result.split(/\r?\n/).filter(l=>l.trim());
+    const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+    pendingImportRows = lines.slice(1).map(line=>{
+      const cells = line.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+      const row = {};
+      headers.forEach((h,i)=> row[h]=cells[i]||'');
+      return row;
+    });
+    document.getElementById('importPreview').textContent = `${pendingImportRows.length} row(s) ready to import.`;
+  };
+  reader.readAsText(file);
+}
+function importSuppliersFromCSV(){
+  if(pendingImportRows.length===0){ showToast('Choose a CSV file first'); return; }
+  let added = 0, skipped = 0;
+  pendingImportRows.forEach(row=>{
+    const name = row['Name'] || row['name'];
+    if(!name) return;
+    if(suppliers.some(s=>s.name.toLowerCase()===name.toLowerCase())){ skipped++; return; }
+    const s = {
+      id: 's'+Date.now()+Math.random().toString(36).slice(2,6),
+      name,
+      category: row['Category']||'General',
+      contactPerson: row['Contact Person']||'',
+      phone: row['Phone']||'',
+      email: row['Email']||'',
+      address: row['Address']||'',
+      terms: row['Payment Terms']||'Cash on Delivery',
+      currency: 'ETB',
+      isActive: (row['Status']||'Active').toLowerCase()!=='inactive',
+      allTime:0, month:0, lastPurchase:new Date().toISOString().slice(0,10),
+      unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
+      priceHistory:[0,0,0,0,0,0]
+    };
+    suppliers.push(s);
+    saveSupplierToSupabase(s);
+    added++;
+  });
+  pendingImportRows = [];
+  closeModal('importSuppliersOverlay');
+  renderSupplierList();
+  renderKPIs();
+  showToast(`Imported ${added} supplier(s)${skipped?', skipped '+skipped+' duplicate(s)':''}`);
 }
 
 /* ════════════════ EXPORT (Excel = CSV, PDF = html2canvas+jsPDF) ════════════════ */
 function exportAllSuppliersExcel(){
-  let csv = 'Name,Category,Phone,Email,Address,Payment Terms,Total Purchases (All Time),This Month,Last Purchase,Status\n';
+  let csv = 'Name,Category,Contact Person,Phone,Email,Address,Payment Terms,Total Purchases (All Time),This Month,Last Purchase,Status\n';
   suppliers.forEach(s=>{
-    csv += [s.name,s.category,s.phone,s.email,s.address,s.terms,s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
+    csv += [s.name,s.category,s.contactPerson,s.phone,s.email,s.address,s.terms,s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
       .map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',') + '\n';
   });
   const blob = new Blob([csv], {type:'text/csv'});
@@ -885,7 +1501,7 @@ function exportAllSuppliersExcel(){
 function exportSupplierExcel(){
   const s = supplierById(selectedSupplierId);
   let csv = 'Field,Value\n';
-  csv += `Name,"${s.name}"\n Category,"${s.category}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
+  csv += `Name,"${s.name}"\nCategory,"${s.category}"\nContact Person,"${s.contactPerson||''}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nBuying Schedule,"${marketDaysLabel(s)}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -976,12 +1592,14 @@ async function loadSuppliersFromSupabase(){
           _dbId: r.id,
           name: r.name,
           category: r.category || 'General',
+          contactPerson: r.contact_person || existing.contactPerson || '',
           phone: r.contact_phone || existing.phone || '',
           email: r.contact_email || existing.email || '',
           address: r.address || existing.address || '',
           terms: r.payment_terms || existing.terms || 'Cash on Delivery',
           currency: existing.currency || 'ETB',
           isActive: r.is_active !== false,
+          marketDays: r.market_days || existing.marketDays || [],
           allTime: existing.allTime || 0,
           month: existing.month || 0,
           lastPurchase: existing.lastPurchase || new Date().toISOString().slice(0,10),
@@ -1004,11 +1622,13 @@ async function saveSupplierToSupabase(s){
     const row = {
       name: s.name,
       category: s.category,
+      contact_person: s.contactPerson || null,
       contact_phone: s.phone || null,
       contact_email: s.email || null,
       address: s.address || null,
       payment_terms: s.terms || null,
-      is_active: s.isActive !== false
+      is_active: s.isActive !== false,
+      market_days: s.marketDays && s.marketDays.length ? s.marketDays : null
     };
     if(s._dbId){
       const { error } = await db.from(SUPPLIERS_TABLE).update(row).eq('id', s._dbId);
@@ -1016,7 +1636,12 @@ async function saveSupplierToSupabase(s){
     } else {
       const { data, error } = await db.from(SUPPLIERS_TABLE).insert(row).select().single();
       if(error) throw error;
-      if(data){ s._dbId = data.id; s.id = data.id; }
+      // Record the database's own id separately from the UI-facing `id` — the
+      // UI (row menu ids, selectedSupplierId, already-rendered onclick
+      // handlers) is already keyed on the local id, so swapping s.id here
+      // would silently desync every reference built before this save
+      // resolved (e.g. a still-open row menu, or a stale selection).
+      if(data) s._dbId = data.id;
     }
   }catch(err){
     console.log('Supabase supplier save failed (local only):', err.message);
