@@ -143,6 +143,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
 /* ══ BUTTONS ════════════════════════════════════════ */
 .btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
+.btn-pri:disabled{background:#9fb8a8;cursor:not-allowed;opacity:.75}
 .btn-pri:hover{background:#164a2d}
 .btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
 .btn-sec:hover{background:var(--bg)}
@@ -1539,6 +1540,10 @@ function setDataStatus(state, label){
   }
 }
 
+// Guards against the exact bug this caused once already: saving before the initial load
+// finished would write whatever's currently in the (still-empty, defaulting-to-0) form
+// fields straight over real data — this happened for real to channel_opening_balances.
+let initialLoadComplete = false;
 async function loadFromSupabase(){
   if(!db){
     setDataStatus('error', 'Offline — showing local defaults');
@@ -1645,6 +1650,8 @@ async function loadFromSupabase(){
     loadLoginLog();
 
     setDataStatus('ok', 'Data is up to date');
+    initialLoadComplete = true;
+    document.querySelectorAll('.btn-pri[onclick="saveBusinessSettings(this)"]').forEach(b=>b.disabled=false);
   } catch(err){
     console.log('Supabase load failed, using local defaults:', err.message);
     recalcOpeningTotal(); renderShareholders(); renderLocations(); renderUsers();
@@ -1653,6 +1660,10 @@ async function loadFromSupabase(){
 }
 
 async function saveBusinessSettings(btn){
+  if(!initialLoadComplete){
+    toast('Still loading current settings — please wait a moment and try again', 'error');
+    return;
+  }
   const original = btn.textContent;
   const total = shareholders.filter(s=>s.isActive).reduce((sum,s)=>sum+s.pct,0);
   if(Math.abs(total-100) > 0.005){
@@ -1725,6 +1736,7 @@ async function saveBusinessSettings(btn){
 /* ════════════════ INIT ════════════════ */
 renderNotifMatrix();
 applySavedDevicePrefs();
+document.querySelectorAll('.btn-pri[onclick="saveBusinessSettings(this)"]').forEach(b=>b.disabled=true);
 loadFromSupabase();
 </script>
 </body>
