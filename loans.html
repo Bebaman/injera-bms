@@ -1318,6 +1318,8 @@ function lastSixMonthLabels(){
 }
 function refreshHeaderNotifications(){
   const months = lastSixMonthLabels();
+  const headerRoot = document.getElementById('header-root');
+  if(headerRoot) headerRoot.innerHTML = ''; // defensive: avoid stacking duplicate header bars if renderHeader appends instead of replacing
   renderHeader({
     title: 'Loans',
     subtitle: 'Manage loans, repayment schedules and balances',
@@ -1332,7 +1334,6 @@ function refreshHeaderNotifications(){
 }
 
 /* ════════════════ INIT ════════════════ */
-refreshHeaderNotifications();
 document.getElementById('scheduleLoanSel').addEventListener('change', renderSchedule);
 document.getElementById('lPrincipal').addEventListener('input', updatePmtPreview);
 document.getElementById('lRate').addEventListener('input', updatePmtPreview);
