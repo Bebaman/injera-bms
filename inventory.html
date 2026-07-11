@@ -85,6 +85,9 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .tbl-inv .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none;color:#27ae60}
 .tbl-inv .tot td:first-child{color:#27ae60}
 .wac-note{font-size:11px;color:var(--tl);padding:10px 17px 14px}
+.row-edit-btn{width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,border-color .12s;color:var(--tl)}
+.row-edit-btn:hover{background:#f0f8f4;border-color:#52B788;color:#1d5c38}
+.row-edit-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Small history-table used for Price History / Recent Purchases sidebars */
 .tbl-sb2{width:100%;border-collapse:collapse;font-size:12px}
@@ -144,6 +147,63 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .qa-ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 .qa-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .qa-lbl{font-size:10.5px;font-weight:700;color:var(--td)}
+
+/* ══ MODAL SYSTEM ═══════════════════════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,30,23,.48);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:900;padding:20px;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal-card{background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(10,30,20,.25);width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;transform:translateY(14px) scale(.98);opacity:0;transition:transform .2s cubic-bezier(.2,.8,.3,1),opacity .2s ease}
+.modal-overlay.open .modal-card{transform:translateY(0) scale(1);opacity:1}
+.modal-card.modal-wide{max-width:760px}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-hd-txt{display:flex;align-items:center;gap:10px}
+.modal-hd-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-hd-ic svg{width:18px;height:18px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modal-title{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td)}
+.modal-sub{font-size:11.5px;color:var(--tl);font-weight:500;margin-top:1px}
+.modal-x{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border:none;background:transparent;transition:background .12s,color .12s;flex-shrink:0}
+.modal-x:hover{background:#fdecea;color:#e53935}
+.modal-x svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.modal-bd{padding:20px 22px;overflow-y:auto;flex:1}
+.modal-ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:15px 22px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.modal-ft-note{font-size:11px;color:var(--tl);margin-right:auto;font-weight:500}
+
+.frm-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.frm-grp{margin-bottom:14px}
+.frm-grp:last-child{margin-bottom:0}
+.frm-lbl{display:block;font-size:11.5px;font-weight:700;color:var(--td);margin-bottom:6px}
+.frm-lbl .req{color:#e53935}
+.frm-in,.frm-sel,.frm-txt{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);background:#fff;outline:none;transition:border-color .12s,box-shadow .12s}
+.frm-in:focus,.frm-sel:focus,.frm-txt:focus{border-color:#52B788;box-shadow:0 0 0 3px rgba(82,183,136,.15)}
+.frm-txt{resize:vertical;min-height:64px;font-family:'Nunito',sans-serif}
+.frm-hint{font-size:10.5px;color:var(--tl);margin-top:5px}
+.frm-err{font-size:10.5px;color:#e53935;margin-top:5px;font-weight:600;display:none}
+.frm-grp.err .frm-in,.frm-grp.err .frm-sel{border-color:#e53935}
+.frm-grp.err .frm-err{display:block}
+.frm-info-box{background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:11px 13px;font-size:12px;color:var(--tm);margin-bottom:14px;display:flex;gap:9px;align-items:flex-start}
+.frm-info-box svg{width:15px;height:15px;stroke:#1d5c38;flex-shrink:0;margin-top:1px}
+
+.btn-p{background:#1d5c38;color:#fff;border:none;border-radius:9px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .12s;display:inline-flex;align-items:center;gap:6px}
+.btn-p:hover{background:#164a2c}
+.btn-p:disabled{background:#a8c3b3;cursor:not-allowed}
+.btn-p svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.btn-s{background:#fff;color:var(--td);border:1px solid var(--border);border-radius:9px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .12s}
+.btn-s:hover{background:var(--bg)}
+
+.mtbl{width:100%;border-collapse:collapse;font-size:12px}
+.mtbl th{padding:8px 11px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.mtbl td{padding:9px 11px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.mtbl tr:last-child td{border-bottom:none}
+
+.dz{border:1.6px dashed var(--border);border-radius:10px;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .12s,background .12s}
+.dz:hover,.dz.drag{border-color:#52B788;background:#f5fbf7}
+.dz svg{width:30px;height:30px;stroke:#9aada5;margin-bottom:9px}
+.dz-txt{font-size:12.5px;font-weight:700;color:var(--td)}
+.dz-sub{font-size:11px;color:var(--tl);margin-top:3px}
+.dz-file{display:flex;align-items:center;gap:10px;background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 13px;font-size:12.5px;font-weight:600;color:var(--td);margin-top:12px}
+.dz-file svg{width:16px;height:16px;stroke:#1d5c38;flex-shrink:0}
+.dz-file-x{margin-left:auto;cursor:pointer;color:var(--tl);width:16px;height:16px}
+
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* ══ ANIMATIONS (page-specific card/KPI entrance) ══════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -331,19 +391,19 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
               <div class="card-ttl">Quick Actions</div>
             </div>
             <div class="qa-grid">
-              <div class="qa-btn" onclick="showToast('Add Stock — coming soon')"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span class="qa-lbl">Add Stock</span></div>
-              <div class="qa-btn" onclick="showToast('Record Usage — coming soon')"><div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg></div><span class="qa-lbl">Record Usage</span></div>
-              <div class="qa-btn" onclick="showToast('Adjust Stock — coming soon')"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div><span class="qa-lbl">Adjust Stock</span></div>
+              <div class="qa-btn" onclick="openAddStockModal()"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span class="qa-lbl">Add Stock</span></div>
+              <div class="qa-btn" onclick="openRecordUsageModal()"><div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg></div><span class="qa-lbl">Record Usage</span></div>
+              <div class="qa-btn" onclick="openAdjustStockModal()"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div><span class="qa-lbl">Adjust Stock</span></div>
 
-              <div class="qa-btn" onclick="showToast('Stock Transfer — coming soon')"><div class="qa-ic ic-c"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div><span class="qa-lbl">Stock Transfer</span></div>
-              <div class="qa-btn" onclick="showToast('Expiry Report — coming soon')"><div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="qa-lbl">Expiry Report</span></div>
-              <div class="qa-btn" onclick="showToast('Reorder Report — coming soon')"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="qa-lbl">Reorder Report</span></div>
+              <div class="qa-btn" onclick="openStockTransferModal()"><div class="qa-ic ic-c"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div><span class="qa-lbl">Stock Transfer</span></div>
+              <div class="qa-btn" onclick="openExpiryReportModal()"><div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="qa-lbl">Expiry Report</span></div>
+              <div class="qa-btn" onclick="openReorderReportModal()"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="qa-lbl">Reorder Report</span></div>
 
-              <div class="qa-btn" onclick="showToast('Inventory Report — coming soon')"><div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="qa-lbl">Inventory Report</span></div>
+              <div class="qa-btn" onclick="openInventoryReportModal()"><div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="qa-lbl">Inventory Report</span></div>
               <div class="qa-btn" onclick="exportExcel()"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (Excel)</span></div>
               <div class="qa-btn" onclick="exportPDF()"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (PDF)</span></div>
 
-              <div class="qa-btn" style="grid-column:1/2" onclick="showToast('Import Inventory — coming soon')"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><span class="qa-lbl">Import Inventory</span></div>
+              <div class="qa-btn" style="grid-column:1/2" onclick="openImportModal()"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><span class="qa-lbl">Import Inventory</span></div>
             </div>
           </div>
 
@@ -371,6 +431,24 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
 </div>
 
+<!-- ══ MODAL SHELL (reusable — content injected by openModal()) ══ -->
+<div class="modal-overlay" id="modalOverlay" onmousedown="if(event.target===this) closeModal()">
+  <div class="modal-card" id="modalCard" role="dialog" aria-modal="true">
+    <div class="modal-hd">
+      <div class="modal-hd-txt">
+        <div class="modal-hd-ic" id="modalHdIc"></div>
+        <div>
+          <div class="modal-title" id="modalTitle"></div>
+          <div class="modal-sub" id="modalSub"></div>
+        </div>
+      </div>
+      <button class="modal-x" onclick="closeModal()" aria-label="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-bd" id="modalBody"></div>
+    <div class="modal-ft" id="modalFooter"></div>
+  </div>
+</div>
+
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
@@ -381,14 +459,14 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
    formulas — computed server-side from purchases + production/derkosh usage in the live system.
    Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
 const invItems = [
-  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK' },
-  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW' },
-  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK' },
-  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW' },
-  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER' },
-  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK' },
-  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK' },
-  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK' }
+  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05' },
+  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null },
+  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03' },
+  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null },
+  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null },
+  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null },
+  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null },
+  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null }
 ];
 
 const recentPurchases = [
@@ -399,14 +477,33 @@ const recentPurchases = [
   { date:'2026-05-25', item:'Gomen Zere',   qty:'10 kg',  unitPrice:800.00, total:8000.00 }
 ];
 
-const stockAlerts = [
+/* Non-expiry alerts stay static demo data for now. Expiry alerts are computed live
+   from each item's expiryDate field below (see buildExpiryAlerts) instead of being
+   hardcoded text, so they stay accurate as expiry dates are edited via Item Settings. */
+const staticAlerts = [
   { icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:'Large Bags', text:'Closing stock 220 pcs is below 50% of reorder level. Reorder level: 200 pcs.' },
   { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Corn', text:'Closing stock 60 kg is below reorder level. Reorder level: 60 kg.' },
   { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Small Bags', text:'Closing stock 520 pcs is below reorder level. Reorder level: 500 pcs.' },
-  { icon:'al-p', pill:'pill-expiring', pillText:'EXPIRING SOON', title:'Injera Blend', text:'Lot #IB-2026-05-15 expires in 5 days (Jun 2, 2026).' },
-  { icon:'al-p', pill:'pill-expiring', pillText:'EXPIRING SOON', title:'Gomen Zere', text:'Lot #GZ-2026-05-18 expires in 6 days (Jun 3, 2026).' },
   { icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title:'Plastic Sheets & Cleaning Material', text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' }
 ];
+/* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
+function daysUntilExpiry(item){
+  if(!item.expiryDate) return null;
+  const ms = new Date(item.expiryDate+'T00:00:00') - new Date(todayInApp()+'T00:00:00');
+  return Math.ceil(ms/86400000);
+}
+function buildExpiryAlerts(){
+  return invItems.filter(i=>i.expiryDate!=null).map(i=>{
+    const d = daysUntilExpiry(i);
+    return { item:i, days:d, pillText: d<0 ? 'EXPIRED' : 'EXPIRING SOON', days_valid: d!=null && d<=7 };
+  }).filter(a=>a.days_valid).map(a=>({
+    icon:'al-p', pill: a.pillText==='EXPIRED' ? 'pill-reorder' : 'pill-expiring', pillText:a.pillText, title:a.item.name,
+    text: a.pillText==='EXPIRED'
+      ? `Expired ${Math.abs(a.days)} day${Math.abs(a.days)===1?'':'s'} ago (${fmtDateLong(a.item.expiryDate)}). Remove from usable stock.`
+      : `Expires in ${a.days} day${a.days===1?'':'s'} (${fmtDateLong(a.item.expiryDate)}).`
+  }));
+}
+function getAllAlerts(){ return [...buildExpiryAlerts(), ...staticAlerts]; }
 
 const priceHistoryByItem = {
   'Injera Blend': { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[880.00,892.50,915.00,910.00,901.67,916.67] },
@@ -460,7 +557,7 @@ function computeKpis(){
   const totalQty = invItems.reduce((s,i)=>s+(i.closing||0),0);
   const lowCount = invItems.filter(i=>i.status==='LOW').length;
   const reorderCount = invItems.filter(i=>i.status==='REORDER').length;
-  const expiringCount = stockAlerts.filter(a=>a.pillText==='EXPIRING SOON').length;
+  const expiringCount = buildExpiryAlerts().filter(a=>a.pillText==='EXPIRING SOON').length;
 
   const usedValue = invItems.reduce((s,i)=> s + ((i.used && i.wac) ? i.used*i.wac : 0), 0);
   const openingValue = invItems.reduce((s,i)=> s + ((i.opening!=null && i.wac) ? i.opening*i.wac : 0), 0);
@@ -525,19 +622,20 @@ function renderMonthlyTable(){
       <td>${daysOfSupplyLabel(dos)}</td>
       <td>${movementPill(dos)}</td>
       <td>${pillFor(it.status)}</td>
+      <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;}).join('');
   const totOpen = invItems.reduce((s,i)=>s+(i.opening||0),0);
   const totPurch = invItems.reduce((s,i)=>s+(i.purchased||0),0);
   const totUsed = invItems.reduce((s,i)=>s+(i.used||0),0);
   const totClose = invItems.reduce((s,i)=>s+(i.closing||0),0);
   const totVal = invItems.reduce((s,i)=>s+(i.value||0),0);
-  rows += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td>${fmt(totVal)}</td><td></td><td></td><td></td><td></td></tr>`;
+  rows += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td>${fmt(totVal)}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
       <thead><tr>
         <th>Item</th><th>Unit</th><th>Opening Stock<br>May 1, 2026</th><th>Purchased<br>(This Month)</th>
         <th>Used / Sold<br>(This Month)</th><th>Closing Stock<br>May 31, 2026</th><th>Monthly WAC<br>(ETB / Unit)</th>
-        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Days of Supply</th><th>Movement</th><th>Status</th>
+        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Days of Supply</th><th>Movement</th><th>Status</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
@@ -559,11 +657,12 @@ function renderAllTimeTable(){
       <td>${daysOfSupplyLabel(dos)}</td>
       <td>${movementPill(dos)}</td>
       <td>${pillFor(it.status)}</td>
+      <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;
   }).join('');
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
-      <thead><tr><th>Item</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Days of Supply</th><th>Movement</th><th>Status</th></tr></thead>
+      <thead><tr><th>Item</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Days of Supply</th><th>Movement</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('wacNote').textContent = "All-Time Perpetual shows the running stock balance since system start. WAC = Weighted Average Cost. Days of Supply is based on this month's usage rate.";
@@ -598,7 +697,7 @@ function renderRecentPurchases(){
 
 /* ════════════════ STOCK ALERTS ════════════════ */
 function renderStockAlerts(){
-  document.getElementById('stockAlertsList').innerHTML = stockAlerts.map(a=>`
+  document.getElementById('stockAlertsList').innerHTML = getAllAlerts().map(a=>`
     <div class="alert-row">
       <div class="alert-ic ${a.icon}">
         ${a.icon==='al-r' ? '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
@@ -739,6 +838,514 @@ function exportPDF(){
   }, 500);
 }
 
+/* ════════════════ MODAL ENGINE ════════════════ */
+function openModal({title, sub, icon, iconClass, bodyHtml, footerHtml, wide}){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalSub').textContent = sub || '';
+  const hdIc = document.getElementById('modalHdIc');
+  hdIc.className = 'modal-hd-ic ' + (iconClass||'ic-g');
+  hdIc.innerHTML = icon || '';
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalFooter').innerHTML = footerHtml;
+  document.getElementById('modalCard').classList.toggle('modal-wide', !!wide);
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const firstField = document.querySelector('#modalBody input, #modalBody select, #modalBody textarea');
+  if(firstField) setTimeout(()=>firstField.focus(), 60);
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ── shared form helpers ── */
+function todayInApp(){ return '2026-05-31'; } // demo dataset's simulated "today"
+function itemOptionsHtml(selected){
+  return invItems.map(i=>`<option value="${i.name}" ${i.name===selected?'selected':''}>${i.name} (${i.unit})</option>`).join('');
+}
+function toggleFieldError(inputId, hasError){
+  const grp = document.getElementById(inputId).closest('.frm-grp');
+  if(grp) grp.classList.toggle('err', hasError);
+}
+/* Two-tier status rule applied only to items edited via these modals, so untouched demo
+   rows keep their original values and only edited rows get a live-computed status. */
+function recomputeStatus(item){
+  if(item.closing===null || item.closing===undefined || !item.reorder){ return; }
+  if(item.closing <= item.reorder*0.6) item.status = 'REORDER';
+  else if(item.closing <= item.reorder) item.status = 'LOW';
+  else item.status = 'OK';
+}
+const icAddStock = '<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+const icUsage = '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg>';
+const icAdjust = '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>';
+const icTransfer = '<svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
+const icExpiry = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const icReorder = '<svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';
+const icReport = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+const icImport = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+const icUpload = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+const icCheck = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+
+/* ════════════════ 1. ADD STOCK ════════════════ */
+function openAddStockModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Logs a new stock receipt. Closing balance and WAC update immediately, and this also syncs to your Purchases module.</div>
+    <div class="frm-hint" style="margin:-8px 0 14px">Full purchase details — VAT, invoice number, approval — should still be finalized in the Purchases module.</div>
+    <div class="frm-row">
+      <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
+        <select class="frm-sel" id="asItem">${itemOptionsHtml()}</select></div>
+      <div class="frm-grp"><label class="frm-lbl">Date Received <span class="req">*</span></label>
+        <input class="frm-in" type="date" id="asDate" value="${todayInApp()}"></div>
+    </div>
+    <div class="frm-row">
+      <div class="frm-grp" id="asQtyGrp"><label class="frm-lbl">Quantity Received <span class="req">*</span></label>
+        <input class="frm-in" type="number" min="0" step="0.01" id="asQty" placeholder="e.g. 50">
+        <div class="frm-err">Enter a quantity greater than 0.</div></div>
+      <div class="frm-grp" id="asPriceGrp"><label class="frm-lbl">Unit Price (ETB) <span class="req">*</span></label>
+        <input class="frm-in" type="number" min="0" step="0.01" id="asPrice" placeholder="e.g. 950.00">
+        <div class="frm-err">Enter a valid unit price.</div></div>
+    </div>
+    <div class="frm-grp"><label class="frm-lbl">Supplier</label>
+      <input class="frm-in" id="asSupplier" placeholder="e.g. Merkato Grain Traders"></div>
+    <div class="frm-grp"><label class="frm-lbl">Notes</label>
+      <textarea class="frm-txt" id="asNotes" placeholder="Optional — invoice #, delivery notes..."></textarea></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Updates Monthly Overview, Valuation &amp; Price History</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitAddStock()">${icCheck}Save Stock Receipt</button>`;
+  openModal({ title:'Add Stock', sub:'Record a new stock receipt', iconClass:'ic-g', icon:icAddStock, bodyHtml:body, footerHtml:footer });
+}
+async function submitAddStock(){
+  const itemName = document.getElementById('asItem').value;
+  const qty = parseFloat(document.getElementById('asQty').value);
+  const price = parseFloat(document.getElementById('asPrice').value);
+  const date = document.getElementById('asDate').value || todayInApp();
+  const supplier = document.getElementById('asSupplier').value.trim();
+  const notes = document.getElementById('asNotes').value.trim();
+  let valid = true;
+  toggleFieldError('asQty', !(qty>0)); if(!(qty>0)) valid=false;
+  toggleFieldError('asPrice', !(price>0)); if(!(price>0)) valid=false;
+  if(!valid) return;
+
+  const item = invItems.find(i=>i.name===itemName);
+  if(!item) return;
+  const existingValue = (item.closing||0)*(item.wac||0);
+  const newQty = (item.closing||0)+qty;
+  item.wac = +(newQty>0 ? (existingValue+qty*price)/newQty : price).toFixed(2);
+  item.purchased = +((item.purchased||0)+qty).toFixed(2);
+  item.closing = +newQty.toFixed(2);
+  item.value = +(item.closing*item.wac).toFixed(2);
+  recomputeStatus(item);
+  recentPurchases.unshift({ date, item:itemName, qty, unitPrice:price, total:+(qty*price).toFixed(2) });
+
+  renderAll();
+  closeModal();
+  showToast(`Added ${fmt(qty)} ${item.unit} of ${itemName} to stock`);
+
+  /* Best-effort sync into the Purchases module's `purchases` table so this receipt shows
+     up there too, not just in this page's local state. NOTE: column names below
+     (item_name, quantity, unit_price, total_cost, purchase_date, supplier, notes, source)
+     are a best guess — they haven't been confirmed against the real purchases table schema
+     (which per the schema audit also computes VAT via purchases_computed() and enforces an
+     approved-purchase lock trigger). If this insert fails due to column/constraint mismatch,
+     it fails silently here and the receipt still exists correctly in Inventory — but it means
+     the write to Purchases did NOT happen. Confirm the real schema to wire this precisely. */
+  try {
+    const { error } = await db.from('purchases').insert({
+      item_name: itemName,
+      quantity: qty,
+      unit_price: price,
+      total_cost: +(qty*price).toFixed(2),
+      purchase_date: date,
+      supplier: supplier || null,
+      notes: notes || null,
+      source: 'inventory_quick_add'
+    });
+    if(error) console.log('Purchases module sync skipped (schema mismatch?):', error.message);
+  } catch(err){
+    console.log('Purchases module sync unavailable:', err.message);
+  }
+}
+
+/* ════════════════ 2. RECORD USAGE ════════════════ */
+function openRecordUsageModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Logs raw-material consumption for production. Closing stock is reduced immediately.</div>
+    <div class="frm-row">
+      <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
+        <select class="frm-sel" id="ruItem" onchange="updateUsageAvailable()">${itemOptionsHtml()}</select></div>
+      <div class="frm-grp"><label class="frm-lbl">Date <span class="req">*</span></label>
+        <input class="frm-in" type="date" id="ruDate" value="${todayInApp()}"></div>
+    </div>
+    <div class="frm-grp" id="ruQtyGrp">
+      <label class="frm-lbl">Quantity Used <span class="req">*</span></label>
+      <input class="frm-in" type="number" min="0" step="0.01" id="ruQty" placeholder="e.g. 15" oninput="updateUsageAvailable()">
+      <div class="frm-hint" id="ruAvail"></div>
+      <div class="frm-err">Enter a quantity greater than 0 and no more than what's in stock.</div>
+    </div>
+    <div class="frm-grp"><label class="frm-lbl">Reason / Batch Reference</label>
+      <input class="frm-in" id="ruRef" placeholder="e.g. Injera batch #B-0512, production run"></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Updates Closing Stock &amp; Reorder Alerts</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitRecordUsage()">${icCheck}Save Usage</button>`;
+  openModal({ title:'Record Usage', sub:'Log stock consumed in production', iconClass:'ic-o', icon:icUsage, bodyHtml:body, footerHtml:footer });
+  updateUsageAvailable();
+}
+function updateUsageAvailable(){
+  const item = invItems.find(i=>i.name===document.getElementById('ruItem').value);
+  const el = document.getElementById('ruAvail');
+  if(item && el) el.textContent = `Available: ${dash(item.closing)} ${item.unit}`;
+}
+function submitRecordUsage(){
+  const itemName = document.getElementById('ruItem').value;
+  const qty = parseFloat(document.getElementById('ruQty').value);
+  const date = document.getElementById('ruDate').value || todayInApp();
+  const item = invItems.find(i=>i.name===itemName);
+  const available = item ? (item.closing||0) : 0;
+  const bad = !(qty>0) || qty>available;
+  toggleFieldError('ruQty', bad);
+  if(bad || !item) return;
+
+  item.used = +((item.used||0)+qty).toFixed(2);
+  item.closing = +((item.closing||0)-qty).toFixed(2);
+  item.value = +(item.closing*(item.wac||0)).toFixed(2);
+  recomputeStatus(item);
+
+  renderAll();
+  closeModal();
+  showToast(`Recorded ${fmt(qty)} ${item.unit} of ${itemName} used`);
+}
+
+/* ════════════════ 3. ADJUST STOCK ════════════════ */
+function openAdjustStockModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Use this for physical count corrections, damage, spoilage, or loss — not regular usage.</div>
+    <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
+      <select class="frm-sel" id="adjItem" onchange="updateAdjustCurrent()">${itemOptionsHtml()}</select></div>
+    <div class="frm-info-box" id="adjCurrentBox" style="background:#f7fbf9;border-color:var(--border)"></div>
+    <div class="frm-row">
+      <div class="frm-grp" id="adjQtyGrp"><label class="frm-lbl">New Closing Quantity <span class="req">*</span></label>
+        <input class="frm-in" type="number" min="0" step="0.01" id="adjQty" placeholder="e.g. 95">
+        <div class="frm-err">Enter a quantity of 0 or more.</div></div>
+      <div class="frm-grp"><label class="frm-lbl">Reason <span class="req">*</span></label>
+        <select class="frm-sel" id="adjReason">
+          <option>Physical Count Correction</option>
+          <option>Damaged / Spoiled</option>
+          <option>Theft or Loss</option>
+          <option>Data Entry Correction</option>
+          <option>Other</option>
+        </select></div>
+    </div>
+    <div class="frm-grp"><label class="frm-lbl">Notes</label>
+      <textarea class="frm-txt" id="adjNotes" placeholder="Optional — details of the adjustment"></textarea></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Adjustment is logged with reason for audit</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitAdjustStock()">${icCheck}Save Adjustment</button>`;
+  openModal({ title:'Adjust Stock', sub:'Correct a stock balance', iconClass:'ic-b', icon:icAdjust, bodyHtml:body, footerHtml:footer });
+  updateAdjustCurrent();
+}
+function updateAdjustCurrent(){
+  const item = invItems.find(i=>i.name===document.getElementById('adjItem').value);
+  const box = document.getElementById('adjCurrentBox');
+  if(item && box) box.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Current system balance: <strong>${dash(item.closing)} ${item.unit}</strong>`;
+}
+function submitAdjustStock(){
+  const itemName = document.getElementById('adjItem').value;
+  const newQty = parseFloat(document.getElementById('adjQty').value);
+  const reason = document.getElementById('adjReason').value;
+  const item = invItems.find(i=>i.name===itemName);
+  const bad = !(newQty>=0);
+  toggleFieldError('adjQty', bad);
+  if(bad || !item) return;
+
+  const diff = newQty - (item.closing||0);
+  item.closing = +newQty.toFixed(2);
+  item.value = +(item.closing*(item.wac||0)).toFixed(2);
+  recomputeStatus(item);
+
+  renderAll();
+  closeModal();
+  const dir = diff>0 ? `+${fmt(diff)}` : fmt(diff);
+  showToast(`${itemName} adjusted (${dir} ${item.unit}) — ${reason}`);
+}
+
+/* ════════════════ 4. STOCK TRANSFER ════════════════ */
+function openStockTransferModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Logs a movement between storage areas. Total on-hand quantity is unchanged.</div>
+    <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
+      <select class="frm-sel" id="stItem" onchange="updateTransferAvailable()">${itemOptionsHtml()}</select></div>
+    <div class="frm-row">
+      <div class="frm-grp"><label class="frm-lbl">From <span class="req">*</span></label>
+        <select class="frm-sel" id="stFrom">
+          <option>Main Store</option><option>Production Floor</option><option>Cold Storage</option><option>Packaging Area</option>
+        </select></div>
+      <div class="frm-grp"><label class="frm-lbl">To <span class="req">*</span></label>
+        <select class="frm-sel" id="stTo">
+          <option>Production Floor</option><option>Main Store</option><option>Cold Storage</option><option>Packaging Area</option>
+        </select></div>
+    </div>
+    <div class="frm-grp" id="stQtyGrp">
+      <label class="frm-lbl">Quantity <span class="req">*</span></label>
+      <input class="frm-in" type="number" min="0" step="0.01" id="stQty" placeholder="e.g. 20" oninput="updateTransferAvailable()">
+      <div class="frm-hint" id="stAvail"></div>
+      <div class="frm-err">Enter a quantity greater than 0 and no more than what's in stock.</div>
+    </div>
+    <div class="frm-grp"><label class="frm-lbl">Notes</label>
+      <textarea class="frm-txt" id="stNotes" placeholder="Optional"></textarea></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Recorded for audit trail only</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitStockTransfer()">${icCheck}Save Transfer</button>`;
+  openModal({ title:'Stock Transfer', sub:'Move stock between storage areas', iconClass:'ic-c', icon:icTransfer, bodyHtml:body, footerHtml:footer });
+  updateTransferAvailable();
+}
+function updateTransferAvailable(){
+  const item = invItems.find(i=>i.name===document.getElementById('stItem').value);
+  const el = document.getElementById('stAvail');
+  if(item && el) el.textContent = `Available: ${dash(item.closing)} ${item.unit}`;
+}
+function submitStockTransfer(){
+  const itemName = document.getElementById('stItem').value;
+  const from = document.getElementById('stFrom').value;
+  const to = document.getElementById('stTo').value;
+  const qty = parseFloat(document.getElementById('stQty').value);
+  const item = invItems.find(i=>i.name===itemName);
+  const available = item ? (item.closing||0) : 0;
+  const bad = !(qty>0) || qty>available || from===to;
+  toggleFieldError('stQty', bad);
+  if(bad || !item){
+    if(from===to) showToast('From and To locations must be different');
+    return;
+  }
+  closeModal();
+  showToast(`Transferred ${fmt(qty)} ${item.unit} of ${itemName}: ${from} → ${to}`);
+}
+
+/* ════════════════ ITEM SETTINGS (Reorder Level & Expiry Date) ════════════════ */
+const icSettings = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+function openItemSettingsModal(itemName){
+  const item = invItems.find(i=>i.name===itemName);
+  if(!item) return;
+  const hasExpiry = !!item.expiryDate;
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      These are master settings for <strong>${item.name}</strong> — they drive Stock Alerts, Reorder status, and the Expiry Report.</div>
+    <div class="frm-grp" id="isReorderGrp">
+      <label class="frm-lbl">Reorder Level (${item.unit}) <span class="req">*</span></label>
+      <input class="frm-in" type="number" min="0" step="0.01" id="isReorder" value="${item.reorder ?? ''}">
+      <div class="frm-hint">Alerts fire as LOW at this level, REORDER NOW at 60% of it.</div>
+      <div class="frm-err">Enter a reorder level of 0 or more.</div>
+    </div>
+    <div class="frm-grp">
+      <label class="frm-lbl">
+        <input type="checkbox" id="isHasExpiry" ${hasExpiry?'checked':''} onchange="document.getElementById('isExpiryGrp').style.display=this.checked?'block':'none'" style="margin-right:6px;vertical-align:-2px">
+        This item has an expiry date
+      </label>
+    </div>
+    <div class="frm-grp" id="isExpiryGrp" style="display:${hasExpiry?'block':'none'}">
+      <label class="frm-lbl">Expiry Date (current lot)</label>
+      <input class="frm-in" type="date" id="isExpiry" value="${item.expiryDate||''}">
+      <div class="frm-hint">Drives the "Expiring Soon" alert (fires within 7 days of this date).</div>
+    </div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Updates Stock Alerts &amp; Expiry Report live</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitItemSettings('${item.name}')">${icCheck}Save Settings</button>`;
+  openModal({ title:'Item Settings', sub:item.name, iconClass:'ic-p', icon:icSettings, bodyHtml:body, footerHtml:footer });
+}
+function submitItemSettings(itemName){
+  const item = invItems.find(i=>i.name===itemName);
+  if(!item) return;
+  const reorder = parseFloat(document.getElementById('isReorder').value);
+  const hasExpiry = document.getElementById('isHasExpiry').checked;
+  const expiryVal = document.getElementById('isExpiry').value;
+  const bad = !(reorder>=0);
+  toggleFieldError('isReorder', bad);
+  if(bad) return;
+
+  item.reorder = +reorder.toFixed(2);
+  item.expiryDate = hasExpiry && expiryVal ? expiryVal : null;
+  recomputeStatus(item);
+
+  renderAll();
+  closeModal();
+  showToast(`Updated settings for ${item.name}`);
+}
+
+
+/* ════════════════ 5. EXPIRY REPORT ════════════════ */
+function openExpiryReportModal(){
+  const expiring = buildExpiryAlerts();
+  const rows = expiring.length ? expiring.map(a=>`
+    <tr><td style="font-weight:600">${a.title}</td><td>${a.text}</td><td><span class="pill-sm pill-expiring">EXPIRING SOON</span></td></tr>
+  `).join('') : `<tr><td colspan="3" style="text-align:center;color:var(--tl)">No items expiring soon</td></tr>`;
+  const body = `
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Detail</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">${expiring.length} item${expiring.length===1?'':'s'} flagged</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-p" onclick="exportReportPDF('Expiry Report', ['Item','Detail','Status'], ${JSON.stringify(expiring.map(a=>[a.title,a.text,a.pillText]))}, 'Expiry_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+  openModal({ title:'Expiry Report', sub:'Items nearing their expiry date', iconClass:'ic-p', icon:icExpiry, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* ════════════════ 6. REORDER REPORT ════════════════ */
+function openReorderReportModal(){
+  const flagged = invItems.filter(i=>i.status==='LOW'||i.status==='REORDER');
+  const rows = flagged.length ? flagged.map(i=>{
+    const dos = daysOfSupply(i);
+    return `<tr><td style="font-weight:600">${i.name}</td><td>${i.unit}</td><td>${dash(i.closing)}</td><td>${fmt(i.reorder)}</td><td>${daysOfSupplyLabel(dos)}</td><td>${pillFor(i.status)}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--tl)">No items currently need reordering</td></tr>`;
+  const body = `
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Unit</th><th>Closing</th><th>Reorder Level</th><th>Days of Supply</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} need attention</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-p" onclick="exportReportPDF('Reorder Report', ['Item','Unit','Closing','Reorder Level','Days of Supply','Status'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Reorder_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+  openModal({ title:'Reorder Report', sub:'Items at or below reorder level', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* ════════════════ 7. INVENTORY REPORT ════════════════ */
+function openInventoryReportModal(){
+  const totalValue = invItems.reduce((s,i)=>s+(i.value||0),0);
+  const rows = invItems.map(i=>`<tr><td style="font-weight:600">${i.name}</td><td>${i.unit}</td><td>${dash(i.closing)}</td><td>${fmt(i.wac)}</td><td>${dash(i.value)}</td><td>${pillFor(i.status)}</td></tr>`).join('');
+  const body = `
+    <div class="frm-row" style="margin-bottom:16px">
+      <div class="frm-info-box" style="margin-bottom:0"><svg viewBox="0 0 24 24"><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>${invItems.length} active items · Total value ${fmt(totalValue)} ETB</div>
+    </div>
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Unit</th><th>Closing</th><th>WAC</th><th>Value (ETB)</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">Full snapshot — May 31, 2026</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-s" onclick="exportExcel()">Export Excel</button>
+    <button class="btn-p" onclick="exportPDF()">${icCheck}Export PDF</button>`;
+  openModal({ title:'Inventory Report', sub:'Full current inventory snapshot', iconClass:'ic-t', icon:icReport, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* Small shared PDF export used by the report modals */
+function exportReportPDF(title, head, bodyRows, filename){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape' });
+  doc.setFontSize(14);
+  doc.text('Mena Injera & Derkosh — '+title+' (May 2026)', 14, 15);
+  doc.autoTable({ startY:22, head:[head], body:bodyRows, styles:{fontSize:9}, headStyles:{fillColor:[29,92,56]} });
+  doc.save(filename);
+  showToast('Exported '+title);
+}
+
+/* ════════════════ 8. IMPORT INVENTORY ════════════════ */
+let importParsedRows = null;
+function openImportModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Upload an Excel or CSV file with an "Item" column matching existing item names. Matching rows update Closing Stock, Reorder Level, and WAC.</div>
+    <div class="dz" id="importDz" onclick="document.getElementById('importFile').click()"
+      ondragover="event.preventDefault(); this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleImportDrop(event)">
+      ${icUpload}
+      <div class="dz-txt">Click to browse or drag a file here</div>
+      <div class="dz-sub">.xlsx, .xls, or .csv</div>
+    </div>
+    <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this.files[0])">
+    <div id="importPreviewWrap"></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note" id="importFooterNote">No file selected</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" id="importConfirmBtn" onclick="confirmImport()" disabled>${icCheck}Confirm Import</button>`;
+  importParsedRows = null;
+  openModal({ title:'Import Inventory', sub:'Bulk update from a spreadsheet', iconClass:'ic-b', icon:icImport, bodyHtml:body, footerHtml:footer, wide:true });
+}
+function handleImportDrop(e){
+  e.preventDefault();
+  document.getElementById('importDz').classList.remove('drag');
+  if(e.dataTransfer.files[0]) handleImportFile(e.dataTransfer.files[0]);
+}
+function handleImportFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval:null });
+      importParsedRows = json;
+      renderImportPreview(file.name, json);
+    } catch(err){
+      showToast('Could not read that file — please check the format');
+      console.log('Import parse error:', err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderImportPreview(filename, rows){
+  const matched = rows.filter(r=>invItems.some(i=>i.name.toLowerCase()===String(r.Item||r.item||'').toLowerCase()));
+  const previewRows = rows.slice(0,5).map(r=>`<tr><td>${r.Item||r.item||'-'}</td><td>${r['Closing Stock']??r.Closing??'-'}</td><td>${r['Reorder Level']??r.Reorder??'-'}</td><td>${r['Monthly WAC']??r.WAC??'-'}</td></tr>`).join('');
+  document.getElementById('importPreviewWrap').innerHTML = `
+    <div class="dz-file">${icUpload}${filename} — ${rows.length} row${rows.length===1?'':'s'} found, ${matched.length} match existing items
+      <svg class="dz-file-x" viewBox="0 0 24 24" onclick="event.stopPropagation(); resetImport()"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <div style="overflow-x:auto;margin-top:12px"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Closing Stock</th><th>Reorder Level</th><th>Monthly WAC</th></tr></thead>
+      <tbody>${previewRows}</tbody>
+    </table></div>
+    ${rows.length>5 ? `<div class="frm-hint" style="margin-top:8px">+ ${rows.length-5} more row(s) not shown</div>` : ''}
+  `;
+  document.getElementById('importFooterNote').textContent = `${matched.length} of ${rows.length} row(s) will be applied`;
+  document.getElementById('importConfirmBtn').disabled = matched.length===0;
+}
+function resetImport(){
+  importParsedRows = null;
+  document.getElementById('importFile').value = '';
+  document.getElementById('importPreviewWrap').innerHTML = '';
+  document.getElementById('importFooterNote').textContent = 'No file selected';
+  document.getElementById('importConfirmBtn').disabled = true;
+}
+function confirmImport(){
+  if(!importParsedRows || !importParsedRows.length) return;
+  let updated = 0;
+  importParsedRows.forEach(r=>{
+    const name = r.Item || r.item;
+    if(!name) return;
+    const item = invItems.find(i=>i.name.toLowerCase()===String(name).toLowerCase());
+    if(!item) return;
+    const closing = r['Closing Stock'] ?? r.Closing;
+    const reorder = r['Reorder Level'] ?? r.Reorder;
+    const wac = r['Monthly WAC'] ?? r.WAC;
+    if(closing!=null && !isNaN(parseFloat(closing))) item.closing = parseFloat(closing);
+    if(reorder!=null && !isNaN(parseFloat(reorder))) item.reorder = parseFloat(reorder);
+    if(wac!=null && !isNaN(parseFloat(wac))) item.wac = parseFloat(wac);
+    item.value = (item.closing!=null && item.wac!=null) ? +(item.closing*item.wac).toFixed(2) : item.value;
+    recomputeStatus(item);
+    updated++;
+  });
+  renderAll();
+  closeModal();
+  showToast(`Imported updates for ${updated} item${updated===1?'':'s'}`);
+}
+
 /* ════════════════ SUPABASE LOAD (best-effort) ════════════════
    Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
    schema §14.3 to keep names/units/reorder levels in sync with the live database.
@@ -782,7 +1389,7 @@ renderHeader({
   showExport: true,
   onExportPdf: exportPDF,
   onExportXlsx: exportExcel,
-  notifications: stockAlerts.map(a => ({
+  notifications: getAllAlerts().map(a => ({
     type: ALERT_ICON_TO_NOTIF_TYPE[a.icon] || 'g',
     title: a.title + ' — ' + a.pillText,
     sub: a.text,
