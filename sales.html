@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <title>Sales — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -548,6 +553,25 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
 //  picker, notifications, user panel) lives in /js/header.js.
 // ═══════════════════════════════════════════════════
 const CURRENT_USER_ID = (loadSession() && loadSession().user_id) || null;
+
+/* ══ CURRENT USER (for PDF "Prepared by" line) ═══════════════
+   Was previously hardcoded to a specific person's name, which was wrong
+   for any other logged-in user. Looks up the real session's user_id
+   against the users table, with a safe generic fallback if unavailable. */
+let _currentUserLabelCache=null;
+async function getCurrentUserLabel(){
+  if(_currentUserLabelCache) return _currentUserLabelCache;
+  if(!CURRENT_USER_ID) return 'Prepared by: —';
+  try{
+    const rows=await sbGet(`users?select=name,role&id=eq.${CURRENT_USER_ID}`);
+    const u=rows && rows[0];
+    _currentUserLabelCache = u ? `Prepared by: ${u.name}${u.role?' ('+u.role.charAt(0).toUpperCase()+u.role.slice(1)+')':''}` : 'Prepared by: —';
+  }catch(err){
+    console.error('Could not load current user for report:', err);
+    _currentUserLabelCache='Prepared by: —';
+  }
+  return _currentUserLabelCache;
+}
 let currentPeriod = '2026-05';
 let allSales    = [];
 let allCustomers= [];
@@ -749,7 +773,7 @@ async function loadCustomerBalances() {
 async function loadSales() {
   try {
     const qs = `select=id,date,product_type,customer_id,quantity,payment_method,unit_price,revenue,settled_date,customers(name,type,credit_limit)` +
-               `&date=gte.${currentPeriod}-01&date=lte.${currentPeriod}-31&order=date.desc`;
+               `&date=gte.${currentPeriod}-01&date=lte.${currentPeriod}-31&is_deleted=eq.false&order=date.desc`;
     const data = await sbGet(`sales?${qs}`);
     allSales = (data || []).map(r => ({
       ...r,
@@ -770,7 +794,7 @@ async function loadSales() {
 async function buildCollections() {
   // Recent payments against credit sales
   const qs = `select=settled_date,customers(name),revenue,payment_method` +
-             `&payment_method=eq.credit&settled_date=not.is.null` +
+             `&payment_method=eq.credit&settled_date=not.is.null&is_deleted=eq.false` +
              `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${currentPeriod}-31` +
              `&order=settled_date.desc&limit=6`;
   let data = [];
@@ -940,17 +964,21 @@ function sortSales(col) {
 //  TOP 5 CUSTOMERS BAR LIST
 // ═══════════════════════════════════════════════════
 function buildTop5(sales) {
+  // Group by customer_id (not name) — customer names aren't guaranteed
+  // unique, so grouping by name could silently merge two different
+  // customers who happen to share a name.
   const map = {};
   sales.forEach(r => {
-    const n = r.customers?.name || 'Unknown';
-    map[n] = (map[n] || 0) + parseFloat(r.revenue || 0);
+    const id = r.customer_id || 'unknown';
+    if (!map[id]) map[id] = { name: r.customers?.name || 'Unknown', total: 0 };
+    map[id].total += parseFloat(r.revenue || 0);
   });
-  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const sorted = Object.values(map).sort((a,b)=>b.total-a.total).slice(0,5);
   const total  = sales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const max    = sorted[0]?.[1] || 1;
+  const max    = sorted[0]?.total || 1;
   const list   = document.getElementById('top5List');
   if (!sorted.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:var(--tl)">No data</div>`; return; }
-  list.innerHTML = sorted.map(([name,val]) => {
+  list.innerHTML = sorted.map(({name,total:val}) => {
     const pct = ((val/total)*100).toFixed(1);
     const w   = ((val/max)*100).toFixed(1);
     return `<div class="bar-item">
@@ -970,16 +998,18 @@ function buildTop5(sales) {
 function buildProfitability(sales) {
   const map = {};
   sales.forEach(r => {
-    const n = r.customers?.name || 'Unknown';
-    if (!map[n]) map[n] = { rev:0, orders:0, pmCounts:{}, outstanding:0, days:[] };
-    map[n].rev    += parseFloat(r.revenue||0);
-    map[n].orders += 1;
-    map[n].pmCounts[r.payment_method] = (map[n].pmCounts[r.payment_method]||0) + 1;
-    if (r.payment_method === 'Credit' && !r.settled_date)
-      map[n].outstanding += parseFloat(r.revenue||0);
+    const id = r.customer_id || 'unknown';
+    if (!map[id]) map[id] = { name:r.customers?.name||'Unknown', rev:0, orders:0, pmCounts:{}, outstanding:0, days:[], date:null };
+    map[id].rev    += parseFloat(r.revenue||0);
+    map[id].orders += 1;
+    map[id].pmCounts[r.payment_method] = (map[id].pmCounts[r.payment_method]||0) + 1;
+    if (r.payment_method === 'Credit' && !r.settled_date){
+      map[id].outstanding += parseFloat(r.revenue||0);
+      if (!map[id].date || new Date(r.date) < new Date(map[id].date)) map[id].date = r.date;
+    }
     if (r.payment_method === 'Credit' && r.settled_date && r.date) {
       const d = (new Date(r.settled_date) - new Date(r.date)) / 86400000;
-      map[n].days.push(d);
+      map[id].days.push(d);
     }
   });
   // Resolve one representative payment type per customer: their only method if they've
@@ -993,10 +1023,10 @@ function buildProfitability(sales) {
   const sorted = fullSorted.slice(0,6);
   const tbody  = document.getElementById('profitBody');
   if (!sorted.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)">No data</td></tr>`; return; }
-  tbody.innerHTML = sorted.map(([name,d]) => {
+  tbody.innerHTML = sorted.map(([id,d]) => {
     const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
     return `<tr>
-      <td>${name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td>
+      <td>${d.name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td>
       <td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td>
       <td>${fmt(d.outstanding)}</td><td>${avg_days}</td>
     </tr>`;
@@ -1015,24 +1045,25 @@ function buildAR(sales) {
   // one sale have a settled_date".
   sales.forEach(r => {
     if (r.payment_method === 'Credit' && !r.settled_date) {
-      const n = r.customers?.name || 'Unknown';
-      if (!map[n] || r.date < map[n].date) { map[n] = { ...(map[n]||{}), date: r.date }; }
+      const id = r.customer_id || 'unknown';
+      if (!map[id]) map[id] = { name: r.customers?.name || 'Unknown' };
+      if (!map[id].date || r.date < map[id].date) map[id].date = r.date;
     }
   });
   customerBalances.forEach(c => {
     const outstanding = parseFloat(c.outstanding_ar || 0);
     if (outstanding <= 0.01) return;
-    map[c.name] = { outstanding, limit: parseFloat(c.credit_limit||0), date: (map[c.name]&&map[c.name].date) || c.last_purchase_date };
+    map[c.id] = { name: c.name, outstanding, limit: parseFloat(c.credit_limit||0), date: (map[c.id]&&map[c.id].date) || c.last_purchase_date };
   });
   const rows  = Object.entries(map);
   arFullRows = rows;
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No outstanding A/R</td></tr>`; return; }
   let total = 0;
-  let html  = rows.map(([name, d]) => {
+  let html  = rows.map(([id, d]) => {
     total += d.outstanding;
-    const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
+    const days = d.date ? daysSinceLocal(d.date) : '—';
     const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
-    return `<tr><td>${name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+    return `<tr><td>${d.name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
   }).join('');
   html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
   tbody.innerHTML = html;
@@ -1099,7 +1130,7 @@ async function buildTrendCharts() {
   const endDate   = currentPeriod + '-31';
 
   let data = [];
-  try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}`) || []; } catch (err) { console.error(err); return; }
+  try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}&is_deleted=eq.false`) || []; } catch (err) { console.error(err); return; }
 
   const revByMonth = {}, injByMonth = {}, drkByMonth = {};
   months.forEach(m => { revByMonth[m]=0; injByMonth[m]=0; drkByMonth[m]=0; });
@@ -1167,8 +1198,7 @@ function applyFilters() {
   const cust = document.getElementById('flt-customer').value;
   const meth = document.getElementById('flt-method').value;
   const result = allSales.filter(r => {
-    const rc = r.customers?.name || '';
-    return (!prod || r.product===prod) && (!cust || rc===cust) && (!meth || r.payment_method===meth);
+    return (!prod || r.product===prod) && (!cust || r.customer_id===cust) && (!meth || r.payment_method===meth);
   });
   salesPage = 1;
   renderSalesTable(result);
@@ -1209,11 +1239,11 @@ function rowEdit(e, id) {
   setTimeout(() => {
     document.getElementById('f-product').value = r.product;
     onProductChange();
-    // Find and select the customer
+    // Find and select the customer by ID (not name — names aren't
+    // guaranteed unique, so matching by display text could silently
+    // select the wrong customer if two share a name)
     const custSel = document.getElementById('f-customer');
-    Array.from(custSel.options).forEach((opt, i) => {
-      if (opt.text === r.customers?.name) custSel.selectedIndex = i;
-    });
+    custSel.value = r.customer_id || '';
     onCustomerChange();
     document.getElementById('f-date').value  = r.date || '';
     document.getElementById('f-qty').value   = r.quantity || '';
@@ -1232,7 +1262,10 @@ async function rowDelete(e, id) {
   row.style.transition = 'opacity .3s,transform .3s';
   row.style.opacity = '0'; row.style.transform = 'translateX(20px)';
   let error = null;
-  try { await sbDelete(`sales?id=eq.${id}`); } catch (err) { error = err; }
+  // Soft-delete: sets is_deleted=true rather than removing the row, so any
+  // credit_payments already recorded against this sale are preserved
+  // (a hard DELETE would cascade and permanently erase that payment history).
+  try { await sbPatch(`sales?id=eq.${id}`, { is_deleted:true }); } catch (err) { error = err; }
   setTimeout(() => {
     if (error) { row.style.opacity='1'; row.style.transform=''; showToast('Delete failed: ' + error.message, 'err'); }
     else { row.remove(); showToast('Sale removed', 'ok'); loadSales(); }
@@ -1248,7 +1281,7 @@ function populateCustomerDropdowns() {
   document.getElementById('c-customer').innerHTML = allCustomers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 
   const fltCust = document.getElementById('flt-customer');
-  fltCust.innerHTML = '<option value="">All Customers</option>' + allCustomers.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  fltCust.innerHTML = '<option value="">All Customers</option>' + allCustomers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 
   onCustomerChange();
 }
@@ -1389,30 +1422,61 @@ async function savePayment() {
   const amount   = parseFloat(document.getElementById('c-amount').value);
   const targetId = document.getElementById('c-target-sale-id').value;
   if (!custId||!date||!amount) { showToast('Please fill in all required fields', 'err'); return; }
-  let saleIdToSettle = targetId;
-  let saleRevenue = null;
+
   try {
-    if (!saleIdToSettle) {
-      const unsettled = await sbGet(`sales?select=id,revenue&customer_id=eq.${custId}&payment_method=eq.credit&settled_date=is.null&order=date.asc&limit=1`);
-      if (!unsettled?.length) { showToast('No outstanding credit sales for this customer', 'err'); return; }
-      saleIdToSettle = unsettled[0].id;
-      saleRevenue = parseFloat(unsettled[0].revenue || 0);
-    } else {
+    if (targetId) {
+      // A specific sale was locked in (e.g. via "Settle" on a sale row) —
+      // pay exactly that sale, same as before.
       const sale = allSales.find(r => String(r.id) === String(targetId));
-      saleRevenue = parseFloat(sale?.revenue || 0);
-    }
+      const saleRevenue = parseFloat(sale?.revenue || 0);
+      const channel = document.getElementById('c-channel').value;
+      const payRow = { sale_id: targetId, payment_date: date, amount_paid: amount, channel: PM_TO_DB[channel] || channel.toLowerCase() };
+      if (CURRENT_USER_ID) payRow.created_by = CURRENT_USER_ID;
+      await sbPost('credit_payments', [payRow]);
+      const paidRows = await sbGet(`credit_payments?select=amount_paid&sale_id=eq.${targetId}`);
+      const totalPaid = (paidRows || []).reduce((s,r) => s + parseFloat(r.amount_paid || 0), 0);
+      if (totalPaid >= saleRevenue - 0.01) {
+        await sbPatch(`sales?id=eq.${targetId}`, { settled_date:date });
+      }
+    } else {
+      // No specific sale chosen — apply the payment across this customer's
+      // unsettled credit sales, oldest first, splitting across as many as
+      // needed (same FIFO logic as the Customers module).
+      const unsettled = await sbGet(`sales?select=id,date,revenue&customer_id=eq.${custId}&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false&order=date.asc`);
+      if (!unsettled?.length) { showToast('No outstanding credit sales for this customer', 'err'); return; }
+      const saleIds = unsettled.map(s=>s.id);
+      const existingPayments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
+      const paidBySale = {};
+      existingPayments.forEach(p=>{ paidBySale[p.sale_id]=(paidBySale[p.sale_id]||0)+parseFloat(p.amount_paid||0); });
 
-    // Record the payment in the credit_payments ledger (supports partial payments)
-    const channel = document.getElementById('c-channel').value;
-    const payRow = { sale_id: saleIdToSettle, payment_date: date, amount_paid: amount, channel: PM_TO_DB[channel] || channel.toLowerCase() };
-    if (CURRENT_USER_ID) payRow.created_by = CURRENT_USER_ID;
-    await sbPost('credit_payments', [payRow]);
-
-    // Only mark the sale as settled once total payments cover the full revenue
-    const paidRows = await sbGet(`credit_payments?select=amount_paid&sale_id=eq.${saleIdToSettle}`);
-    const totalPaid = (paidRows || []).reduce((s,r) => s + parseFloat(r.amount_paid || 0), 0);
-    if (saleRevenue !== null && totalPaid >= saleRevenue - 0.01) {
-      await sbPatch(`sales?id=eq.${saleIdToSettle}`, { settled_date:date });
+      const channel = document.getElementById('c-channel').value;
+      const channelDb = PM_TO_DB[channel] || channel.toLowerCase();
+      const paymentRows=[];
+      const settledSaleIds=[];
+      let remaining=amount;
+      for (const s of unsettled) {
+        if (remaining<=0) break;
+        const alreadyPaid = paidBySale[s.id]||0;
+        const balance = parseFloat(s.revenue||0) - alreadyPaid;
+        if (balance<=0) continue;
+        const applyAmount = Math.min(remaining, balance);
+        const row = { sale_id: s.id, payment_date: date, amount_paid: applyAmount, channel: channelDb };
+        if (CURRENT_USER_ID) row.created_by = CURRENT_USER_ID;
+        paymentRows.push(row);
+        if (applyAmount >= balance - 0.01) settledSaleIds.push(s.id);
+        remaining -= applyAmount;
+      }
+      if (!paymentRows.length) { showToast('Nothing to apply — outstanding balance may already be settled', 'err'); return; }
+      await sbPost('credit_payments', paymentRows);
+      if (settledSaleIds.length) {
+        await Promise.all(settledSaleIds.map(id=>sbPatch(`sales?id=eq.${id}`, { settled_date:date })));
+      }
+      if (remaining>0.01) {
+        showToast(`Applied ${fmt(amount-remaining)} ETB — ${fmt(remaining)} ETB exceeded this customer's outstanding credit and was not recorded`, 'err');
+        closeCollectModal();
+        loadSales();
+        return;
+      }
     }
   } catch (err) { showToast('Payment failed: ' + err.message, 'err'); return; }
   closeCollectModal();
@@ -1465,9 +1529,9 @@ function viewAll(e, section) {
   if (section === 'Customer Profitability') {
     thead.innerHTML = `<tr><th>Customer</th><th>Revenue (ETB)</th><th>Orders</th><th>Avg Order (ETB)</th><th>Payment Type</th><th>Outstanding (ETB)</th><th>Days to Pay (Avg)</th></tr>`;
     if (!profitFullSorted.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)">No data</td></tr>`; }
-    else tbody.innerHTML = profitFullSorted.map(([name,d]) => {
+    else tbody.innerHTML = profitFullSorted.map(([id,d]) => {
       const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
-      return `<tr><td>${name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td><td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td><td>${fmt(d.outstanding)}</td><td>${avg_days}</td></tr>`;
+      return `<tr><td>${d.name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td><td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td><td>${fmt(d.outstanding)}</td><td>${avg_days}</td></tr>`;
     }).join('');
   } else if (section === 'Credit Collections') {
     thead.innerHTML = `<tr><th>Date</th><th>Customer</th><th>Amount (ETB)</th><th>Payment Method</th></tr>`;
@@ -1483,11 +1547,11 @@ function viewAll(e, section) {
     if (!arFullRows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No outstanding A/R</td></tr>`; }
     else {
       let total = 0;
-      let html = arFullRows.map(([name,d]) => {
+      let html = arFullRows.map(([id,d]) => {
         total += d.outstanding;
-        const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
+        const days = d.date ? daysSinceLocal(d.date) : '—';
         const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
-        return `<tr><td>${name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+        return `<tr><td>${d.name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
       }).join('');
       html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
       tbody.innerHTML = html;
@@ -1710,6 +1774,7 @@ async function exportFullPagePDF(e, retryCount) {
 
   try {
     const { jsPDF } = window.jspdf;
+    const preparedByLabel = await getCurrentUserLabel();
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
@@ -1741,7 +1806,7 @@ async function exportFullPagePDF(e, retryCount) {
       doc.setFontSize(9); doc.setTextColor(220,235,227);
       doc.text('Period: '+period, pageW-marginX, 30, {align:'right'});
       doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-      doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+      doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
     }
     function drawFooter() {
       const pageCount = doc.internal.getNumberOfPages();
@@ -1873,9 +1938,9 @@ async function exportFullPagePDF(e, retryCount) {
     doc.addPage();
     drawHeader('Customer Profitability Summary');
     const profHead = [['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Payment Type','Outstanding (ETB)','Days to Pay (Avg)']];
-    const profBody = profitFullSorted.map(([name,d]) => {
+    const profBody = profitFullSorted.map(([id,d]) => {
       const avgDays = d.days && d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
-      return [name, fmt(d.rev), d.orders, fmt(d.rev/d.orders), d.pm, fmt(d.outstanding), avgDays];
+      return [d.name, fmt(d.rev), d.orders, fmt(d.rev/d.orders), d.pm, fmt(d.outstanding), avgDays];
     });
     doc.autoTable({ head:profHead, body:profBody, startY:94, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme, columnStyles:{0:{fontStyle:'bold'}} });
 
@@ -1893,9 +1958,9 @@ async function exportFullPagePDF(e, retryCount) {
     doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11);
     doc.text('Outstanding Accounts Receivable', marginX, arStartY);
     const arHead = [['Customer','Outstanding (ETB)','Overdue (Days)','Credit Limit (ETB)']];
-    const arBody = arFullRows.map(([name,d]) => {
-      const days = d.date ? Math.round((new Date() - new Date(d.date)) / 86400000) : '—';
-      return [name, fmt(d.outstanding), days, fmt(d.limit)];
+    const arBody = arFullRows.map(([id,d]) => {
+      const days = d.date ? daysSinceLocal(d.date) : '—';
+      return [d.name, fmt(d.outstanding), days, fmt(d.limit)];
     });
     const arTotal = arFullRows.reduce((s,[,d])=>s+d.outstanding,0);
     doc.autoTable({ head:arHead, body:arBody, foot:[['TOTAL',fmt(arTotal),'—','—']], startY:arStartY+8, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme });
@@ -1989,18 +2054,20 @@ function exportExcel(e) {
   summarySheet['!cols'] = [{wch:28},{wch:18}];
 
   // ── Sheet 3: Customer Profitability ──
+  // Grouped by customer_id (not name) — two customers sharing a name would
+  // otherwise silently overwrite each other's row in this export.
   const profMap = {};
   allSales.forEach(r => {
-    const n = r.customers?.name || 'Unknown';
-    if (!profMap[n]) profMap[n] = {rev:0,orders:0,outstanding:0};
-    profMap[n].rev    += parseFloat(r.revenue||0);
-    profMap[n].orders += 1;
-    if (r.payment_method==='Credit'&&!r.settled_date) profMap[n].outstanding += parseFloat(r.revenue||0);
+    const id = r.customer_id || 'unknown';
+    if (!profMap[id]) profMap[id] = {name:r.customers?.name||'Unknown', rev:0,orders:0,outstanding:0};
+    profMap[id].rev    += parseFloat(r.revenue||0);
+    profMap[id].orders += 1;
+    if (r.payment_method==='Credit'&&!r.settled_date) profMap[id].outstanding += parseFloat(r.revenue||0);
   });
   const profHeaders = ['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Outstanding A/R (ETB)'];
-  const profRows = Object.entries(profMap)
-    .sort((a,b)=>b[1].rev-a[1].rev)
-    .map(([n,d]) => [n, d.rev, d.orders, d.rev/d.orders, d.outstanding]);
+  const profRows = Object.values(profMap)
+    .sort((a,b)=>b.rev-a.rev)
+    .map(d => [d.name, d.rev, d.orders, d.rev/d.orders, d.outstanding]);
   const profSheet = XLSX.utils.aoa_to_sheet([profHeaders, ...profRows]);
   profSheet['!cols'] = [{wch:18},{wch:16},{wch:14},{wch:16},{wch:18}];
 
@@ -2021,6 +2088,18 @@ document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click'
 function fmt(v)     { return (parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function avg(arr)   { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 function fmtDate(d) { if(!d)return'—'; const dt=new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+/* Days between a DB date-only value (parsed as UTC midnight) and the
+   person's actual local "today". Naively subtracting new Date() (wall-clock,
+   local time) from new Date(dbDateString) (UTC midnight) can be off by a day
+   depending on the time of day and timezone. This normalizes both sides to
+   local calendar-day midnight before subtracting. */
+function daysSinceLocal(dbDateStr){
+  const d=new Date(dbDateStr);
+  const localMidnightOfDate=new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const now=new Date();
+  const localMidnightToday=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((localMidnightToday-localMidnightOfDate)/86400000);
+}
 function pmTag(m)   {
   const map={'Cash':'pm-cash','Credit':'pm-credit','Bank Transfer':'pm-bank','Mobile Money':'pm-mobile','Mixed':'pm-mixed'};
   return `<span class="pmtag ${map[m]||''}">${m||'—'}</span>`;
