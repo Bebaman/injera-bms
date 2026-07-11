@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>Budget vs Actual — Mena Injera & Derkosh BMS</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -298,120 +293,217 @@ button{font-family:inherit}
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
+/* ══════════════════════ SUPABASE CONFIG ══════════════════════ */
+const SUPABASE_URL='https://mfxkkaavgzyttasgqnmw.supabase.co';
+const SUPABASE_KEY='sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+
+async function sb(path){
+  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY}});
+  if(!res.ok){const t=await res.text().catch(()=>'');throw new Error('GET '+path+' → '+res.status+' '+t);}
+  return res.json();
+}
+async function sbWrite(path,method,body){
+  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{
+    method,
+    headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=representation'},
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){const t=await res.text().catch(()=>'');throw new Error(method+' '+path+' → '+res.status+' '+t);}
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+
 /* ══════════════════════ DATA MODEL ══════════════════════ */
-const MONTHS=['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'];
-const MAY_IDX=4;
-const f=(n,d=2)=>{const neg=n<0;const s=Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});return neg?'('+s+')':s;};
+const f=(n,d=2)=>{n=Number(n)||0;const neg=n<0;const s=Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});return neg?'('+s+')':s;};
 const f0=(n)=>f(n,2);
 
-/* Items exactly as in the source statement. group: revenue | cogs | opex | interest */
+/* P&L line items — group: revenue | cogs | opex | interest.
+   Each key is matched against real Supabase data (sales, purchases, monthly_overhead,
+   petty_cash, loan_repayment_schedule) — see loadPeriod(). Budgets live in budget_lines. */
 const ITEMS=[
-  {key:'injera_sales',label:'Injera Sales',group:'revenue',mayB:95000,mayA:95321,fixed:false},
-  {key:'derkosh_sales',label:'Derkosh Sales',group:'revenue',mayB:13500,mayA:14390,fixed:false},
-  {key:'raw_materials',label:'Raw Materials (Grains)',group:'cogs',mayB:50500,mayA:51040,fixed:false},
-  {key:'packaging',label:'Packaging (Bags)',group:'cogs',mayB:2800,mayA:2840,fixed:false},
-  {key:'labor',label:'Labor / Wages',group:'cogs',mayB:14500,mayA:15000,fixed:false},
-  {key:'electricity',label:'Electricity',group:'cogs',mayB:1200,mayA:1250,fixed:false},
-  {key:'water',label:'Water',group:'cogs',mayB:900,mayA:850,fixed:false},
-  {key:'rent',label:'Rent',group:'cogs',mayB:1500,mayA:1500,fixed:true},
-  {key:'maintenance',label:'Maintenance',group:'cogs',mayB:800,mayA:750,fixed:false},
-  {key:'delivery',label:'Delivery Out & Transport',group:'opex',mayB:3000,mayA:3200,fixed:false},
-  {key:'marketing',label:'Marketing',group:'opex',mayB:600,mayA:750,fixed:false},
-  {key:'other_opex',label:'Other Operating Expenses',group:'opex',mayB:800,mayA:862,fixed:false},
-  {key:'interest',label:'Interest Expense (Loan)',group:'interest',mayB:2000,mayA:2000,fixed:true}
+  {key:'injera_sales',label:'Injera Sales',group:'revenue'},
+  {key:'derkosh_sales',label:'Derkosh Sales',group:'revenue'},
+  {key:'raw_materials',label:'Raw Materials (Grains)',group:'cogs'},
+  {key:'packaging',label:'Packaging (Bags)',group:'cogs'},
+  {key:'labor',label:'Labor / Wages',group:'cogs'},
+  {key:'electricity',label:'Electricity',group:'cogs'},
+  {key:'water',label:'Water',group:'cogs'},
+  {key:'rent',label:'Rent',group:'cogs'},
+  {key:'maintenance',label:'Maintenance',group:'cogs'},
+  {key:'delivery',label:'Delivery Out & Transport',group:'opex'},
+  {key:'marketing',label:'Marketing',group:'opex'},
+  {key:'other_opex',label:'Other Operating Expenses',group:'opex'},
+  {key:'interest',label:'Interest Expense (Loan)',group:'interest'}
 ];
-const GROWTH=[0.94,0.955,0.975,0.99,1.00,1.015]; // budget growth curve, May pegged at 1.00
 
-function hashSeed(str){let h=0;for(let i=0;i<str.length;i++){h=Math.imul(31,h)+str.charCodeAt(i)|0;}return h;}
-function pseudo(seed){const x=Math.sin(seed)*10000;return x-Math.floor(x);}
+/* ══════════════════════ PERIODS (real calendar months, ending this month) ══════════════════════ */
+const pad2=n=>String(n).padStart(2,'0');
+const periodKey=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1);
+const periodLabel=d=>d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+const NOW=new Date();
+const PERIODS=[];
+for(let i=11;i>=0;i--){const d=new Date(NOW.getFullYear(),NOW.getMonth()-i,1);PERIODS.push({key:periodKey(d),label:periodLabel(d)});}
+const MONTHS=PERIODS.map(p=>p.label);
+let curMonthIdx=PERIODS.length-1;
+const curPeriod=()=>PERIODS[curMonthIdx].key;
+function periodBounds(pKey){
+  const [y,m]=pKey.split('-').map(Number);
+  const start=y+'-'+pad2(m)+'-01';
+  const nd=new Date(y,m,1);
+  const end=nd.getFullYear()+'-'+pad2(nd.getMonth()+1)+'-01';
+  return {start,end};
+}
 
-/* Deterministic monthly dataset, pegged exactly to the source statement for May 2026 */
-const DATA={}; // DATA[monthIdx][itemKey] = {budget, actual}
-let CUSTOM_BUDGET=null; // overrides for the currently selected month if user edits/accepts AI suggestion
+/* ══════════════════════ LOOKUP MAPS (fetched once) ══════════════════════ */
+let ID_MAPS=null, USERS_MAP=null, OWNER=null;
+async function loadIdMaps(){
+  if(ID_MAPS)return ID_MAPS;
+  const [items,expCats,ovhCats]=await Promise.all([
+    sb('inventory_items?select=id,name'),
+    sb('expense_categories?select=id,name'),
+    sb('overhead_categories?select=id,name')
+  ]);
+  const itemKey=n=>['Corn','Gomen Zere','Injera Blend'].includes(n)?'raw_materials':(['Large Bags','Small Bags'].includes(n)?'packaging':null);
+  const expKey=n=>{
+    if(n==='Delivery Out'||n==='Transport')return'delivery';
+    if(n==='Marketing')return'marketing';
+    if(n==='Packaging')return'packaging';
+    if(n==='Maintenance')return'maintenance';
+    return'other_opex';
+  };
+  const ovhKey=n=>{
+    if(n==='Electricity')return'electricity';
+    if(n==='Labor/Wages')return'labor';
+    if(n==='Maintenance')return'maintenance';
+    if(n==='Rent')return'rent';
+    if(n==='Water')return'water';
+    return'other_opex';
+  };
+  ID_MAPS={
+    itemLine:Object.fromEntries(items.map(i=>[i.id,itemKey(i.name)])),
+    expLine:Object.fromEntries(expCats.map(c=>[c.id,expKey(c.name)])),
+    ovhLine:Object.fromEntries(ovhCats.map(c=>[c.id,ovhKey(c.name)]))
+  };
+  return ID_MAPS;
+}
+async function loadUsers(){
+  if(USERS_MAP)return USERS_MAP;
+  const rows=await sb('users?select=id,name,role');
+  USERS_MAP=Object.fromEntries(rows.map(u=>[u.id,u.name]));
+  OWNER=rows.find(u=>u.role==='owner')||rows[0]||null;
+  return USERS_MAP;
+}
 
-function buildData(){
-  ITEMS.forEach(it=>{
-    for(let m=0;m<6;m++){
-      DATA[m]=DATA[m]||{};
-      if(m===MAY_IDX){ DATA[m][it.key]={budget:it.mayB,actual:it.mayA}; continue; }
-      const budget=Math.round(it.mayB*GROWTH[m]);
-      let actual;
-      if(it.fixed){ actual=budget; }
-      else{
-        const bias=it.group==='revenue'?0.02:(it.key==='water'||it.key==='maintenance'?-0.045:0.025);
-        const noise=(pseudo(hashSeed(it.key+'|'+m))-0.5)*0.09;
-        actual=Math.round(budget*(1+bias+noise));
-      }
-      DATA[m][it.key]={budget,actual};
-    }
+/* ══════════════════════ LOAD ONE PERIOD (real actuals + real budget) ══════════════════════ */
+const PERIOD_CACHE={};
+function invalidatePeriod(pKey){delete PERIOD_CACHE[pKey];}
+async function loadPeriod(pKey){
+  if(PERIOD_CACHE[pKey])return PERIOD_CACHE[pKey];
+  await loadIdMaps();
+  const {start,end}=periodBounds(pKey);
+  const [salesRows,purchaseRows,ovhRows,pettyRows,loanRows,budgetRows]=await Promise.all([
+    sb('sales?period=eq.'+pKey+'&is_deleted=eq.false&select=product_type,revenue'),
+    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&select=type,item_id,expense_category_id,total_cost'),
+    sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
+    sb('petty_cash?period=eq.'+pKey+'&select=amount'),
+    sb('loan_repayment_schedule?due_date=gte.'+start+'&due_date=lt.'+end+'&select=interest_portion'),
+    sb('budget_lines?period=eq.'+pKey+'&select=id,line_item,budget_amount,budget_source,created_at,created_by')
+  ]);
+
+  const actual={};ITEMS.forEach(it=>actual[it.key]=0);
+  salesRows.forEach(r=>{
+    const k=r.product_type==='injera'?'injera_sales':(r.product_type==='derkosh'?'derkosh_sales':null);
+    if(k)actual[k]+=Number(r.revenue||0);
   });
-}
-buildData();
+  purchaseRows.forEach(r=>{
+    let k=null;
+    if(r.type==='purchase')k=ID_MAPS.itemLine[r.item_id];
+    else if(r.type==='expense')k=ID_MAPS.expLine[r.expense_category_id];
+    if(k)actual[k]+=Number(r.total_cost||0);
+  });
+  ovhRows.forEach(r=>{const k=ID_MAPS.ovhLine[r.category_id];if(k)actual[k]+=Number(r.amount||0);});
+  pettyRows.forEach(r=>{actual.other_opex+=Number(r.amount||0);});
+  loanRows.forEach(r=>{actual.interest+=Number(r.interest_portion||0);});
 
-let curMonthIdx=MAY_IDX;
-function getRow(it,mIdx){
-  const ov=(mIdx===curMonthIdx&&CUSTOM_BUDGET&&CUSTOM_BUDGET[it.key]!==undefined);
-  const base=DATA[mIdx][it.key];
-  return ov?{budget:CUSTOM_BUDGET[it.key],actual:base.actual}:base;
-}
-function variancePct(row){ return row.budget===0?0:((row.actual-row.budget)/Math.abs(row.budget))*100; }
-
-/* ══════════════════════ COMPUTED TOTALS ══════════════════════ */
-function computeMonth(mIdx){
-  const rows={};
-  ITEMS.forEach(it=>rows[it.key]=getRow(it,mIdx));
-  const rev=ITEMS.filter(i=>i.group==='revenue');
-  const cogs=ITEMS.filter(i=>i.group==='cogs');
-  const opex=ITEMS.filter(i=>i.group==='opex');
-  const sum=(arr,f)=>arr.reduce((a,i)=>a+f(rows[i.key]),0);
-  const totRevB=sum(rev,r=>r.budget), totRevA=sum(rev,r=>r.actual);
-  const totCogsB=sum(cogs,r=>r.budget), totCogsA=sum(cogs,r=>r.actual);
-  const gpB=totRevB-totCogsB, gpA=totRevA-totCogsA;
-  const gmB=totRevB?gpB/totRevB*100:0, gmA=totRevA?gpA/totRevA*100:0;
-  const totOpexB=sum(opex,r=>r.budget), totOpexA=sum(opex,r=>r.actual);
-  const intB=rows.interest.budget, intA=rows.interest.actual;
-  const npB=gpB-totOpexB-intB, npA=gpA-totOpexA-intA;
-  return {rows,totRevB,totRevA,totCogsB,totCogsA,gpB,gpA,gmB,gmA,totOpexB,totOpexA,intB,intA,npB,npA};
+  const budget={};ITEMS.forEach(it=>budget[it.key]=0);
+  let lastUpdated=null,lastCreatedBy=null,hasManual=false,hasAi=false;
+  budgetRows.forEach(r=>{
+    if(budget.hasOwnProperty(r.line_item))budget[r.line_item]=Number(r.budget_amount||0);
+    if(!lastUpdated||r.created_at>lastUpdated){lastUpdated=r.created_at;lastCreatedBy=r.created_by;}
+    if(r.budget_source==='manual')hasManual=true;
+    if(r.budget_source==='accepted_suggestion'||r.budget_source==='suggested')hasAi=true;
+  });
+  const data={
+    actual,budget,lastUpdated,lastCreatedBy,
+    hasBudget:budgetRows.length>0,
+    source:budgetRows.length===0?null:(hasAi&&!hasManual?'ai':'manual')
+  };
+  PERIOD_CACHE[pKey]=data;
+  return data;
 }
 
-/* ══════════════════════ TREND ARROW (per spec 3.10) ══════════════════════ */
+async function computeMonth(pKey){
+  const d=await loadPeriod(pKey);
+  const rows={};ITEMS.forEach(it=>rows[it.key]={budget:d.budget[it.key],actual:d.actual[it.key]});
+  const rev=ITEMS.filter(i=>i.group==='revenue'),cogs=ITEMS.filter(i=>i.group==='cogs'),opex=ITEMS.filter(i=>i.group==='opex');
+  const sum=(arr,fn)=>arr.reduce((a,i)=>a+fn(rows[i.key]),0);
+  const totRevB=sum(rev,r=>r.budget),totRevA=sum(rev,r=>r.actual);
+  const totCogsB=sum(cogs,r=>r.budget),totCogsA=sum(cogs,r=>r.actual);
+  const gpB=totRevB-totCogsB,gpA=totRevA-totCogsA;
+  const gmB=totRevB?gpB/totRevB*100:0,gmA=totRevA?gpA/totRevA*100:0;
+  const totOpexB=sum(opex,r=>r.budget),totOpexA=sum(opex,r=>r.actual);
+  const intB=rows.interest.budget,intA=rows.interest.actual;
+  const npB=gpB-totOpexB-intB,npA=gpA-totOpexA-intA;
+  return {rows,totRevB,totRevA,totCogsB,totCogsA,gpB,gpA,gmB,gmA,totOpexB,totOpexA,intB,intA,npB,npA,meta:d};
+}
+function variancePct(row){return row.budget===0?0:((row.actual-row.budget)/Math.abs(row.budget))*100;}
+
+let CUR=null; // last-rendered month's computed data (used by modals/exports)
+
+/* ══════════════════════ TREND ARROW ══════════════════════ */
 function trendArrow(thisPct,lastPct){
   const diff=thisPct-lastPct;
-  if(Math.abs(diff)<1) return {cls:'trend-stable',arrow:'&#8594;',txt:'Stable'};
-  if(thisPct>lastPct) return {cls:'trend-up',arrow:'&#8593;',txt:'Improving'};
-  return {cls:'trend-dn',arrow:'&#8595;',txt:'Worsening'};
+  if(Math.abs(diff)<1)return{cls:'trend-stable',arrow:'&#8594;',txt:'Stable'};
+  if(thisPct>lastPct)return{cls:'trend-up',arrow:'&#8593;',txt:'Improving'};
+  return{cls:'trend-dn',arrow:'&#8595;',txt:'Worsening'};
 }
-
-/* ══════════════════════ STATUS BADGE ══════════════════════ */
 function statusBadge(variance,group,thresh){
   thresh=thresh||0.5;
-  if(Math.abs(variance)<=thresh) return '<span class="status-badge target">&#8594; On Target</span>';
-  if(group==='revenue') return variance>0?'<span class="status-badge beat"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Beat</span>':'<span class="status-badge miss">Miss</span>';
+  if(Math.abs(variance)<=thresh)return'<span class="status-badge target">&#8594; On Target</span>';
+  if(group==='revenue')return variance>0?'<span class="status-badge beat"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Beat</span>':'<span class="status-badge miss">Miss</span>';
   return variance>0?'<span class="status-badge over">&#9888; Over</span>':'<span class="status-badge under"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Under</span>';
 }
-function valCls(n){return n>0?'val-neg':n<0?'val-pos':'val-zero';} // for cost lines: over-budget (positive var) is bad => red
-function valClsRev(n){return n>0?'val-pos':n<0?'val-neg':'val-zero';} // for revenue lines: positive var is good => green
+function valCls(n){return n>0?'val-neg':n<0?'val-pos':'val-zero';}
+function valClsRev(n){return n>0?'val-pos':n<0?'val-neg':'val-zero';}
 
 /* ══════════════════════ RENDER TABLE ══════════════════════ */
-function renderTable(){
-  const cur=computeMonth(curMonthIdx);
-  const prevIdx=curMonthIdx>0?curMonthIdx-1:null;
-  const prev=prevIdx!==null?computeMonth(prevIdx):null;
-  const prevLabel=prevIdx!==null?MONTHS[prevIdx]:'—';
+let renderToken=0;
+async function renderTable(){
+  const myToken=++renderToken;
+  const pKey=curPeriod();
+  let cur,prev;
+  try{
+    cur=await computeMonth(pKey);
+    const prevIdx=curMonthIdx>0?curMonthIdx-1:null;
+    prev=prevIdx!==null?await computeMonth(PERIODS[prevIdx].key):null;
+  }catch(err){
+    console.error('Failed to load budget data:',err);
+    if(myToken===renderToken)toast('Could not load data from the database — check your connection','error');
+    return;
+  }
+  if(myToken!==renderToken)return; // a newer render started; drop this one
+  CUR=cur;
+  const prevIdx2=curMonthIdx>0?curMonthIdx-1:null;
+  const prevLabel=prevIdx2!==null?MONTHS[prevIdx2]:'—';
   document.getElementById('tblLbl').textContent='('+MONTHS[curMonthIdx]+')';
   document.getElementById('bsLbl').textContent='('+MONTHS[curMonthIdx]+')';
-  document.querySelectorAll('.tbl-legend, thead').forEach(()=>{});
   document.querySelector('thead th:nth-child(6)').innerHTML='Trend<br>vs '+prevLabel;
 
   function lineHtml(it,label,extraCls){
     const row=cur.rows[it.key];
-    const v=row.actual-row.budget, vp=variancePct(row);
+    const v=row.actual-row.budget,vp=variancePct(row);
     let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){
-      const prow=prev.rows[it.key];
-      const pvp=variancePct(prow);
-      trend=trendArrow(vp,pvp);
-    }
+    if(prev){const prow=prev.rows[it.key],pvp=variancePct(prow);trend=trendArrow(vp,pvp);}
     const cls=it.group==='revenue'?valClsRev(v):valCls(v);
     const badge=statusBadge(v,it.group);
     return `<tr class="data-row ${extraCls||''}">
@@ -420,7 +512,7 @@ function renderTable(){
       <td>${f0(row.actual)}</td>
       <td class="${cls}">${f0(v)}</td>
       <td class="${cls}">${vp.toFixed(1)}%</td>
-      <td class="${trend.cls}">${trend.arrow} ${Math.abs(vp - (prev?variancePct(prev.rows[it.key]):0)).toFixed(1)}%</td>
+      <td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?variancePct(prev.rows[it.key]):0)).toFixed(1)}%</td>
       <td>${badge}</td>
     </tr>`;
   }
@@ -429,7 +521,7 @@ function renderTable(){
   html+='<tr class="sec-row"><td colspan="7">Revenue</td></tr>';
   ITEMS.filter(i=>i.group==='revenue').forEach(it=>html+=lineHtml(it,it.label));
   {
-    const v=cur.totRevA-cur.totRevB, vp=cur.totRevB?v/cur.totRevB*100:0;
+    const v=cur.totRevA-cur.totRevB,vp=cur.totRevB?v/cur.totRevB*100:0;
     let trend={cls:'trend-stable',arrow:'&#8594;'};
     if(prev){const pv=prev.totRevA-prev.totRevB,pvp=prev.totRevB?pv/prev.totRevB*100:0;trend=trendArrow(vp,pvp);}
     html+=`<tr class="tot-row"><td>Total Revenue</td><td>${f0(cur.totRevB)}</td><td>${f0(cur.totRevA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totRevB?(prev.totRevA-prev.totRevB)/prev.totRevB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue')}</td></tr>`;
@@ -438,14 +530,14 @@ function renderTable(){
   html+='<tr class="sec-row"><td colspan="7">Cost of Goods Sold</td></tr>';
   ITEMS.filter(i=>i.group==='cogs').forEach(it=>html+=lineHtml(it,it.label));
   {
-    const v=cur.totCogsA-cur.totCogsB, vp=cur.totCogsB?v/cur.totCogsB*100:0;
+    const v=cur.totCogsA-cur.totCogsB,vp=cur.totCogsB?v/cur.totCogsB*100:0;
     let trend={cls:'trend-stable',arrow:'&#8594;'};
     if(prev){const pv=prev.totCogsA-prev.totCogsB,pvp=prev.totCogsB?pv/prev.totCogsB*100:0;trend=trendArrow(vp,pvp);}
     html+=`<tr class="tot-row"><td>Total COGS</td><td>${f0(cur.totCogsB)}</td><td>${f0(cur.totCogsA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totCogsB?(prev.totCogsA-prev.totCogsB)/prev.totCogsB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'cogs')}</td></tr>`;
   }
 
   {
-    const v=cur.gpA-cur.gpB, vp=cur.gpB?v/cur.gpB*100:0;
+    const v=cur.gpA-cur.gpB,vp=cur.gpB?v/cur.gpB*100:0;
     let trend={cls:'trend-stable',arrow:'&#8594;'};
     if(prev){const pv=prev.gpA-prev.gpB,pvp=prev.gpB?pv/prev.gpB*100:0;trend=trendArrow(vp,pvp);}
     html+=`<tr class="gp-row"><td>Gross Profit</td><td>${f0(cur.gpB)}</td><td>${f0(cur.gpA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.gpB?(prev.gpA-prev.gpB)/prev.gpB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue')}</td></tr>`;
@@ -458,7 +550,7 @@ function renderTable(){
   html+='<tr class="sec-row"><td colspan="7">Operating Expenses</td></tr>';
   ITEMS.filter(i=>i.group==='opex').forEach(it=>html+=lineHtml(it,it.label));
   {
-    const v=cur.totOpexA-cur.totOpexB, vp=cur.totOpexB?v/cur.totOpexB*100:0;
+    const v=cur.totOpexA-cur.totOpexB,vp=cur.totOpexB?v/cur.totOpexB*100:0;
     let trend={cls:'trend-stable',arrow:'&#8594;'};
     if(prev){const pv=prev.totOpexA-prev.totOpexB,pvp=prev.totOpexB?pv/prev.totOpexB*100:0;trend=trendArrow(vp,pvp);}
     html+=`<tr class="tot-row"><td>Total Operating Expenses</td><td>${f0(cur.totOpexB)}</td><td>${f0(cur.totOpexA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totOpexB?(prev.totOpexA-prev.totOpexB)/prev.totOpexB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'opex')}</td></tr>`;
@@ -467,29 +559,33 @@ function renderTable(){
   html+=lineHtml(ITEMS.find(i=>i.key==='interest'),'Interest Expense (Loan)');
 
   {
-    const v=cur.npA-cur.npB, vp=cur.npB?v/cur.npB*100:0;
+    const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
     let trend={cls:'trend-stable',arrow:'&#8594;'};
     if(prev){const pv=prev.npA-prev.npB,pvp=prev.npB?pv/prev.npB*100:0;trend=trendArrow(vp,pvp);}
     html+=`<tr class="np-row"><td>NET PROFIT</td><td>${f0(cur.npB)}</td><td>${f0(cur.npA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.npB?(prev.npA-prev.npB)/prev.npB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue',0.5)}</td></tr>`;
   }
 
   document.getElementById('bvaBody').innerHTML=html;
-  renderSummary(cur);
+  await renderSummary(cur);
   renderVarChart(cur);
 }
 
 /* ══════════════════════ BUDGET SUMMARY CARD ══════════════════════ */
-function renderSummary(cur){
-  const v=cur.npA-cur.npB, vp=cur.npB?v/cur.npB*100:0;
+async function renderSummary(cur){
+  await loadUsers();
+  const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
   const html=`
     <div class="bs-row"><div class="bs-ic g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></div><div class="bs-txt"><div class="bs-lbl">Budgeted Net Profit</div><div class="bs-val">${f0(cur.npB)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="bs-txt"><div class="bs-lbl">Actual Net Profit</div><div class="bs-val">${f0(cur.npA)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic ${v<0?'r':'g'}"><svg viewBox="0 0 24 24"><path d="${v<0?'M12 5v14M19 12l-7 7-7-7':'M12 19V5M5 12l7-7 7 7'}"/></svg></div><div class="bs-txt"><div class="bs-lbl">Variance</div><div class="bs-val ${v<0?'neg':'pos'}">${f0(v)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic o"><svg viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div><div class="bs-txt"><div class="bs-lbl">Variance %</div><div class="bs-val ${vp<0?'neg':'pos'}">${vp.toFixed(1)}%</div></div></div>`;
   document.getElementById('bsList').innerHTML=html;
-  const isAi=CUSTOM_BUDGET&&CUSTOM_BUDGET.__source==='ai';
-  const isManual=CUSTOM_BUDGET&&CUSTOM_BUDGET.__source==='manual';
-  document.getElementById('bsSourceTag').outerHTML=`<span class="bs-tag${isAi?' ai':''}" id="bsSourceTag">${isAi?'AI Suggested':isManual?'Manual (Edited)':'Manual'}</span>`;
+  const m=cur.meta;
+  const isAi=m.source==='ai',isManual=m.source==='manual';
+  const tagLabel=!m.hasBudget?'Not Set':(isAi?'AI Suggested':(isManual?'Manual':'Manual'));
+  document.getElementById('bsSourceTag').outerHTML=`<span class="bs-tag${isAi?' ai':''}" id="bsSourceTag">${tagLabel}</span>`;
+  document.querySelector('.bs-meta-row .v').textContent=(m.lastCreatedBy&&USERS_MAP[m.lastCreatedBy])||(OWNER?OWNER.name:'—');
+  document.getElementById('bsUpdated').textContent=m.lastUpdated?new Date(m.lastUpdated).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+new Date(m.lastUpdated).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'Not set yet';
 }
 
 /* ══════════════════════ VARIANCE BY CATEGORY CHART ══════════════════════ */
@@ -508,11 +604,11 @@ function renderVarChart(cur){
     {label:'Net Profit',v:cur.npA-cur.npB,fav:v=>v>=0}
   ];
   const labels=cats.map(c=>c.label);
-  const data=cats.map(c=>c.v);
+  const data=cats.map(c=>Math.abs(c.v)<1?0:(c.fav(c.v)?Math.abs(c.v):-Math.abs(c.v)));
   const colors=cats.map(c=>Math.abs(c.v)<1?'#94a89f':(c.fav(c.v)?'#27ae60':'#e5484d'));
   const ctx=document.getElementById('cVar').getContext('2d');
-  if(chVar) chVar.destroy();
-  if(typeof Chart==='undefined') return;
+  if(chVar)chVar.destroy();
+  if(typeof Chart==='undefined')return;
   chVar=new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:0,maxBarThickness:16}]},
@@ -520,8 +616,8 @@ function renderVarChart(cur){
       indexAxis:'y',responsive:true,maintainAspectRatio:false,
       layout:{padding:{right:34}},
       animation:{duration:700,easing:'easeOutQuart'},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#16261e',padding:9,cornerRadius:8,titleFont:{family:'Quicksand',size:11.5,weight:'700'},bodyFont:{family:'Nunito',size:11,weight:'600'},callbacks:{label:c=>' '+(c.parsed.x>=0?'+':'')+c.parsed.x.toLocaleString()+' ETB'}},
-        datalabels:(typeof ChartDataLabels!=='undefined')?{anchor:'end',align:'right',color:'#5e7268',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v>=0?'+':'')+Math.round(v).toLocaleString()}:undefined
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#16261e',padding:9,cornerRadius:8,titleFont:{family:'Quicksand',size:11.5,weight:'700'},bodyFont:{family:'Nunito',size:11,weight:'600'},callbacks:{label:c=>{const rv=cats[c.dataIndex].v;return' '+(rv>=0?'+':'')+rv.toLocaleString()+' ETB';}}},
+        datalabels:(typeof ChartDataLabels!=='undefined')?{anchor:'end',align:(c)=>data[c.dataIndex]<0?'left':'right',color:'#5e7268',font:{family:'Nunito',size:9.5,weight:'700'},formatter:(v,c)=>{const rv=cats[c.dataIndex].v;return(rv>=0?'+':'')+Math.round(rv).toLocaleString();}}:undefined
       },
       scales:{x:{grid:{color:'#eef3f0'},ticks:{font:{family:'Nunito',size:10},color:'#9aada5'},title:{display:true,text:'ETB',color:'#9aada5',font:{family:'Nunito',size:10}}},y:{grid:{display:false},ticks:{font:{family:'Nunito',size:10.5,weight:'600'},color:'#3a5647'}}}
     },
@@ -531,14 +627,16 @@ function renderVarChart(cur){
 
 /* ══════════════════════ MONTH NAV ══════════════════════ */
 function onMonthChange(label){
-  curMonthIdx=MONTHS.indexOf(label);
-  CUSTOM_BUDGET=null;
+  const idx=MONTHS.indexOf(label);
+  if(idx<0)return;
+  curMonthIdx=idx;
   renderTable();
   toast('Switched to '+MONTHS[curMonthIdx],'info');
 }
 
 /* ══════════════════════ MANUAL BUDGET MODAL ══════════════════════ */
 function openManualBudget(){
+  if(!CUR)return;
   document.getElementById('manualSub').textContent='Set ETB targets for each P&L line · '+MONTHS[curMonthIdx];
   const groups=[['Revenue','revenue'],['Cost of Goods Sold','cogs'],['Operating Expenses','opex'],['Other','interest']];
   let html='';
@@ -547,7 +645,7 @@ function openManualBudget(){
     if(!items.length)return;
     html+=`<div class="mb-grp"><div class="mb-grp-ttl">${label}</div>`;
     items.forEach(it=>{
-      const row=getRow(it,curMonthIdx);
+      const row=CUR.rows[it.key];
       html+=`<div class="mb-row"><div class="lbl">${it.label}</div><input type="number" step="0.01" id="mb_${it.key}" value="${row.budget}"><div class="cur">Actual: ${f0(row.actual)}</div><div></div></div>`;
     });
     html+='</div>';
@@ -556,72 +654,108 @@ function openManualBudget(){
   document.getElementById('manualOverlay').classList.add('show');
 }
 function closeManualBudget(){document.getElementById('manualOverlay').classList.remove('show');}
-function saveManualBudget(){
-  const nb={__source:'manual'};
-  ITEMS.forEach(it=>{
-    const el=document.getElementById('mb_'+it.key);
-    if(el){const val=parseFloat(el.value);if(!isNaN(val))nb[it.key]=val;}
-  });
-  CUSTOM_BUDGET=nb;
-  document.getElementById('bsUpdated').textContent=nowStamp();
-  closeManualBudget();
-  renderTable();
-  toast('Budget updated for '+MONTHS[curMonthIdx],'success');
-}
-function nowStamp(){
-  const d=new Date();
-  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+async function upsertBudgetLine(pKey,lineItem,amount,source,suggestedAmount){
+  await loadUsers();
+  const existing=await sb('budget_lines?period=eq.'+pKey+'&line_item=eq.'+lineItem+'&select=id');
+  const body={budget_amount:amount,budget_source:source,suggested_amount:(suggestedAmount===undefined?null:suggestedAmount)};
+  if(existing.length){
+    await sbWrite('budget_lines?id=eq.'+existing[0].id,'PATCH',body);
+  }else{
+    await sbWrite('budget_lines','POST',{period:pKey,line_item:lineItem,created_by:OWNER?OWNER.id:null,...body});
+  }
 }
 
-/* ══════════════════════ AI BUDGET SUGGESTION (Mode 2, spec 3.10) ══════════════════════ */
-function suggestedBudget(it){
+async function saveManualBudget(){
+  const pKey=curPeriod();
+  const jobs=[];
+  ITEMS.forEach(it=>{
+    const el=document.getElementById('mb_'+it.key);
+    if(el){const val=parseFloat(el.value);if(!isNaN(val))jobs.push(upsertBudgetLine(pKey,it.key,val,'manual'));}
+  });
+  try{
+    await Promise.all(jobs);
+    invalidatePeriod(pKey);
+    closeManualBudget();
+    await renderTable();
+    toast('Budget updated for '+MONTHS[curMonthIdx],'success');
+  }catch(err){
+    console.error('Failed to save budget:',err);
+    toast('Could not save budget — check your connection and try again','error');
+  }
+}
+
+/* ══════════════════════ AI BUDGET SUGGESTION (3-month rolling average of real actuals) ══════════════════════ */
+async function suggestedBudget(it){
   const n=Math.min(3,curMonthIdx);
-  if(n<=0) return getRow(it,curMonthIdx).budget;
+  if(n<=0)return CUR.rows[it.key].budget;
   let s=0;
-  for(let k=1;k<=n;k++) s+=DATA[curMonthIdx-k][it.key].actual;
+  for(let k=1;k<=n;k++){
+    const d=await loadPeriod(PERIODS[curMonthIdx-k].key);
+    s+=d.actual[it.key];
+  }
   return Math.round(s/n);
 }
-function openAiSuggestion(){
+async function openAiSuggestion(){
+  if(!CUR)return;
   const groups=[['Revenue','revenue'],['Cost of Goods Sold','cogs'],['Operating Expenses','opex'],['Other','interest']];
   let html='';
-  groups.forEach(([label,g])=>{
+  for(const [label,g] of groups){
     const items=ITEMS.filter(i=>i.group===g);
-    if(!items.length)return;
+    if(!items.length)continue;
     html+=`<div class="mb-grp"><div class="mb-grp-ttl">${label}</div>`;
-    items.forEach(it=>{
-      const cur=getRow(it,curMonthIdx).budget;
-      const sug=suggestedBudget(it);
+    for(const it of items){
+      const cur=CUR.rows[it.key].budget;
+      const sug=await suggestedBudget(it);
       const diff=sug-cur;
-      html+=`<div class="mb-row"><div class="lbl">${it.label}</div><input type="number" step="0.01" id="ai_${it.key}" value="${sug}"><div class="cur">Current: ${f0(cur)}</div><div class="diff ${diff>0?'val-neg':diff<0?'val-pos':'val-zero'}">${diff===0?'—':(diff>0?'+':'')+f0(diff)}</div></div>`;
-    });
+      html+=`<div class="mb-row"><div class="lbl">${it.label}</div><input type="number" step="0.01" id="ai_${it.key}" data-sug="${sug}" value="${sug}"><div class="cur">Current: ${f0(cur)}</div><div class="diff ${diff>0?'val-neg':diff<0?'val-pos':'val-zero'}">${diff===0?'—':(diff>0?'+':'')+f0(diff)}</div></div>`;
+    }
     html+='</div>';
-  });
+  }
   document.getElementById('aiBody').innerHTML=html;
   document.getElementById('aiOverlay').classList.add('show');
 }
 function closeAiSuggestion(){document.getElementById('aiOverlay').classList.remove('show');}
-function acceptAiSuggestion(){
-  const nb={__source:'ai'};
+async function acceptAiSuggestion(){
+  const pKey=curPeriod();
+  const jobs=[];
   ITEMS.forEach(it=>{
     const el=document.getElementById('ai_'+it.key);
-    if(el){const val=parseFloat(el.value);if(!isNaN(val))nb[it.key]=val;}
+    if(el){
+      const val=parseFloat(el.value);
+      const sug=parseFloat(el.dataset.sug);
+      if(!isNaN(val))jobs.push(upsertBudgetLine(pKey,it.key,val,'accepted_suggestion',isNaN(sug)?null:sug));
+    }
   });
-  CUSTOM_BUDGET=nb;
-  document.getElementById('bsUpdated').textContent=nowStamp();
-  closeAiSuggestion();
-  renderTable();
-  toast('AI-suggested budget applied for '+MONTHS[curMonthIdx],'success');
+  try{
+    await Promise.all(jobs);
+    invalidatePeriod(pKey);
+    closeAiSuggestion();
+    await renderTable();
+    toast('AI-suggested budget applied for '+MONTHS[curMonthIdx],'success');
+  }catch(err){
+    console.error('Failed to apply AI suggestion:',err);
+    toast('Could not save budget — check your connection and try again','error');
+  }
 }
 
 /* ══════════════════════ 3-MONTH TREND MODAL ══════════════════════ */
 let chTrend=null;
-function openTrendModal(){
+async function openTrendModal(){
   document.getElementById('trendOverlay').classList.add('show');
   const idxs=[];
   for(let k=2;k>=0;k--){const i=curMonthIdx-k;if(i>=0)idxs.push(i);}
   const labels=idxs.map(i=>MONTHS[i]);
-  const budgets=idxs.map(i=>computeMonth(i).npB);
-  const actuals=idxs.map(i=>computeMonth(i).npA);
+  let months;
+  try{
+    months=await Promise.all(idxs.map(i=>computeMonth(PERIODS[i].key)));
+  }catch(err){
+    console.error('Failed to load trend data:',err);
+    toast('Could not load trend data','error');
+    return;
+  }
+  const budgets=months.map(m=>m.npB);
+  const actuals=months.map(m=>m.npA);
   setTimeout(()=>{
     const ctx=document.getElementById('cTrend').getContext('2d');
     if(chTrend)chTrend.destroy();
@@ -642,9 +776,9 @@ function openTrendModal(){
 }
 function closeTrendModal(){document.getElementById('trendOverlay').classList.remove('show');}
 
-/* ══════════════════════ EXPORTS ══════════════════════ */
+/* ══════════════════════ EXPORTS (use the currently rendered CUR) ══════════════════════ */
 function tableToAoA(){
-  const cur=computeMonth(curMonthIdx);
+  const cur=CUR;
   const rows=[['Particulars','Budget '+MONTHS[curMonthIdx],'Actual '+MONTHS[curMonthIdx],'Variance ETB','Variance %','Status']];
   function push(it,label){
     const row=cur.rows[it.key];const v=row.actual-row.budget,vp=variancePct(row);
@@ -670,8 +804,9 @@ function tableToAoA(){
   rows.push(['NET PROFIT',cur.npB,cur.npA,cur.npA-cur.npB,(cur.npB?((cur.npA-cur.npB)/cur.npB*100).toFixed(1):'0')+'%','']);
   return rows;
 }
-/* ══ EXPORT EXCEL (real .xlsx via SheetJS — styled like Derkosh's export) ══ */
+/* ══ EXPORT EXCEL (real .xlsx via SheetJS) ══ */
 function exportCSV(retryCount){
+  if(!CUR){toast('Data is still loading — try again in a moment','info');return;}
   retryCount=retryCount||0;
   const month=MONTHS[curMonthIdx].replace(' ','_');
   if(typeof XLSX==='undefined'){
@@ -685,10 +820,10 @@ function exportCSV(retryCount){
   }
   try{
     const aoa=tableToAoA();
-    const sectionRows=new Set(); const totalRows=new Set(); const npRowIdx=aoa.length-1;
-    aoa.forEach((r,i)=>{ if(r[1]===''&&r[2]===''&&r[0]===r[0].toUpperCase()&&r[0].length>3) sectionRows.add(i); });
+    const sectionRows=new Set();const totalRows=new Set();const npRowIdx=aoa.length-1;
+    aoa.forEach((r,i)=>{if(r[1]===''&&r[2]===''&&r[0]===r[0].toUpperCase()&&r[0].length>3)sectionRows.add(i);});
     ['Total Revenue','Total COGS','Gross Profit','Total Operating Expenses'].forEach(lbl=>{
-      const i=aoa.findIndex(r=>r[0]===lbl); if(i>=0) totalRows.add(i);
+      const i=aoa.findIndex(r=>r[0]===lbl);if(i>=0)totalRows.add(i);
     });
     const ws=XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols']=[{wch:28},{wch:16},{wch:16},{wch:14},{wch:12},{wch:12}];
@@ -701,9 +836,9 @@ function exportCSV(retryCount){
       for(let c=0;c<aoa[0].length;c++){
         const addr=XLSX.utils.encode_cell({r,c});
         if(!ws[addr])continue;
-        const isHeader=r===0, isSection=sectionRows.has(r), isTotal=totalRows.has(r), isNP=r===npRowIdx;
+        const isHeader=r===0,isSection=sectionRows.has(r),isTotal=totalRows.has(r),isNP=r===npRowIdx;
         let numFmt;
-        if(!isHeader&&!isSection&&moneyCols.includes(c)&&typeof aoa[r][c]==='number') numFmt='#,##0.00;(#,##0.00)';
+        if(!isHeader&&!isSection&&moneyCols.includes(c)&&typeof aoa[r][c]==='number')numFmt='#,##0.00;(#,##0.00)';
         ws[addr].s={
           font:{bold:isHeader||isSection||isTotal||isNP,color:{rgb:isHeader?'FFFFFF':(isNP?'124D2B':isSection?'19733F':(isTotal?'1D6B42':'16261E'))},sz:isHeader?10:10},
           fill:{fgColor:{rgb:isHeader?'1D6B42':(isNP?'E3F6EC':(isSection?'EEF8F1':(isTotal?'F6FAF7':(r%2===0?'FFFFFF':'F7FBF9'))))}},
@@ -737,8 +872,9 @@ function exportCSVFallback(month){
   toast('Excel engine unavailable — downloaded as CSV instead','info');
 }
 
-/* ══ EXPORT PDF (real .pdf via jsPDF + autotable — branded like Derkosh's export) ══ */
+/* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ══ */
 function exportPDF(retryCount){
+  if(!CUR){toast('Data is still loading — try again in a moment','info');return;}
   retryCount=retryCount||0;
   if(typeof window.jspdf==='undefined'||typeof window.jspdf.jsPDF==='undefined'){
     if(retryCount<6){
@@ -752,7 +888,7 @@ function exportPDF(retryCount){
   try{
     const {jsPDF}=window.jspdf;
     const month=MONTHS[curMonthIdx];
-    const cur=computeMonth(curMonthIdx);
+    const cur=CUR;
     const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
     const pageW=doc.internal.pageSize.getWidth();
     const pageH=doc.internal.pageSize.getHeight();
@@ -760,23 +896,23 @@ function exportPDF(retryCount){
     const green=[39,174,96],darkGreen=[22,52,36],deepGreen=[16,39,26],textDark=[22,38,30],textMid=[94,114,104],border=[227,236,231],rowAlt=[244,249,246];
 
     function drawHeader(){
-      doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-      doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-      doc.setFillColor(255,255,255); doc.roundedRect(marginX,18,38,38,9,9,'F');
-      doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+      doc.setFillColor(...deepGreen);doc.rect(0,0,pageW,74,'F');
+      doc.setFillColor(...green);doc.rect(0,70,pageW,4,'F');
+      doc.setFillColor(255,255,255);doc.roundedRect(marginX,18,38,38,9,9,'F');
+      doc.setTextColor(...deepGreen);doc.setFont('helvetica','bold');doc.setFontSize(15);
       doc.text('MI',marginX+19,42,{align:'center'});
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(17);
       doc.text('Budget vs Actual Statement',marginX+52,34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
+      doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(200,225,212);
       doc.text('Mena Injera & Derkosh — Business Management System',marginX+52,49);
-      doc.setFontSize(9); doc.setTextColor(220,235,227);
+      doc.setFontSize(9);doc.setTextColor(220,235,227);
       doc.text('Period: '+month,pageW-marginX,30,{align:'right'});
       doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),pageW-marginX,43,{align:'right'});
-      doc.text('Prepared by: Eyasu Mesfin (Owner)',pageW-marginX,56,{align:'right'});
+      doc.text('Prepared by: '+(OWNER?OWNER.name:'—'),pageW-marginX,56,{align:'right'});
     }
 
     function drawKpiStrip(y){
-      const v=cur.npA-cur.npB, vp=cur.npB?v/cur.npB*100:0;
+      const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
       const kpis=[
         {lbl:'BUDGETED NET PROFIT',val:f0(cur.npB),unit:'ETB'},
         {lbl:'ACTUAL NET PROFIT',val:f0(cur.npA),unit:'ETB'},
@@ -785,17 +921,17 @@ function exportPDF(retryCount){
         {lbl:'TOTAL REVENUE',val:f0(cur.totRevA),unit:'ETB'},
         {lbl:'GROSS MARGIN %',val:cur.gmA.toFixed(1),unit:'%'}
       ];
-      const gap=10; const cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length; const cardH=52;
+      const gap=10;const cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length;const cardH=52;
       kpis.forEach((k,i)=>{
         const x=marginX+i*(cardW+gap);
-        doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
+        doc.setFillColor(...rowAlt);doc.setDrawColor(...border);
         doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-        doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.6);
+        doc.setTextColor(...textMid);doc.setFont('helvetica','bold');doc.setFontSize(6.6);
         doc.text(k.lbl,x+10,y+16,{charSpace:0.2});
-        doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+        doc.setTextColor(...darkGreen);doc.setFont('helvetica','bold');doc.setFontSize(14);
         doc.text(k.val,x+10,y+36);
         const valW=doc.getTextWidth(k.val);
-        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...textMid);
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...textMid);
         doc.text(k.unit,x+10+valW+4,y+36);
       });
       return y+cardH;
@@ -836,7 +972,7 @@ function exportPDF(retryCount){
       doc.setPage(i);
       doc.setDrawColor(...border);
       doc.line(marginX,pageH-34,pageW-marginX,pageH-34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
+      doc.setFont('helvetica','normal');doc.setFontSize(7.6);doc.setTextColor(...textMid);
       doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential',marginX,pageH-20);
       doc.text('Page '+i+' of '+pageCount,pageW-marginX,pageH-20,{align:'right'});
     }
@@ -860,25 +996,57 @@ document.addEventListener('keydown',e=>{
 /* ══ CHART.JS PLUGIN REGISTRATION ══ */
 if(typeof Chart!=='undefined'&&typeof ChartDataLabels!=='undefined'){Chart.register(ChartDataLabels);}
 
-/* ══ SHARED HEADER (topbar) ══ */
-renderHeader({
-  title:'Budget vs Actual',
-  subtitle:'Compare actual performance against budget',
-  showMonthPicker:true,
-  months:MONTHS,
-  selectedMonth:MONTHS[curMonthIdx],
-  onMonthChange:onMonthChange,
-  showExport:true,
-  onExportPdf:exportPDF,
-  onExportXlsx:exportCSV,
-  notifications:[
-    {type:'o',title:'Marketing spend 25% over budget',sub:'May 2026',time:'40 min ago'},
-    {type:'r',title:'Net profit missed budget by 231.00 ETB',sub:'May 2026',time:'2h ago'}
-  ]
-});
+/* ══════════════════════ REAL NOTIFICATIONS (derived from live variance, no mock data) ══════════════════════ */
+function buildNotifications(cur){
+  const notes=[];
+  ITEMS.filter(i=>i.group==='cogs'||i.group==='opex').forEach(it=>{
+    const row=cur.rows[it.key];
+    if(!row.budget)return;
+    const vp=variancePct(row);
+    if(vp>10)notes.push({type:'o',title:it.label+' '+Math.round(vp)+'% over budget',sub:MONTHS[curMonthIdx],time:'This period'});
+  });
+  if(cur.meta.hasBudget&&cur.npA<cur.npB){
+    notes.push({type:'r',title:'Net profit missed budget by '+f0(cur.npB-cur.npA)+' ETB',sub:MONTHS[curMonthIdx],time:'This period'});
+  }
+  return notes.slice(0,5);
+}
 
 /* ══ INIT ══ */
-renderTable();
+(async function init(){
+  try{
+    await loadUsers();
+    const cur=await computeMonth(curPeriod());
+    CUR=cur;
+    renderHeader({
+      title:'Budget vs Actual',
+      subtitle:'Compare actual performance against budget',
+      showMonthPicker:true,
+      months:MONTHS,
+      selectedMonth:MONTHS[curMonthIdx],
+      onMonthChange:onMonthChange,
+      showExport:true,
+      onExportPdf:exportPDF,
+      onExportXlsx:exportCSV,
+      notifications:buildNotifications(cur)
+    });
+    await renderTable();
+  }catch(err){
+    console.error('Failed to initialize Budget vs Actual page:',err);
+    renderHeader({
+      title:'Budget vs Actual',
+      subtitle:'Compare actual performance against budget',
+      showMonthPicker:true,
+      months:MONTHS,
+      selectedMonth:MONTHS[curMonthIdx],
+      onMonthChange:onMonthChange,
+      showExport:true,
+      onExportPdf:exportPDF,
+      onExportXlsx:exportCSV,
+      notifications:[]
+    });
+    toast('Could not connect to the database — check your network settings','error');
+  }
+})();
 </script>
 </body>
 </html>
