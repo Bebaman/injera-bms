@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Loans — Mena Injera &amp; Derkosh BMS</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -346,6 +341,9 @@ html,body{overflow-x:hidden;max-width:100%}
     </div>
     <div class="modal-bd">
       <input type="hidden" id="lId">
+      <div class="info-box" id="lEditLockNotice" style="display:none;background:#fef3e2;border-color:#f3d9a8">
+        <strong>Note:</strong> Principal, rate, term, disbursement date/channel are locked after creation — they generate the repayment schedule. Delete and re-add the loan if these need to change.
+      </div>
       <div class="f-row">
         <div class="f-grp" style="grid-column:1/-1">
           <label>Lender Name</label>
@@ -430,9 +428,15 @@ html,body{overflow-x:hidden;max-width:100%}
         <select id="pyLoanSel" onchange="refreshPaymentPreview()"></select>
       </div>
       <div class="info-box" id="pyPreview">—</div>
-      <div class="f-grp" style="margin-top:14px">
-        <label>Actual Payment Date</label>
-        <input type="date" id="pyDate">
+      <div class="f-row" style="margin-top:14px">
+        <div class="f-grp">
+          <label>Actual Payment Date</label>
+          <input type="date" id="pyDate">
+        </div>
+        <div class="f-grp">
+          <label>Payment Channel</label>
+          <select id="pyChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+        </div>
       </div>
     </div>
     <div class="modal-ft">
@@ -517,42 +521,19 @@ html,body{overflow-x:hidden;max-width:100%}
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* ════════════════ REFERENCE DATE (for "days until due" calcs) ════════════════ */
-const TODAY = new Date('2026-06-01T00:00:00');
+/* ════════════════ REFERENCE DATE (real "today", used for overdue/upcoming calcs) ════════════════ */
+const _now = new Date();
+const TODAY = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
 
-/* ════════════════ DATA ════════════════ */
-let nextLoanId = 5;
-let loans = [
-  { id:1, lender:'Awash Bank', principal:100000, rate:12, term:24, disbDate:'2025-01-15', channel:'Bank',
-    refNo:'LN-0001', gracePeriodDays:5, lateFeeRate:2, collateral:'Vehicle title — Toyota Vitz (2019)',
-    monthlyPayment:4674.20, outstanding:53077.60, status:'Active', paidCount:4,
-    scheduleFixed:[
-      {n:1, due:'Feb 15, 2025', payment:4674.20, interest:1000.00, principal:3674.20, balance:96325.80, status:'Paid', actual:'Feb 15, 2025'},
-      {n:2, due:'Mar 15, 2025', payment:4674.20, interest:963.26, principal:3710.94, balance:92614.86, status:'Paid', actual:'Mar 15, 2025'},
-      {n:3, due:'Apr 15, 2025', payment:4674.20, interest:926.15, principal:3748.05, balance:88866.81, status:'Paid', actual:'Apr 15, 2025'},
-      {n:4, due:'May 15, 2025', payment:4674.20, interest:888.67, principal:3785.53, balance:85081.28, status:'Paid', actual:'May 15, 2025'},
-      {n:5, due:'Jun 15, 2026', payment:4674.20, interest:850.81, principal:3823.39, balance:81257.89, status:'Upcoming', actual:'-'},
-      {n:6, due:'Jul 15, 2026', payment:4674.20, interest:812.58, principal:3861.62, balance:77396.27, status:'Scheduled', actual:'-'},
-      {n:7, due:'Aug 15, 2026', payment:4674.20, interest:773.96, principal:3900.24, balance:73496.03, status:'Scheduled', actual:'-'}
-    ]
-  },
-  { id:2, lender:'Cooperative Bank', principal:50000, rate:14, term:18, disbDate:'2025-03-10', channel:'Bank',
-    refNo:'LN-0002', gracePeriodDays:3, lateFeeRate:2.5, collateral:'Guarantor — Selamawit Tesfaye',
-    monthlyPayment:3193.90, outstanding:15969.50, status:'Active', paidCount:1 },
-  { id:3, lender:'Abay Microfinance', principal:30000, rate:18, term:12, disbDate:'2025-06-05', channel:'Mobile Money',
-    refNo:'LN-0003', gracePeriodDays:0, lateFeeRate:3, collateral:'Unsecured (group guarantee)',
-    monthlyPayment:2797.18, outstanding:27971.80, status:'Active', paidCount:1 },
-  { id:4, lender:'Commercial Bank', principal:80000, rate:11, term:36, disbDate:'2024-09-01', channel:'Bank',
-    refNo:'LN-0004', gracePeriodDays:5, lateFeeRate:2, collateral:'Equipment lien — bakery ovens',
-    monthlyPayment:2598.99, outstanding:0, status:'Paid Off', paidCount:36 }
-];
+/* ════════════════ CHANNEL / STATUS MAPS (UI label <-> DB value) ════════════════ */
+const CH_DB_TO_LBL = {bank:'Bank', cash:'Cash', mobile:'Mobile Money'};
+const CH_LBL_TO_DB = {Bank:'bank', Cash:'cash', 'Mobile Money':'mobile'};
+const ST_DB_TO_LBL = {active:'Active', paid_off:'Paid Off', defaulted:'Defaulted'};
+const ST_LBL_TO_DB = {Active:'active', 'Paid Off':'paid_off', Defaulted:'defaulted'};
 
-/* Cumulative to-date totals — shown in Loan Summary, updated when a payment is recorded */
-let totals = { interestPaid:12456.70, principalRepaid:70524.40 };
-
-/* Upcoming payments are derived live from each active loan's amortization schedule
-   (see getNextPayments()) rather than hand-maintained, so they can never drift out
-   of sync with paidCount / new loans / recorded payments. */
+/* ════════════════ DATA (loaded live from Supabase — see loadAll()) ════════════════ */
+let loans = [];               // mapped loan records
+let scheduleByLoan = {};      // loan_id -> raw loan_repayment_schedule rows, sorted by payment_number
 
 let state = { page:1, perPage:10 };
 let openRowMenuEl = null;
@@ -570,70 +551,89 @@ function daysUntil(dueDate){
   if(diff===0) return {txt:'Due today', cls:'pill-upcoming'};
   return {txt:`Due in ${diff} day${diff===1?'':'s'}`, cls:'pill-upcoming'};
 }
-function loanById(id){ return loans.find(l=>l.id===Number(id)); }
+function loanById(id){ return loans.find(l=>l.id===id); }
 
-/* ════════════════ AMORTIZATION ENGINE ════════════════ */
-function amortize(loan){
-  // Use the fixed, hand-verified schedule for rows already defined (keeps the visible
-  // rows identical to the approved reference), then continue the same recurrence
-  // (fixed monthly payment, declining balance) for the remaining term.
-  const rows = [];
-  const monthlyRate = loan.rate/100/12;
-  let balance, startIdx, lastDateStr;
-  if(loan.scheduleFixed && loan.scheduleFixed.length){
-    loan.scheduleFixed.forEach(r=>rows.push({...r}));
-    balance = rows[rows.length-1].balance;
-    startIdx = rows.length;
-    lastDateStr = rows[rows.length-1].due;
-  } else {
-    balance = loan.principal;
-    startIdx = 0;
-    lastDateStr = null;
-  }
-  let d = lastDateStr ? new Date(lastDateStr) : new Date(loan.disbDate+'T00:00:00');
-  for(let i=startIdx+1;i<=loan.term;i++){
-    d = new Date(d);
-    d.setMonth(d.getMonth()+1);
-    const interest = balance*monthlyRate;
-    let principalPortion = loan.monthlyPayment - interest;
-    let payment = loan.monthlyPayment;
-    if(i===loan.term || principalPortion>balance){
-      principalPortion = balance;
-      payment = principalPortion+interest;
-    }
-    const closing = Math.max(0, balance - principalPortion);
-    rows.push({
-      n:i,
-      due: d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
-      payment, interest, principal:principalPortion, balance:closing,
-      status: loan.status==='Paid Off' ? 'Paid' : 'Scheduled',
-      actual: loan.status==='Paid Off' ? d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-'
-    });
-    balance = closing;
-  }
-  // Apply paidCount / status overrides consistently, and flag genuinely overdue
-  // installments (past due date + grace period) with an automatic late fee —
-  // any real loan module needs this instead of leaving late payments as "Upcoming".
+/* ════════════════ MAP A DB LOAN ROW TO UI SHAPE ════════════════ */
+function mapLoan(r){
+  return {
+    id: r.id,
+    lender: r.lender_name,
+    refNo: r.reference_no || '',
+    principal: parseFloat(r.principal_amount)||0,
+    rate: parseFloat(r.interest_rate_pct)||0,
+    term: r.term_months,
+    disbDate: r.disbursement_date,
+    channelRaw: r.disbursement_channel,
+    channel: CH_DB_TO_LBL[r.disbursement_channel] || r.disbursement_channel,
+    gracePeriodDays: r.grace_period_days||0,
+    lateFeeRate: parseFloat(r.late_fee_rate_pct)||0,
+    collateral: r.collateral||'',
+    notes: r.notes||'',
+    monthlyPayment: parseFloat(r.monthly_payment)||0,
+    outstanding: parseFloat(r.outstanding_balance)||0,
+    statusRaw: r.status,
+    status: ST_DB_TO_LBL[r.status] || r.status
+  };
+}
+
+/* ════════════════ SCHEDULE ROWS (derived from real loan_repayment_schedule rows) ════════════════
+   Nothing here is invented — due dates, interest/principal splits and running balances all come
+   straight from the DB (generated once by the generate_loan_schedule trigger when the loan was
+   created). We only derive a *display* status (Paid / Overdue / Upcoming / Scheduled) and an
+   estimated late fee for rows that are currently overdue but not yet paid. */
+function scheduleRows(loan){
+  const raw = scheduleByLoan[loan.id] || [];
   const grace = loan.gracePeriodDays || 0;
-  const lateFeeRate = loan.lateFeeRate || 0;
-  rows.forEach((r,idx)=>{
-    r.lateFee = 0;
-    if(loan.status==='Paid Off'){ r.status='Paid'; if(r.actual==='-') r.actual=r.due; }
-    else if(idx < loan.paidCount){ r.status='Paid'; if(r.actual==='-'||!r.actual) r.actual=r.due; }
-    else if(idx === loan.paidCount){
-      const dueDate = new Date(r.due);
-      const daysLate = Math.round((TODAY-dueDate)/86400000);
-      if(daysLate > grace){
-        r.status = 'Overdue';
-        r.lateFee = +((r.payment * lateFeeRate/100)).toFixed(2);
-      } else {
-        r.status = 'Upcoming';
-      }
-      r.actual='-';
+  const firstUnpaidIdx = raw.findIndex(r=>r.status!=='paid');
+  return raw.map((r,idx)=>{
+    const due = new Date(r.due_date+'T00:00:00');
+    const graceDate = new Date(due); graceDate.setDate(graceDate.getDate()+grace);
+    const interest = parseFloat(r.interest_portion)||0;
+    const principal = parseFloat(r.principal_portion)||0;
+    let status, lateFee = parseFloat(r.late_fee_amount)||0;
+    if(r.status==='paid'){ status='Paid'; }
+    else if(TODAY > graceDate){
+      status='Overdue';
+      if(!lateFee && loan.lateFeeRate>0) lateFee = +((interest+principal)*loan.lateFeeRate/100).toFixed(2);
     }
-    else { r.status='Scheduled'; r.actual='-'; }
+    else if(idx===firstUnpaidIdx){ status='Upcoming'; }
+    else { status='Scheduled'; }
+    return {
+      id: r.id, n: r.payment_number, dueRaw: r.due_date, due: fmtDate(r.due_date),
+      payment: interest+principal, interest, principal,
+      balance: parseFloat(r.closing_balance)||0,
+      lateFee, status,
+      actual: r.actual_payment_date ? fmtDate(r.actual_payment_date) : '-'
+    };
   });
-  return rows;
+}
+
+/* ════════════════ LOAD EVERYTHING FROM SUPABASE ════════════════ */
+async function loadAll(){
+  try{
+    const [loansRes, schedRes] = await Promise.all([
+      db.from('loans').select('*').order('disbursement_date', { ascending:false }),
+      db.from('loan_repayment_schedule').select('*').order('payment_number', { ascending:true })
+    ]);
+    if(loansRes.error) throw loansRes.error;
+    if(schedRes.error) throw schedRes.error;
+
+    loans = (loansRes.data||[]).map(mapLoan);
+    scheduleByLoan = {};
+    (schedRes.data||[]).forEach(r=>{
+      (scheduleByLoan[r.loan_id] = scheduleByLoan[r.loan_id]||[]).push(r);
+    });
+  } catch(err){
+    console.error('Failed to load loans from Supabase:', err);
+    showToast('Could not load loan data: '+(err.message||'unknown error'));
+    loans = []; scheduleByLoan = {};
+  }
+  populateLoanSelects();
+  const schedSel = document.getElementById('scheduleLoanSel');
+  if(loans.length && !schedSel.value) schedSel.value = loans[0].id;
+  renderRegister();
+  renderSchedule();
+  refreshHeaderNotifications();
 }
 
 /* ════════════════ STATUS PILLS ════════════════ */
@@ -673,24 +673,24 @@ function renderRegister(){
         <td>${fmtDate(l.disbDate)}</td>
         <td>${fmt(l.monthlyPayment)}</td>
         <td style="${l.status==='Paid Off' ? 'color:var(--tl)':'color:#e53935;font-weight:700'}">${l.status==='Paid Off' ? '—' : fmt(l.outstanding)}</td>
-        <td>${statusPill(l.status==='Paid Off' ? 'Paid Off' : 'Active')}</td>
+        <td>${statusPill(l.status)}</td>
         <td>
-          <div class="act-dots" onclick="toggleRowMenu(event, ${l.id})">
+          <div class="act-dots" onclick="toggleRowMenu(event, '${l.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
             <div class="row-menu" id="rowMenu-${l.id}" style="display:none">
-              <div class="row-menu-item" onclick="viewScheduleFor(${l.id})">
+              <div class="row-menu-item" onclick="viewScheduleFor('${l.id}')">
                 <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>View Schedule
               </div>
-              <div class="row-menu-item" onclick="openPaymentModal(${l.id})">
+              <div class="row-menu-item" onclick="openPaymentModal('${l.id}')">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Record Payment
               </div>
-              <div class="row-menu-item" onclick="editLoan(${l.id})">
+              <div class="row-menu-item" onclick="editLoan('${l.id}')">
                 <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Loan
               </div>
-              ${l.status!=='Paid Off' ? `<div class="row-menu-item" onclick="markPaidOff(${l.id})">
+              ${l.status!=='Paid Off' ? `<div class="row-menu-item" onclick="markPaidOff('${l.id}')">
                 <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Mark Paid Off
               </div>` : ''}
-              <div class="row-menu-item danger" onclick="deleteLoan(${l.id})">
+              <div class="row-menu-item danger" onclick="deleteLoan('${l.id}')">
                 <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Delete Loan
               </div>
             </div>
@@ -747,7 +747,7 @@ function renderSchedule(){
   if(!sel.value) return;
   const loan = loanById(sel.value);
   if(!loan) return;
-  const rows = amortize(loan);
+  const rows = scheduleRows(loan);
 
   document.getElementById('rsStrip').innerHTML = `
     <div class="rs-strip-cell"><span>Principal Amount</span><strong>${fmt(loan.principal)} <span style="font-size:11px;color:var(--tm)">ETB</span></strong></div>
@@ -785,7 +785,7 @@ function openFullScheduleModal(){
   const loan = loanById(sel.value);
   if(!loan) return;
   document.getElementById('fullSchedTitle').textContent = `Full Repayment Schedule — ${loan.lender}`;
-  const rows = amortize(loan);
+  const rows = scheduleRows(loan);
   document.getElementById('fullSchedBody').innerHTML = rows.map(r=>`
     <tr class="${r.status==='Upcoming'||r.status==='Overdue'?'hl-row':''}">
       <td>${r.n}</td><td>${r.due}</td><td>${fmt(r.payment)}</td><td>${fmt(r.interest)}</td>
@@ -799,14 +799,29 @@ function closeFullScheduleModal(){ document.getElementById('fullSchedModalOverla
 
 /* ════════════════ LOAN SUMMARY (right column) ════════════════ */
 function getNextPayments(){
-  // One "next payment" per active loan, derived live from its amortization
-  // schedule — this can never drift out of sync the way a hand-maintained
-  // upcoming-payments list could (e.g. after adding a loan or recording a payment).
+  // One "next payment" per active loan — the first installment that is Upcoming or
+  // Overdue in its real schedule (i.e. not yet paid). Derived live from the fetched
+  // schedule so it can never drift out of sync with new loans / recorded payments.
   return loans.filter(l=>l.status==='Active').map(loan=>{
-    const rows = amortize(loan);
-    const next = rows[loan.paidCount];
-    return next ? { lender:loan.lender, loanId:loan.id, due:next.due, dueDate:new Date(next.due), amount: next.payment + (next.lateFee||0), status:next.status } : null;
+    const rows = scheduleRows(loan);
+    const next = rows.find(r=>r.status==='Upcoming'||r.status==='Overdue');
+    return next ? { lender:loan.lender, loanId:loan.id, due:next.due, dueDate:new Date(next.dueRaw+'T00:00:00'), amount: next.payment + (next.lateFee||0), status:next.status } : null;
   }).filter(Boolean).sort((a,b)=>a.dueDate-b.dueDate);
+}
+
+function getCumulativeTotals(){
+  // Sum of interest/principal actually paid to date, across every loan's real
+  // schedule rows (status='paid') — no hand-maintained running total to drift.
+  let interestPaid = 0, principalRepaid = 0;
+  Object.values(scheduleByLoan).forEach(rows=>{
+    rows.forEach(r=>{
+      if(r.status==='paid'){
+        interestPaid += parseFloat(r.interest_portion)||0;
+        principalRepaid += parseFloat(r.principal_portion)||0;
+      }
+    });
+  });
+  return { interestPaid, principalRepaid };
 }
 
 function renderSummary(){
@@ -815,6 +830,7 @@ function renderSummary(){
   const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
   const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
   const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
+  const totals = getCumulativeTotals();
   const nextPayments = getNextPayments();
   const nextDue = nextPayments.length ? nextPayments[0] : null;
   const overdueCount = nextPayments.filter(p=>p.status==='Overdue').length;
@@ -860,12 +876,12 @@ function renderUpcoming(){
 let calState = { year: TODAY.getFullYear(), month: TODAY.getMonth(), selectedKey: null };
 
 function getAllPaymentEvents(){
-  // Every scheduled installment, across every loan — this is what actually powers
-  // the "View All Payments" calendar instead of the previous placeholder toast.
+  // Every scheduled installment, across every loan — powers the "View All Payments"
+  // calendar, built from real fetched schedule rows.
   const events = [];
   loans.forEach(loan=>{
-    amortize(loan).forEach(r=>{
-      const dt = new Date(r.due);
+    scheduleRows(loan).forEach(r=>{
+      const dt = new Date(r.dueRaw+'T00:00:00');
       events.push({
         loanId: loan.id, lender: loan.lender, date: dt,
         key: `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`,
@@ -950,21 +966,28 @@ function openCalendarModal(){
 function closeCalendarModal(){ document.getElementById('calendarModalOverlay').classList.remove('show'); }
 
 /* ════════════════ ADD / EDIT LOAN MODAL ════════════════ */
+function setLoanFieldsLocked(locked){
+  ['lPrincipal','lRate','lTerm','lDate','lChannel'].forEach(id=>{
+    document.getElementById(id).disabled = locked;
+  });
+  document.getElementById('lEditLockNotice').style.display = locked ? 'block' : 'none';
+}
 function openLoanModal(){
   document.getElementById('loanModalTitle').textContent = 'Add New Loan';
   document.getElementById('lId').value = '';
   document.getElementById('lLender').value = '';
-  document.getElementById('lRefNo').value = `LN-${String(nextLoanId).padStart(4,'0')}`;
+  document.getElementById('lRefNo').value = 'Auto-generated';
   document.getElementById('lPrincipal').value = '';
   document.getElementById('lRate').value = '';
   document.getElementById('lTerm').value = '';
-  document.getElementById('lDate').value = '';
+  document.getElementById('lDate').value = new Date().toISOString().slice(0,10);
   document.getElementById('lChannel').value = 'Bank';
   document.getElementById('lGrace').value = 0;
   document.getElementById('lLateFee').value = 0;
   document.getElementById('lCollateral').value = '';
   document.getElementById('lStatus').value = 'Active';
   document.getElementById('lNotes').value = '';
+  setLoanFieldsLocked(false);
   updatePmtPreview();
   document.getElementById('loanModalOverlay').classList.add('show');
 }
@@ -974,7 +997,7 @@ function editLoan(id){
   document.getElementById('loanModalTitle').textContent = 'Edit Loan';
   document.getElementById('lId').value = l.id;
   document.getElementById('lLender').value = l.lender;
-  document.getElementById('lRefNo').value = l.refNo || `LN-${String(l.id).padStart(4,'0')}`;
+  document.getElementById('lRefNo').value = l.refNo || '—';
   document.getElementById('lPrincipal').value = l.principal;
   document.getElementById('lRate').value = l.rate;
   document.getElementById('lTerm').value = l.term;
@@ -985,6 +1008,7 @@ function editLoan(id){
   document.getElementById('lCollateral').value = l.collateral || '';
   document.getElementById('lStatus').value = l.status;
   document.getElementById('lNotes').value = l.notes||'';
+  setLoanFieldsLocked(true);
   updatePmtPreview();
   document.getElementById('loanModalOverlay').classList.add('show');
   document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
@@ -1012,10 +1036,9 @@ function updatePmtPreview(){
     document.getElementById(id).addEventListener('input', updatePmtPreview);
   });
 });
-function saveLoan(){
+async function saveLoan(){
   const id = document.getElementById('lId').value;
   const lender = document.getElementById('lLender').value.trim();
-  const refNo = document.getElementById('lRefNo').value.trim();
   const principal = parseFloat(document.getElementById('lPrincipal').value);
   const rate = parseFloat(document.getElementById('lRate').value);
   const term = parseInt(document.getElementById('lTerm').value);
@@ -1025,51 +1048,85 @@ function saveLoan(){
   const lateFeeRate = parseFloat(document.getElementById('lLateFee').value)||0;
   const collateral = document.getElementById('lCollateral').value.trim();
   const status = document.getElementById('lStatus').value;
-  const notes = document.getElementById('lNotes').value;
+  const notes = document.getElementById('lNotes').value.trim();
 
   if(!lender || !principal || !rate || !term || !disbDate){
     showToast('Please fill in all required fields');
     return;
   }
-  const monthlyPayment = calcMonthlyPayment(principal, rate, term);
 
-  if(id){
-    const l = loanById(id);
-    Object.assign(l, { lender, principal, rate, term, disbDate, channel, gracePeriodDays, lateFeeRate, collateral, status, notes, monthlyPayment });
-    if(status==='Paid Off'){ l.outstanding = 0; l.paidCount = l.term; }
-    showToast('Loan updated successfully');
-  } else {
-    loans.push({
-      id: nextLoanId++, lender, refNo, principal, rate, term, disbDate, channel, gracePeriodDays, lateFeeRate, collateral, status, notes,
-      monthlyPayment, outstanding: principal, paidCount: 0
-    });
-    showToast('New loan added successfully');
+  const saveBtn = document.querySelector('#loanModalOverlay .btn-pri');
+  const oldBtnText = saveBtn.textContent;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+
+  try{
+    if(id){
+      // Editing: only status / grace / late-fee / collateral / notes are editable —
+      // financial terms are locked in the UI because the repayment schedule was
+      // already generated from them at creation time.
+      const { error } = await db.from('loans').update({
+        grace_period_days: gracePeriodDays,
+        late_fee_rate_pct: lateFeeRate,
+        collateral: collateral || null,
+        notes: notes || null,
+        status: ST_LBL_TO_DB[status] || 'active'
+      }).eq('id', id);
+      if(error) throw error;
+      showToast('Loan updated successfully');
+    } else {
+      const { error } = await db.from('loans').insert({
+        lender_name: lender,
+        principal_amount: principal,
+        interest_rate_pct: rate,
+        term_months: term,
+        disbursement_date: disbDate,
+        disbursement_channel: CH_LBL_TO_DB[channel] || 'bank',
+        grace_period_days: gracePeriodDays,
+        late_fee_rate_pct: lateFeeRate,
+        collateral: collateral || null,
+        notes: notes || null,
+        status: ST_LBL_TO_DB[status] || 'active'
+      });
+      if(error) throw error;
+      showToast('New loan added successfully');
+    }
+    closeLoanModal();
+    await loadAll();
+  } catch(err){
+    console.error('Save loan failed:', err);
+    showToast('Failed to save loan: '+(err.message||'unknown error'));
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = oldBtnText;
   }
-  saveLoanToSupabase({lender, principal, rate, term, disbDate, channel, status, notes});
-  closeLoanModal();
-  renderRegister();
-  renderSchedule();
 }
-function markPaidOff(id){
+async function markPaidOff(id){
   const l = loanById(id);
   if(!l) return;
   if(!confirm(`Mark the ${l.lender} loan as fully Paid Off?`)) return;
-  l.status = 'Paid Off';
-  l.outstanding = 0;
-  l.paidCount = l.term;
   document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
-  showToast(`${l.lender} loan marked as Paid Off`);
-  renderRegister();
-  renderSchedule();
+  try{
+    const { error } = await db.from('loans').update({ status:'paid_off', outstanding_balance:0 }).eq('id', id);
+    if(error) throw error;
+    showToast(`${l.lender} loan marked as Paid Off`);
+    await loadAll();
+  } catch(err){
+    console.error('Mark paid off failed:', err);
+    showToast('Failed to update loan: '+(err.message||'unknown error'));
+  }
 }
-function deleteLoan(id){
+async function deleteLoan(id){
   const l = loanById(id);
   if(!l) return;
   if(!confirm(`Delete the ${l.lender} loan? This cannot be undone.`)) return;
-  loans = loans.filter(x=>x.id!==id);
-  showToast(`${l.lender} loan deleted`);
-  renderRegister();
-  renderSchedule();
+  try{
+    const { error } = await db.from('loans').delete().eq('id', id);
+    if(error) throw error;
+    showToast(`${l.lender} loan deleted`);
+    await loadAll();
+  } catch(err){
+    console.error('Delete loan failed:', err);
+    showToast('Failed to delete loan: '+(err.message||'unknown error'));
+  }
 }
 
 /* ════════════════ RECORD PAYMENT MODAL ════════════════ */
@@ -1078,47 +1135,55 @@ function openPaymentModal(id){
   const sel = document.getElementById('pyLoanSel');
   if(id) sel.value = id;
   document.getElementById('pyDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pyChannel').value = 'Bank';
   refreshPaymentPreview();
   document.getElementById('paymentModalOverlay').classList.add('show');
   document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
 }
 function closePaymentModal(){ document.getElementById('paymentModalOverlay').classList.remove('show'); }
+function nextUnpaidInstallment(loan){
+  return scheduleRows(loan).find(r=>r.status==='Upcoming'||r.status==='Overdue');
+}
 function refreshPaymentPreview(){
   const sel = document.getElementById('pyLoanSel');
   const box = document.getElementById('pyPreview');
   const loan = loanById(sel.value);
   if(!loan){ box.textContent = 'No active loans available.'; return; }
-  const rows = amortize(loan);
-  const next = rows[loan.paidCount];
+  const next = nextUnpaidInstallment(loan);
   if(!next){ box.textContent = 'This loan has no remaining scheduled payments.'; return; }
   const total = next.payment + (next.lateFee||0);
   box.innerHTML = `Next payment for <strong>${loan.lender}</strong>: due ${next.due} — <strong>${fmt(total)} ETB</strong> (Interest ${fmt(next.interest)} + Principal ${fmt(next.principal)}${next.lateFee>0?` + <span style="color:#b3261e">Late Fee ${fmt(next.lateFee)}</span>`:''})${next.status==='Overdue'?` <span style="color:#b3261e;font-weight:700">— Overdue</span>`:''}`;
 }
-function confirmPayment(){
+async function confirmPayment(){
   const sel = document.getElementById('pyLoanSel');
   const loan = loanById(sel.value);
   if(!loan){ showToast('Select a loan first'); return; }
-  const rows = amortize(loan);
-  const next = rows[loan.paidCount];
+  const next = nextUnpaidInstallment(loan);
   if(!next){ showToast('No remaining payments for this loan'); return; }
   const actualDate = document.getElementById('pyDate').value || new Date().toISOString().slice(0,10);
+  const channel = CH_LBL_TO_DB[document.getElementById('pyChannel').value] || 'bank';
 
-  loan.paidCount += 1;
-  loan.outstanding = Math.max(0, loan.outstanding - next.principal);
-  totals.interestPaid += next.interest;
-  totals.principalRepaid += next.principal;
-  if(loan.paidCount>=loan.term || loan.outstanding<=0.01){
-    loan.status = 'Paid Off';
-    loan.outstanding = 0;
+  const confirmBtn = document.querySelector('#paymentModalOverlay .btn-pri');
+  const oldText = confirmBtn.textContent;
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Saving…';
+
+  try{
+    const { error } = await db.from('loan_repayment_schedule').update({
+      status: 'paid',
+      actual_payment_date: actualDate,
+      payment_channel: channel,
+      late_fee_amount: next.lateFee || 0
+    }).eq('id', next.id);
+    if(error) throw error;
+    closePaymentModal();
+    showToast(`Payment recorded for ${loan.lender}${next.lateFee>0?` (incl. ${fmt(next.lateFee)} ETB late fee)`:''}`);
+    await loadAll();
+  } catch(err){
+    console.error('Record payment failed:', err);
+    showToast('Failed to record payment: '+(err.message||'unknown error'));
+  } finally {
+    confirmBtn.disabled = false; confirmBtn.textContent = oldText;
   }
-  // Next payment (if any) is picked up automatically by getNextPayments() —
-  // no manual bookkeeping array to keep in sync.
-
-  savePaymentToSupabase(loan, next, actualDate);
-  closePaymentModal();
-  showToast(`Payment recorded for ${loan.lender}${next.lateFee>0?` (incl. ${fmt(next.lateFee)} ETB late fee)`:''}`);
-  renderRegister();
-  renderSchedule();
 }
 
 /* ════════════════ LOAN DETAILS MODAL ════════════════ */
@@ -1126,12 +1191,12 @@ function openLoanDetails(){
   const sel = document.getElementById('scheduleLoanSel');
   const loan = loanById(sel.value);
   if(!loan) return;
-  const rows = amortize(loan);
+  const rows = scheduleRows(loan);
   const paid = rows.filter(r=>r.status==='Paid').length;
   const totalInterestFullTerm = rows.reduce((s,r)=>s+r.interest,0);
   document.getElementById('detailsBody').innerHTML = `
     <div class="sum-row"><div class="sum-lbl">Lender</div><div class="sum-val">${loan.lender}</div></div>
-    <div class="sum-row"><div class="sum-lbl">Loan Reference No.</div><div class="sum-val">${loan.refNo || `LN-${String(loan.id).padStart(4,'0')}`}</div></div>
+    <div class="sum-row"><div class="sum-lbl">Loan Reference No.</div><div class="sum-val">${loan.refNo || '—'}</div></div>
     <div class="sum-row"><div class="sum-lbl">Principal Amount</div><div class="sum-val">${fmt(loan.principal)} <span class="u">ETB</span></div></div>
     <div class="sum-row"><div class="sum-lbl">Interest Rate (Annual)</div><div class="sum-val">${loan.rate.toFixed(2)}%</div></div>
     <div class="sum-row"><div class="sum-lbl">Term</div><div class="sum-val">${loan.term} Months</div></div>
@@ -1206,11 +1271,12 @@ function exportLoanReportPdf(){
     const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
     const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
     const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
+    const cum = getCumulativeTotals();
     [
       `Total Principal Borrowed: ${fmt(totalPrincipal)} ETB`,
       `Total Outstanding Balance: ${fmt(totalOutstanding)} ETB`,
-      `Total Interest Paid (To Date): ${fmt(totals.interestPaid)} ETB`,
-      `Total Principal Repaid (To Date): ${fmt(totals.principalRepaid)} ETB`,
+      `Total Interest Paid (To Date): ${fmt(cum.interestPaid)} ETB`,
+      `Total Principal Repaid (To Date): ${fmt(cum.principalRepaid)} ETB`,
       `Monthly Payments (All Loans): ${fmt(totalMonthly)} ETB`,
       `Active Loans: ${active.length}`,
       `Paid Off Loans: ${paidOff.length}`
@@ -1224,97 +1290,54 @@ function exportLoanReportPdf(){
   }
 }
 
-/* ════════════════ SUPABASE (best-effort persistence) ════════════════
-   Schema per Injera BMS v37 spec §3.12 / §6.9:
-   loans(id, lender_name, principal_amount, interest_rate_pct, term_months,
-         disbursement_date, disbursement_channel, status)
-   loan_repayment_schedule(loan_id, payment_number, due_date, interest_portion,
-         principal_portion, actual_payment_date, status)
-   If Supabase is unreachable or the tables don't exist yet, the page silently
-   falls back to the local mock data above — same pattern as purchases.html. */
-async function loadLoansFromSupabase(){
-  try{
-    const { data, error } = await db.from('loans').select('*').eq('is_deleted', false);
-    if(error) throw error;
-    if(data && data.length){
-      const channelMap = {bank:'Bank', cash:'Cash', mobile:'Mobile Money'};
-      loans = data.map(r=>({
-        id: r.id, _dbId: r.id, lender: r.lender_name,
-        principal: parseFloat(r.principal_amount||0),
-        rate: parseFloat(r.interest_rate_pct||0),
-        term: parseInt(r.term_months||0),
-        disbDate: r.disbursement_date || '2025-01-01',
-        channel: channelMap[r.disbursement_channel] || 'Bank',
-        monthlyPayment: parseFloat(r.monthly_payment||0) || calcMonthlyPayment(parseFloat(r.principal_amount||0), parseFloat(r.interest_rate_pct||0), parseInt(r.term_months||1)),
-        outstanding: parseFloat(r.outstanding_balance ?? r.principal_amount ?? 0),
-        status: r.status==='paid_off'?'Paid Off':(r.status==='defaulted'?'Defaulted':'Active'),
-        paidCount: 0
-      }));
-      nextLoanId = Math.max(...loans.map(l=>Number(l.id)||0), 4) + 1;
-      showToast('Loan data loaded from database');
-    }
-  } catch(err){
-    console.log('Supabase unavailable for loans, using local mock data:', err.message);
-  }
-  renderRegister();
-  renderSchedule();
+/* ════════════════ HEADER NOTIFICATIONS (derived from real data, not mock) ════════════════ */
+function computeLoanNotifications(){
+  const notes = [];
+  const nextPayments = getNextPayments();
+
+  nextPayments.filter(p=>p.status==='Overdue').forEach(p=>{
+    notes.push({ type:'r', title:`Payment Overdue — ${p.lender}`, sub:`${fmt(p.amount)} ETB was due ${p.due}`, time:'' });
+  });
+  nextPayments.filter(p=>p.status==='Upcoming').forEach(p=>{
+    const days = Math.round((p.dueDate-TODAY)/86400000);
+    notes.push({ type:'o', title:'Loan Payment Due Soon', sub:`${p.lender} — ${fmt(p.amount)} ETB due ${p.due} (in ${days} day${days===1?'':'s'})`, time:'' });
+  });
+  loans.filter(l=>l.statusRaw==='paid_off').slice(0,2).forEach(l=>{
+    notes.push({ type:'g', title:`${l.lender} Loan Paid Off`, sub:`The ${fmt(l.principal)} ETB loan has been fully repaid`, time:'' });
+  });
+
+  return notes.slice(0,6);
 }
-async function saveLoanToSupabase(l){
-  try{
-    const channelMap = {'Bank':'bank','Cash':'cash','Mobile Money':'mobile'};
-    const statusMap = {'Active':'active','Paid Off':'paid_off','Defaulted':'defaulted'};
-    const row = {
-      lender_name: l.lender,
-      principal_amount: l.principal,
-      interest_rate_pct: l.rate,
-      term_months: l.term,
-      disbursement_date: l.disbDate,
-      disbursement_channel: channelMap[l.channel]||'bank',
-      status: statusMap[l.status]||'active'
-    };
-    const { error } = await db.from('loans').insert(row);
-    if(error) throw error;
-  } catch(err){
-    console.log('Supabase save failed (local only):', err.message);
+function lastSixMonthLabels(){
+  const arr=[];
+  for(let i=5;i>=0;i--){
+    const d = new Date(TODAY.getFullYear(), TODAY.getMonth()-i, 1);
+    arr.push(d.toLocaleDateString('en-US',{month:'short',year:'numeric'}));
   }
+  return arr;
 }
-async function savePaymentToSupabase(loan, row, actualDate){
-  try{
-    if(!loan._dbId) return;
-    await db.from('loan_repayment_schedule').update({
-      status:'paid', actual_payment_date: actualDate
-    }).eq('loan_id', loan._dbId).eq('payment_number', loan.paidCount);
-  } catch(err){
-    console.log('Supabase payment save failed (local only):', err.message);
-  }
+function refreshHeaderNotifications(){
+  const months = lastSixMonthLabels();
+  renderHeader({
+    title: 'Loans',
+    subtitle: 'Manage loans, repayment schedules and balances',
+    showMonthPicker: true,
+    months,
+    selectedMonth: months[months.length-1],
+    showExport: true,
+    onExportPdf: exportLoanReportPdf,
+    onExportXlsx: exportLoanReportExcel,
+    notifications: computeLoanNotifications()
+  });
 }
 
 /* ════════════════ INIT ════════════════ */
-renderHeader({
-  title: 'Loans',
-  subtitle: 'Manage loans, repayment schedules and balances',
-  showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
-  showExport: true,
-  onExportPdf: exportLoanReportPdf,
-  onExportXlsx: exportLoanReportExcel,
-  notifications: [
-    { type:'o', title:'Loan Payment Due Soon', sub:'Awash Bank — 4,674.20 ETB due Jun 15, 2026 (in 14 days)', time:'2 hours ago' },
-    { type:'r', title:'Payment Due — Abay Microfinance', sub:'2,797.18 ETB due Jun 05, 2026 (in 4 days)', time:'5 hours ago' },
-    { type:'g', title:'Commercial Bank Loan Paid Off', sub:'The 80,000.00 ETB loan has been fully repaid', time:'Yesterday' },
-    { type:'b', title:'Export Complete', sub:'Loan register exported successfully', time:'2 days ago' }
-  ]
-});
+refreshHeaderNotifications();
 document.getElementById('scheduleLoanSel').addEventListener('change', renderSchedule);
 document.getElementById('lPrincipal').addEventListener('input', updatePmtPreview);
 document.getElementById('lRate').addEventListener('input', updatePmtPreview);
 document.getElementById('lTerm').addEventListener('input', updatePmtPreview);
-populateLoanSelects();
-document.getElementById('scheduleLoanSel').value = '1';
-renderRegister();
-renderSchedule();
-loadLoansFromSupabase();
+loadAll();
 </script>
 </body>
 </html>
