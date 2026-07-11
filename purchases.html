@@ -91,12 +91,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
 /* ══ DONUT ══════════════════════════════════════════ */
-.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;gap:14px}
+.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;justify-content:center;gap:14px}
 .dnut{position:relative;flex-shrink:0}
 .dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:80px}
 .dnut-lbl span{font-size:9px;color:var(--tl);font-weight:600;display:block;line-height:1.2}
 .dnut-lbl strong{font-family:'Quicksand',sans-serif;font-size:11.5px;font-weight:700;color:var(--td);display:block;line-height:1.3}
-.exp-leg{font-size:10px;flex:1;display:flex;flex-direction:column;gap:7px}
+.exp-leg{font-size:10px;flex:0 1 220px;display:flex;flex-direction:column;gap:7px}
 .exp-r{display:flex;align-items:center;gap:5px}
 .exp-d{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 .exp-n{color:var(--tm);flex:1}
@@ -177,10 +177,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    with three other fixed-width, non-shrinking elements, the row needed ~400px minimum and
    the ETB value (.bv) got clipped whenever the card was narrower than that (laptop widths,
    the 1fr slot next to the trend chart). Track now genuinely flexes; the category name
-   truncates with an ellipsis instead, since the number is the important part to keep intact. */
+   truncates with an ellipsis instead, since the number is the important part to keep intact.
+   FOLLOW-UP (2026-07-08): each bar's fill width is relative to the largest category, so most
+   rows (anything smaller than the top category) end up mostly unfilled. Combined with the old
+   near-white #eef3f0 track color and no width ceiling, on a wide desktop window the unfilled
+   portion stretched very long and very pale — easily read as "blank space" rather than a bar.
+   Now the track has a visible border and a slightly darker base color, and stops growing past
+   170px so on wide cards the row stays compact instead of sprawling into mostly-empty pastel. */
 .bar-row{display:flex;align-items:center;gap:8px;padding:6px 15px;min-width:0}
 .bar-row .bn{font-size:12px;font-weight:600;color:var(--td);flex:0 1 88px;min-width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-track{flex:1 1 auto;min-width:24px;height:8px;background:#eef3f0;border-radius:4px;overflow:hidden}
+.bar-track{flex:1 1 auto;max-width:170px;min-width:24px;height:8px;background:#e6efe9;border:1px solid #d7e5dd;border-radius:4px;overflow:hidden}
 .bar-fill{height:100%;border-radius:4px}
 .bar-row .bp{font-size:11.5px;font-weight:700;color:var(--tm);width:34px;text-align:right;flex-shrink:0}
 .bar-row .bv{font-size:11.5px;font-weight:700;color:var(--td);text-align:right;flex-shrink:0;margin-left:2px;white-space:nowrap}
@@ -667,7 +673,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div class="exp-bd">
           <div class="dnut">
-            <canvas id="typeChart" width="220" height="220" style="width:110px;height:110px"></canvas>
+            <canvas id="typeChart" width="220" height="220" style="width:150px;height:150px"></canvas>
             <div class="dnut-lbl">
               <span>Total</span>
               <strong id="typeTotalLbl">73,450.00<br>ETB</strong>
@@ -689,7 +695,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div class="exp-bd">
           <div class="dnut">
-            <canvas id="chanChart" width="220" height="220" style="width:110px;height:110px"></canvas>
+            <canvas id="chanChart" width="220" height="220" style="width:150px;height:150px"></canvas>
             <div class="dnut-lbl">
               <span>Total</span>
               <strong id="chanTotalLbl">73,450.00<br>ETB</strong>
@@ -941,65 +947,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 // purchase row too, purely as a display cache so the table doesn't need a join to render.
 function genId(){ return 'sup_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 
-let suppliers = [
-  {id:genId(), name:'Abebe Grain Supplier', category:'Grain', isActive:true},
-  {id:genId(), name:'Zemen Packaging', category:'Packaging', isActive:true},
-  {id:genId(), name:'Ethio Electric', category:'Utility', isActive:true},
-  {id:genId(), name:'Addis Water Utility', category:'Utility', isActive:true},
-  {id:genId(), name:'Yimaru Transport', category:'Logistics', isActive:true},
-  {id:genId(), name:'Berhan Bank', category:'Finance', isActive:true}
-];
+// Suppliers/purchases used to seed from a hardcoded demo dataset (dated May 2026) as an
+// "offline/first-paint fallback" before Supabase finished loading. Removed per Superman's
+// request (2026-07-08) — no mock data anywhere, even briefly. Both start empty and are
+// populated entirely by loadSuppliersFromSupabase()/loadFromSupabase(); the table/charts
+// simply show their real "no data" states until that load completes.
+let suppliers = [];
 function supplierByName(name){ return suppliers.find(s=>s.name===name); }
 function supplierById(id){ return suppliers.find(s=>s.id===id); }
 
-let purchases = [
-  {id:1, date:'2026-05-30', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'75kg', qty:75, unit:'kg', unitPrice:86, procCost:150, deliv:100, channel:'Bank', status:'Completed'},
-  {id:2, date:'2026-05-29', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'100pcs', qty:100, unit:'pcs', unitPrice:3.9, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:3, date:'2026-05-28', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'100kg', qty:100, unit:'kg', unitPrice:22, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:4, date:'2026-05-27', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026 bill', qty:1, unit:'ls', unitPrice:5300, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:5, date:'2026-05-26', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'200pcs', qty:200, unit:'pcs', unitPrice:1.8, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:6, date:'2026-05-25', supplier:'Addis Water Utility', type:'Expense', category:'Water', description:'May 2026 bill', qty:1, unit:'ls', unitPrice:1200, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:7, date:'2026-05-24', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'20kg', qty:20, unit:'kg', unitPrice:52, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:8, date:'2026-05-23', supplier:'Yimaru Transport', type:'Expense', category:'Delivery Out', description:'To shops', qty:1, unit:'ls', unitPrice:1800, procCost:0, deliv:0, channel:'Cash', status:'Pending'},
-  {id:9, date:'2026-05-22', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee', qty:1, unit:'ls', unitPrice:85, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:10, date:'2026-05-21', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'50kg', qty:50, unit:'kg', unitPrice:88, procCost:120, deliv:80, channel:'Bank', status:'Completed'},
-  {id:11, date:'2026-05-20', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'67pcs', qty:67, unit:'pcs', unitPrice:3.9, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:12, date:'2026-05-19', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'147pcs', qty:147, unit:'pcs', unitPrice:1.69, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:13, date:'2026-05-19', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'80kg', qty:80, unit:'kg', unitPrice:23.28, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:14, date:'2026-05-19', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'19kg', qty:19, unit:'kg', unitPrice:52.43, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:15, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'79kg', qty:79, unit:'kg', unitPrice:20.7, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:16, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'49kg', qty:49, unit:'kg', unitPrice:23.18, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:17, date:'2026-05-18', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'20kg', qty:20, unit:'kg', unitPrice:54.45, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:18, date:'2026-05-17', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'47kg', qty:47, unit:'kg', unitPrice:20.53, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:19, date:'2026-05-16', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'24kg', qty:24, unit:'kg', unitPrice:48.05, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:20, date:'2026-05-15', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'111pcs', qty:111, unit:'pcs', unitPrice:1.72, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:21, date:'2026-05-15', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'81pcs', qty:81, unit:'pcs', unitPrice:3.93, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:22, date:'2026-05-14', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'195pcs', qty:195, unit:'pcs', unitPrice:1.93, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:23, date:'2026-05-13', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'35kg', qty:35, unit:'kg', unitPrice:88.95, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:24, date:'2026-05-12', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'60kg', qty:60, unit:'kg', unitPrice:21.6, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:25, date:'2026-05-11', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'12kg', qty:12, unit:'kg', unitPrice:53.68, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:26, date:'2026-05-11', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'107pcs', qty:107, unit:'pcs', unitPrice:3.95, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:27, date:'2026-05-10', supplier:'Zemen Packaging', type:'Purchase', category:'Small Bags', description:'106pcs', qty:106, unit:'pcs', unitPrice:1.64, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:28, date:'2026-05-09', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Injera Blend', description:'44kg', qty:44, unit:'kg', unitPrice:87.51, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:29, date:'2026-05-08', supplier:'Zemen Packaging', type:'Purchase', category:'Large Bags', description:'86pcs', qty:86, unit:'pcs', unitPrice:3.79, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:30, date:'2026-05-08', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'62kg', qty:62, unit:'kg', unitPrice:21.26, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:31, date:'2026-05-07', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'58kg', qty:58, unit:'kg', unitPrice:22.26, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:32, date:'2026-05-07', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Gomen Zere', description:'23kg', qty:23, unit:'kg', unitPrice:53.17, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:33, date:'2026-05-06', supplier:'Abebe Grain Supplier', type:'Purchase', category:'Corn', description:'86kg', qty:86, unit:'kg', unitPrice:22.38, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:34, date:'2026-05-06', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee - May 2026', qty:1, unit:'ls', unitPrice:216.81, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:35, date:'2026-05-06', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1732.16, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:36, date:'2026-05-04', supplier:'Berhan Bank', type:'Expense', category:'Bank Charges', description:'Bank Transfer Fee - May 2026', qty:1, unit:'ls', unitPrice:89.58, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:37, date:'2026-05-02', supplier:'Yimaru Transport', type:'Expense', category:'Delivery Out', description:'May 2026', qty:1, unit:'ls', unitPrice:1138.91, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:38, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1585.46, procCost:0, deliv:0, channel:'Bank', status:'Completed'},
-  {id:39, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:2376.68, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:40, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1776.89, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:41, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1662.11, procCost:0, deliv:0, channel:'Cash', status:'Completed'},
-  {id:42, date:'2026-05-01', supplier:'Ethio Electric', type:'Expense', category:'Electricity', description:'May 2026', qty:1, unit:'ls', unitPrice:1618.2, procCost:0, deliv:0, channel:'Bank', status:'Completed'}
-];
-// supplierId FK backfill happens here (suppliers is already defined above).
-// categoryId FK backfill happens later, after inventoryItems/expenseCategories are defined.
-purchases.forEach(p => { const s = supplierByName(p.supplier); if(s) p.supplierId = s.id; });
-let nextPurchaseId = 43;
+let purchases = [];
+let nextPurchaseId = 1;
 
 let state = {page:1, perPage:10, sort:null};
 let typeChart, chanChart, trendChart;
@@ -1060,13 +1018,19 @@ function populateMonthSelector(){
   while(cur <= latest){ keys.push(cur); cur = nextMonthKey(cur); }
   const prevSelected = sel.value;
   sel.innerHTML = keys.map(k=>`<option value="${k}">${monthLabel(k)}</option>`).join('');
-  // Prefer whatever was already selected; otherwise default to the month with the most
-  // recent data (falls back to the current calendar month if there's no data at all).
-  if(prevSelected && keys.includes(prevSelected)){
+  // BUG FIX (2026-07-08): this function runs twice — once at first paint using the offline/
+  // first-paint fallback purchases (dated well in the past), and again once real Supabase
+  // data has loaded. The old logic always "preferred whatever was already selected", so the
+  // very first call's guess (built from fake fallback dates) got locked in and survived the
+  // second call untouched — the page opened on a stale month instead of the real current one,
+  // even though the real data had nothing to do with that month at all.
+  // Now: only preserve the existing selection if the *user* actually navigated the picker
+  // (monthUserSelected, set in onMonthChange — never set by this function itself). Until
+  // then, always default to today's real calendar month.
+  if(monthUserSelected && prevSelected && keys.includes(prevSelected)){
     sel.value = prevSelected;
   } else {
-    const mostRecentWithData = purchases.length ? purchases.map(p=>p.date.slice(0,7)).sort().pop() : todayKey;
-    sel.value = keys.includes(mostRecentWithData) ? mostRecentWithData : todayKey;
+    sel.value = keys.includes(todayKey) ? todayKey : keys[keys.length-1];
   }
 }
 // Adds n more months to the end of the range — used when the ›/chgM(1) arrow is clicked
@@ -1081,7 +1045,11 @@ function extendMonthOptions(n){
     sel.appendChild(opt);
   }
 }
-function onMonthChange(){ renderCharts(); renderSummaryCards(); renderTable(); }
+// Set true only by real user navigation (month arrows or the picker's own change event) —
+// never by populateMonthSelector() itself — so its auto-default logic can tell the
+// difference between "nothing chosen yet" and "the owner deliberately picked a month".
+let monthUserSelected = false;
+function onMonthChange(){ monthUserSelected = true; renderCharts(); renderSummaryCards(); renderTable(); }
 
 /* ════════════════ EXPORT (demo) ════════════════ */
 // Wraps a field in quotes and escapes embedded quotes/commas/newlines per RFC 4180 —
@@ -1664,12 +1632,6 @@ function itemById(id){ return inventoryItems.find(i=>i.id===id); }
 function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
 function expCatByName(name){ return expenseCategories.find(c=>c.name===name); }
-// Backfill categoryId FK on seed rows now that inventoryItems/expenseCategories exist
-// (seed data above only had category name strings, matching the old text-based UI).
-purchases.forEach(p => {
-  const cat = p.type === 'Expense' ? expCatByName(p.category) : itemByName(p.category);
-  if(cat) p.categoryId = cat.id;
-});
 
 // Only Injera Blend carries Processing Cost / Delivery In per spec (Col H/I)
 const PROC_DELIV_ITEMS = new Set(['Injera Blend']);
@@ -1878,7 +1840,7 @@ async function saveVatSettings(){
   vatSettings = { isRegistered, ratePct };
   try {
     if(businessSettingsId){
-      const { error } = await db.from('business_settings').update({ is_vat_registered: isRegistered, vat_rate_pct: ratePct }).eq('id', businessSettingsId);
+      const { error } = await db.from('business_settings').update({ is_vat_registered: isRegistered }).eq('id', businessSettingsId);
       if(error) throw error;
     }
     toggleVatFieldInModal();
@@ -2054,6 +2016,7 @@ function syncMonthSelectorTo(dateStr){
   if(sel.value === mk) return;
   if(![...sel.options].some(o=>o.value===mk)) populateMonthSelector();
   sel.value = mk;
+  monthUserSelected = true; // deliberate jump to follow a saved row — treat like a real navigation
 }
 
 /* ════════════════ SUPPLIER MANAGER MODAL ════════════════ */
@@ -2557,7 +2520,7 @@ async function loadBusinessSettingsFromSupabase(){
       EXPENSE_APPROVAL_THRESHOLD = parseFloat(data.approval_threshold_etb ?? 1000);
       vatSettings = {
         isRegistered: !!data.is_vat_registered,
-        ratePct: data.vat_rate_pct != null ? parseFloat(data.vat_rate_pct) : 15 // now a real column (added 2026-07) — 15 stays only as a last-resort fallback if the row is missing it
+        ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15) // rate isn't its own column; 15% is Ethiopia's standard rate per spec
       };
       // bank_charge_default_pct confirmed against the live schema (2026-07-08) — a percentage,
       // not the old localStorage {type,value} shape. Falls back to 0.5% if the row is missing it.
@@ -2728,13 +2691,10 @@ renderHeader({
   onExportPdf: exportPdf,
   onExportXlsx: exportExcel,
   onMonthChange: onMonthChange,
-  notifications: [
-    { type:'o', title:'Large Expense Pending Approval', sub:'Yimaru Transport — Delivery Out — 1,800.00 ETB requires your approval', time:'2 hours ago · May 23, 2026' },
-    { type:'r', title:'Budget Threshold Reached', sub:'Electricity spend has reached 90% of the May 2026 budget', time:'5 hours ago · May 23, 2026' },
-    { type:'g', title:'42 Purchases Recorded This Month', sub:'Total purchases for May 2026 are on track vs. last month', time:'Yesterday · May 22, 2026' },
-    { type:'b', title:'Export Complete', sub:'April 2026 purchase report exported successfully', time:'2 days ago · May 21, 2026' },
-    { type:'g', title:'New Supplier Added', sub:'Abebe Grain Supplier was added to your supplier list', time:'3 days ago · May 20, 2026' }
-  ]
+  // Hardcoded notifications removed (2026-07-08) — they referenced the mock May 2026 seed
+  // data (fake supplier names, fake budget/approval alerts) and had no connection to reality.
+  // Empty until there's a real notifications system to back this.
+  notifications: []
 });
 // The shared header's month picker is a plain string list — this page needs real
 // month keys (rolling 24-back/6-forward range, extendable past the end), so build
