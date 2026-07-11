@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Monthly Overhead — Mena Injera & Derkosh BMS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,15 +338,23 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </div>
         </div>
 
-        <!-- Overhead by Category (Bar) -->
+        <!-- Daily Overhead Rate Gauge -->
         <div class="card" style="display:flex;flex-direction:column;flex:1">
           <div class="card-hd">
-            <div class="card-ttl">Overhead by Category (ETB)</div>
+            <div class="card-ttl">Daily Overhead Rate <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="gaugeMonthLbl">- May 2026</span></div>
           </div>
-          <div class="chart-box" style="flex:1;display:flex;flex-direction:column">
-            <div style="position:relative;flex:1;min-height:220px">
-              <canvas id="ohBarChart"></canvas>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:6px 17px 4px">
+            <div style="position:relative;width:220px;max-width:100%">
+              <canvas id="rateGauge" width="220" height="125"></canvas>
+              <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center">
+                <strong id="gaugeValueLbl" style="font-family:'Quicksand',sans-serif;font-size:20px;font-weight:800;color:var(--td);display:block">0.00</strong>
+                <span style="font-size:10px;color:var(--tl);font-weight:600">ETB / day</span>
+              </div>
             </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 17px 16px;font-size:12px;flex-wrap:wrap;gap:6px">
+            <span style="color:var(--tl);font-weight:600">Target <strong id="gaugeTargetLbl" style="color:var(--td)">0.00 ETB/day</strong></span>
+            <span id="gaugeStatus" class="kc-chg dn">▼ 0.00% under target</span>
           </div>
         </div>
 
@@ -583,15 +596,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div class="f-grp">
           <label>Overhead Category</label>
-          <select id="ohCategory" onchange="onOhCategoryChange()">
-            <option>Labor / Wages</option>
-            <option>Electricity</option>
-            <option>Water</option>
-            <option>Rent</option>
-            <option>Maintenance</option>
-            <option>Other Overhead</option>
-            <option>Depreciation</option>
-          </select>
+          <select id="ohCategory" onchange="onOhCategoryChange()"></select>
         </div>
       </div>
       <div class="f-row">
@@ -634,12 +639,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <input type="hidden" id="prEditId">
       <div class="f-row">
         <div class="f-grp">
-          <label>Worker Name</label>
-          <input type="text" id="prName" placeholder="e.g. Abebe Kebede">
+          <label>Employee</label>
+          <select id="prWorker" onchange="onPrWorkerChange()"></select>
         </div>
-        <div class="f-grp">
+        <div class="f-grp" id="prRoleGrp">
           <label>Role / Position</label>
           <input type="text" id="prRole" placeholder="e.g. Head Worker">
+        </div>
+      </div>
+      <div class="f-row" id="prNewNameRow" style="display:none">
+        <div class="f-grp" style="grid-column:1 / -1">
+          <label>New Employee Name</label>
+          <input type="text" id="prNewName" placeholder="e.g. Abebe Kebede">
         </div>
       </div>
       <div class="f-row">
@@ -679,7 +690,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div class="f-grp">
           <label>Payment Channel</label>
-          <select id="prChannel"><option>Cash</option><option>CBE</option><option>Bank Transfer</option><option>Mobile Money</option></select>
+          <select id="prChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option></select>
         </div>
       </div>
       <div id="prNetBox" style="background:#f0f8f4;border:1.5px solid #b5ddc5;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
@@ -718,64 +729,151 @@ const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
     }).catch(()=>{});
   }
 })();
+
+/* ════════════════ SUPABASE REST HELPERS (raw fetch, no client lib) ════════════════
+   Per module spec: talk to PostgREST directly with the publishable key in the
+   apikey + Authorization headers. Used for all monthly_overhead / payroll_detail /
+   overhead_categories / workers reads & writes on this page. */
+const SB_REST_URL = window.SB_URL || 'https://mfxkkaavgzyttasgqnmw.supabase.co/rest/v1';
+const SB_REST_KEY = window.SB_KEY || 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+const sbHeaders = {
+  'apikey': SB_REST_KEY,
+  'Authorization': 'Bearer '+SB_REST_KEY,
+  'Content-Type': 'application/json'
+};
+async function sbGet(table, query){
+  try{
+    const res = await fetch(`${SB_REST_URL}/${table}${query||''}`, { headers: sbHeaders });
+    if(!res.ok) throw new Error(await res.text());
+    return await res.json();
+  } catch(err){
+    console.error('sbGet', table, err);
+    if(typeof toast==='function') toast('Could not load '+table.replace(/_/g,' ')+'. Check your connection.','error');
+    return [];
+  }
+}
+async function sbInsert(table, body){
+  const res = await fetch(`${SB_REST_URL}/${table}`, {
+    method:'POST', headers:{...sbHeaders, 'Prefer':'return=representation'}, body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const t = await res.text();
+    if(typeof toast==='function') toast('Could not save to '+table.replace(/_/g,' ')+'.','error');
+    throw new Error(t);
+  }
+  return await res.json();
+}
+async function sbUpdate(table, id, body){
+  const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, {
+    method:'PATCH', headers:{...sbHeaders, 'Prefer':'return=representation'}, body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const t = await res.text();
+    if(typeof toast==='function') toast('Could not update '+table.replace(/_/g,' ')+'.','error');
+    throw new Error(t);
+  }
+  return await res.json();
+}
+async function sbDelete(table, id){
+  const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, { method:'DELETE', headers: sbHeaders });
+  if(!res.ok){
+    const t = await res.text();
+    if(typeof toast==='function') toast('Could not delete from '+table.replace(/_/g,' ')+'.','error');
+    throw new Error(t);
+  }
+  return true;
+}
+
 </script>
 <script>
 /* ════════════════ DATA MODEL ════════════════ */
-function genId(p){ return p+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function daysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
 function fmt(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
 let currentMonth = '2026-05'; // YYYY-MM, matches Monthly Overhead spec §3.4
 
-// monthly_overhead rows — schema: period, category_id -> category name, amount. Daily rate + % computed live.
-let overheadRows = [
-  {id:genId('oh'), period:'2026-05', category:'Labor / Wages',  description:'Production & Factory Labor',       amount:5150},
-  {id:genId('oh'), period:'2026-05', category:'Electricity',    description:'Factory Electricity',              amount:1250},
-  {id:genId('oh'), period:'2026-05', category:'Water',          description:'Factory Water',                    amount:450},
-  {id:genId('oh'), period:'2026-05', category:'Rent',           description:'Factory & Office Rent',            amount:1800},
-  {id:genId('oh'), period:'2026-05', category:'Maintenance',    description:'Equipment & Building Maintenance', amount:1200},
-  {id:genId('oh'), period:'2026-05', category:'Other Overhead', description:'Cleaning, Security, Miscellaneous',amount:550},
-  {id:genId('oh'), period:'2026-05', category:'Depreciation',   description:'Machinery Depreciation',           amount:0}
-];
+// Static reference data, loaded once at startup
+let overheadCategories = []; // [{id, name}] from overhead_categories
+let workers = [];            // [{id, name, base_salary, role, is_active}] from workers
 
-// payroll_detail rows — schema: worker, period, base_salary, days_present, days_in_month -> gross/net computed.
-let payrollRows = [
-  {id:genId('pr'), period:'2026-05', name:'Abebe Kebede',   role:'Head Worker', baseSalary:1600,   daysPresent:31, daysInMonth:31, advance:200, other:50, payDate:'2026-05-31', channel:'Cash'},
-  {id:genId('pr'), period:'2026-05', name:'Kaleba Tesfaye', role:'Worker',      baseSalary:1300,   daysPresent:31, daysInMonth:31, advance:0,   other:50, payDate:'2026-05-31', channel:'CBE'},
-  {id:genId('pr'), period:'2026-05', name:'Mulugeta Abate', role:'Worker',      baseSalary:1200,   daysPresent:31, daysInMonth:31, advance:100, other:50, payDate:'2026-05-31', channel:'Bank Transfer'},
-  {id:genId('pr'), period:'2026-05', name:'Hana Worku',     role:'Cleaner',     baseSalary:878.33, daysPresent:30, daysInMonth:31, advance:0,   other:50, payDate:'2026-05-31', channel:'Cash'},
-  {id:genId('pr'), period:'2026-05', name:'Yonas Girma',    role:'Helper',      baseSalary:775,    daysPresent:30, daysInMonth:31, advance:0,   other:50, payDate:'2026-05-31', channel:'CBE'}
-];
+// Live data for currentMonth only, reloaded on month change / after every save
+let overheadRows = [];  // flattened monthly_overhead rows: {id, period, categoryId, category, description, amount}
+let payrollRows = [];   // flattened payroll_detail rows: {id, period, workerId, name, role, baseSalary, daysPresent, daysInMonth, advance, other, payDate, channel, grossPay, netPay}
+let trendTotals = {};   // {period: totalAmount} for the trailing 6-month window, from monthly_overhead
 
-// Overhead trend — last 6 months, ETB. May 2026 is recomputed live from overheadRows.
-let trendHistory = [
-  {label:'Dec 2025', value:9250},
-  {label:'Jan 2026', value:9800},
-  {label:'Feb 2026', value:9450},
-  {label:'Mar 2026', value:11250},
-  {label:'Apr 2026', value:10870}
-];
-
-let donutChart, trendChart, prDonutChart, ohBarChart;
+let donutChart, trendChart, prDonutChart, rateGaugeChart;
 let activeRowMenu = null;
 const CAT_COLORS = {
-  'Labor / Wages':'#1d5c38','Rent':'#27ae60','Electricity':'#f59e0b',
-  'Maintenance':'#2563eb','Water':'#8b5cf6','Other Overhead':'#eab308','Depreciation':'#94a3b8'
+  'Labor/Wages':'#1d5c38','Rent':'#27ae60','Electricity':'#f59e0b',
+  'Maintenance':'#2563eb','Water':'#8b5cf6','Other Overhead':'#eab308'
 };
-const CHANNEL_COLORS = {
-  'Cash':'#27ae60','CBE':'#2563eb','Bank Transfer':'#1d4ed8','Mobile Money':'#8b5cf6'
-};
+const CHANNEL_COLORS = { 'Cash':'#27ae60','Bank':'#2563eb','Mobile':'#8b5cf6' };
+const CHANNEL_LABELS = { cash:'Cash', bank:'Bank', mobile:'Mobile' };
+
+/* ════════════════ SUPABASE DATA LOADERS ════════════════ */
+async function loadStaticData(){
+  const [cats, wks] = await Promise.all([
+    sbGet('overhead_categories', '?select=id,name&order=name'),
+    sbGet('workers', '?select=id,name,base_salary,role,is_active&is_active=eq.true&order=name')
+  ]);
+  overheadCategories = cats;
+  workers = wks;
+}
+
+function trailingPeriods(ym, count){
+  const [y,m] = ym.split('-').map(Number);
+  const out = [];
+  for(let i=count-1;i>=0;i--){
+    const d = new Date(y, m-1-i, 1);
+    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return out;
+}
+
+async function loadMonthData(){
+  const periods = trailingPeriods(currentMonth, 6);
+  const periodList = periods.map(p=>`"${p}"`).join(',');
+
+  const [ohRows, prRows, trendRows] = await Promise.all([
+    sbGet('monthly_overhead', `?select=id,period,category_id,amount,description,overhead_categories(name)&period=eq.${currentMonth}&order=created_at`),
+    sbGet('payroll_detail', `?select=id,period,worker_id,base_salary,days_present,days_in_month,advance_taken,other_deductions,payment_date,payment_channel,gross_pay,net_pay,workers(name,role)&period=eq.${currentMonth}&order=created_at`),
+    sbGet('monthly_overhead', `?select=period,amount&period=in.(${periodList})`)
+  ]);
+
+  overheadRows = ohRows.map(r=>({
+    id:r.id, period:r.period, categoryId:r.category_id,
+    category: r.overhead_categories ? r.overhead_categories.name : '(unknown)',
+    description: r.description||'', amount: Number(r.amount)
+  }));
+
+  payrollRows = prRows.map(r=>({
+    id:r.id, period:r.period, workerId:r.worker_id,
+    name: r.workers ? r.workers.name : '(unknown)', role: r.workers ? (r.workers.role||'') : '',
+    baseSalary:Number(r.base_salary), daysPresent:Number(r.days_present), daysInMonth:Number(r.days_in_month),
+    advance:Number(r.advance_taken), other:Number(r.other_deductions), payDate:r.payment_date,
+    channel: CHANNEL_LABELS[r.payment_channel]||r.payment_channel,
+    grossPay:Number(r.gross_pay), netPay:Number(r.net_pay)
+  }));
+
+  trendTotals = {};
+  periods.forEach(p=>trendTotals[p]=0);
+  trendRows.forEach(r=>{ trendTotals[r.period] = (trendTotals[r.period]||0) + Number(r.amount); });
+}
 
 /* ════════════════ COMPUTED GETTERS ════════════════ */
-function monthRows(){ return overheadRows.filter(r=>r.period===currentMonth); }
-function payrollMonthRows(){ return payrollRows.filter(r=>r.period===currentMonth); }
+function monthRows(){ return overheadRows; }
+function payrollMonthRows(){ return payrollRows; }
 function totalOverhead(){ return monthRows().reduce((s,r)=>s+Number(r.amount),0); }
 function dim(){ return daysInMonth(currentMonth); }
 function dailyRate(amount){ return amount / dim(); }
-function grossPay(r){ return r.baseSalary * (r.daysPresent / r.daysInMonth); }
-function netPay(r){ return grossPay(r) - Number(r.advance) - Number(r.other); }
-function laborRowAmount(){ const r = monthRows().find(x=>x.category==='Labor / Wages'); return r ? Number(r.amount) : 0; }
+function computeGrossNet(baseSalary, daysPresent, daysInMonth, advance, other){
+  const gross = baseSalary * (daysPresent / daysInMonth);
+  return { gross, net: gross - Number(advance) - Number(other) };
+}
+function grossPay(r){ return r.grossPay!==undefined ? r.grossPay : computeGrossNet(r.baseSalary,r.daysPresent,r.daysInMonth,r.advance,r.other).gross; }
+function netPay(r){ return r.netPay!==undefined ? r.netPay : computeGrossNet(r.baseSalary,r.daysPresent,r.daysInMonth,r.advance,r.other).net; }
+function laborRowAmount(){ const r = monthRows().find(x=>x.category==='Labor/Wages'); return r ? Number(r.amount) : 0; }
 function monthLabel(ym){
   const [y,m] = ym.split('-').map(Number);
   return new Date(y, m-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
@@ -830,7 +928,7 @@ function renderPayrollTable(){
         <td class="num">${fmt(r.other)}</td>
         <td class="num" style="font-weight:700">${fmt(netPay(r))}</td>
         <td>${fmtDate(r.payDate)}</td>
-        <td><span class="pill-sm ${r.channel==='Cash'?'pill-cash':r.channel==='Bank Transfer'?'pill-bank':r.channel==='CBE'?'pill-bank':'pill-mobile'}">${r.channel}</span></td>
+        <td><span class="pill-sm ${r.channel==='Cash'?'pill-cash':r.channel==='Bank'?'pill-bank':'pill-mobile'}">${r.channel}</span></td>
         <td style="position:relative;width:24px">
           <div class="act-dots" onclick="togglePrRowMenu(event,'${r.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
@@ -996,17 +1094,23 @@ function renderDonut(){
 /* ════════════════ RENDER: TREND CHART ════════════════ */
 function renderTrendChart(){
   const range = document.getElementById('trendRange').value;
-  let history = trendHistory.concat([{label: monthLabel(currentMonth).replace(/(\w+) (\d+)/, (m,mo,y)=>mo.slice(0,3)+' '+y), value: totalOverhead()}]);
-  if(range==='Last 3 Months') history = history.slice(-3);
-  if(range==='This Year') history = history; // mock dataset already spans the visible window
+  let periods = trailingPeriods(currentMonth, 6);
+  if(range==='Last 3 Months') periods = periods.slice(-3);
+  let history = periods.map(p=>({
+    label: monthLabel(p).replace(/(\w+) (\d+)/, (m,mo,y)=>mo.slice(0,3)+' '+y),
+    value: p===currentMonth ? totalOverhead() : (trendTotals[p]||0)
+  }));
 
-  const aprVal = history.length>1 ? history[history.length-2].value : null;
-  const mayVal = history[history.length-1].value;
-  if(aprVal){
-    const pct = ((mayVal-aprVal)/aprVal*100);
-    const el = document.getElementById('kpiTotalChg');
+  const prevVal = history.length>1 ? history[history.length-2].value : null;
+  const curVal = history[history.length-1].value;
+  const el = document.getElementById('kpiTotalChg');
+  if(prevVal){
+    const pct = ((curVal-prevVal)/prevVal*100);
     el.className = 'kc-chg '+(pct<=0?'dn':'up');
-    el.innerHTML = (pct<=0?'▼ ':'▲ ')+Math.abs(pct).toFixed(2)+'%<span class="vs">vs Apr 2026</span>';
+    el.innerHTML = (pct<=0?'▼ ':'▲ ')+Math.abs(pct).toFixed(2)+'%<span class="vs">vs '+history[history.length-2].label+'</span>';
+  } else {
+    el.className = 'kc-chg';
+    el.innerHTML = '<span class="vs">No prior month data</span>';
   }
 
   const ctx = document.getElementById('trendChart').getContext('2d');
@@ -1047,39 +1151,53 @@ function renderTrendChart(){
   });
 }
 
-/* ════════════════ RENDER: OVERHEAD BY CATEGORY (BAR) ════════════════ */
-function renderOhBarChart(){
-  const rows = monthRows().filter(r=>Number(r.amount)>0).sort((a,b)=>b.amount-a.amount);
-  const ctx = document.getElementById('ohBarChart').getContext('2d');
-  if(ohBarChart) ohBarChart.destroy();
-  ohBarChart = new Chart(ctx, {
-    type:'bar',
+/* ════════════════ RENDER: DAILY OVERHEAD RATE GAUGE ════════════════ */
+function historicalAvgDailyRate(){
+  const periods = trailingPeriods(currentMonth, 6).slice(0, -1); // exclude current month
+  const vals = periods.map(p=>trendTotals[p]||0).filter(v=>v>0);
+  if(!vals.length) return 0;
+  const avgMonthly = vals.reduce((s,v)=>s+v,0)/vals.length;
+  return avgMonthly/30.44;
+}
+function renderRateGauge(){
+  const value = dailyRate(totalOverhead());
+  const target = historicalAvgDailyRate();
+  const hasTarget = target > 0;
+  const over = hasTarget && value > target;
+  const max = Math.max(target*1.25, value*1.1, 1);
+  const filled = Math.min(value, max);
+  const pct = hasTarget ? ((value-target)/target*100) : 0;
+
+  document.getElementById('gaugeMonthLbl').textContent = '- '+monthLabel(currentMonth);
+  document.getElementById('gaugeValueLbl').textContent = fmt(value);
+  document.getElementById('gaugeTargetLbl').textContent = hasTarget ? fmt(target)+' ETB/day' : 'No history yet';
+  const statusEl = document.getElementById('gaugeStatus');
+  if(hasTarget){
+    statusEl.className = 'kc-chg '+(over?'dn':'up');
+    statusEl.innerHTML = (over?'▲ ':'▼ ')+Math.abs(pct).toFixed(2)+'% '+(over?'over target':'under target');
+  } else {
+    statusEl.className = 'kc-chg';
+    statusEl.innerHTML = '<span class="vs">Target fills in after your first month of data</span>';
+  }
+
+  const ctx = document.getElementById('rateGauge').getContext('2d');
+  if(rateGaugeChart) rateGaugeChart.destroy();
+  rateGaugeChart = new Chart(ctx, {
+    type:'doughnut',
     data:{
-      labels: rows.map(r=>r.category),
       datasets:[{
-        data: rows.map(r=>r.amount),
-        backgroundColor: rows.map(r=>CAT_COLORS[r.category]||'#9aada5'),
-        borderRadius: 6,
-        maxBarThickness: 44
+        data: [filled, Math.max(max-filled, 0.0001)],
+        backgroundColor: [!hasTarget ? '#52B788' : (over ? '#e53935' : '#27ae60'), '#eef3ef'],
+        borderWidth: 0
       }]
     },
     options:{
-      indexAxis: 'y',
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{label:c=>fmt(c.raw)+' ETB'}},
-        datalabels:{
-          align:'end', anchor:'end', color:'#1a2e25', font:{weight:700, size:10.5, family:'Quicksand'},
-          formatter:v=>Number(v).toLocaleString('en-US')
-        }
-      },
-      scales:{
-        x:{display:false, grace:'15%'},
-        y:{grid:{display:false}, ticks:{color:'#5a6b62', font:{size:11}}}
-      },
-      layout:{padding:{right:36}}
-    },
-    plugins:[ChartDataLabels]
+      rotation: -90,
+      circumference: 180,
+      cutout: '75%',
+      plugins:{ legend:{display:false}, tooltip:{enabled:false}, datalabels:{display:false} },
+      animation:{ animateRotate:true, duration:700 }
+    }
   });
 }
 
@@ -1090,7 +1208,7 @@ function renderAll(){
   renderKpisAndSummary();
   renderPayrollKpisAndSummary();
   renderDonut();
-  renderOhBarChart();
+  renderRateGauge();
   renderPayrollDonut();
   renderTrendChart();
 }
@@ -1133,11 +1251,41 @@ function togglePrRowMenu(e, id){
 }
 
 /* ════════════════ OVERHEAD MODAL ════════════════ */
+/* ════════════════ SELECT POPULATION ════════════════ */
+function populateCategorySelect(){
+  const sel = document.getElementById('ohCategory');
+  sel.innerHTML = overheadCategories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+function populateWorkerSelect(selectedId){
+  const sel = document.getElementById('prWorker');
+  sel.innerHTML = workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')
+    + `<option value="__new__">+ Add New Employee</option>`;
+  sel.value = selectedId || (workers.length ? workers[0].id : '__new__');
+  onPrWorkerChange();
+}
+function onPrWorkerChange(){
+  const val = document.getElementById('prWorker').value;
+  const isNew = val === '__new__';
+  document.getElementById('prNewNameRow').style.display = isNew ? '' : 'none';
+  if(isNew){
+    document.getElementById('prRole').value = '';
+    document.getElementById('prBaseSalary').value = 0;
+  } else {
+    const w = workers.find(x=>x.id===val);
+    if(w){
+      document.getElementById('prRole').value = w.role||'';
+      document.getElementById('prBaseSalary').value = w.base_salary||0;
+    }
+  }
+  recalcPrPreview();
+}
+
+/* ════════════════ OVERHEAD MODAL ════════════════ */
 function openOverheadModal(){
   document.getElementById('ohModalTitle').textContent = 'Add Overhead Expense';
   document.getElementById('ohEditId').value = '';
   document.getElementById('ohMonth').value = currentMonth;
-  document.getElementById('ohCategory').value = 'Labor / Wages';
+  populateCategorySelect();
   document.getElementById('ohDescription').value = '';
   document.getElementById('ohAmount').value = 0;
   recalcOhPreview();
@@ -1149,7 +1297,8 @@ function editOverhead(id){
   document.getElementById('ohModalTitle').textContent = 'Edit Overhead Expense';
   document.getElementById('ohEditId').value = r.id;
   document.getElementById('ohMonth').value = r.period;
-  document.getElementById('ohCategory').value = r.category;
+  populateCategorySelect();
+  document.getElementById('ohCategory').value = r.categoryId;
   document.getElementById('ohDescription').value = r.description;
   document.getElementById('ohAmount').value = r.amount;
   recalcOhPreview();
@@ -1158,12 +1307,12 @@ function editOverhead(id){
 function closeOverheadModal(){ document.getElementById('ohModalOverlay').classList.remove('show'); }
 function onOhCategoryChange(){
   const defaults = {
-    'Labor / Wages':'Production & Factory Labor','Electricity':'Factory Electricity','Water':'Factory Water',
+    'Labor/Wages':'Production & Factory Labor','Electricity':'Factory Electricity','Water':'Factory Water',
     'Rent':'Factory & Office Rent','Maintenance':'Equipment & Building Maintenance',
-    'Other Overhead':'Cleaning, Security, Miscellaneous','Depreciation':'Machinery Depreciation'
+    'Other Overhead':'Cleaning, Security, Miscellaneous'
   };
-  const cat = document.getElementById('ohCategory').value;
-  if(!document.getElementById('ohDescription').value) document.getElementById('ohDescription').value = defaults[cat]||'';
+  const cat = overheadCategories.find(c=>c.id===document.getElementById('ohCategory').value);
+  if(cat && !document.getElementById('ohDescription').value) document.getElementById('ohDescription').value = defaults[cat.name]||'';
 }
 function recalcOhPreview(){
   const ym = document.getElementById('ohMonth').value || currentMonth;
@@ -1171,44 +1320,51 @@ function recalcOhPreview(){
   const d = daysInMonth(ym);
   document.getElementById('ohDailyPreview').value = fmt(amt/d)+' ETB / day';
 }
-function saveOverhead(){
-  const id = document.getElementById('ohEditId').value;
-  const period = document.getElementById('ohMonth').value || currentMonth;
-  const category = document.getElementById('ohCategory').value;
-  const description = document.getElementById('ohDescription').value.trim();
-  const amount = parseFloat(document.getElementById('ohAmount').value)||0;
-  if(id){
-    const r = overheadRows.find(x=>x.id===id);
-    Object.assign(r, {period, category, description, amount});
-    toast('Overhead entry updated','success');
-  } else {
-    overheadRows.push({id:genId('oh'), period, category, description, amount});
-    toast('Overhead entry added','success');
-  }
-  closeOverheadModal();
+async function reloadAndRender(){
+  await loadMonthData();
   renderAll();
 }
-function deleteOverhead(id){
+async function saveOverhead(){
+  const id = document.getElementById('ohEditId').value;
+  const period = document.getElementById('ohMonth').value || currentMonth;
+  const category_id = document.getElementById('ohCategory').value;
+  const description = document.getElementById('ohDescription').value.trim();
+  const amount = parseFloat(document.getElementById('ohAmount').value)||0;
+  if(!category_id){ toast('Please select a category','error'); return; }
+  try{
+    if(id){
+      await sbUpdate('monthly_overhead', id, {period, category_id, description, amount});
+      toast('Overhead entry updated','success');
+    } else {
+      await sbInsert('monthly_overhead', {period, category_id, description, amount});
+      toast('Overhead entry added','success');
+    }
+    closeOverheadModal();
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
+}
+async function deleteOverhead(id){
   closeRowMenu();
   if(!confirm('Delete this overhead entry?')) return;
-  overheadRows = overheadRows.filter(x=>x.id!==id);
-  toast('Overhead entry deleted','success');
-  renderAll();
+  try{
+    await sbDelete('monthly_overhead', id);
+    toast('Overhead entry deleted','success');
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
 }
 
 /* ════════════════ PAYROLL MODAL ════════════════ */
 function openPayrollModal(){
   document.getElementById('prModalTitle').textContent = 'Add Payroll Entry';
   document.getElementById('prEditId').value = '';
-  document.getElementById('prName').value = '';
-  document.getElementById('prRole').value = '';
-  document.getElementById('prBaseSalary').value = 0;
+  document.getElementById('prNewName').value = '';
+  populateWorkerSelect();
   document.getElementById('prDaysPresent').value = dim();
   document.getElementById('prDaysInMonth').value = dim();
   document.getElementById('prAdvance').value = 0;
   document.getElementById('prOther').value = 0;
   document.getElementById('prPayDate').value = currentMonth+'-'+String(dim()).padStart(2,'0');
-  document.getElementById('prChannel').value = 'Cash';
+  document.getElementById('prChannel').value = 'cash';
   recalcPrPreview();
   document.getElementById('prModalOverlay').classList.add('show');
 }
@@ -1217,7 +1373,7 @@ function editPayroll(id){
   if(!r) return;
   document.getElementById('prModalTitle').textContent = 'Edit Payroll Entry';
   document.getElementById('prEditId').value = r.id;
-  document.getElementById('prName').value = r.name;
+  populateWorkerSelect(r.workerId);
   document.getElementById('prRole').value = r.role;
   document.getElementById('prBaseSalary').value = r.baseSalary;
   document.getElementById('prDaysPresent').value = r.daysPresent;
@@ -1225,7 +1381,7 @@ function editPayroll(id){
   document.getElementById('prAdvance').value = r.advance;
   document.getElementById('prOther').value = r.other;
   document.getElementById('prPayDate').value = r.payDate;
-  document.getElementById('prChannel').value = r.channel;
+  document.getElementById('prChannel').value = (r.channel||'cash').toLowerCase();
   recalcPrPreview();
   document.getElementById('prModalOverlay').classList.add('show');
 }
@@ -1241,43 +1397,76 @@ function recalcPrPreview(){
   document.getElementById('prGrossPreview').value = fmt(gross)+' ETB';
   document.getElementById('prNetDisplay').textContent = fmt(net);
 }
-function savePayroll(){
+async function savePayroll(){
   const id = document.getElementById('prEditId').value;
-  const name = document.getElementById('prName').value.trim();
+  let workerId = document.getElementById('prWorker').value;
   const role = document.getElementById('prRole').value.trim();
   const baseSalary = parseFloat(document.getElementById('prBaseSalary').value)||0;
   const daysPresent = parseFloat(document.getElementById('prDaysPresent').value)||0;
   const daysInMonthVal = parseFloat(document.getElementById('prDaysInMonth').value)||dim();
   const advance = parseFloat(document.getElementById('prAdvance').value)||0;
   const other = parseFloat(document.getElementById('prOther').value)||0;
-  const payDate = document.getElementById('prPayDate').value;
+  const payDate = document.getElementById('prPayDate').value || null;
   const channel = document.getElementById('prChannel').value;
-  if(!name){ toast('Worker name is required','error'); return; }
-  if(id){
-    const r = payrollRows.find(x=>x.id===id);
-    Object.assign(r, {name, role, baseSalary, daysPresent, daysInMonth:daysInMonthVal, advance, other, payDate, channel});
-    toast('Payroll entry updated','success');
-  } else {
-    payrollRows.push({id:genId('pr'), period:currentMonth, name, role, baseSalary, daysPresent, daysInMonth:daysInMonthVal, advance, other, payDate, channel});
-    toast('Payroll entry added','success');
-  }
-  closePayrollModal();
-  syncLaborFromPayroll();
-  renderAll();
+
+  try{
+    if(workerId==='__new__'){
+      const newName = document.getElementById('prNewName').value.trim();
+      if(!newName){ toast('Employee name is required','error'); return; }
+      const inserted = await sbInsert('workers', {name:newName, role, base_salary:baseSalary, is_active:true});
+      workerId = inserted[0].id;
+      workers.push(inserted[0]);
+    } else if(workerId){
+      const w = workers.find(x=>x.id===workerId);
+      if(w && role && w.role!==role){ await sbUpdate('workers', workerId, {role}); w.role = role; }
+    } else {
+      toast('Please select an employee','error'); return;
+    }
+
+    const body = {
+      period: currentMonth, worker_id: workerId, base_salary: baseSalary,
+      days_present: daysPresent, days_in_month: daysInMonthVal,
+      advance_taken: advance, other_deductions: other,
+      payment_date: payDate, payment_channel: channel
+    };
+    if(id){
+      await sbUpdate('payroll_detail', id, body);
+      toast('Payroll entry updated','success');
+    } else {
+      await sbInsert('payroll_detail', body);
+      toast('Payroll entry added','success');
+    }
+    closePayrollModal();
+    await loadMonthData();       // refresh payrollRows so the labor sync below sees the true totals
+    await syncLaborFromPayroll();
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
 }
-function deletePayroll(id){
+async function deletePayroll(id){
   closeRowMenu();
   if(!confirm('Delete this payroll entry?')) return;
-  payrollRows = payrollRows.filter(x=>x.id!==id);
-  toast('Payroll entry deleted','success');
-  syncLaborFromPayroll();
-  renderAll();
+  try{
+    await sbDelete('payroll_detail', id);
+    toast('Payroll entry deleted','success');
+    await loadMonthData();
+    await syncLaborFromPayroll();
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
 }
 // Per spec §3.4: "Labor/Wages line in Monthly Overhead = SUM of all workers' Net Pay for that month."
-function syncLaborFromPayroll(){
+async function syncLaborFromPayroll(){
+  const laborCat = overheadCategories.find(c=>c.name==='Labor/Wages');
+  if(!laborCat) return;
   const totalNet = payrollMonthRows().reduce((s,r)=>s+netPay(r),0);
-  const laborRow = overheadRows.find(r=>r.period===currentMonth && r.category==='Labor / Wages');
-  if(laborRow) laborRow.amount = Math.round(totalNet*100)/100;
+  const amount = Math.round(totalNet*100)/100;
+  const existing = overheadRows.find(r=>r.categoryId===laborCat.id);
+  try{
+    if(existing){
+      await sbUpdate('monthly_overhead', existing.id, {amount});
+    } else if(amount>0){
+      await sbInsert('monthly_overhead', {period:currentMonth, category_id:laborCat.id, amount, description:'Synced from Payroll'});
+    }
+  } catch(err){ console.error(err); }
 }
 
 /* Month <select> (#msel) and its prev/next arrows are now owned by the shared
@@ -1603,10 +1792,10 @@ function runKpiAnimations(){
    only supplies the month list and re-renders on month change. */
 const MONTH_OPTIONS = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
 
-function onHeaderMonthChange(label){
+async function onHeaderMonthChange(label){
   const idx = MONTH_OPTIONS.map(monthLabel).indexOf(label);
   if(idx >= 0) currentMonth = MONTH_OPTIONS[idx];
-  renderAll();
+  await reloadAndRender();
 }
 
 /* ════════════════ INIT ════════════════ */
@@ -1617,14 +1806,13 @@ renderHeader({
   months: MONTH_OPTIONS.map(monthLabel),
   selectedMonth: monthLabel(currentMonth),
   onMonthChange: onHeaderMonthChange,
-  notifications: [
-    { type:'o', title:'Payroll Due for Payment', sub:'3 workers still need Payment Date recorded for May 2026 payroll', time:'3 hours ago' },
-    { type:'r', title:'Overhead Up vs Budget', sub:'Rent overhead is 4% above the May 2026 budgeted amount', time:'6 hours ago' },
-    { type:'g', title:'May 2026 Overhead Fully Recorded', sub:'All 7 overhead categories have been entered for this month', time:'Yesterday' },
-    { type:'b', title:'Export Complete', sub:'April 2026 overhead & payroll report exported successfully', time:'2 days ago' }
-  ]
+  notifications: []
 });
-renderAll();
+(async function init(){
+  await loadStaticData();
+  await loadMonthData();
+  renderAll();
+})();
 </script>
 </body>
 </html>
