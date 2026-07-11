@@ -385,11 +385,48 @@ async function fetchPeriodData(period){
   return data;
 }
 
+// ── Opening balance carry-forward (fixed 2026-07) ──────────────────────────
+// channel_opening_balances only ever has an explicit row for the very first period
+// (it's a one-time seed, entered once in Settings). Every period after that used to
+// default straight to 0 instead of carrying forward the prior period's actual closing
+// balance — this recursively walks back to the nearest period with a real seed/closing
+// and computes forward from there, same fix as the monthly_cash_flow database view.
+const RESOLVED_OPENING_CACHE = {};
+async function resolveOpeningBalance(period, depth){
+  depth = depth || 0;
+  if(RESOLVED_OPENING_CACHE[period]) return RESOLVED_OPENING_CACHE[period];
+  const data = await fetchPeriodData(period);
+  if(Object.keys(data.openingBalance).length > 0){
+    RESOLVED_OPENING_CACHE[period] = data.openingBalance;
+    return data.openingBalance;
+  }
+  if(depth >= 36){
+    // Safety valve — three years back with no seed row ever found means something's
+    // structurally wrong (e.g. Settings' Opening Balances was never filled in at all).
+    // Zero is the same honest fallback the rest of the app already uses in that case.
+    RESOLVED_OPENING_CACHE[period] = { cash:0, bank:0, mobile:0 };
+    return RESOLVED_OPENING_CACHE[period];
+  }
+  const prevPeriod = prevMonthKey(period);
+  const prevOpening = await resolveOpeningBalance(prevPeriod, depth+1);
+  const prevData = await fetchPeriodData(prevPeriod);
+  const prevCf = computeCashFlow({ ...prevData, openingBalance: prevOpening });
+  RESOLVED_OPENING_CACHE[period] = prevCf.closing;
+  return RESOLVED_OPENING_CACHE[period];
+}
+
 async function loadMonthData(period){
   const prevPeriod = prevMonthKey(period);
   const data = await fetchPeriodData(period);
+  const resolvedOpening = await resolveOpeningBalance(period);
+  // fetchPeriodData() stores `data` itself into PERIOD_CACHE[period] — mutate the opening
+  // balance on that same shared object (after resolution, so resolveOpeningBalance()'s own
+  // "does this exact period have its own seed row?" check above still saw the true raw
+  // value). Without this, loadAndRender()'s computeCashFlow(PERIOD_CACHE[period]) call would
+  // read the unresolved value straight back out and silently undo this whole fix.
+  data.openingBalance = resolvedOpening;
 
-  RAW.openingBalances = { [period]: data.openingBalance };
+  RAW.openingBalances = { [period]: resolvedOpening };
   RAW.sales = data.sales;
   RAW.creditPayments = data.creditPayments;
   RAW.purchases = data.purchases;
@@ -734,8 +771,14 @@ async function checkReconciliation(cf){
     // Re-derive the prior month's closing balance from its own full ledger (not just its
     // stored opening_balance row) — this is the actual guard the spec describes: entered
     // opening balance for THIS month must equal prior month's computed closing balance.
+    // Uses the same resolveOpeningBalance() carry-forward as loadMonthData() so this check
+    // doesn't fight the fix — for a period with no explicit opening_balance row of its own,
+    // its opening is now defined as exactly the prior period's resolved closing, so this
+    // correctly stays quiet there and only flags a genuine disagreement when both periods
+    // happen to have their own explicit (and conflicting) seed rows.
     const prevData = await fetchPeriodData(RAW.prevPeriod);
-    const prevCf = computeCashFlow(prevData);
+    const prevResolvedOpening = await resolveOpeningBalance(RAW.prevPeriod);
+    const prevCf = computeCashFlow({ ...prevData, openingBalance: prevResolvedOpening });
     const prevClosing = prevCf.closing;
     const thisOpening = cf.opening;
 
@@ -754,12 +797,50 @@ async function checkReconciliation(cf){
       footText.textContent = `Mismatch vs. ${monthLabel(RAW.prevPeriod)} closing — see warning above.`;
       banner.style.display = 'flex';
     }
+    return { reconciled: diffs.length === 0, diffs };
   } catch(e){
     // If the prior period simply has no data (e.g. this is the first month on record),
     // there's nothing to reconcile against — stay quiet rather than false-alarm.
     footText.textContent = 'Closing balance matches cash on hand, bank statement, and mobile money balance.';
     banner.style.display = 'none';
+    return { reconciled: true, diffs: [], noPriorData: true };
   }
+}
+
+// ── Header bell notifications (added 2026-07) — previously three hardcoded demo entries
+// with fake static timestamps ("3 hours ago") that never reflected real data. Built from the
+// same live numbers already on this page: actual per-channel net cash movement and the real
+// reconciliation check above, instead of invented text.
+function buildHeaderNotifications(cf, recon){
+  const notifications = [];
+  CHANNELS.forEach(c => {
+    const net = cf.netMovement[c];
+    if(net < 0){
+      notifications.push({
+        type: 'r',
+        title: `${CH_LABEL[c]} Cash Outflow`,
+        sub: `Net cash flow is ${fmtSigned(net)} ETB this month — review payments`,
+        time: ''
+      });
+    }
+  });
+  if(!recon.reconciled && recon.diffs && recon.diffs.length){
+    const detail = recon.diffs.map(d => `${d.label}: ${d.diff > 0 ? '+' : ''}${fmt(d.diff)} ETB`).join(' · ');
+    notifications.push({
+      type: 'o',
+      title: 'Reconciliation Mismatch',
+      sub: `Opening balance doesn't match prior month's closing — ${detail}`,
+      time: ''
+    });
+  } else if(recon.reconciled && !recon.noPriorData){
+    notifications.push({
+      type: 'g',
+      title: 'Cash Flow Reconciled',
+      sub: 'Closing balance matches cash on hand, bank statement, and mobile money balance',
+      time: ''
+    });
+  }
+  return notifications;
 }
 
 function showSkeleton(){
@@ -775,13 +856,17 @@ async function loadAndRender(){
   // The shared topbar's .stat-pill (header.js) is static and has no id — this page
   // no longer owns it directly, so status is surfaced via toast on failure instead.
   delete PERIOD_CACHE[period]; // always fetch fresh for the active month; reconciliation cache for the prior month is fine to reuse
+  delete RESOLVED_OPENING_CACHE[period];
   const ok = await loadMonthData(period);
   const cf = computeCashFlow(PERIOD_CACHE[period]);
   renderCashFlowTable(cf);
   renderClosingBalance(cf);
   renderNetFlowSummary(cf);
   renderBridge(cf);
-  await checkReconciliation(cf);
+  const recon = await checkReconciliation(cf);
+  if (typeof refreshNotifications === 'function') {
+    refreshNotifications(buildHeaderNotifications(cf, recon));
+  }
   if(!ok) toast('Some data for this period could not be loaded', 'error');
   window._lastCF = cf;
 }
@@ -919,11 +1004,7 @@ async function refreshForMonth(monthKey){
     showExport: true,
     onExportPdf: exportPdf,
     onExportXlsx: exportExcel,
-    notifications: [
-      { type:'r', title:'Bank Channel Cash Outflow', sub:'Bank account net cash flow is negative this month — review payments', time:'3 hours ago' },
-      { type:'o', title:'Reconciliation Check', sub:"Opening balance for this month was carried from prior close", time:'Yesterday' },
-      { type:'g', title:'Cash Flow Reconciled', sub:'Closing balance matches physical count, bank statement, and wallet', time:'2 days ago' }
-    ]
+    notifications: [] // populated from live data by loadAndRender() -> refreshNotifications(), see checkReconciliation()/buildHeaderNotifications()
   });
 
   loadAndRender();
