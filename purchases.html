@@ -589,7 +589,15 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <div class="card" style="display:flex;flex-direction:column">
           <div class="card-hd">
             <div class="card-ttl">Purchase Trend (ETB)</div>
-            <select class="rsel"><option>Last 6 Months</option><option>Last 3 Months</option><option>This Year</option></select>
+            <!-- BUG FIX (2026-07-11): this select had no id and no onchange handler at all —
+                 picking "Last 3 Months" or "This Year" did nothing because nothing was ever
+                 listening for the change. renderTrendChart() now reads trendRangeSel's value
+                 to decide how many months (or which months) to show. -->
+            <select class="rsel" id="trendRangeSel" onchange="renderTrendChart(getMonthKey())">
+              <option value="6">Last 6 Months</option>
+              <option value="3">Last 3 Months</option>
+              <option value="year">This Year</option>
+            </select>
           </div>
           <div class="chart-box" style="flex:1;display:flex;flex-direction:column">
             <div class="leg">
@@ -1608,8 +1616,12 @@ function updateApprovalReadout(total){
 // purchases.item_id → inventory_items.id (type='purchase')
 // purchases.expense_category_id → expense_category.id (type='expense')
 // These arrays are loaded from Supabase at startup (loadLookupsFromSupabase). The
-// literals below are the offline/first-paint fallback — identical to the live seed
-// data in injera_bms_COMPLETE.sql, grouped for the dropdown UI.
+// literals below are the offline/first-paint fallback.
+// NOTE (2026-07-11): Rent/Electricity/Water/Labor/Maintenance were removed from
+// expense_categories in the DB — the Monthly Overhead module is now the sole
+// place those five are recorded (monthly_pnl sums monthly_overhead.amount and
+// purchases[type=expense].total_cost as separate P&L lines, so keeping both in
+// sync here would double-count them). Don't re-add them to this fallback.
 let inventoryItems = [
   { id:'local-inj', name:'Injera Blend', unit:'kg', group:'Raw Materials' },
   { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
@@ -1618,11 +1630,6 @@ let inventoryItems = [
   { id:'local-lbag', name:'Large Bags', unit:'pcs', group:'Packaging' }
 ];
 let expenseCategories = [
-  { id:'local-rent', name:'Rent', group:'Overhead (COGS)' },
-  { id:'local-elec', name:'Electricity', group:'Overhead (COGS)' },
-  { id:'local-water', name:'Water', group:'Overhead (COGS)' },
-  { id:'local-labor', name:'Labor', group:'Overhead (COGS)' },
-  { id:'local-maint', name:'Maintenance', group:'Overhead (COGS)' },
   { id:'local-delivout', name:'Delivery Out', group:'Operating Expenses' },
   { id:'local-mktg', name:'Marketing', group:'Operating Expenses' },
   { id:'local-bankchg', name:'Bank Charges', group:'Operating Expenses' },
@@ -2283,15 +2290,28 @@ function renderCharts(){
   renderTrendChart(mk);
 }
 
-// Purchase Trend line chart — trailing 6 months ending at the currently selected month,
+// Purchase Trend line chart — range comes from #trendRangeSel (Last 6/3 Months, or This Year),
 // summed from the real `purchases` array (which loadFromSupabase() populates from the DB).
 // Previously this chart was built once at page load from a hardcoded 6-number array and
 // never touched again, so it never reflected actual purchases — this rebuilds it every
-// time renderCharts() runs (month change, save, approve/reject, delete, initial load).
+// time renderCharts() runs (month change, save, approve/reject, delete, initial load) and
+// every time the range dropdown itself changes.
 function renderTrendChart(mk){
+  const rangeSel = document.getElementById('trendRangeSel');
+  const range = rangeSel ? rangeSel.value : '6';
+
   const months = [];
-  let cursor = mk;
-  for(let i=0;i<6;i++){ months.unshift(cursor); cursor = prevMonthKey(cursor); }
+  if(range === 'year'){
+    // Calendar year (Jan–Dec) containing the currently selected month — matches how
+    // "This Year" reads on a business dashboard, not just a trailing 12-month window.
+    const year = mk.slice(0,4);
+    for(let m=1;m<=12;m++) months.push(year+'-'+String(m).padStart(2,'0'));
+  } else {
+    const count = range === '3' ? 3 : 6;
+    let cursor = mk;
+    for(let i=0;i<count;i++){ months.unshift(cursor); cursor = prevMonthKey(cursor); }
+  }
+
   const labels = months.map(monthLabel);
   const data = months.map(m => getMonthPurchases(m).reduce((s,p)=>s+rowTotal(p),0));
   const maxVal = Math.max(...data, 1);
@@ -2499,11 +2519,7 @@ async function loadLookupsFromSupabase(){
   try {
     const { data, error } = await db.from('expense_categories').select('*').order('name');
     if(!error && data && data.length > 0){
-      const overheadNames = new Set(['Rent','Electricity','Water','Labor','Maintenance']);
-      expenseCategories = data.map(r => ({
-        id: r.id, name: r.name,
-        group: overheadNames.has(r.name) ? 'Overhead (COGS)' : 'Operating Expenses'
-      }));
+      expenseCategories = data.map(r => ({ id: r.id, name: r.name, group: 'Operating Expenses' }));
     }
   } catch(err){ console.log('expense_categories load failed, using local fallback:', err.message); }
 }
