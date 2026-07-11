@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <title>Customers — Mena Injera & Derkosh BMS</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -201,7 +206,7 @@ html{scroll-behavior:smooth}
 .cst-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
 .cst-main>.card{min-width:0}
 .cst-side{display:flex;flex-direction:column;gap:14px;min-width:0}
-.cst-bottom,.cst-row3{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.cst-bottom,.cst-row3{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
 .cst-bottom>.card,.cst-row3>.card{min-width:0}
 .chart-frame{position:relative;height:220px}
 
@@ -344,38 +349,38 @@ html{scroll-behavior:smooth}
       <div class="kc kc-anim" style="--d:0">
         <div class="kc-ico ic-g spin-ready" style="--d:0"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
         <span class="kc-lbl">Total Customers</span>
-        <div class="kc-val" id="kpiTotalCust"><span class="cnt" data-t="28" data-d="0">0</span></div>
-        <div class="kc-sub">Active</div>
-        <div class="kc-sub2" id="kpiInactive">2 Inactive</div>
+        <div class="kc-val" id="kpiTotalCust"><span class="cnt" id="cntTotalCust" data-t="0" data-d="0">0</span></div>
+        <div class="kc-sub" id="kpiActive">Active</div>
+        <div class="kc-sub2" id="kpiInactive">Inactive</div>
       </div>
       <div class="kc kc-anim" style="--d:1">
         <div class="kc-ico ic-g spin-ready" style="--d:1"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-        <span class="kc-lbl">Total Revenue <span style="font-weight:500">(May 2026)</span></span>
-        <div class="kc-val"><span class="cnt" data-t="109711" data-d="2">0.00</span><span class="u">ETB</span></div>
-        <div class="kc-chg up">▲ 12.5%<span class="vs">vs Apr 2026</span></div>
+        <span class="kc-lbl">Total Revenue <span id="kpiRevMonthLbl" style="font-weight:500">(May 2026)</span></span>
+        <div class="kc-val"><span class="cnt" id="cntRevenue" data-t="0" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiRevChg"></div>
       </div>
       <div class="kc kc-anim" style="--d:2">
         <div class="kc-ico ic-p spin-ready" style="--d:2"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
         <span class="kc-lbl">Outstanding A/R</span>
-        <div class="kc-val"><span class="cnt" data-t="19712" data-d="2">0.00</span><span class="u">ETB</span></div>
-        <div class="kc-chg dn">▼ 8.2%<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-val"><span class="cnt" id="cntOutstanding" data-t="0" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiArChg"></div>
       </div>
       <div class="kc kc-anim" style="--d:3">
         <div class="kc-ico ic-o spin-ready" style="--d:3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
         <span class="kc-lbl">Avg Days to Pay</span>
-        <div class="kc-val"><span class="cnt" data-t="21.3" data-d="1">0.0</span><span class="u">Days</span></div>
-        <div class="kc-chg dn">▼ 2.1 Days<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-val"><span class="cnt" id="cntAvgDays" data-t="0" data-d="1">0.0</span><span class="u">Days</span></div>
+        <div class="kc-chg" id="kpiDaysChg"></div>
       </div>
       <div class="kc kc-anim" style="--d:4">
         <div class="kc-ico ic-b spin-ready" style="--d:4"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-        <span class="kc-lbl">Credit Sales <span style="font-weight:500">(May 2026)</span></span>
-        <div class="kc-val"><span class="cnt" data-t="17520" data-d="2">0.00</span><span class="u">ETB</span></div>
-        <div class="kc-chg dn">▼ 5.4%<span class="vs">vs Apr 2026</span></div>
+        <span class="kc-lbl">Credit Sales <span id="kpiCreditMonthLbl" style="font-weight:500">(May 2026)</span></span>
+        <div class="kc-val"><span class="cnt" id="cntCreditSales" data-t="0" data-d="2">0.00</span><span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiCreditChg"></div>
       </div>
       <div class="kc kc-anim" style="--d:5">
         <div class="kc-ico ic-y spin-ready" style="--d:5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 000 20"/><line x1="8" y1="16" x2="16" y2="8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
         <span class="kc-lbl">Credit Utilization</span>
-        <div class="kc-val"><span class="cnt" data-t="68.6" data-d="1">0.0</span><span class="u">%</span></div>
+        <div class="kc-val"><span class="cnt" id="cntUtilization" data-t="0" data-d="1">0.0</span><span class="u">%</span></div>
         <div class="kc-plain">of total credit limit</div>
       </div>
     </div>
@@ -453,14 +458,14 @@ html{scroll-behavior:smooth}
         <div class="aging-wrap">
           <div class="aging-chart-box">
             <canvas id="agingChart"></canvas>
-            <div class="aging-center"><span class="val">19,712</span><span class="lbl">ETB Total</span></div>
+            <div class="aging-center"><span class="val" id="agingCenterVal">0</span><span class="lbl">ETB Total</span></div>
           </div>
           <div class="aging-legend">
-            <div class="aging-row"><div class="aging-dot" style="background:#27ae60"></div><div class="aging-lbl">0 - 30 Days</div><div class="aging-amt">12,450.00</div><div class="aging-pct">63.1%</div></div>
-            <div class="aging-row"><div class="aging-dot" style="background:#f5c542"></div><div class="aging-lbl">31 - 60 Days</div><div class="aging-amt">4,280.00</div><div class="aging-pct">21.7%</div></div>
-            <div class="aging-row"><div class="aging-dot" style="background:#f59e0b"></div><div class="aging-lbl">61 - 90 Days</div><div class="aging-amt">2,310.00</div><div class="aging-pct">11.7%</div></div>
-            <div class="aging-row"><div class="aging-dot" style="background:#e5484d"></div><div class="aging-lbl">Over 90 Days</div><div class="aging-amt">672.00</div><div class="aging-pct">3.4%</div></div>
-            <div class="aging-row aging-total-row"><div style="width:9px"></div><div class="aging-lbl">Total</div><div class="aging-amt">19,712.00</div><div class="aging-pct">100.0%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#27ae60"></div><div class="aging-lbl">0 - 30 Days</div><div class="aging-amt" id="agingAmt0">0.00</div><div class="aging-pct" id="agingPct0">0.0%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#f5c542"></div><div class="aging-lbl">31 - 60 Days</div><div class="aging-amt" id="agingAmt1">0.00</div><div class="aging-pct" id="agingPct1">0.0%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#f59e0b"></div><div class="aging-lbl">61 - 90 Days</div><div class="aging-amt" id="agingAmt2">0.00</div><div class="aging-pct" id="agingPct2">0.0%</div></div>
+            <div class="aging-row"><div class="aging-dot" style="background:#e5484d"></div><div class="aging-lbl">Over 90 Days</div><div class="aging-amt" id="agingAmt3">0.00</div><div class="aging-pct" id="agingPct3">0.0%</div></div>
+            <div class="aging-row aging-total-row"><div style="width:9px"></div><div class="aging-lbl">Total</div><div class="aging-amt" id="agingAmtTotal">0.00</div><div class="aging-pct">100.0%</div></div>
           </div>
         </div>
       </div>
@@ -711,6 +716,114 @@ const CTYPE_FROM_DB={hotel:'Hotel',restaurant:'Restaurant',wholesale:'Wholesale'
 const CTYPE_TO_DB={'Hotel':'hotel','Restaurant':'restaurant','Wholesale':'wholesale','Retail':'retail'};
 const PM_TO_DB={'Cash':'cash','Credit':'credit','Bank Transfer':'bank','Mobile Money':'mobile'};
 
+/* ══ CURRENT USER (for PDF "Prepared by" line) ═══════════════
+   Was previously hardcoded to a specific person's name, which was wrong
+   for any other logged-in user. Looks up the real session's user_id
+   against the users table, with a safe generic fallback if unavailable. */
+let _currentUserLabelCache=null;
+async function getCurrentUserLabel(){
+  if(_currentUserLabelCache) return _currentUserLabelCache;
+  try{
+    const session=(typeof loadSession==='function') ? loadSession() : null;
+    const uid=session && session.user_id;
+    if(!uid) return 'Prepared by: —';
+    const rows=await sbGet(`users?select=name,role&id=eq.${uid}`);
+    const u=rows && rows[0];
+    _currentUserLabelCache = u ? `Prepared by: ${u.name}${u.role?' ('+u.role.charAt(0).toUpperCase()+u.role.slice(1)+')':''}` : 'Prepared by: —';
+  }catch(err){
+    console.error('Could not load current user for report:', err);
+    _currentUserLabelCache='Prepared by: —';
+  }
+  return _currentUserLabelCache;
+}
+
+/* ══ MONTH SCOPING ═══════════════════════════
+   Total Customers and Outstanding A/R are all-time snapshots. Revenue,
+   Credit Sales, and Avg Days to Pay are scoped to the selected month,
+   with a vs-prior-month % comparison. */
+const MONTH_LABEL_TO_PERIOD={
+  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
+  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06'
+};
+function prevPeriod(period){
+  const [y,m]=period.split('-').map(Number);
+  const d=new Date(y, m-2, 1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function pctChange(cur,prev){
+  if(!prev) return null;
+  return ((cur-prev)/prev)*100;
+}
+function renderChg(elId, pct, unit, decimals){
+  const el=document.getElementById(elId);
+  if(pct===null||!isFinite(pct)){ el.className='kc-chg'; el.innerHTML=''; return; }
+  const dir = pct>=0 ? 'up':'dn';
+  const arrow = pct>=0 ? '▲':'▼';
+  el.className='kc-chg '+dir;
+  el.innerHTML=`${arrow} ${Math.abs(pct).toFixed(decimals)}${unit}<span class="vs">vs ${prevMonthLabel()}</span>`;
+}
+function prevMonthLabel(){
+  const sel=document.getElementById('msel');
+  const months=['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'];
+  const cur=sel?sel.value:'May 2026';
+  const idx=months.indexOf(cur);
+  return idx>0?months[idx-1]:cur;
+}
+async function fetchMonthSalesKpis(period){
+  try{
+    const rows = await sbGet(`sales?select=revenue,payment_method,date,settled_date&period=eq.${period}&is_deleted=eq.false`) || [];
+    const revenue = rows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const creditRows = rows.filter(r=>r.payment_method==='credit');
+    const creditSales = creditRows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    const daysArr = creditRows
+      .filter(r=>r.settled_date)
+      .map(r=>(new Date(r.settled_date)-new Date(r.date))/86400000);
+    const avgDaysToPay = daysArr.length ? daysArr.reduce((a,b)=>a+b,0)/daysArr.length : 0;
+    return {revenue, creditSales, avgDaysToPay};
+  }catch(err){
+    console.error('Could not load month KPIs for period', period, err);
+    return {revenue:0, creditSales:0, avgDaysToPay:0};
+  }
+}
+async function refreshKpis(){
+  const monthLabel = document.getElementById('msel') ? document.getElementById('msel').value : 'May 2026';
+  const period = MONTH_LABEL_TO_PERIOD[monthLabel] || '2026-05';
+  const prior = prevPeriod(period);
+
+  const totalCustomers = customers.length;
+  const activeCount = customers.filter(c=>c.status==='Active').length;
+  const inactiveCount = totalCustomers-activeCount;
+  const outstandingAR = customers.reduce((s,c)=>s+c.outstanding,0);
+  const totalCreditLimit = customers.reduce((s,c)=>s+c.creditLimit,0);
+  const creditUtilization = totalCreditLimit>0 ? (outstandingAR/totalCreditLimit*100) : 0;
+
+  const [cur, prev] = await Promise.all([fetchMonthSalesKpis(period), fetchMonthSalesKpis(prior)]);
+
+  document.getElementById('kpiRevMonthLbl').textContent='('+monthLabel+')';
+  document.getElementById('kpiCreditMonthLbl').textContent='('+monthLabel+')';
+  document.getElementById('kpiActive').textContent=activeCount+' Active';
+  document.getElementById('kpiInactive').textContent=inactiveCount+' Inactive';
+
+  setKpi('cntTotalCust', totalCustomers);
+  setKpi('cntRevenue', cur.revenue);
+  setKpi('cntOutstanding', outstandingAR);
+  setKpi('cntAvgDays', cur.avgDaysToPay);
+  setKpi('cntCreditSales', cur.creditSales);
+  setKpi('cntUtilization', creditUtilization);
+
+  renderChg('kpiRevChg', pctChange(cur.revenue, prev.revenue), '%', 1);
+  renderChg('kpiCreditChg', pctChange(cur.creditSales, prev.creditSales), '%', 1);
+  renderChg('kpiDaysChg', cur.avgDaysToPay-prev.avgDaysToPay!==0 && prev.avgDaysToPay
+    ? (cur.avgDaysToPay-prev.avgDaysToPay) : null, ' Days', 1);
+  document.getElementById('kpiArChg').innerHTML='';
+
+  animateCounts();
+}
+function setKpi(elId, value){
+  const el=document.getElementById(elId);
+  if(el) el.dataset.t=value;
+}
+
 /* ══ LOAD FROM SUPABASE ══════════════════════
    customer_profitability view supplies the calculated fields
    (revenue, outstanding_ar, avg_days_to_pay, last_purchase_date,
@@ -750,13 +863,27 @@ async function loadCustomers(){
   renderDetail();
   renderTxns();
   renderProfitability();
-  animateCounts();
+  await refreshKpis();
 }
 function fmtDateShort(d){
   if(!d) return '—';
   const dt=new Date(d);
   if(isNaN(dt)) return '—';
   return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+/* Days between a DB date-only value (parsed as UTC midnight) and the
+   person's actual local "today". Naively subtracting new Date() (wall-clock,
+   local time) from new Date(dbDateString) (UTC midnight) can be off by a day
+   depending on the time of day and timezone — e.g. checking a statement at
+   1am in Addis Ababa for a sale made "yesterday" could wrongly compute 0 days
+   instead of 1. This normalizes both sides to local calendar-day midnight
+   before subtracting. */
+function daysSinceLocal(dbDateStr){
+  const d=new Date(dbDateStr);
+  const localMidnightOfSaleDate=new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const now=new Date();
+  const localMidnightToday=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor((localMidnightToday-localMidnightOfSaleDate)/86400000);
 }
 
 /* ══ LAZY-LOAD A CUSTOMER'S TRANSACTIONS ═════
@@ -768,7 +895,7 @@ async function loadCustomerTxns(id){
   if(!c) return [];
   if(c.txns) return c.txns; // cached
   try{
-    const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc&limit=20`) || [];
+    const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&is_deleted=eq.false&order=date.desc&limit=20`) || [];
     const saleIds = sales.map(s=>s.id);
     // credit_payments has no customer_id column — it links via sale_id,
     // so payments for this customer are fetched via their sale IDs.
@@ -786,7 +913,7 @@ async function loadCustomerTxns(id){
       amount:parseFloat(s.revenue||0),
       method:PM_FROM_DB[s.payment_method]||s.payment_method,
       status:s.settled_date?'Settled':'Unsettled',
-      _sort:new Date(s.date)
+      _sort:new Date(s.date), _tieBreak:0
     }));
     const payTxns=payments.map(p=>({
       date:fmtDateShort(p.payment_date),
@@ -797,9 +924,10 @@ async function loadCustomerTxns(id){
       amount:parseFloat(p.amount_paid||0),
       method:PM_FROM_DB[p.channel]||p.channel||'—',
       status:'Settled',
-      _sort:new Date(p.payment_date)
+      _sort:new Date(p.payment_date), _tieBreak:1
     }));
-    c.txns=[...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort).map(({_sort,...t})=>t);
+    // Same-day ties resolve sale-before-payment for a consistent order.
+    c.txns=[...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort || a._tieBreak-b._tieBreak).map(({_sort,_tieBreak,...t})=>t);
   }catch(err){
     console.error('Could not load transactions for customer', id, err);
     c.txns=[];
@@ -1021,12 +1149,43 @@ function animateCounts(){
 
 /* ══ AGING DONUT CHART ══════════════════════ */
 let agingChart;
-function initAgingChart(){
+async function loadAndRenderAging(){
+  let buckets=[0,0,0,0];
+  try{
+    const sales = await sbGet('sales?select=id,date,revenue&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false') || [];
+    if(sales.length){
+      const saleIds = sales.map(s=>s.id);
+      const payments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
+      const paidBySale={};
+      payments.forEach(p=>{ paidBySale[p.sale_id]=(paidBySale[p.sale_id]||0)+parseFloat(p.amount_paid||0); });
+      sales.forEach(s=>{
+        const balance=parseFloat(s.revenue||0)-(paidBySale[s.id]||0);
+        if(balance<=0) return;
+        const days=daysSinceLocal(s.date);
+        if(days<=30) buckets[0]+=balance;
+        else if(days<=60) buckets[1]+=balance;
+        else if(days<=90) buckets[2]+=balance;
+        else buckets[3]+=balance;
+      });
+    }
+  }catch(err){
+    console.error('Could not load aging data', err);
+  }
+  const total=buckets.reduce((a,b)=>a+b,0);
+  const pcts=buckets.map(b=>total>0?(b/total*100):0);
+
+  document.getElementById('agingCenterVal').textContent=f(total,0);
+  document.getElementById('agingAmtTotal').textContent=f(total);
+  ['agingAmt0','agingAmt1','agingAmt2','agingAmt3'].forEach((id,i)=>document.getElementById(id).textContent=f(buckets[i]));
+  ['agingPct0','agingPct1','agingPct2','agingPct3'].forEach((id,i)=>document.getElementById(id).textContent=pcts[i].toFixed(1)+'%');
+
+  if(typeof Chart==='undefined') return;
   const ctx=document.getElementById('agingChart').getContext('2d');
+  if(agingChart) agingChart.destroy();
   agingChart=new Chart(ctx,{
     type:'doughnut',
     data:{labels:['0-30 Days','31-60 Days','61-90 Days','Over 90 Days'],
-      datasets:[{data:[12450,4280,2310,672],backgroundColor:['#27ae60','#f5c542','#f59e0b','#e5484d'],borderWidth:0,hoverOffset:4}]},
+      datasets:[{data:buckets,backgroundColor:['#27ae60','#f5c542','#f59e0b','#e5484d'],borderWidth:0,hoverOffset:4}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}},
       animation:{duration:1000,easing:'easeOutQuart'}}
@@ -1039,6 +1198,7 @@ function initAgingChart(){
    wired through renderHeader()'s onMonthChange config above. */
 function onMonthChange(){
   const m=document.getElementById('msel').value;
+  refreshKpis();
   toast('Showing data for '+m,'info');
 }
 document.addEventListener('click',e=>{
@@ -1335,7 +1495,7 @@ function exportCSVFallback(month){
 }
 
 /* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ═════════════════ */
-function exportPDF(retryCount){
+async function exportPDF(retryCount){
   retryCount = retryCount || 0;
   if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
     if(retryCount < 6){
@@ -1349,6 +1509,7 @@ function exportPDF(retryCount){
   try{
   const { jsPDF } = window.jspdf;
   const month = document.getElementById('msel').value;
+  const preparedByLabel = await getCurrentUserLabel();
   const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -1378,7 +1539,7 @@ function exportPDF(retryCount){
     doc.setFontSize(9); doc.setTextColor(220,235,227);
     doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
     doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+    doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
   }
   function drawKpiStrip(y){
     const kpis=[
@@ -1449,7 +1610,7 @@ function exportPDF(retryCount){
    chart as an image and lays out KPIs + chart on page 1, the full
    customer list on page 2, profitability on page 3, and the selected
    customer's recent transactions on page 4. */
-function exportFullPDF(retryCount){
+async function exportFullPDF(retryCount){
   retryCount = retryCount || 0;
   const chartReady = typeof agingChart !== 'undefined' && agingChart;
   if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartReady){
@@ -1464,6 +1625,7 @@ function exportFullPDF(retryCount){
   try{
   const { jsPDF } = window.jspdf;
   const month = document.getElementById('msel').value;
+  const preparedByLabel = await getCurrentUserLabel();
   const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -1493,7 +1655,7 @@ function exportFullPDF(retryCount){
     doc.setFontSize(9); doc.setTextColor(220,235,227);
     doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
     doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+    doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
   }
   function drawFooter(){
     const pageCount = doc.internal.getNumberOfPages();
@@ -1691,7 +1853,7 @@ async function openCustomerLedger(){
       return;
     }
     // Running balance, oldest first: sales add to what's owed, payments reduce it.
-    const chronological=[...all].sort((a,b)=>a._sort-b._sort);
+    const chronological=[...all].sort((a,b)=>a._sort-b._sort || a._tieBreak-b._tieBreak);
     let bal=0;
     const withBalance=chronological.map(t=>{
       bal += t.type==='Sale' ? t.amount : -t.amount;
@@ -1718,7 +1880,7 @@ let ledgerData=[];
 // Same shape/logic as loadCustomerTxns() but without the limit=20 cap — used for the
 // Customer Ledger modal and Statement PDF, which are specifically about seeing everything.
 async function fetchAllCustomerTxns(id){
-  const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&order=date.desc`) || [];
+  const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&is_deleted=eq.false&order=date.desc`) || [];
   const saleIds = sales.map(s=>s.id);
   const payments = saleIds.length
     ? await sbGet(`credit_payments?select=payment_date,amount_paid,channel,sale_id&sale_id=in.(${saleIds.join(',')})&order=payment_date.desc`) || []
@@ -1729,14 +1891,17 @@ async function fetchAllCustomerTxns(id){
     date:fmtDateShort(s.date), type:'Sale', product:PROD_FROM_DB[s.product_type]||s.product_type,
     qty:s.quantity+(s.product_type==='injera'?' pcs':' kg'), unitPrice:parseFloat(s.unit_price||0),
     amount:parseFloat(s.revenue||0), method:PM_FROM_DB[s.payment_method]||s.payment_method,
-    status:s.settled_date?'Settled':'Unsettled', _sort:new Date(s.date)
+    status:s.settled_date?'Settled':'Unsettled', _sort:new Date(s.date), _tieBreak:0
   }));
   const payTxns=payments.map(p=>({
     date:fmtDateShort(p.payment_date), type:'Payment', product:'—', qty:'—', unitPrice:null,
     amount:parseFloat(p.amount_paid||0), method:PM_FROM_DB[p.channel]||p.channel,
-    status:'Settled', _sort:new Date(p.payment_date)
+    status:'Settled', _sort:new Date(p.payment_date), _tieBreak:1
   }));
-  return [...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort);
+  // Same-day ties resolve sale-before-payment (a payment logically settles
+  // debt already created that day), giving the running ledger balance a
+  // consistent order instead of depending on incidental fetch/array order.
+  return [...saleTxns,...payTxns].sort((a,b)=>b._sort-a._sort || a._tieBreak-b._tieBreak);
 }
 
 /* ══ CUSTOMER STATEMENT — PDF ══════════════════════ */
@@ -1906,7 +2071,7 @@ async function confirmImport(){
 /* ══ INIT ════════════════════════════════════ */
 (async function boot(){
   await Promise.all([loadCustomers(), loadBusinessSettings()]);
-  if(typeof Chart!=='undefined')initAgingChart();
+  await loadAndRenderAging();
   // Arrived from another module's "New Customer" quick action (e.g. Sales)
   const params=new URLSearchParams(window.location.search);
   if(params.get('action')==='new'){
