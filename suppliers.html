@@ -147,10 +147,10 @@ const db = createClient(
 @media (max-width:520px){.qa-grid{grid-template-columns:repeat(2,1fr)}}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
-.bot2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;align-items:stretch;min-width:0}
-.bot2>div{display:flex;flex-direction:column}
-.bot2>div>.card{flex:1;display:flex;flex-direction:column}
-.bot2>div>.card>div:last-child{flex:1}
+.bot2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;min-width:0}
+.bot2>div,.bot2>.card{min-width:0}
+.bot2-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.bot2-main>.card{min-width:0}
 
 /* .footer rule now in shared-shell.css */
 
@@ -222,7 +222,7 @@ const db = createClient(
    reflow into stacked label/value cards below the breakpoint instead of
    scrolling sideways. */
 html,body{overflow-x:hidden}
-.card,.kpi-row,.bot2{max-width:100%}
+.card,.kpi-row,.bot2,.bot2-main{max-width:100%}
 /* Any table/detail block that would otherwise overflow its card now
    scrolls internally instead of being hard-clipped and losing columns. */
 .card > div:has(> table.tbl){overflow-x:auto}
@@ -233,7 +233,7 @@ html,body{overflow-x:hidden}
 
 @media (max-width:900px){
   .kpi-row{grid-template-columns:repeat(3,1fr)}
-  .bot2{display:flex;flex-direction:column}
+  .bot2,.bot2-main{display:flex;flex-direction:column}
   .card{overflow:hidden;min-width:0;max-width:100%}
   .pg{flex-wrap:wrap;gap:8px}
 }
@@ -313,7 +313,7 @@ html,body{overflow-x:hidden}
          column when the other side's content changes length. -->
 
     <!-- ROW 1: Supplier List / Supplier Details -->
-    <div class="bot2">
+    <div class="bot2-main">
       <div style="min-width:0">
 
         <!-- Supplier List -->
