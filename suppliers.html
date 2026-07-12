@@ -125,7 +125,12 @@ const db = createClient(
 .sd-cell:nth-child(odd){border-right:1px solid var(--border)}
 .sd-cell label{display:block;font-size:9px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
 .sd-cell span{font-size:12px;font-weight:700;color:var(--td)}
-.sd-section-label{font-size:10px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;padding:8px 17px 5px;background:#fbfcfb;border-top:1px solid var(--border)}
+.sd-section-label{font-size:10px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;padding:8px 17px 5px;background:#fbfcfb;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.sd-section-label:hover{color:var(--td)}
+.sd-section-label .chev{width:13px;height:13px;stroke:var(--tl);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.sd-section-label.open .chev{transform:rotate(180deg)}
+.sd-collapse{max-height:0;overflow:hidden;transition:max-height .25s ease}
+.sd-collapse.open{max-height:400px}
 
 /* ══ PRICE TREND ═════════════════════════════════════ */
 .pt-foot{display:flex;justify-content:space-between;padding:10px 17px 15px;font-size:11.5px;color:var(--tm);border-top:1px solid #f0f5f2;margin-top:4px}
@@ -149,8 +154,12 @@ const db = createClient(
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
 .bot2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;min-width:0}
 .bot2>div,.bot2>.card{min-width:0}
-.bot2-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:start;min-width:0}
+.bot2-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:stretch;min-width:0}
 .bot2-main>.card{min-width:0}
+.bot2-main>div{display:flex;flex-direction:column}
+.bot2-main>div>.card{flex:1;display:flex;flex-direction:column}
+.pl-fill{flex:1}
+#supplierDetailsBody{flex:1}
 
 /* .footer rule now in shared-shell.css */
 
@@ -344,7 +353,7 @@ html,body{overflow-x:hidden}
             </div>
           </div>
 
-          <div style="min-width:0">
+          <div class="pl-fill" style="min-width:0">
           <table class="tbl">
             <thead><tr>
               <th>Supplier Name</th><th>Category</th><th>Phone</th>
@@ -1066,7 +1075,11 @@ function renderDetails(s){
       <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
       <div class="sd-cell"><label>Buying Schedule</label><span>${marketDaysLabel(s)}</span></div>
     </div>
-    <div class="sd-section-label">Financial &amp; Compliance</div>
+    <div class="sd-section-label" onclick="this.classList.toggle('open');document.getElementById('sdFinancial').classList.toggle('open')">
+      Financial &amp; Compliance
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="sd-collapse" id="sdFinancial">
     <div class="sd-grid">
       <div class="sd-cell"><label>Tax ID (TIN)</label><span>${s.tin||'—'}</span></div>
       <div class="sd-cell"><label>VAT Registration No.</label><span>${s.vatNumber||'—'}</span></div>
@@ -1074,6 +1087,7 @@ function renderDetails(s){
       <div class="sd-cell"><label>Bank Account</label><span>${maskBankAccount(s.bankAccount)}</span></div>
       <div class="sd-cell"><label>Credit Limit</label><span>${s.creditLimit!=null ? fmt(s.creditLimit)+' ETB' : 'Not set'}</span></div>
       <div class="sd-cell"><label>Credit Used (This Month)</label><span>${s.creditLimit!=null ? fmt(s.month)+' ETB ('+Math.min(100,Math.round(s.month/s.creditLimit*100))+'%)' : '—'}</span></div>
+    </div>
     </div>
   `;
   document.getElementById('supplierDetailsBody').innerHTML = html;
