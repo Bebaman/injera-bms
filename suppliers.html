@@ -118,7 +118,8 @@ const db = createClient(
 /* ══ ACTION DOTS + DROPDOWN ══════════════════════════ */
 .act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px;position:relative}
 .act-dots:hover{background:var(--bg);color:var(--tm)}
-.act-dots svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.act-dots svg{width:15px;height:15px;fill:currentColor;stroke:none}
+.act-dots svg circle{fill:currentColor}
 .row-menu{position:absolute;top:26px;right:0;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:50;min-width:150px;display:none;overflow:hidden}
 .row-menu.show{display:block}
 .row-menu a{display:block;padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer;white-space:nowrap}
@@ -145,13 +146,14 @@ const db = createClient(
 .sd-cell:nth-child(odd){border-right:1px solid var(--border)}
 .sd-cell label{display:block;font-size:9.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
 .sd-cell span{font-size:12.5px;font-weight:700;color:var(--td)}
+.sd-section-label{font-size:10.5px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;padding:12px 17px 6px;background:#fbfcfb;border-top:1px solid var(--border)}
 
 /* ══ PRICE TREND ═════════════════════════════════════ */
 .pt-foot{display:flex;justify-content:space-between;padding:10px 17px 15px;font-size:11.5px;color:var(--tm);border-top:1px solid #f0f5f2;margin-top:4px}
 .pt-foot b{color:var(--td)}
 
 /* ══ QUICK ACTIONS ════════════════════════════════════ */
-.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:6px 17px 17px}
+.qa-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:6px 17px 17px}
 .qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);border-radius:10px;padding:14px 6px;cursor:pointer;background:#fff;transition:all .12s;text-align:center}
 .qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
 .qa-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
@@ -179,6 +181,7 @@ const db = createClient(
 .frm-grp label{font-size:11px;font-weight:700;color:var(--tm)}
 .frm-grp input,.frm-grp select{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none}
 .frm-grp input:focus,.frm-grp select:focus{border-color:#27ae60}
+.frm-divider{font-size:11px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin:2px 0 14px;padding-top:14px;border-top:1px solid var(--border)}
 .btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
 .btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
 
@@ -386,45 +389,6 @@ html,body{overflow-x:hidden}
           </div>
         </div>
 
-      </div>
-
-      <!-- RIGHT COLUMN -->
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <!-- Supplier Details -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">Supplier Details</div>
-            <div style="display:flex;gap:7px">
-              <div class="exp-mini exp-xls" onclick="exportSupplierExcel()">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Export (Excel)
-              </div>
-              <div class="exp-mini exp-pdf" onclick="exportSupplierPDF()">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Export (PDF)
-              </div>
-            </div>
-          </div>
-
-          <div id="supplierDetailsBody"></div>
-        </div>
-
-        <!-- Price Trend -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
-            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
-              <option>Last 6 Months</option>
-            </select>
-          </div>
-          <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
-          <div class="pt-foot">
-            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
-            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
-          </div>
-        </div>
-
         <!-- Quick Actions -->
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
@@ -469,6 +433,45 @@ html,body{overflow-x:hidden}
               <div class="qa-ic" style="background:#e0f5fa"><svg viewBox="0 0 24 24" style="stroke:#0891b2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
               <span>Import Suppliers</span>
             </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Supplier Details -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Supplier Details</div>
+            <div style="display:flex;gap:7px">
+              <div class="exp-mini exp-xls" onclick="exportSupplierExcel()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (Excel)
+              </div>
+              <div class="exp-mini exp-pdf" onclick="exportSupplierPDF()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (PDF)
+              </div>
+            </div>
+          </div>
+
+          <div id="supplierDetailsBody"></div>
+        </div>
+
+        <!-- Price Trend -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
+            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
+              <option>Last 6 Months</option>
+            </select>
+          </div>
+          <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
+          <div class="pt-foot">
+            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
+            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
           </div>
         </div>
 
@@ -519,6 +522,20 @@ html,body{overflow-x:hidden}
           <select id="supCurrency"><option>ETB</option><option>USD</option></select>
         </div>
       </div>
+
+      <div class="frm-divider">Financial &amp; Compliance</div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Tax Identification Number (TIN)</label><input type="text" id="supTIN" placeholder="e.g. 0012345678"></div>
+        <div class="frm-grp"><label>VAT Registration No.</label><input type="text" id="supVAT" placeholder="e.g. VAT-000123456"></div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Bank Name</label><input type="text" id="supBankName" placeholder="e.g. Commercial Bank of Ethiopia"></div>
+        <div class="frm-grp"><label>Bank Account Number</label><input type="text" id="supBankAccount" placeholder="e.g. 1000456789012"></div>
+      </div>
+      <div class="frm-row">
+        <div class="frm-grp"><label>Credit Limit (ETB)</label><input type="number" id="supCreditLimit" placeholder="e.g. 50000" min="0" step="500"></div>
+      </div>
+
       <div class="frm-row" style="margin-bottom:0">
         <div class="frm-grp">
           <label>Buying Schedule</label>
@@ -658,7 +675,7 @@ html,body{overflow-x:hidden}
       <div class="modal-x" onclick="closeModal('importSuppliersOverlay')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
     </div>
     <div class="modal-bd">
-      <p style="font-size:12.5px;color:var(--tm);line-height:1.6;margin-bottom:14px">Upload a CSV file with columns: <b>Name, Category, Phone, Email, Address, Payment Terms, Status</b>. Existing suppliers with a matching name will be skipped.</p>
+      <p style="font-size:12.5px;color:var(--tm);line-height:1.6;margin-bottom:14px">Upload a CSV file with columns: <b>Name, Category, Contact Person, Phone, Email, Address, Payment Terms, TIN, VAT Registration No., Bank Name, Bank Account, Credit Limit, Status</b>. Only Name is required — the rest are optional. Existing suppliers with a matching name will be skipped.</p>
       <div class="frm-grp">
         <label>CSV File</label>
         <input type="file" id="importFileInput" accept=".csv" style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:'Nunito',sans-serif">
@@ -713,6 +730,7 @@ renderHeader({
    the Inventory module is linked these will carry a shared itemId instead. */
 let suppliers = [
   {id:'s1', name:'Awash Grain Suppliers', category:'Grain', phone:'+251 91 123 4111', email:'info@awashgrain.com', contactPerson:'Ato Girma Wolde', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:'0012345678', vatNumber:'VAT-000123456', bankName:'Commercial Bank of Ethiopia', bankAccount:'1000456789012', creditLimit:80000,
     allTime:142350.00, month:51040.00, lastPurchase:'2026-05-29', unit:'kg', avgPriceBlend:916.67, vsMarketPct:-1.8, marketDays:[4,6],
     priceHistory:[935.00,938.33,930.00,928.33,933.33,916.67],
     itemsSupplied:[
@@ -721,6 +739,7 @@ let suppliers = [
       {name:'Wheat Flour', unit:'kg', price:62.00, history:[58,59,60,60,61,62]}
     ]},
   {id:'s2', name:'Ethiopia Milling PLC', category:'Grain', phone:'+251 91 234 2222', email:'sales@ethiomilling.com', contactPerson:'W/ro Selamawit Tesfaye', address:'Kaliti, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+   tin:'0023456789', vatNumber:'VAT-000234567', bankName:'Awash Bank', bankAccount:'0130987654321', creditLimit:60000,
     allTime:98600.00, month:31450.00, lastPurchase:'2026-05-28', unit:'kg', avgPriceBlend:925.00, vsMarketPct:0.5, marketDays:[],
     priceHistory:[940.00,936.00,922.00,918.00,927.50,925.00],
     itemsSupplied:[
@@ -728,6 +747,7 @@ let suppliers = [
       {name:'Barley', unit:'kg', price:48.00, history:[44,45,46,46,47,48]}
     ]},
   {id:'s3', name:'Alemu Packaging', category:'Packaging', phone:'+251 91 234 3333', email:'orders@alemupack.com', contactPerson:'Ato Alemu Bekele', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:'0034567890', vatNumber:'VAT-000345678', bankName:'Dashen Bank', bankAccount:'0250112233445', creditLimit:20000,
     allTime:37820.00, month:5800.00, lastPurchase:'2026-05-27', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[3.60,3.65,3.70,3.75,3.80,3.90],
     itemsSupplied:[
@@ -735,18 +755,21 @@ let suppliers = [
       {name:'Sealing Tape', unit:'roll', price:45.00, history:[40,41,42,43,44,45]}
     ]},
   {id:'s4', name:'Habesha Transport', category:'Services', phone:'+251 91 234 4444', email:'dispatch@habeshatransport.com', contactPerson:'Ato Dawit Assefa', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+   tin:'0045678901', vatNumber:null, bankName:'Commercial Bank of Ethiopia', bankAccount:'1000998877665', creditLimit:15000,
     allTime:18750.00, month:2100.00, lastPurchase:'2026-05-26', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[1900,1950,2000,2050,2080,2100],
     itemsSupplied:[
       {name:'Delivery Trip (Local)', unit:'trip', price:2100.00, history:[1900,1950,2000,2050,2080,2100]}
     ]},
   {id:'s5', name:'Tigray Water Supply', category:'Utilities', phone:'+251 91 234 5555', email:'info@tigraywater.com', contactPerson:'W/ro Hiwot Gebre', address:'Piassa, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:'0056789012', vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:12550.00, month:850.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[780,800,820,830,840,850],
     itemsSupplied:[
       {name:'Water Supply (Monthly)', unit:'month', price:850.00, history:[780,800,820,830,840,850]}
     ]},
   {id:'s6', name:'Adama Grain Traders', category:'Grain', phone:'+251 91 234 6666', email:'contact@adamagrain.com', contactPerson:'Ato Mulugeta Fikru', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+   tin:'0067890123', vatNumber:'VAT-000678901', bankName:'Oromia International Bank', bankAccount:'0345566778899', creditLimit:25000,
     allTime:29400.00, month:4200.00, lastPurchase:'2026-05-24', unit:'kg', avgPriceBlend:930.00, vsMarketPct:1.0, marketDays:[4,6],
     priceHistory:[918,920,924,926,928,930],
     itemsSupplied:[
@@ -754,60 +777,70 @@ let suppliers = [
       {name:'Teff (Mixed)', unit:'kg', price:872.00, history:[860,862,865,868,870,872]}
     ]},
   {id:'s7', name:'Berhan Bank', category:'Services', phone:'+251 11 551 7171', email:'support@berhanbank.com', contactPerson:'W/ro Meron Tadesse', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:4820.00, month:306.39, lastPurchase:'2026-05-06', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[210,180,240,190,220,306],
     itemsSupplied:[
       {name:'Transaction & Service Fees', unit:'ls', price:306.39, history:[210,180,240,190,220,306]}
     ]},
   {id:'s8', name:'Ethio Electric', category:'Utilities', phone:'+251 11 552 0202', email:'billing@ethioelectric.gov.et', contactPerson:'Ato Yonas Kebede', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:21300.00, month:7052.30, lastPurchase:'2026-05-06', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[1732,2376,1776,1662,1618,7052],
     itemsSupplied:[
       {name:'Electricity Supply (Monthly)', unit:'month', price:7052.30, history:[1732,2376,1776,1662,1618,7052]}
     ]},
   {id:'s9', name:'Yimaru Transport', category:'Services', phone:'+251 91 234 7777', email:'info@yimarutransport.com', contactPerson:'Ato Yimaru Desta', address:'Gerji, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+   tin:'0089012345', vatNumber:null, bankName:'Awash Bank', bankAccount:'0130112244556', creditLimit:10000,
     allTime:9840.00, month:1138.91, lastPurchase:'2026-05-02', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[1800,1650,1400,1200,1100,1139],
     itemsSupplied:[
       {name:'Delivery Trip (Local)', unit:'trip', price:1139.00, history:[1800,1650,1400,1200,1100,1139]}
     ]},
   {id:'s10', name:'Zemen Packaging', category:'Packaging', phone:'+251 91 234 8888', email:'sales@zemenpack.com', contactPerson:'W/ro Zemen Alemayehu', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:'0090123456', vatNumber:'VAT-000901234', bankName:'Dashen Bank', bankAccount:'0250223344556', creditLimit:12000,
     allTime:15680.00, month:1876.40, lastPurchase:'2026-05-15', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[1.70,1.75,1.80,1.85,1.90,1.93],
     itemsSupplied:[
       {name:'Injera Packaging Bags', unit:'pcs', price:1.93, history:[1.70,1.75,1.80,1.85,1.90,1.93]}
     ]},
   {id:'s11', name:'Addis Water Utility', category:'Utilities', phone:'+251 11 553 0303', email:'billing@addiswater.gov.et', contactPerson:'Ato Samuel Getachew', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
+   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:6600.00, month:1200.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[900,950,1000,1100,1150,1200],
     itemsSupplied:[
       {name:'Water Supply (Monthly)', unit:'month', price:1200.00, history:[900,950,1000,1100,1150,1200]}
     ]},
   {id:'s12', name:'Bole Feed Co', category:'Grain', phone:'+251 91 234 9999', email:'info@bolefeed.com', contactPerson:'Ato Teshome Wolde', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
+   tin:'0012309876', vatNumber:'VAT-000123098', bankName:'Commercial Bank of Ethiopia', bankAccount:'1000554433221', creditLimit:30000,
     allTime:22150.00, month:0, lastPurchase:'2026-04-18', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
     priceHistory:[905,908,910,912,915,0],
     itemsSupplied:[
       {name:'Teff (Mixed)', unit:'kg', price:915.00, history:[905,908,910,912,915,915]}
     ]},
   {id:'s13', name:'Merkato Sacks Ltd', category:'Packaging', phone:'+251 91 235 1111', email:'sales@merkatosacks.com', contactPerson:'W/ro Aster Haile', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:'0013409876', vatNumber:null, bankName:'Bank of Abyssinia', bankAccount:'0087766554433', creditLimit:8000,
     allTime:8900.00, month:0, lastPurchase:'2026-04-11', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[3.50,3.55,3.60,3.62,3.65,0],
     itemsSupplied:[
       {name:'Sacks (50kg)', unit:'pcs', price:3.65, history:[3.50,3.55,3.60,3.62,3.65,3.65]}
     ]},
   {id:'s14', name:'Nile Cleaning Services', category:'Services', phone:'+251 91 235 2222', email:'contact@nileclean.com', contactPerson:'Ato Biniam Tsegaye', address:'Lideta, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
+   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:5400.00, month:0, lastPurchase:'2026-04-09', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[400,420,440,450,460,0],
     itemsSupplied:[
       {name:'Facility Cleaning (Monthly)', unit:'ls', price:460.00, history:[400,420,440,450,460,460]}
     ]},
   {id:'s15', name:'Kaleb Maintenance', category:'Services', phone:'+251 91 235 3333', email:'kaleb.maint@gmail.com', contactPerson:'Ato Kaleb Amanuel', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
+   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
     allTime:3200.00, month:0, lastPurchase:'2026-03-22', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
     priceHistory:[300,310,320,0,0,0],
     itemsSupplied:[
       {name:'Equipment Maintenance', unit:'ls', price:320.00, history:[300,310,320,320,320,320]}
     ]},
   {id:'s16', name:'Sunrise Grain Depot', category:'Grain', phone:'+251 91 235 4444', email:'info@sunrisegrain.com', contactPerson:'Ato Fitsum Abera', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:false,
+   tin:'0016709876', vatNumber:'VAT-000167098', bankName:'Awash Bank', bankAccount:'0130445566778', creditLimit:18000,
     allTime:11400.00, month:0, lastPurchase:'2026-01-14', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
     priceHistory:[895,900,905,0,0,0],
     itemsSupplied:[
@@ -939,6 +972,12 @@ function marketDaysLabel(s){
   const names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   return s.marketDays.map(d=>names[d-1]).join(', ');
 }
+function maskBankAccount(acct){
+  if(!acct) return '—';
+  const digits = acct.replace(/\s+/g,'');
+  if(digits.length<=4) return acct;
+  return '•••• ' + digits.slice(-4);
+}
 function renderDetails(s){
   const html = `
     <div class="sd-top">
@@ -967,6 +1006,15 @@ function renderDetails(s){
       <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
       <div class="sd-cell"><label>Buying Schedule</label><span>${marketDaysLabel(s)}</span></div>
       <div class="sd-cell"></div>
+    </div>
+    <div class="sd-section-label">Financial &amp; Compliance</div>
+    <div class="sd-grid">
+      <div class="sd-cell"><label>Tax ID (TIN)</label><span>${s.tin||'—'}</span></div>
+      <div class="sd-cell"><label>VAT Registration No.</label><span>${s.vatNumber||'—'}</span></div>
+      <div class="sd-cell"><label>Bank Name</label><span>${s.bankName||'—'}</span></div>
+      <div class="sd-cell"><label>Bank Account</label><span>${maskBankAccount(s.bankAccount)}</span></div>
+      <div class="sd-cell"><label>Credit Limit</label><span>${s.creditLimit!=null ? fmt(s.creditLimit)+' ETB' : 'Not set'}</span></div>
+      <div class="sd-cell"><label>Credit Used (This Month)</label><span>${s.creditLimit!=null ? fmt(s.month)+' ETB ('+Math.min(100,Math.round(s.month/s.creditLimit*100))+'%)' : '—'}</span></div>
     </div>
   `;
   document.getElementById('supplierDetailsBody').innerHTML = html;
@@ -1087,6 +1135,11 @@ function openAddSupplierModal(){
   document.getElementById('supAddress').value = '';
   document.getElementById('supTerms').value = 'Cash on Delivery';
   document.getElementById('supCurrency').value = 'ETB';
+  document.getElementById('supTIN').value = '';
+  document.getElementById('supVAT').value = '';
+  document.getElementById('supBankName').value = '';
+  document.getElementById('supBankAccount').value = '';
+  document.getElementById('supCreditLimit').value = '';
   selectedMarketDays = [];
   renderMarketDayPicker();
   document.getElementById('supplierModalOverlay').classList.add('show');
@@ -1105,6 +1158,11 @@ function editSupplier(id){
   document.getElementById('supAddress').value = s.address||'';
   document.getElementById('supTerms').value = s.terms||'Cash on Delivery';
   document.getElementById('supCurrency').value = s.currency||'ETB';
+  document.getElementById('supTIN').value = s.tin||'';
+  document.getElementById('supVAT').value = s.vatNumber||'';
+  document.getElementById('supBankName').value = s.bankName||'';
+  document.getElementById('supBankAccount').value = s.bankAccount||'';
+  document.getElementById('supCreditLimit').value = s.creditLimit||'';
   selectedMarketDays = (s.marketDays||[]).slice();
   renderMarketDayPicker();
   document.getElementById('supplierModalOverlay').classList.add('show');
@@ -1122,6 +1180,12 @@ function saveSupplier(){
   const newCategory = document.getElementById('supCategory').value;
   const prevCategory = editId ? supplierById(editId).category : null;
 
+  const creditLimitRaw = document.getElementById('supCreditLimit').value;
+  const creditLimit = creditLimitRaw !== '' ? Math.max(0, Number(creditLimitRaw)) : null;
+  if(creditLimitRaw !== '' && (isNaN(Number(creditLimitRaw)) || Number(creditLimitRaw) < 0)){
+    showToast('Credit limit must be a positive number'); return;
+  }
+
   const fields = {
     name,
     category: newCategory,
@@ -1132,6 +1196,11 @@ function saveSupplier(){
     address: document.getElementById('supAddress').value.trim(),
     terms: document.getElementById('supTerms').value,
     currency: document.getElementById('supCurrency').value,
+    tin: document.getElementById('supTIN').value.trim(),
+    vatNumber: document.getElementById('supVAT').value.trim(),
+    bankName: document.getElementById('supBankName').value.trim(),
+    bankAccount: document.getElementById('supBankAccount').value.trim(),
+    creditLimit,
     marketDays: selectedMarketDays.slice().sort()
   };
 
@@ -1198,6 +1267,7 @@ function openPurchaseReportModal(){
   const totalAll = suppliers.reduce((a,s)=>a+s.allTime,0);
   const totalMonth = suppliers.reduce((a,s)=>a+s.month,0);
   const top = suppliers.slice().sort((a,b)=>b.month-a.month).slice(0,5);
+  const overLimit = suppliers.filter(s=>s.creditLimit!=null && s.month>s.creditLimit);
   document.getElementById('purchaseReportBody').innerHTML = `
     <div class="sd-grid" style="border:1px solid var(--border);border-radius:10px;margin-bottom:16px">
       <div class="sd-cell"><label>Total Purchases (All Time)</label><span>${fmt(totalAll)} ETB</span></div>
@@ -1205,6 +1275,11 @@ function openPurchaseReportModal(){
       <div class="sd-cell"><label>Active Suppliers</label><span>${active.length}</span></div>
       <div class="sd-cell"><label>Suppliers With Orders This Month</label><span>${suppliers.filter(s=>s.month>0).length}</span></div>
     </div>
+    ${overLimit.length ? `
+    <div style="border:1px solid #f5c2c0;background:#fdf2f1;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:4px">⚠ ${overLimit.length} supplier(s) over credit limit this month</div>
+      ${overLimit.map(s=>`<div style="font-size:11.5px;color:var(--tm)">${s.name}: ${fmt(s.month)} ETB spent vs ${fmt(s.creditLimit)} ETB limit</div>`).join('')}
+    </div>` : ''}
     <div class="card-ttl" style="margin-bottom:8px">Top 5 Purchases This Month</div>
     <div style="min-width:0">
     <table class="tbl">
@@ -1458,6 +1533,7 @@ function importSuppliersFromCSV(){
     const name = row['Name'] || row['name'];
     if(!name) return;
     if(suppliers.some(s=>s.name.toLowerCase()===name.toLowerCase())){ skipped++; return; }
+    const creditLimitRaw = row['Credit Limit'];
     const s = {
       id: 's'+Date.now()+Math.random().toString(36).slice(2,6),
       name,
@@ -1469,6 +1545,11 @@ function importSuppliersFromCSV(){
       terms: row['Payment Terms']||'Cash on Delivery',
       currency: 'ETB',
       isActive: (row['Status']||'Active').toLowerCase()!=='inactive',
+      tin: row['TIN']||row['Tax Identification Number (TIN)']||'',
+      vatNumber: row['VAT Registration No.']||row['VAT']||'',
+      bankName: row['Bank Name']||'',
+      bankAccount: row['Bank Account']||row['Bank Account Number']||'',
+      creditLimit: creditLimitRaw && !isNaN(Number(creditLimitRaw)) ? Number(creditLimitRaw) : null,
       allTime:0, month:0, lastPurchase:new Date().toISOString().slice(0,10),
       unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
       priceHistory:[0,0,0,0,0,0]
@@ -1486,9 +1567,9 @@ function importSuppliersFromCSV(){
 
 /* ════════════════ EXPORT (Excel = CSV, PDF = html2canvas+jsPDF) ════════════════ */
 function exportAllSuppliersExcel(){
-  let csv = 'Name,Category,Contact Person,Phone,Email,Address,Payment Terms,Total Purchases (All Time),This Month,Last Purchase,Status\n';
+  let csv = 'Name,Category,Contact Person,Phone,Email,Address,Payment Terms,TIN,VAT Registration No.,Bank Name,Bank Account,Credit Limit,Total Purchases (All Time),This Month,Last Purchase,Status\n';
   suppliers.forEach(s=>{
-    csv += [s.name,s.category,s.contactPerson,s.phone,s.email,s.address,s.terms,s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
+    csv += [s.name,s.category,s.contactPerson,s.phone,s.email,s.address,s.terms,s.tin,s.vatNumber,s.bankName,maskBankAccount(s.bankAccount),s.creditLimit!=null?s.creditLimit.toFixed(2):'',s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
       .map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',') + '\n';
   });
   const blob = new Blob([csv], {type:'text/csv'});
@@ -1501,7 +1582,7 @@ function exportAllSuppliersExcel(){
 function exportSupplierExcel(){
   const s = supplierById(selectedSupplierId);
   let csv = 'Field,Value\n';
-  csv += `Name,"${s.name}"\nCategory,"${s.category}"\nContact Person,"${s.contactPerson||''}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nBuying Schedule,"${marketDaysLabel(s)}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
+  csv += `Name,"${s.name}"\nCategory,"${s.category}"\nContact Person,"${s.contactPerson||''}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nTIN,"${s.tin||''}"\nVAT Registration No.,"${s.vatNumber||''}"\nBank Name,"${s.bankName||''}"\nBank Account,"${maskBankAccount(s.bankAccount)}"\nCredit Limit,${s.creditLimit!=null?s.creditLimit.toFixed(2):''}\nBuying Schedule,"${marketDaysLabel(s)}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1600,6 +1681,11 @@ async function loadSuppliersFromSupabase(){
           currency: existing.currency || 'ETB',
           isActive: r.is_active !== false,
           marketDays: r.market_days || existing.marketDays || [],
+          tin: r.tin || existing.tin || '',
+          vatNumber: r.vat_number || existing.vatNumber || '',
+          bankName: r.bank_name || existing.bankName || '',
+          bankAccount: r.bank_account || existing.bankAccount || '',
+          creditLimit: r.credit_limit ?? existing.creditLimit ?? null,
           allTime: existing.allTime || 0,
           month: existing.month || 0,
           lastPurchase: existing.lastPurchase || new Date().toISOString().slice(0,10),
@@ -1628,7 +1714,12 @@ async function saveSupplierToSupabase(s){
       address: s.address || null,
       payment_terms: s.terms || null,
       is_active: s.isActive !== false,
-      market_days: s.marketDays && s.marketDays.length ? s.marketDays : null
+      market_days: s.marketDays && s.marketDays.length ? s.marketDays : null,
+      tin: s.tin || null,
+      vat_number: s.vatNumber || null,
+      bank_name: s.bankName || null,
+      bank_account: s.bankAccount || null,
+      credit_limit: s.creditLimit ?? null
     };
     if(s._dbId){
       const { error } = await db.from(SUPPLIERS_TABLE).update(row).eq('id', s._dbId);
