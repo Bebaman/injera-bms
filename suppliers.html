@@ -186,6 +186,14 @@ const db = createClient(
 .frm-grp input,.frm-grp select{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none}
 .frm-grp input:focus,.frm-grp select:focus{border-color:#27ae60}
 .frm-divider{font-size:11px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin:2px 0 14px;padding-top:14px;border-top:1px solid var(--border)}
+.prod-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.prod-row input{flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;font-family:'Nunito',sans-serif;color:var(--td)}
+.prod-row input:focus{outline:none;border-color:#27ae60}
+.prod-row .prod-unit{max-width:80px;flex:none}
+.prod-row .prod-price{max-width:100px;flex:none}
+.prod-remove{width:28px;height:28px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--border);color:#e5484d;cursor:pointer;font-size:14px;transition:background .15s}
+.prod-remove:hover{background:#fdeaea}
+.prod-empty{font-size:11px;color:var(--tl);font-weight:600;padding:2px 0 10px}
 .btn-pri{background:#1d5c38;color:#fff;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer}
 .btn-sec{background:#fff;color:var(--tm);font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;border:1px solid var(--border);cursor:pointer}
 
@@ -575,6 +583,12 @@ html,body{overflow-x:hidden}
           <select id="supCurrency"><option>ETB</option><option>USD</option></select>
         </div>
       </div>
+
+      <div class="frm-divider">Products Supplied</div>
+      <div id="supProductsList"></div>
+      <button type="button" class="btn-sec" style="margin-bottom:14px" onclick="addProductRow()">
+        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;vertical-align:-2px;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Product
+      </button>
 
       <div class="frm-divider">Financial &amp; Compliance</div>
       <div class="frm-row">
@@ -1217,6 +1231,30 @@ function renderAll(){
 /* ════════════════ ADD / EDIT SUPPLIER MODAL ════════════════ */
 const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']; // index 0-6 -> display; stored days are 1-7 (Sun=1)
 let selectedMarketDays = [];
+let supProductRows = [];
+function renderProductRows(){
+  const c = document.getElementById('supProductsList');
+  if(!supProductRows.length){
+    c.innerHTML = '<div class="prod-empty">No products added — this supplier will show a single blended price instead.</div>';
+    return;
+  }
+  c.innerHTML = supProductRows.map((r,i)=>`
+    <div class="prod-row">
+      <input type="text" placeholder="Product name (e.g. Teff White)" value="${(r.name||'').replace(/"/g,'&quot;')}" oninput="supProductRows[${i}].name=this.value">
+      <input type="text" class="prod-unit" placeholder="Unit" value="${(r.unit||'').replace(/"/g,'&quot;')}" oninput="supProductRows[${i}].unit=this.value">
+      <input type="number" class="prod-price" placeholder="Price" value="${r.price===''||r.price==null?'':r.price}" min="0" step="0.01" oninput="supProductRows[${i}].price=this.value">
+      <div class="prod-remove" onclick="removeProductRow(${i})" title="Remove product">✕</div>
+    </div>
+  `).join('');
+}
+function addProductRow(){
+  supProductRows.push({name:'',unit:'kg',price:''});
+  renderProductRows();
+}
+function removeProductRow(i){
+  supProductRows.splice(i,1);
+  renderProductRows();
+}
 
 function renderMarketDayPicker(){
   const box = document.getElementById('supMarketDays');
@@ -1251,6 +1289,8 @@ function openAddSupplierModal(){
   document.getElementById('supCreditLimit').value = '';
   selectedMarketDays = [];
   renderMarketDayPicker();
+  supProductRows = [{name:'',unit:'kg',price:''}];
+  renderProductRows();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function editSupplier(id){
@@ -1274,6 +1314,8 @@ function editSupplier(id){
   document.getElementById('supCreditLimit').value = s.creditLimit||'';
   selectedMarketDays = (s.marketDays||[]).slice();
   renderMarketDayPicker();
+  supProductRows = (s.itemsSupplied&&s.itemsSupplied.length) ? s.itemsSupplied.map(it=>({name:it.name,unit:it.unit,price:it.price})) : [{name:'',unit:'kg',price:''}];
+  renderProductRows();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function closeAddSupplierModal(){
@@ -1295,6 +1337,26 @@ function saveSupplier(){
     showToast('Credit limit must be a positive number'); return;
   }
 
+  // Build itemsSupplied from the product rows. If a row's name matches an
+  // existing item (edit mode), keep its real 6-month history and just
+  // refresh the price; brand-new products get a flat history seeded from
+  // the entered price, since there's no purchase data for them yet.
+  const prevItems = editId ? (supplierById(editId).itemsSupplied||[]) : [];
+  const cleanRows = supProductRows.filter(r=>r.name && r.name.trim());
+  if(cleanRows.some(r=>r.price==='' || isNaN(Number(r.price)) || Number(r.price)<0)){
+    showToast('Enter a valid price for every product'); return;
+  }
+  const itemsSupplied = cleanRows.map(r=>{
+    const prior = prevItems.find(p=>p.name.trim().toLowerCase()===r.name.trim().toLowerCase());
+    const price = Number(r.price);
+    return {
+      name: r.name.trim(),
+      unit: (r.unit||'unit').trim() || 'unit',
+      price,
+      history: prior ? [...prior.history.slice(0,-1), price] : [price,price,price,price,price,price]
+    };
+  });
+
   const fields = {
     name,
     category: newCategory,
@@ -1310,8 +1372,18 @@ function saveSupplier(){
     bankName: document.getElementById('supBankName').value.trim(),
     bankAccount: document.getElementById('supBankAccount').value.trim(),
     creditLimit,
-    marketDays: selectedMarketDays.slice().sort()
+    marketDays: selectedMarketDays.slice().sort(),
+    itemsSupplied
   };
+
+  // The blended figures shown on the list/KPI row (avgPriceBlend, priceHistory)
+  // track the first product entered — same convention as the seed data, where
+  // e.g. Awash Grain Suppliers' blend tracks its primary Teff line.
+  if(itemsSupplied.length){
+    fields.avgPriceBlend = itemsSupplied[0].price;
+    fields.priceHistory = itemsSupplied[0].history;
+    fields.unit = itemsSupplied[0].unit;
+  }
 
   let s;
   if(editId){
