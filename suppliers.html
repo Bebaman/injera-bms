@@ -152,9 +152,9 @@ const db = createClient(
 @media (max-width:520px){.qa-grid{grid-template-columns:repeat(2,1fr)}}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
-.bot2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;min-width:0}
+.bot2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start;min-width:0}
 .bot2>div,.bot2>.card{min-width:0}
-.bot2-main{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:14px;align-items:stretch;min-width:0}
+.bot2-main{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px;align-items:stretch;min-width:0}
 .bot2-main>.card{min-width:0}
 .bot2-main>div{display:flex;flex-direction:column}
 .bot2-main>div>.card{flex:1;display:flex;flex-direction:column}
@@ -435,9 +435,12 @@ html,body{overflow-x:hidden}
         <div class="card">
           <div class="card-hd">
             <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
-            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
-              <option>Last 6 Months</option>
-            </select>
+            <div style="display:flex;align-items:center;gap:8px">
+              <select class="rsel" id="ptProduct" onchange="renderPriceTrend()"></select>
+              <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
+                <option>Last 6 Months</option>
+              </select>
+            </div>
           </div>
           <div style="padding:6px 17px 0;height:150px"><canvas id="priceTrendChart"></canvas></div>
           <div class="pt-foot">
@@ -515,10 +518,6 @@ html,body{overflow-x:hidden}
             <div class="qa-btn" onclick="exportAllSuppliersPDF()">
               <div class="qa-ic" style="background:transparent"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <span>Export Suppliers (PDF)</span>
-            </div>
-            <div class="qa-btn" onclick="openImportSuppliersModal()">
-              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-              <span>Import Suppliers</span>
             </div>
           </div>
         </div>
@@ -1094,21 +1093,38 @@ function renderDetails(s){
 }
 
 /* ════════════════ PRICE TREND CHART ════════════════ */
+let ptLastSupplierId = null;
 function renderPriceTrend(){
   const s = supplierById(selectedSupplierId);
-  const unitLbl = s.category==='Grain' ? 'ETB / kg' : (s.unit==='pcs' ? 'ETB / pc' : 'ETB');
-  document.getElementById('ptTitle').innerHTML = `Price Trend (${s.category==='Grain' ? 'Injera Blend' : s.name})<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">${unitLbl}</span>`;
+  const items = (s.itemsSupplied && s.itemsSupplied.length) ? s.itemsSupplied : [{name:s.name, unit:s.unit, price:s.avgPriceBlend, history:s.priceHistory}];
+  const sel = document.getElementById('ptProduct');
 
-  const data = s.priceHistory;
+  // Only rebuild + reset the dropdown when the supplier itself changed —
+  // switching products for the same supplier shouldn't jump back to item 0.
+  if(ptLastSupplierId !== s.id){
+    sel.innerHTML = items.map((it,i)=>`<option value="${i}">${it.name}</option>`).join('');
+    sel.value = '0';
+    ptLastSupplierId = s.id;
+  }
+  sel.style.display = items.length>1 ? '' : 'none';
+
+  const idx = Math.min(parseInt(sel.value||'0',10), items.length-1);
+  const item = items[idx] || items[0];
+  const unitLbl = item.unit==='kg' ? 'ETB / kg' : (item.unit==='pcs' ? 'ETB / pc' : (item.unit ? 'ETB / '+item.unit : 'ETB'));
+  const isGrainItem = s.category==='Grain' && item.unit==='kg';
+
+  document.getElementById('ptTitle').innerHTML = `Price Trend (${item.name})<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">${unitLbl}</span>`;
+
+  const data = item.history;
   const lastVal = data[data.length-1];
   const prevVal = data[data.length-2] || lastVal;
-  const marketAvg = s.category==='Grain' ? 933.33 : lastVal;
-  const vsMarket = s.vsMarketPct;
+  const marketAvg = 933.33;
+  const vsMarket = isGrainItem ? Math.round(((lastVal-marketAvg)/marketAvg)*1000)/10 : null;
 
-  document.getElementById('ptMarketAvg').innerHTML = s.category==='Grain'
+  document.getElementById('ptMarketAvg').innerHTML = isGrainItem
     ? `Market Average (May 2026): <b>${fmt(marketAvg)} ETB/kg</b>`
     : `Latest recorded price: <b>${fmt(lastVal)} ${unitLbl}</b>`;
-  document.getElementById('ptYouPay').innerHTML = s.category==='Grain'
+  document.getElementById('ptYouPay').innerHTML = isGrainItem
     ? `You Pay: <b>${fmt(lastVal)} ETB/kg</b> <span class="${vsMarket<0?'chg-dn':'chg-up'}">${vsMarket<0?'▼':'▲'} ${Math.abs(vsMarket)}%</span>`
     : `Change vs prior month: <span class="${lastVal<prevVal?'chg-dn':'chg-up'}">${lastVal<prevVal?'▼':'▲'} ${prevVal? Math.abs(((lastVal-prevVal)/prevVal)*100).toFixed(1):'0.0'}%</span>`;
 
