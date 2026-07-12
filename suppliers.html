@@ -131,6 +131,12 @@ const db = createClient(
 .sd-section-label.open .chev{transform:rotate(180deg)}
 .sd-collapse{max-height:0;overflow:hidden;transition:max-height .25s ease}
 .sd-collapse.open{max-height:400px}
+.sd-products{padding:2px 17px 10px}
+.sd-prod-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f5f2}
+.sd-prod-row:last-child{border-bottom:none}
+.sd-prod-name{font-size:11.5px;font-weight:600;color:var(--td)}
+.sd-prod-price{font-size:11.5px;font-weight:700;color:var(--td)}
+.sd-prod-price .u{font-size:9.5px;font-weight:600;color:var(--tl)}
 
 /* ══ PRICE TREND ═════════════════════════════════════ */
 .pt-foot{display:flex;justify-content:space-between;padding:10px 17px 15px;font-size:11.5px;color:var(--tm);border-top:1px solid #f0f5f2;margin-top:4px}
@@ -1074,6 +1080,18 @@ function renderDetails(s){
       <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
       <div class="sd-cell"><label>Buying Schedule</label><span>${marketDaysLabel(s)}</span></div>
     </div>
+    ${s.itemsSupplied && s.itemsSupplied.length>1 ? `
+    <div class="sd-section-label" style="cursor:default">
+      Products Supplied
+    </div>
+    <div class="sd-products">
+      ${s.itemsSupplied.map(it=>`
+        <div class="sd-prod-row">
+          <span class="sd-prod-name">${it.name}</span>
+          <span class="sd-prod-price">${fmt(it.price)} <span class="u">ETB/${it.unit}</span></span>
+        </div>
+      `).join('')}
+    </div>` : ''}
     <div class="sd-section-label" onclick="this.classList.toggle('open');document.getElementById('sdFinancial').classList.toggle('open')">
       Financial &amp; Compliance
       <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
