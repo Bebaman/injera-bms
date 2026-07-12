@@ -127,28 +127,20 @@ const db = createClient(
 .sd-cell span{font-size:12px;font-weight:700;color:var(--td)}
 .sd-section-label{font-size:10px;font-weight:800;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;padding:8px 17px 5px;background:#fbfcfb;border-top:1px solid var(--border)}
 
-/* ══ SUPPLIERS NEEDING ATTENTION ══════════════════════ */
-.att-list{padding:2px 17px 14px}
-.att-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f5f2}
-.att-row:last-child{border-bottom:none}
-.att-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.att-ic svg{width:15px;height:15px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.att-txt{flex:1;min-width:0}
-.att-txt .name{font-size:12.5px;font-weight:700;color:var(--td);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.att-txt .reason{font-size:11px;color:var(--tl);margin-top:1px}
-.att-empty{padding:24px 17px;text-align:center;font-size:12px;color:var(--tl)}
-
 /* ══ PRICE TREND ═════════════════════════════════════ */
 .pt-foot{display:flex;justify-content:space-between;padding:10px 17px 15px;font-size:11.5px;color:var(--tm);border-top:1px solid #f0f5f2;margin-top:4px}
 .pt-foot b{color:var(--td)}
 
-/* ══ QUICK ACTIONS ════════════════════════════════════ */
-.qa-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:6px 17px 17px}
-.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);border-radius:10px;padding:14px 6px;cursor:pointer;background:#fff;transition:all .12s;text-align:center}
+/* ══ QUICK ACTIONS ════════════════════════════════════
+   auto-fit + minmax keeps these tiles flowing horizontally across
+   several columns at essentially any container width, instead of a
+   fixed column-count grid that can collapse to one narrow column. */
+.qa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;padding:6px 14px 14px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:10px;padding:10px 4px;cursor:pointer;background:#fff;transition:all .12s;text-align:center}
 .qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
-.qa-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.qa-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.qa-btn span{font-size:11px;font-weight:700;color:var(--td);line-height:1.25}
+.qa-ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.qa-ic svg{width:15px;height:15px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-btn span{font-size:10px;font-weight:700;color:var(--td);line-height:1.2}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
 .bot2{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;align-items:start;min-width:0}
@@ -224,6 +216,13 @@ const db = createClient(
    scrolling sideways. */
 html,body{overflow-x:hidden}
 .card,.kpi-row,.bot2{max-width:100%}
+/* Any table/detail block that would otherwise overflow its card now
+   scrolls internally instead of being hard-clipped and losing columns. */
+.card > div:has(> table.tbl){overflow-x:auto}
+@media (max-width:640px){
+  .sd-grid{grid-template-columns:1fr}
+  .sd-cell:nth-child(odd){border-right:none}
+}
 
 @media (max-width:900px){
   .kpi-row{grid-template-columns:repeat(3,1fr)}
@@ -244,7 +243,6 @@ html,body{overflow-x:hidden}
 }
 @media (max-width:480px){
   .kpi-row{grid-template-columns:repeat(2,1fr)}
-  .qa-grid{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -400,12 +398,6 @@ html,body{overflow-x:hidden}
           <div style="padding:12px 17px;border-top:1px solid var(--border);text-align:center">
             <button class="vall" style="margin:0 auto" onclick="showToast('Full purchase history coming soon')">View All Purchases</button>
           </div>
-        </div>
-
-        <!-- Suppliers Needing Attention -->
-        <div class="card">
-          <div class="card-hd"><div class="card-ttl">Suppliers Needing Attention</div></div>
-          <div id="attentionList"></div>
         </div>
 
       </div>
@@ -955,18 +947,39 @@ function gotoPage(p){
   renderSupplierList();
 }
 
-/* ════════════════ ROW ACTIONS MENU ════════════════ */
+/* ════════════════ ROW ACTIONS MENU ════════════════
+   Positioned with `fixed` + coordinates computed from the dots icon,
+   rather than relying on `absolute` inside the table. The table wrapper
+   now scrolls (overflow-x:auto) so it needs `overflow-y` to also compute
+   to auto per spec — meaning an absolutely-positioned popup could get
+   clipped instead of floating above the table. Fixed positioning escapes
+   that clipping since none of the ancestors use transform/filter. */
 function toggleRowMenu(ev, id){
   ev.stopPropagation();
   const menu = document.getElementById('menu-'+id);
   const isOpen = menu.classList.contains('show');
   closeAllRowMenus();
-  menu.classList.toggle('show', !isOpen);
+  if(isOpen) return;
+  menu.classList.add('show');
+  const dotsRect = ev.currentTarget.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  let left = dotsRect.right - menuRect.width;
+  if(left < 8) left = 8;
+  let top = dotsRect.bottom + 4;
+  if(top + menuRect.height > window.innerHeight - 8){
+    top = dotsRect.top - menuRect.height - 4;
+  }
+  menu.style.position = 'fixed';
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+  menu.style.right = 'auto';
 }
 function closeAllRowMenus(){
   document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
 }
 document.addEventListener('click', closeAllRowMenus);
+document.addEventListener('scroll', closeAllRowMenus, true);
+window.addEventListener('resize', closeAllRowMenus);
 
 function toggleSupplierActive(id){
   const s = supplierById(id);
@@ -974,7 +987,6 @@ function toggleSupplierActive(id){
   saveSupplierToSupabase(s);
   renderSupplierList();
   renderKPIs();
-  renderAttentionList();
   if(id===selectedSupplierId) renderDetails(s);
   showToast(s.isActive ? 'Supplier reactivated' : 'Supplier deactivated');
 }
@@ -1123,49 +1135,8 @@ function renderAll(){
   renderSupplierList();
   renderDetails(supplierById(selectedSupplierId));
   renderPriceTrend();
-  renderAttentionList();
 }
 
-/* ════════════════ SUPPLIERS NEEDING ATTENTION ════════════════
-   Surfaces suppliers with gaps in their record — inactive status, no
-   contact person on file, or (for active suppliers) over their credit
-   limit this month — so gaps get noticed without digging through every
-   row individually. Purely derived from existing fields, nothing new to
-   maintain. */
-function renderAttentionList(){
-  const box = document.getElementById('attentionList');
-  const items = [];
-  suppliers.forEach(s=>{
-    if(!s.isActive){
-      items.push({s, reason:'Marked inactive', icon:'inactive'});
-    } else if(s.creditLimit!=null && s.month>s.creditLimit){
-      items.push({s, reason:`Over credit limit — ${fmt(s.month)} of ${fmt(s.creditLimit)} ETB`, icon:'credit'});
-    } else if(!s.contactPerson){
-      items.push({s, reason:'No contact person on file', icon:'contact'});
-    }
-  });
-  const icons = {
-    inactive: {bg:'#eef1ee', stroke:'#5a6e65', svg:'<circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>'},
-    credit: {bg:'#fdecea', stroke:'#e53935', svg:'<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'},
-    contact: {bg:'#fef3e2', stroke:'#9a6a0a', svg:'<path d="M20 21a8 8 0 10-16 0"/><circle cx="12" cy="7" r="4"/>'}
-  };
-  if(items.length===0){
-    box.innerHTML = `<div class="att-empty">All suppliers are active, financially in good standing, and have a contact person on file.</div>`;
-    return;
-  }
-  box.className = 'att-list';
-  box.innerHTML = items.slice(0,8).map(({s,reason,icon})=>{
-    const ic = icons[icon];
-    return `
-    <div class="att-row">
-      <div class="att-ic" style="background:${ic.bg}"><svg viewBox="0 0 24 24" style="stroke:${ic.stroke}">${ic.svg}</svg></div>
-      <div class="att-txt">
-        <div class="name">${s.name}</div>
-        <div class="reason">${reason}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
 /* ════════════════ ADD / EDIT SUPPLIER MODAL ════════════════ */
 const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']; // index 0-6 -> display; stored days are 1-7 (Sun=1)
 let selectedMarketDays = [];
@@ -1282,7 +1253,6 @@ function saveSupplier(){
   closeAddSupplierModal();
   renderSupplierList();
   renderKPIs();
-  renderAttentionList();
   if(s.id===selectedSupplierId){ renderDetails(s); renderPriceTrend(); }
   if(editId && prevCategory && prevCategory!==newCategory){
     showToast(`Supplier updated — category changed to ${newCategory}`);
@@ -1624,7 +1594,6 @@ function importSuppliersFromCSV(){
   closeModal('importSuppliersOverlay');
   renderSupplierList();
   renderKPIs();
-  renderAttentionList();
   showToast(`Imported ${added} supplier(s)${skipped?', skipped '+skipped+' duplicate(s)':''}`);
 }
 
@@ -1835,7 +1804,6 @@ async function init(){
   renderSupplierList();
   renderDetails(supplierById(selectedSupplierId));
   renderPriceTrend();
-  renderAttentionList();
 }
 init();
 </script>
