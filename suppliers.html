@@ -26,14 +26,14 @@ const db = createClient(
 
 /* ══ KPI ROW ════════════════════════════════════════ */
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;padding-top:4px}
-.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative}
+.kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative;min-width:0}
 .kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
 .kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ic-g{background:#e5f5ed}.ic-g svg{stroke:#27ae60}
 .ic-p{background:#f3e8fd}.ic-p svg{stroke:#8b5cf6}
 .ic-o{background:#fef3e2}.ic-o svg{stroke:#f59e0b}
 .ic-b{background:#e0effe}.ic-b svg{stroke:#2563eb}
-.kc-lbl{font-size:11px;color:var(--tl);font-weight:600;display:block;margin-bottom:4px;white-space:nowrap}
+.kc-lbl{font-size:11px;color:var(--tl);font-weight:600;display:block;margin-bottom:4px}
 .kc-val{font-family:'Quicksand',sans-serif;font-size:19px;font-weight:700;color:var(--td);display:flex;align-items:baseline;gap:4px}
 .kc-val .u{font-size:11px;font-weight:600;color:var(--tm);font-family:'Nunito',sans-serif}
 .kc-chg{font-size:11px;font-weight:600;margin-top:5px;display:flex;align-items:center;gap:2px}
@@ -43,7 +43,7 @@ const db = createClient(
 .kc-sub2{font-size:10.5px;font-weight:600;margin-top:2px;color:var(--tl)}
 
 /* ══ CARD ═══════════════════════════════════════════ */
-.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;min-width:0}
 .card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px}
 .card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
 .card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -299,11 +299,15 @@ html,body{overflow-x:hidden}
       </div>
     </div>
 
-    <!-- MAIN TWO-COLUMN AREA -->
-    <div class="bot2">
+    <!-- MAIN TWO-COLUMN AREA
+         Each section is its own left/right pair (rather than two long,
+         independently-stacked columns), so a row's height is always set
+         by its own two cards and never leaves a tall gap under a shorter
+         column when the other side's content changes length. -->
 
-      <!-- LEFT COLUMN -->
-      <div style="display:flex;flex-direction:column;gap:14px">
+    <!-- ROW 1: Supplier List / Supplier Details -->
+    <div class="bot2">
+      <div style="min-width:0">
 
         <!-- Supplier List -->
         <div class="card">
@@ -350,6 +354,36 @@ html,body{overflow-x:hidden}
           </div>
         </div>
 
+      </div>
+
+      <div style="min-width:0">
+
+        <!-- Supplier Details -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Supplier Details</div>
+            <div style="display:flex;gap:7px">
+              <div class="exp-mini exp-xls" onclick="exportSupplierExcel()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (Excel)
+              </div>
+              <div class="exp-mini exp-pdf" onclick="exportSupplierPDF()">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Export (PDF)
+              </div>
+            </div>
+          </div>
+
+          <div id="supplierDetailsBody"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ROW 2: Supplier Performance / Price Trend -->
+    <div class="bot2">
+      <div style="min-width:0">
+
         <!-- Supplier Performance -->
         <div class="card">
           <div class="card-hd">
@@ -377,6 +411,32 @@ html,body{overflow-x:hidden}
           </div>
         </div>
 
+      </div>
+
+      <div style="min-width:0">
+
+        <!-- Price Trend -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
+            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
+              <option>Last 6 Months</option>
+            </select>
+          </div>
+          <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
+          <div class="pt-foot">
+            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
+            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ROW 3: Recent Purchases / Quick Actions -->
+    <div class="bot2">
+      <div style="min-width:0">
+
         <!-- Recent Purchases -->
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Recent Purchases</div></div>
@@ -402,42 +462,7 @@ html,body{overflow-x:hidden}
 
       </div>
 
-      <!-- RIGHT COLUMN -->
-      <div style="display:flex;flex-direction:column;gap:14px">
-
-        <!-- Supplier Details -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">Supplier Details</div>
-            <div style="display:flex;gap:7px">
-              <div class="exp-mini exp-xls" onclick="exportSupplierExcel()">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Export (Excel)
-              </div>
-              <div class="exp-mini exp-pdf" onclick="exportSupplierPDF()">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Export (PDF)
-              </div>
-            </div>
-          </div>
-
-          <div id="supplierDetailsBody"></div>
-        </div>
-
-        <!-- Price Trend -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl" id="ptTitle">Price Trend (Injera Blend)<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB / kg</span></div>
-            <select class="rsel" id="ptRange" disabled title="12-month view will be available once more purchase history is on file">
-              <option>Last 6 Months</option>
-            </select>
-          </div>
-          <div style="padding:6px 17px 0"><canvas id="priceTrendChart" height="150"></canvas></div>
-          <div class="pt-foot">
-            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
-            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
-          </div>
-        </div>
+      <div style="min-width:0">
 
         <!-- Quick Actions -->
         <div class="card">
