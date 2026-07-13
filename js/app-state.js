@@ -183,6 +183,13 @@ function populateUserChrome(){
 }
 
 /* ── Supabase REST helpers ───────────────────────────────────── */
+/* authHeaders() is kept (sync, no validity check) for any callers that
+   still reference it directly. All sbGet/sbPost/sbPatch/sbDelete below
+   use authHeadersAsync() instead, which verifies the access_token isn't
+   expired (or about to expire) before using it, and refreshes inline if
+   needed — closing the gap where a background tab's refresh timer missed
+   its slot (sleep/throttling/silent refresh failure) and a stale token
+   would otherwise go out and 401. */
 function authHeaders(extra){
   const session = loadSession();
   const token = (session && session.access_token) || window.SB_KEY;
@@ -192,8 +199,27 @@ function authHeaders(extra){
     'Content-Type': 'application/json'
   }, extra || {});
 }
+async function authHeadersAsync(extra){
+  let session = loadSession();
+  if (session && session.access_token){
+    const expMs = _decodeJwtExp(session.access_token);
+    // No exp claim we can read, or expiring within 30s — refresh now and
+    // wait for it rather than firing the request on a token that's dead
+    // or about to be.
+    if (!expMs || expMs - Date.now() < 30000){
+      const ok = await refreshAccessToken();
+      if (ok) session = loadSession();
+    }
+  }
+  const token = (session && session.access_token) || window.SB_KEY;
+  return Object.assign({
+    'apikey': window.SB_KEY,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }, extra || {});
+}
 async function sbGet(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, { headers: authHeaders() });
+  const res = await fetch(`${window.SB_URL}/${path}`, { headers: await authHeadersAsync() });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
     throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
@@ -203,7 +229,7 @@ async function sbGet(path){
 async function sbPost(path, body){
   const res = await fetch(`${window.SB_URL}/${path}`, {
     method:'POST',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
+    headers: await authHeadersAsync({ 'Prefer':'return=representation' }),
     body: JSON.stringify(body)
   });
   if(!res.ok){
@@ -215,7 +241,7 @@ async function sbPost(path, body){
 async function sbPatch(path, body){
   const res = await fetch(`${window.SB_URL}/${path}`, {
     method:'PATCH',
-    headers: authHeaders({ 'Prefer':'return=representation' }),
+    headers: await authHeadersAsync({ 'Prefer':'return=representation' }),
     body: JSON.stringify(body)
   });
   if(!res.ok){
@@ -227,7 +253,7 @@ async function sbPatch(path, body){
 async function sbDelete(path){
   const res = await fetch(`${window.SB_URL}/${path}`, {
     method:'DELETE',
-    headers: authHeaders({ 'Prefer':'return=representation' })
+    headers: await authHeadersAsync({ 'Prefer':'return=representation' })
   });
   if(!res.ok){
     let detail=''; try{ detail=(await res.json()).message||''; }catch{}
