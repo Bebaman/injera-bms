@@ -1993,4 +1993,415 @@ function partialValue(key, year, nMonths){
     const v = m.monthly(year,i);
     if(v!=null){ total+=v; count++; }
   }
-  return isRate ? (count?total/co
+  return isRate ? (count?total/count:0) : total;
+}
+
+function renderGrowthChart(){
+  destroyChart('growth');
+  const key = primaryMetricKey();
+  const years = selYears();
+  const sorted = [...years].sort((a,b)=>a-b);
+  const m = METRICS[key];
+  document.getElementById('growthChartTitle').textContent = m.label + ' — YoY Growth Rate';
+
+  const labels = [], data = [];
+  for(let i=1;i<sorted.length;i++){
+    const curY = sorted[i], prevY = sorted[i-1];
+    const nCur = monthsInYear(curY);
+    const curVal = m.annual(curY); // already scoped to available months
+    const prevVal = nCur<12 ? partialValue(key, prevY, nCur) : m.annual(prevY);
+    const g = prevVal ? (curVal-prevVal)/Math.abs(prevVal)*100 : null;
+    labels.push(curY+' vs '+prevY + (nCur<12 ? ' (YTD)' : ''));
+    data.push(g==null?0:g);
+  }
+  const colors = data.map(v=> v>=0 ? '#1d5c38' : '#e53935');
+
+  const cagr = computeCAGR(key, years);
+  const pill = document.getElementById('cagrPill');
+  if(cagr==null){ pill.textContent='CAGR — (needs 2+ full years)'; pill.className='cagr-pill'; }
+  else { pill.textContent = 'CAGR '+(cagr>=0?'+':'')+cagr.toFixed(1)+'%'; pill.className = 'cagr-pill'+(cagr<0?' dn':''); }
+
+  const canvas = document.getElementById('growthChart');
+  if(!canvas) return;
+  charts.growth = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:4, barPercentage:0.55,
+      datalabels:{ anchor:'end', align:'end', color:'#1a2e25', font:{family:'Nunito',size:10.5,weight:'700'},
+        formatter:v=> (v>=0?'+':'')+v.toFixed(1)+'%' } }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:easeAnim, layout:{padding:{top:22,bottom:4}},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+(c.parsed.y>=0?'+':'')+c.parsed.y.toFixed(1)+'%'}} },
+      scales:{ x:{grid:{display:false}, ticks:{font:{family:'Nunito',size:10},color:'#9aada5'}},
+               y:{grid:{color:'#eef3f0'}, ticks:{font:{family:'Nunito',size:10},color:'#9aada5', callback:v=>v.toFixed(0)+'%'}} }
+    }
+  });
+}
+
+function renderCumulativeChart(){
+  destroyChart('cumulative');
+  const key = primaryMetricKey();
+  const years = selYears();
+  const m = METRICS[key];
+  const isRate = RATE_METRICS.has(key);
+  document.getElementById('cumulativeChartTitle').textContent = isRate
+    ? ('Running Average ' + m.label + ' (YTD)')
+    : ('Cumulative ' + m.label + ' (YTD Pacing)');
+  document.getElementById('cumulativeLegend').innerHTML = years.map(y=>
+    `<span><span class="leg-ln" style="background:${YEAR_COLOR[y]}"></span>${y===2026?'2026 (YTD)':y}</span>`
+  ).join('');
+
+  const canvas = document.getElementById('cumulativeChart');
+  if(!canvas) return;
+  const datasets = years.map(y=>{
+    let running=0, count=0;
+    const data = [];
+    for(let i=0;i<12;i++){
+      if(i<monthsInYear(y)){
+        const v = m.monthly(y,i) || 0;
+        running += v; count++;
+        data.push(isRate ? running/count : running);
+      } else data.push(null);
+    }
+    return {label:String(y), data, borderColor:YEAR_COLOR[y], backgroundColor:'transparent', borderWidth:2.5, pointRadius:0, tension:0.3, datalabels:{display:false}};
+  });
+  charts.cumulative = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{labels:MONTH_ABBR, datasets},
+    options:{ responsive:true, maintainAspectRatio:false, animation:easeAnim,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+labelFmt(key)(c.parsed.y)}} },
+      scales:{ x:{grid:{display:false}, ticks:{font:{family:'Nunito',size:10},color:'#9aada5'}},
+               y:{grid:{color:'#eef3f0'}, beginAtZero:!isRate, ticks:{font:{family:'Nunito',size:10},color:'#9aada5', callback:axisFmt(key)}} }
+    }
+  });
+}
+
+function hexAlpha(hex, alpha){
+  const a = Math.round(Math.max(0,Math.min(1,alpha))*255).toString(16).padStart(2,'0');
+  return hex + a;
+}
+
+function renderSeasonalityHeatmap(){
+  const key = primaryMetricKey();
+  const years = selYears();
+  const m = METRICS[key];
+  document.getElementById('heatmapTitle').textContent = m.label + ' by Month';
+
+  const cells = {};
+  let min=Infinity, max=-Infinity;
+  years.forEach(y=>{
+    cells[y] = [];
+    for(let i=0;i<12;i++){
+      const v = i<monthsInYear(y) ? m.monthly(y,i) : null;
+      cells[y].push(v);
+      if(v!=null){ if(v<min) min=v; if(v>max) max=v; }
+    }
+  });
+
+  function cellColor(v){
+    if(v==null) return 'transparent';
+    const t = max>min ? (v-min)/(max-min) : 0.5;
+    return hexAlpha(m.color, 0.12 + t*0.75);
+  }
+
+  let html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="heatmap-tbl"><thead><tr><th>Year</th>';
+  MONTH_ABBR.forEach(mo=>{ html += `<th>${mo}</th>`; });
+  html += '</tr></thead><tbody>';
+  years.forEach(y=>{
+    html += `<tr><td>${y===2026?'2026 (YTD)':y}</td>`;
+    cells[y].forEach(v=>{
+      html += v==null
+        ? `<td class="hm-empty">-</td>`
+        : `<td style="background:${cellColor(v)}">${m.decimals===0 ? fmt0(v) : v.toFixed(1)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('seasonalityHeatmap').innerHTML = html;
+}
+
+/* ════════════════ VARIANCE ANALYSIS ════════════════
+   Standard component of professional financial reporting: actual vs prior
+   period, dollar variance, percent variance, and a Favorable/Unfavorable
+   flag. Polarity matters — rising COGS or ingredient prices are
+   Unfavorable even though the number went up, unlike rising revenue. */
+const METRIC_POLARITY = {
+  revenue:1, net:1, gross:1, cogs:-1, margin:1, cogsPct:-1,
+  injera:1, derkosh:1, asp:1, blend:-1, corn:-1, gomen:-1
+};
+
+function renderVarianceTable(){
+  const key = primaryMetricKey();
+  const years = selYears();
+  const sorted = [...years].sort((a,b)=>a-b);
+  const m = METRICS[key];
+  const polarity = METRIC_POLARITY[key] || 1;
+  document.getElementById('varianceTitle').textContent = m.label + ' — Variance Analysis (Year-over-Year)';
+
+  let rows = '';
+  for(let i=1;i<sorted.length;i++){
+    const curY = sorted[i], prevY = sorted[i-1];
+    const nCur = monthsInYear(curY);
+    const isPartial = nCur<12;
+    const curVal = m.annual(curY);
+    const prevVal = isPartial ? partialValue(key, prevY, nCur) : m.annual(prevY);
+    const delta = curVal - prevVal;
+    const deltaPct = prevVal ? delta/Math.abs(prevVal)*100 : null;
+    const favorable = polarity*delta >= 0;
+    rows += `<tr>
+      <td>${curY===2026?'2026 (YTD)':curY}${isPartial?' vs '+prevY+' (same '+nCur+'-mo period)':' vs '+prevY}</td>
+      <td>${formatMetric(key,curVal)}</td>
+      <td>${formatMetric(key,prevVal)}</td>
+      <td class="${favorable?'var-fav':'var-unfav'}">${delta>=0?'+':''}${formatMetric(key,delta)}</td>
+      <td class="${favorable?'var-fav':'var-unfav'}">${deltaPct==null?'—':(deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%'}</td>
+      <td><span class="var-pill ${favorable?'fav':'unfav'}">${favorable?'Favorable':'Unfavorable'}</span></td>
+    </tr>`;
+  }
+  const empty = '<tr><td colspan="6" style="color:#9aada5;text-align:center;padding:16px">Select 2 or more years to see variance analysis.</td></tr>';
+  document.getElementById('varianceTable').innerHTML =
+    '<thead><tr><th>Period</th><th>Actual</th><th>Prior Period</th><th>Variance</th><th>Variance %</th><th>Status</th></tr></thead>' +
+    '<tbody>' + (rows || empty) + '</tbody>';
+}
+
+/* ════════════════ EXECUTIVE SUMMARY ════════════════
+   Auto-generated narrative — the "story behind the numbers" that every
+   professional financial dashboard pairs with its charts and tables. */
+function renderExecutiveSummary(){
+  const cfg = REPORTS[currentReport];
+  const years = selYears();
+  const sorted = [...years].sort((a,b)=>a-b);
+  const key = primaryMetricKey();
+  const m = METRICS[key];
+  const view = currentView, monthIdx = selMonthIdx();
+  const bullets = [];
+
+  if(currentReport==='yoy_pl'){
+    document.getElementById('execSummary').innerHTML = sorted.length
+      ? buildYoyPlExecSummary(sorted)
+      : `<div class="exec-item"><div class="ei-txt">Select at least one year to generate a summary.</div></div>`;
+    return;
+  }
+
+  const cagr = computeCAGR(key, years);
+  if(cagr!=null){
+    const complete = years.filter(y=>monthsInYear(y)===12).sort((a,b)=>a-b);
+    bullets.push(`${m.label} grew at a compound annual growth rate (CAGR) of ${cagr>=0?'+':''}${cagr.toFixed(1)}% from ${complete[0]} to ${complete[complete.length-1]}.`);
+  }
+  if(sorted.length>=2){
+    const last=sorted[sorted.length-1], prev=sorted[sorted.length-2];
+    const nCur = monthsInYear(last);
+    const curVal = m.annual(last);
+    const prevVal = nCur<12 ? partialValue(key,prev,nCur) : m.annual(prev);
+    const deltaPct = prevVal ? (curVal-prevVal)/Math.abs(prevVal)*100 : null;
+    if(deltaPct!=null){
+      bullets.push(`${last===2026?'2026 (YTD)':last} ${m.label.toLowerCase()} is ${deltaPct>=0?'up':'down'} ${Math.abs(deltaPct).toFixed(1)}% ${nCur<12?('compared to the same '+nCur+'-month period in'):'versus'} ${prev}.`);
+    }
+  }
+
+  if(cfg.special==='customers'){
+    const totals = topCustomers.map(c=>{ let s=0; years.forEach(y=>s+=custAnnual(c,y)); return {name:c.name,total:s}; });
+    const grand = totals.reduce((s,t)=>s+t.total,0);
+    const top = totals.reduce((a,b)=> b.total>a.total?b:a, totals[0]);
+    const share = grand>0 ? top.total/grand*100 : 0;
+    const riskLevel = share>35?'high':share>20?'moderate':'low';
+    bullets.push(`${top.name} accounts for ${share.toFixed(1)}% of top-10 customer revenue — ${riskLevel} customer concentration risk.`);
+  } else if(currentReport==='price_history'){
+    const ings = isIngredientFocused() ? [getIngredientFilter()] : ['blend','corn','gomen'];
+    let flagged = false;
+    ings.forEach(ing=>{
+      const latest = latestDataPoint();
+      const cur = METRICS[ing].monthly(latest.year, latest.i);
+      const avg3 = rollingAvg(ing, latest.year, latest.i, 3);
+      if(avg3 && cur){
+        const diff = (cur-avg3)/avg3*100;
+        if(diff>10){ bullets.push(`⚠ ${METRICS[ing].label} is ${diff.toFixed(1)}% above its 3-month average — worth a supplier price check.`); flagged = true; }
+      }
+    });
+    if(!flagged) bullets.push('All tracked ingredient prices are currently within normal range of their 3-month rolling averages.');
+  } else if(currentReport==='net_profit_grid'){
+    if(sorted.length>=2){
+      const firstM = METRICS.margin.annual(sorted[0]), lastM = METRICS.margin.annual(sorted[sorted.length-1]);
+      bullets.push(`Net profit margin moved from ${firstM.toFixed(1)}% in ${sorted[0]} to ${lastM.toFixed(1)}% in ${sorted[sorted.length-1]}.`);
+    }
+  } else if(currentReport==='prod_yoy'){
+    const ig = growthPct('injera', years), dg = growthPct('derkosh', years);
+    if(ig!=null && dg!=null){
+      bullets.push(`Injera production ${ig>=0?'grew':'declined'} ${Math.abs(ig).toFixed(1)}% while Derkosh ${dg>=0?'grew':'declined'} ${Math.abs(dg).toFixed(1)}% over the selected period.`);
+    }
+  } else if(currentReport==='rev_trend'){
+    const b = bestMonth(years);
+    bullets.push(`Best month on record: ${b.label} with ${fmt0(b.val)} ETB in revenue.`);
+  } else if(currentReport==='cogs_trend'){
+    const cAgg = kpiAggregate('cogsPct', years, view, monthIdx);
+    bullets.push(`COGS currently represents ${cAgg.value.toFixed(1)}% of revenue across the selected period.`);
+  }
+
+  const DEFAULT_EXEC_ICONS = [{icon:'trend',cls:'ic-g'},{icon:'money',cls:'ic-b'},{icon:'percent',cls:'ic-p'},{icon:'trend',cls:'ic-r'},{icon:'trend',cls:'ic-c'}];
+  document.getElementById('execSummary').innerHTML = bullets.length ? bullets.map((b,i)=>{
+    const ic = DEFAULT_EXEC_ICONS[i%DEFAULT_EXEC_ICONS.length];
+    return `<div class="exec-item"><div class="ei-ico ${ic.cls}"><svg viewBox="0 0 24 24">${ICONS[ic.icon]}</svg></div><div class="ei-txt">${b}</div></div>`;
+  }).join('') : `<div class="exec-item"><div class="ei-txt">Select at least one year to generate a summary.</div></div>`;
+}
+
+/* ---- Dedicated Executive Summary for the Year-on-Year P&L view — 5 fixed
+   icon cards matching the reference layout, each computed from real data. */
+function buildYoyPlExecSummary(sorted){
+  const first = sorted[0], last = sorted[sorted.length-1];
+  const items = [];
+
+  const revGrowth = growthPct('revenue', sorted);
+  items.push({icon:'trend', cls:'ic-g', html: revGrowth!=null
+    ? `<b>Revenue grew ${revGrowth>=0?'+':''}${revGrowth.toFixed(1)}%</b> between ${first} and ${last}`
+    : `<b>Revenue</b> — not enough data to compute growth`});
+
+  let bestYear = sorted[0], bestVal = METRICS.net.annual(sorted[0]);
+  sorted.forEach(y=>{ const v = METRICS.net.annual(y); if(v>bestVal){ bestVal=v; bestYear=y; } });
+  items.push({icon:'money', cls:'ic-g', html:`<b>${bestYear===2026?'2026 (YTD)':bestYear} recorded</b> the highest net profit`});
+
+  let cogsFasterSince = null;
+  for(let i=1;i<sorted.length;i++){
+    const y0=sorted[i-1], y1=sorted[i];
+    const n1 = monthsInYear(y1);
+    const revPrev = n1<12 ? partialValue('revenue',y0,n1) : METRICS.revenue.annual(y0);
+    const revCur = METRICS.revenue.annual(y1);
+    const revG = revPrev ? (revCur-revPrev)/Math.abs(revPrev)*100 : 0;
+    const cogsG = revG; // COGS is a flat % of revenue in this model, so it moves 1:1 with revenue growth
+    const compositeCogsG = (ingredientCompositeIndex(y1)/ingredientCompositeIndex(y0)-1)*100;
+    if(compositeCogsG > revG){ cogsFasterSince = y1; break; }
+  }
+  items.push({icon:'trend', cls:'ic-r', html: cogsFasterSince
+    ? `<b>COGS has increased</b> faster than revenue since ${cogsFasterSince}`
+    : `<b>COGS growth</b> has tracked in line with revenue over the period`});
+
+  const gms = sorted.map(y=>METRICS.grossMargin.annual(y));
+  const minGm = Math.min(...gms);
+  items.push({icon:'percent', cls:'ic-p', html:`<b>Average gross margin</b> remained above ${Math.floor(minGm)}% throughout the period`});
+
+  const lastN = monthsInYear(last);
+  if(lastN<12 && sorted.length>=2){
+    const prev = sorted[sorted.length-2];
+    const curVal = partialValue('revenue', last, lastN);
+    const prevVal = partialValue('revenue', prev, lastN);
+    const pace = prevVal ? (curVal-prevVal)/Math.abs(prevVal)*100 : null;
+    items.push({icon:'barchart', cls:'ic-c', html: pace!=null
+      ? `<b>${last} (YTD) is currently</b> tracking ${pace>=0?'+':''}${pace.toFixed(0)}% ${pace>=0?'ahead of':'behind'} the same period last year`
+      : `<b>${last} (YTD)</b> — not enough prior-year data to compare pacing`});
+  } else {
+    items.push({icon:'barchart', cls:'ic-c', html:`<b>${last}</b> is the most recent full year on record`});
+  }
+
+  return items.map(it=>`<div class="exec-item"><div class="ei-ico ${it.cls}"><svg viewBox="0 0 24 24">${ICONS[it.icon]}</svg></div><div class="ei-txt">${it.html}</div></div>`).join('');
+}
+
+/* ════════════════ RENDER ALL ════════════════ */
+function renderAll(){
+  updateExtraSectionsVisibility();
+  renderMainTable();
+  renderKpiRow();
+  renderTopCustomers();
+  renderMainChart();
+  renderSubChart();
+  renderBottomCharts();
+  renderGrowthChart();
+  renderCumulativeChart();
+  renderSeasonalityHeatmap();
+  renderVarianceTable();
+  renderExecutiveSummary();
+  renderPerUnitEconomicsChart();
+  renderProductMixChart();
+  renderCogsDecompChart();
+  renderConcentrationChart();
+  renderRetentionTable();
+  renderIngredientForecastChart();
+}
+
+/* ════════════════ COUNT-UP ANIMATION ════════════════ */
+function animateCount(el, decimals){
+  const target = parseFloat(el.getAttribute('data-target'));
+  const dur = 1100;
+  const start = performance.now();
+  function step(now){
+    const p = Math.min((now-start)/dur, 1);
+    const eased = 1 - Math.pow(1-p, 3);
+    const val = target * eased;
+    el.textContent = decimals===0 ? fmt0(val) : fmt(val);
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent = decimals===0 ? fmt0(target) : fmt(target);
+  }
+  requestAnimationFrame(step);
+}
+function runKpiAnimations(){
+  document.querySelectorAll('#kpiRow [data-target]').forEach(el=>{
+    const decimals = el.getAttribute('data-decimals')==='0' ? 0 : 2;
+    animateCount(el, decimals);
+  });
+}
+
+/* ════════════════ EXPORT ════════════════ */
+function doExport(kind){
+  const cfg = effectiveReportConfig();
+  const years = selYears();
+  if(kind==='excel'){
+    let csv = '';
+    if(cfg.special==='customers'){
+      csv = 'Customer';
+      years.forEach(y=>{ csv += `,${y} Revenue`; });
+      csv += '\n';
+      topCustomers.forEach(c=>{
+        csv += c.name;
+        years.forEach(y=>{ csv += `,${custAnnual(c,y)}`; });
+        csv += '\n';
+      });
+    } else {
+      csv = 'Month';
+      const cols = cfg.tableMetrics;
+      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${y} ${METRICS[c].label}`; }); });
+      csv += '\n';
+      for(let i=0;i<12;i++){
+        csv += MONTH_ABBR[i];
+        years.forEach(y=>{
+          const has = i<monthsInYear(y);
+          cols.forEach(c=>{ csv += `,${has?METRICS[c].monthly(y,i).toFixed(2):''}`; });
+        });
+        csv += '\n';
+      }
+    }
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `multi_year_${currentReport}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast(`Exported ${cfg.label} to Excel (CSV)`);
+  } else {
+    toast('Generating PDF — this may take a few seconds');
+  }
+}
+
+/* ════════════════ HEADER ════════════════ */
+renderHeader({
+  title: 'Multi-Year Reporting',
+  subtitle: 'Compare performance across years',
+  showMonthPicker: true,
+  months: ['2023 - 2026','2022 - 2025','2024 - 2026'],
+  selectedMonth: '2023 - 2026',
+  onMonthChange: onRangeChange,
+  showExport: true,
+  onExportPdf: () => doExport('pdf'),
+  onExportXlsx: () => doExport('excel'),
+  notifications: [
+    { type:'g', title:'2025 Year-End Close Complete', sub:'Closing inventory balances carried forward as 2026 opening balances', time:'3 days ago · Jan 2, 2026' },
+    { type:'b', title:'Multi-Year Report Exported', sub:'4-Year YoY P&L Summary exported to Excel successfully', time:'5 hours ago · Jun 30, 2026' },
+    { type:'o', title:'Net Profit Margin Improved', sub:'2026 YTD margin of 21.4% is the highest on record', time:'Yesterday · Jun 29, 2026' },
+    { type:'g', title:'Addis Hotel Remains Top Customer', sub:'239,820.00 ETB in cumulative revenue across all years', time:'2 days ago · Jun 28, 2026' }
+  ]
+});
+
+/* ════════════════ INIT ════════════════
+   Chart.register must run before the first chart is created. */
+Chart.register(ChartDataLabels);
+renderYearChips();
+setView('monthly');
+loadFromSupabase();
+
+</script>
+</body>
+</html>
