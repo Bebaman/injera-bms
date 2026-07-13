@@ -1,8 +1,10 @@
 /* ============================================================
-   MENA INJERA & DERKOSH BMS — SHARED SIDEBAR  (v2)
+   MENA INJERA & DERKOSH BMS — SHARED SIDEBAR  (v3)
    Nav data + rendering matches dashboard.html exactly (Main group
    includes Purchases). User management lives in Settings > Users & Roles
    (added 2026-07) — no separate Manage Users page/nav item anymore.
+   2026-07: added 'Milling / Conversion' (Main group, between Production
+   and Derkosh) — new module per the Injera Blend Costing change order.
 
    Usage — right after <body>:
 
@@ -21,6 +23,7 @@ const NAV_ITEMS = [
   { group: 'Main', items: [
     { label: 'Dashboard',  href: 'dashboard.html', aliases: [], icon: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>' },
     { label: 'Purchases',  href: 'purchases.html', aliases: ['purchases-27.html'], icon: '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+    { label: 'Milling / Conversion', href: 'milling.html', aliases: ['milling-1.html','milling-conversion.html'], icon: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M4.76 7.5l14.48 9M4.76 16.5l14.48-9"/><circle cx="12" cy="12" r="2.2"/>' },
     { label: 'Production', href: 'production.html', aliases: ['production-6.html'], icon: '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>' },
     { label: 'Derkosh',    href: 'derkosh.html', aliases: ['derkosh-17.html'], icon: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>' },
     { label: 'Sales',      href: 'sales.html', aliases: ['sales-17.html'], icon: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>' },
