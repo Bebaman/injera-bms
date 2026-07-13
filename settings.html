@@ -350,6 +350,24 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             <button class="btn-pri" style="margin-top:12px" onclick="saveInventoryOpeningBalances(this)">Save Inventory Opening Balances</button>
           </div>
         </div>
+        <!-- Milling / Production Configuration -->
+        <div class="card" style="grid-column:span 2">
+          <div class="card-hd"><div class="card-ttl">Milling &amp; Production Configuration</div></div>
+          <div class="card-bd">
+            <div class="info-box" style="margin-bottom:12px">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              The Milling/Conversion module (Teff + Rice → Injera Blend) uses these to compute cost — pick them here instead of anyone having to edit the database directly. Renaming a supplier or item later won't break milling conversions as long as the same one stays selected here.
+            </div>
+            <div class="f-row">
+              <div class="f-grp"><label>Teff (Inventory Item)</label><select id="millTeffItem"></select></div>
+              <div class="f-grp"><label>Rice (Inventory Item)</label><select id="millRiceItem"></select></div>
+            </div>
+            <div class="f-row">
+              <div class="f-grp"><label>Injera Blend (Inventory Item)</label><select id="millBlendItem"></select></div>
+              <div class="f-grp"><label>Mill (Supplier)</label><select id="millSupplier"></select></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="save-bar">
@@ -1316,7 +1334,27 @@ function recalcOpeningTotal(){
 const INVENTORY_ITEMS_TABLE = 'inventory_items';
 const INVENTORY_OPENING_TABLE = 'inventory_opening_balances';
 let inventoryItemsList = [];
+let millConfig = {};
 let inventoryOpeningRows = []; // rows for openingPeriod only, keyed by item_id
+
+/* ════════════════ MILLING / PRODUCTION CONFIGURATION ════════════════
+   Points the Milling/Conversion trigger at real supplier/item IDs instead of
+   matching by name — renaming Teff, Rice, Injera Blend or the Mill supplier
+   later won't silently break milling conversions anymore. */
+function populateMillConfigDropdowns(supplierRows){
+  const itemOpt = (sel, currentId) => {
+    sel.innerHTML = '<option value="">-- Select --</option>' +
+      inventoryItemsList.map(i=>`<option value="${i.id}"${i.id===currentId?' selected':''}>${i.name}</option>`).join('');
+  };
+  const supOpt = (sel, currentId) => {
+    sel.innerHTML = '<option value="">-- Select --</option>' +
+      supplierRows.map(s=>`<option value="${s.id}"${s.id===currentId?' selected':''}>${s.name}</option>`).join('');
+  };
+  itemOpt(document.getElementById('millTeffItem'), millConfig.teff_item_id);
+  itemOpt(document.getElementById('millRiceItem'), millConfig.rice_item_id);
+  itemOpt(document.getElementById('millBlendItem'), millConfig.blend_item_id);
+  supOpt(document.getElementById('millSupplier'), millConfig.mill_supplier_id);
+}
 
 function renderInventoryOpeningBalances(){
   const body = document.getElementById('invOpeningBody');
@@ -1576,6 +1614,10 @@ async function loadFromSupabase(){
       toggleVatRateField();
       document.getElementById('acctWac').checked = r.use_wac !== false;
       document.getElementById('acctRounding').value = r.rounding_mode === 'whole' ? 'Whole Birr (1 ETB)' : '2 Decimal Places (0.01 ETB)';
+      millConfig = {
+        teff_item_id: r.teff_item_id, rice_item_id: r.rice_item_id,
+        blend_item_id: r.blend_item_id, mill_supplier_id: r.mill_supplier_id
+      };
       const tsMap = {60:'1 Hour',120:'2 Hours',240:'4 Hours',480:'8 Hours',0:'Never'};
       document.getElementById('sysSessionTimeout').value = tsMap[r.session_timeout_minutes] ?? '4 Hours';
       if(r.notification_preferences){
@@ -1607,6 +1649,8 @@ async function loadFromSupabase(){
 
     const { data: invItemRows, error: invItemErr } = await db.from(INVENTORY_ITEMS_TABLE).select('*').eq('is_active', true).order('name', { ascending:true });
     if(!invItemErr && invItemRows){ inventoryItemsList = invItemRows; }
+    const { data: supRowsForMill, error: supMillErr } = await db.from('suppliers').select('id,name').order('name', { ascending:true });
+    populateMillConfigDropdowns(supMillErr ? [] : (supRowsForMill||[]));
     const { data: invObRows, error: invObErr } = await db.from(INVENTORY_OPENING_TABLE).select('*').eq('period', openingPeriod);
     if(!invObErr && invObRows){ inventoryOpeningRows = invObRows; }
     document.getElementById('invObPeriodLbl').textContent = '(' + openingPeriod + ')';
@@ -1696,7 +1740,11 @@ async function saveBusinessSettings(btn){
     rounding_mode: document.getElementById('acctRounding').value === 'Whole Birr (1 ETB)' ? 'whole' : '2dp',
     session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value] ?? 240,
     business_timezone: 'Africa/Addis_Ababa',
-    notification_preferences: notifPrefs
+    notification_preferences: notifPrefs,
+    teff_item_id: val('millTeffItem') || null,
+    rice_item_id: val('millRiceItem') || null,
+    blend_item_id: val('millBlendItem') || null,
+    mill_supplier_id: val('millSupplier') || null
   };
 
   if(!db){

@@ -813,7 +813,7 @@ async function refreshDashboard(){
       loanSummaryRows, customersRows, budgetRows, batchStandardRows,
       salesToday, expenseToday, pettyToday, productionToday,
       pendingApprovals, customerProfitability, businessSettingsRows,
-      allPurchasesByItem, allUsageByItem, openingBalances
+      allPurchasesByItem, allUsageByItem, openingBalances, millingConversionsAll
     ] = await Promise.all([
       sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -838,12 +838,16 @@ async function refreshDashboard(){
       sbGet(`production_batches?select=injera_qty&date=eq.${today}&is_deleted=eq.false`),
       sbGet(`purchases?select=id,total_cost,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false`),
       sbGet(`customer_profitability?select=*`),
-      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences&limit=1`),
+      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences,teff_item_id,rice_item_id&limit=1`),
       // ── Inventory forecast inputs (added 2026-07) — real purchase-in / usage-out history,
       // used to compute average daily usage and days-of-stock-remaining per item. ──
       sbGet(`purchases?select=item_id,quantity,date&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=not.is.null`),
       sbGet(`production_batch_materials?select=item_id,quantity_used,production_batches!inner(date,is_deleted)&production_batches.is_deleted=eq.false`),
-      sbGet(`inventory_opening_balances?select=item_id,opening_qty`)
+      sbGet(`inventory_opening_balances?select=item_id,opening_qty`),
+      // Teff/Rice are consumed by Milling/Conversion runs, not Production Batches — without
+      // this, their stock forecast above would never decrease after a milling run and would
+      // never trigger a reorder recommendation no matter how much has actually been milled.
+      sbGet(`milling_conversions?select=date,teff_qty,rice_qty`)
     ]);
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -967,7 +971,16 @@ async function refreshDashboard(){
     // flagged for reorder when it's projected to hit its reorder_level within 7 days, not only
     // once it's already there. Falls back to the simple reorder_level comparison for any item
     // with no usage history yet (nothing to compute a rate from).
-    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, allUsageByItem, openingBalances);
+    // Fold Teff/Rice milling consumption into the same usage-row shape the forecast
+    // already expects, using rename-safe IDs from business_settings when configured.
+    const teffId = (businessSettingsRows?.[0]?.teff_item_id) || (invItems.find(i=>i.name==='Teff')?.id);
+    const riceId = (businessSettingsRows?.[0]?.rice_item_id) || (invItems.find(i=>i.name==='Rice')?.id);
+    const millingUsageRows = [];
+    (millingConversionsAll||[]).forEach(mc=>{
+      if(teffId) millingUsageRows.push({item_id: teffId, quantity_used: num(mc.teff_qty), production_batches:{date: mc.date, is_deleted:false}});
+      if(riceId) millingUsageRows.push({item_id: riceId, quantity_used: num(mc.rice_qty), production_batches:{date: mc.date, is_deleted:false}});
+    });
+    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances);
     // Derkosh has no reorder_level in the schema (it's produced, not purchased), so we derive a
     // sensible buffer from this period's own production rather than just checking "> 0" —
     // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.

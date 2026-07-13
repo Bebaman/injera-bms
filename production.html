@@ -794,9 +794,10 @@ function monthLabelToPeriod(label){
   return `${yr}-${String(idx+1).padStart(2,'0')}`;
 }
 
-// Cached inventory item UUIDs, looked up by name once and reused.
-// Injera Blend / Corn / Gomen Zere are seeded exactly under these names
-// (injera_bms_COMPLETE.sql — inventory_items seed).
+// Cached inventory item UUIDs, looked up once and reused. Injera Blend's ID
+// prefers business_settings.blend_item_id (rename-safe, same fix applied to
+// the Milling/Conversion module) — falls back to name match if unconfigured.
+// Corn / Gomen Zere are still matched by name (injera_bms_COMPLETE.sql seed).
 let ITEM_IDS = null; // { blend, corn, gomen }
 async function loadItemIds(){
   if(ITEM_IDS) return ITEM_IDS;
@@ -806,7 +807,12 @@ async function loadItemIds(){
     .in('name', ['Injera Blend','Corn','Gomen Zere']);
   if(error){ console.error('loadItemIds error', error); throw error; }
   const byName = Object.fromEntries(data.map(r=>[r.name, r.id]));
-  ITEM_IDS = { blend: byName['Injera Blend'], corn: byName['Corn'], gomen: byName['Gomen Zere'] };
+  let blendId = byName['Injera Blend'];
+  try {
+    const { data: bs } = await db.from('business_settings').select('blend_item_id').limit(1);
+    if(bs && bs[0] && bs[0].blend_item_id) blendId = bs[0].blend_item_id;
+  } catch(e){ /* non-fatal — fall back to name match above */ }
+  ITEM_IDS = { blend: blendId, corn: byName['Corn'], gomen: byName['Gomen Zere'] };
   return ITEM_IDS;
 }
 

@@ -363,8 +363,12 @@ async function loadIdMaps(){
     sb('expense_categories?select=id,name'),
     sb('overhead_categories?select=id,name')
   ]);
-  const itemKey=n=>['Corn','Gomen Zere','Injera Blend'].includes(n)?'raw_materials':(['Large Bags','Small Bags'].includes(n)?'packaging':null);
+  const itemKey=n=>['Corn','Gomen Zere','Injera Blend','Teff','Rice'].includes(n)?'raw_materials':(['Large Bags','Small Bags'].includes(n)?'packaging':null);
   const expKey=n=>{
+    // These are folded into Injera Blend's cost via the Milling/Conversion record
+    // (same COGS, not OpEx, treatment as monthly_pnl) — excluded here (null) so Budget's
+    // Actual OpEx doesn't count them a second time on top of what's already inside COGS.
+    if(['Milling & Conversion Fees','Sifting Fees','Grinding Fees','Delivery In','Milling Material Transport'].includes(n)) return null;
     if(n==='Delivery Out'||n==='Transport')return'delivery';
     if(n==='Marketing')return'marketing';
     if(n==='Packaging')return'packaging';
@@ -403,7 +407,7 @@ async function loadPeriod(pKey){
   const {start,end}=periodBounds(pKey);
   const [salesRows,purchaseRows,ovhRows,pettyRows,loanRows,budgetRows]=await Promise.all([
     sb('sales?period=eq.'+pKey+'&is_deleted=eq.false&select=product_type,revenue'),
-    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&select=type,item_id,expense_category_id,total_cost'),
+    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&select=type,item_id,expense_category_id,total_cost,source'),
     sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
     sb('petty_cash?period=eq.'+pKey+'&select=amount'),
     sb('loan_repayment_schedule?due_date=gte.'+start+'&due_date=lt.'+end+'&select=interest_portion'),
@@ -416,6 +420,7 @@ async function loadPeriod(pKey){
     if(k)actual[k]+=Number(r.revenue||0);
   });
   purchaseRows.forEach(r=>{
+    if(r.source==='milling_conversion') return; // already represented by its own Teff/Rice/fee purchases — skip to avoid double-counting
     let k=null;
     if(r.type==='purchase')k=ID_MAPS.itemLine[r.item_id];
     else if(r.type==='expense')k=ID_MAPS.expLine[r.expense_category_id];

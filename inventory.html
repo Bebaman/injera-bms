@@ -394,7 +394,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     <!-- INVENTORY OVERVIEW (detailed table — placed last for glance-to-detail flow) -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-hd">
-        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(May 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
+        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(Jul 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
         <div class="exp-btns">
           <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
           <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
@@ -466,12 +466,26 @@ const recentPurchases = [
 /* Non-expiry alerts stay static demo data for now. Expiry alerts are computed live
    from each item's expiryDate field below (see buildExpiryAlerts) instead of being
    hardcoded text, so they stay accurate as expiry dates are edited via Item Settings. */
-const staticAlerts = [
-  { icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:'Large Bags', text:'Closing stock 220 pcs is below 50% of reorder level. Reorder level: 200 pcs.' },
-  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Corn', text:'Closing stock 60 kg is below reorder level. Reorder level: 60 kg.' },
-  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Small Bags', text:'Closing stock 520 pcs is below reorder level. Reorder level: 500 pcs.' },
-  { icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title:'Plastic Sheets & Cleaning Material', text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' }
-];
+/* Live-computed — was a hardcoded array of demo alerts (Large Bags 220pcs, Corn 60kg,
+   etc.) that no longer matched real data once invItems became live. */
+function buildStockLevelAlerts(){
+  const alerts = [];
+  invItems.filter(i=>i.status==='REORDER').forEach(i=>{
+    alerts.push({ icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:i.name,
+      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below 60% of reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
+  });
+  invItems.filter(i=>i.status==='LOW').forEach(i=>{
+    alerts.push({ icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:i.name,
+      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
+  });
+  const slow = invItems.filter(i=>{ const d = daysOfSupply(i); return d!=null && d>120; }).map(i=>i.name);
+  if(slow.length){
+    alerts.push({ icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title: slow.join(' & '),
+      text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' });
+  }
+  return alerts;
+}
+function getAllAlerts(){ return [...buildExpiryAlerts(), ...buildStockLevelAlerts()]; }
 /* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
 function daysUntilExpiry(item){
   if(!item.expiryDate) return null;
@@ -489,7 +503,6 @@ function buildExpiryAlerts(){
       : `Expires in ${a.days} day${a.days===1?'':'s'} (${fmtDateLong(a.item.expiryDate)}).`
   }));
 }
-function getAllAlerts(){ return [...buildExpiryAlerts(), ...staticAlerts]; }
 
 const priceHistoryByItem = {
   'Injera Blend': { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[880.00,892.50,915.00,910.00,901.67,916.67] },
@@ -500,13 +513,27 @@ const priceHistoryByItem = {
 };
 
 function fmt(n){ return (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function num(v){ return parseFloat(v)||0; }
 function dash(v){ return (v===null || v===undefined) ? '-' : fmt(v); }
 function fmtDateLong(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
 /* ════════════════ HEADER MONTH CHANGE ════════════════ */
+const MONTH_LABEL_TO_PERIOD = {
+  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
+  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06',
+  'Jul 2026':'2026-07'
+};
+function prevPeriodOf(period){
+  const [y,m] = period.split('-').map(Number);
+  const d = new Date(y, m-2, 1); // m-1 is current month 0-indexed, -1 more for previous
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+let currentPeriod = MONTH_LABEL_TO_PERIOD['Jul 2026'];
 function onMonthChange(m){
   document.getElementById('ovMonthLbl').textContent = '('+m+')';
-  showToast('Loaded inventory for '+m);
+  currentPeriod = MONTH_LABEL_TO_PERIOD[m] || currentPeriod;
+  showToast('Loading inventory for '+m+'…');
+  loadFromSupabase();
 }
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */
@@ -846,7 +873,7 @@ function closeModal(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 /* ── shared form helpers ── */
-function todayInApp(){ return '2026-05-31'; } // demo dataset's simulated "today"
+function todayInApp(){ return new Date().toISOString().slice(0,10); }
 function itemOptionsHtml(selected){
   return invItems.map(i=>`<option value="${i.name}" ${i.name===selected?'selected':''}>${i.name} (${i.unit})</option>`).join('');
 }
@@ -1387,23 +1414,109 @@ function confirmImport(){
   showToast(`Imported updates for ${updated} item${updated===1?'':'s'}`);
 }
 
-/* ════════════════ SUPABASE LOAD (best-effort) ════════════════
-   Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
-   schema §14.3 to keep names/units/reorder levels in sync with the live database.
-   Monthly movement figures continue to use the local snapshot above until the
-   inventory_balance / price_history views (§6.5 / §6.6) are wired up for this page. */
+/* ════════════════ LIVE DATA LOAD ════════════════
+   Replaces the fixed May-2026 demo snapshot. Builds invItems/recentPurchases/
+   priceHistoryByItem in the exact shape the existing render functions already
+   expect, so renderMonthlyTable/renderAllTimeTable/renderPriceHistory/etc. all
+   keep working unchanged. Opening = previous period's closing (inventory_balance).
+   Used = production batch consumption + milling conversion consumption (Teff/
+   Rice are consumed by milling, not production batches — same fix as Dashboard). */
 async function loadFromSupabase(){
   try {
-    const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true);
-    if(!error && data && data.length){
-      data.forEach(row=>{
-        const match = invItems.find(i=>i.name.toLowerCase() === (row.name||'').toLowerCase());
-        if(match && row.reorder_level != null) match.reorder = parseFloat(row.reorder_level);
+    const period = currentPeriod;
+    const prevPeriod = prevPeriodOf(period);
+
+    const [itemsRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes, recentPurchRes, priceHistRes] = await Promise.all([
+      db.from('inventory_items').select('*').eq('is_active', true).order('name'),
+      db.from('inventory_balance').select('*').eq('period', period),
+      db.from('inventory_balance').select('*').eq('period', prevPeriod),
+      db.from('purchases').select('item_id,quantity,total_cost,date').eq('type','purchase').eq('is_deleted',false).eq('period',period).in('approval_status',['auto_approved','approved']),
+      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.is_deleted', false).eq('production_batches.period', period),
+      db.from('milling_conversions').select('teff_qty,rice_qty,period').eq('period', period),
+      db.from('purchases').select('date,quantity,unit_price,total_cost,inventory_items(name,unit)').eq('type','purchase').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
+      db.from('price_history').select('*')
+    ]);
+
+    const items = itemsRes.data || [];
+    if(itemsRes.error || !items.length){ throw itemsRes.error || new Error('No active inventory items found'); }
+
+    const balCurByItem = Object.fromEntries((balCurRes.data||[]).map(r=>[r.item_id, r]));
+    const balPrevByItem = Object.fromEntries((balPrevRes.data||[]).map(r=>[r.item_id, r]));
+
+    const purchByItem = {};
+    (purchInRes.data||[]).forEach(p=>{ purchByItem[p.item_id] = (purchByItem[p.item_id]||0) + num(p.quantity); });
+
+    const usedByItem = {};
+    (prodUseRes.data||[]).forEach(m=>{ usedByItem[m.item_id] = (usedByItem[m.item_id]||0) + num(m.quantity_used); });
+    const teffItem = items.find(i=>i.name==='Teff'), riceItem = items.find(i=>i.name==='Rice');
+    (millRes.data||[]).forEach(mc=>{
+      if(teffItem) usedByItem[teffItem.id] = (usedByItem[teffItem.id]||0) + num(mc.teff_qty);
+      if(riceItem) usedByItem[riceItem.id] = (usedByItem[riceItem.id]||0) + num(mc.rice_qty);
+    });
+
+    // Replace invItems in place (keeps the same array reference other code may hold)
+    invItems.length = 0;
+    items.forEach(row=>{
+      const bal = balCurByItem[row.id];
+      const prevBal = balPrevByItem[row.id];
+      const closing = bal ? num(bal.closing_qty) : (prevBal ? num(prevBal.closing_qty) : null);
+      const wac = bal ? num(bal.wac_per_unit) : (prevBal ? num(prevBal.wac_per_unit) : 0);
+      const value = bal ? num(bal.closing_value) : (closing!=null ? closing*wac : null);
+      const opening = prevBal ? num(prevBal.closing_qty) : (closing!=null ? closing : null);
+      const purchased = purchByItem[row.id] || 0;
+      const used = usedByItem[row.id] || 0;
+      const reorder = row.reorder_level!=null ? num(row.reorder_level) : 0;
+      const item = {
+        id: row.id, name: row.name, unit: row.unit,
+        opening, purchased, used, closing, wac, value, reorder,
+        status:'OK', // computed just below via recomputeStatus, matching existing convention
+        expiryDate: null, // no per-batch expiry tracking in schema — see shelf_life_days fallback below
+        leadTimeDays: 5, safetyStockDays: 2 // not in schema yet — reasonable defaults, editable per item in Item Settings
+      };
+      if(row.shelf_life_days && purchInRes.data){
+        const lastPurchase = (purchInRes.data||[]).filter(p=>p.item_id===row.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+        if(lastPurchase){
+          const d = new Date(lastPurchase.date+'T00:00:00');
+          d.setDate(d.getDate()+row.shelf_life_days);
+          item.expiryDate = d.toISOString().slice(0,10);
+        }
+      }
+      recomputeStatus(item);
+      invItems.push(item);
+    });
+
+    // Recent purchases (top 8, most recent first)
+    recentPurchases.length = 0;
+    (recentPurchRes.data||[]).forEach(p=>{
+      recentPurchases.push({
+        date: p.date, item: p.inventory_items?.name || 'Unknown Item',
+        qty: fmt(p.quantity)+' '+(p.inventory_items?.unit||''),
+        unitPrice: num(p.unit_price), total: num(p.total_cost)
       });
-      showToast('Inventory items synced from database');
-    }
+    });
+
+    // Price history — last 6 periods up to and including the selected period, per item
+    const periods = [];
+    let pk = period;
+    for(let i=0;i<6;i++){ periods.unshift(pk); pk = prevPeriodOf(pk); }
+    const periodLabel = pstr => { const [y,m]=pstr.split('-').map(Number); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y; };
+    Object.keys(priceHistoryByItem).forEach(k=>delete priceHistoryByItem[k]);
+    items.forEach(row=>{
+      const rowsForItem = (priceHistRes.data||[]).filter(r=>r.item_id===row.id);
+      const vals = periods.map(p=>{
+        const match = rowsForItem.filter(r=>r.period===p);
+        if(!match.length) return null;
+        return match.reduce((s,r)=>s+num(r.effective_price_per_unit),0)/match.length;
+      });
+      if(vals.some(v=>v!=null)){
+        priceHistoryByItem[row.name] = { months: periods.map(periodLabel), vals: vals.map(v=>v==null?0:v) };
+      }
+    });
+
+    showToast('Inventory loaded for '+periodLabel(period));
   } catch(err){
-    console.log('Supabase unavailable, using local data:', err.message);
+    console.error('Inventory load error:', err);
+    showToast('Could not load live inventory — check connection');
   }
   renderAll();
 }
@@ -1424,8 +1537,8 @@ renderHeader({
   title: 'Inventory',
   subtitle: 'Track stock levels, costs, and price history',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
+  selectedMonth: 'Jul 2026',
   onMonthChange: onMonthChange,
   showExport: true,
   onExportPdf: exportPDF,

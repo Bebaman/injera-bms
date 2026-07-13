@@ -567,7 +567,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <thead>
             <tr>
               <th>Date</th><th>Supplier</th><th class="col-type">Type</th><th>Category</th><th>Description</th>
-              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th><th class="col-proc">Proc. Cost</th><th class="col-deliv">Deliv. IN</th>
+              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th>
               <th>Total Cost (ETB)</th><th class="col-channel">Channel</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
@@ -819,10 +819,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <label>Unit Price (ETB)</label>
           <input type="number" id="pUnitPrice" value="0" step="0.01" oninput="recalcTotal()">
         </div>
-        <div class="f-grp" id="procCostRow">
-          <label>Processing Cost</label>
-          <input type="number" id="pProcCost" value="0" step="0.01" oninput="recalcTotal()">
-        </div>
       </div>
       <!-- Foreign Currency (reference only) — spec: "The ETB amount is always what gets
            recorded for accounting. The original currency is stored for reference." -->
@@ -853,20 +849,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div id="pFxHint" style="font-size:11.5px;color:var(--tm);background:#f7f9f8;border:1px solid #e5e9e7;border-radius:8px;padding:8px 10px">Reference only — enter the ETB Unit Price above; it's the authoritative amount for all calculations.</div>
         </div>
       </div>
-      <!-- Delivery In is Injera-Blend-only (toggled by updateProcDelivVisibility). Payment
-           Channel must ALWAYS be visible/selectable regardless of category — it used to live
-           in the same row as Delivery In and got hidden along with it for every non-Injera-
-           Blend purchase, Expense, and Asset Purchase, silently defaulting every one of those
-           rows to "Bank" with no way to change it. Now only Delivery In's own cell toggles;
-           Payment Channel's cell (and its grid-column span) is adjusted in JS instead so it
-           still sits side-by-side with Delivery In when both apply, and takes the full row
-           width when Delivery In is hidden. -->
+      <!-- Delivery In / Processing Cost were Injera-Blend-only fields per the original spec
+           (Col H/I) — retired now that the Milling/Conversion module owns that cost, folding
+           Teff+Rice+Sifting+Grinding+Transport into Injera Blend's real cost per kg instead of
+           a single guessed supplier line. Payment Channel now always takes the full row width. -->
       <div class="f-row" id="delivRow">
-        <div class="f-grp" id="delivInGrp">
-          <label>Delivery In (ETB)</label>
-          <input type="number" id="pDeliv" value="0" step="0.01" oninput="recalcTotal()">
-        </div>
-        <div class="f-grp" id="pChannelGrp">
+        <div class="f-grp" id="pChannelGrp" style="grid-column:1 / -1">
           <label>Payment Channel</label>
           <select id="pChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
         </div>
@@ -888,7 +876,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div style="text-align:right;font-size:11.5px;color:var(--tm)">
           <div>Qty × Price: <strong id="pCalcLine">0 × 0 = 0.00</strong></div>
-          <div style="margin-top:3px">+ Proc: <strong id="pCalcProc">0.00</strong> + Deliv: <strong id="pCalcDeliv">0.00</strong></div>
         </div>
       </div>
       <!-- Input VAT — only shown when business is VAT-registered (spec "VAT Framework") -->
@@ -976,7 +963,7 @@ function fmtDate(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
-function rowTotal(p){ return (p.qty*p.unitPrice)+Number(p.procCost)+Number(p.deliv); }
+function rowTotal(p){ return p.qty*p.unitPrice; }
 
 /* ════════════════ MONTH PICKER ════════════════ */
 function chgM(d){const s=document.getElementById('msel');const i=s.selectedIndex+d;if(i>=0&&i<s.options.length){s.selectedIndex=i;onMonthChange();} else if(i>=s.options.length){ extendMonthOptions(1); s.selectedIndex=s.options.length-1; onMonthChange(); }}
@@ -1087,17 +1074,17 @@ function doExport(){
   csv += csvRow(['Rows', rows.length]);
   csv += '\r\n';
 
-  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']);
+  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']);
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     csv += csvRow([fmtDate(p.date), p.supplier, p.type, p.category, p.description, p.qty, p.unit,
-      Number(p.unitPrice).toFixed(2), Number(p.procCost).toFixed(2), Number(p.deliv).toFixed(2),
+      Number(p.unitPrice).toFixed(2),
       total.toFixed(2), p.channel, p.status]);
   });
   csv += '\r\n';
-  csv += csvRow(['', '', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
+  csv += csvRow(['', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
 
   // UTF-8 BOM so Excel (Windows) detects encoding correctly instead of mangling ETB
   // symbols or non-ASCII supplier names into garbled characters.
@@ -1147,18 +1134,18 @@ function exportExcel(){
   ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:1}},{s:{r:1,c:0},e:{r:1,c:1}}];
 
   // Sheet 2: Transactions — the same filtered rows as the CSV export, one column per field.
-  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']];
+  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']];
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     txData.push([fmtDate(p.date), p.supplier, p.type, p.category, p.description, Number(p.qty), p.unit,
-      Number(p.unitPrice), Number(p.procCost), Number(p.deliv), total, p.channel, p.status]);
+      Number(p.unitPrice), total, p.channel, p.status]);
   });
   txData.push([]);
-  txData.push(['','','','','','','','','','TOTAL', grandTotal,'','']);
+  txData.push(['','','','','','','','TOTAL', grandTotal,'','']);
   const ws2 = XLSX.utils.aoa_to_sheet(txData);
-  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:12},{wch:11},{wch:13},{wch:12},{wch:11}];
+  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:13},{wch:12},{wch:11}];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
@@ -1312,7 +1299,7 @@ function renderTable(){
     tbody.innerHTML = pageRows.map(p=>`
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
-        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td><td class="col-proc">${fmt(p.procCost)}</td><td class="col-deliv">${fmt(p.deliv)}</td>
+        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
         <td>${fmt(rowTotal(p))}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
         <td style="position:relative">
           <div class="act-dots" onclick="toggleRowMenu(event,'${p.id}')">
@@ -1495,8 +1482,6 @@ function openPurchaseModal(){
   document.getElementById('pQty').value = 1;
   document.getElementById('pUnit').value = 'kg';
   document.getElementById('pUnitPrice').value = 0;
-  document.getElementById('pProcCost').value = 0;
-  document.getElementById('pDeliv').value = 0;
   document.getElementById('pTotal').value = '0';
   document.getElementById('pChannel').value = 'Bank';
   document.getElementById('pStatus').value = 'Completed';
@@ -1508,7 +1493,6 @@ function openPurchaseModal(){
   document.getElementById('pAssetCategory').value = 'equipment';
   document.getElementById('pUsefulLife').value = 5;
   updateAssetFieldsVisibility(false);
-  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1549,8 +1533,6 @@ function editPurchase(id){
   document.getElementById('pQty').value = p.qty;
   document.getElementById('pUnit').value = p.unit;
   document.getElementById('pUnitPrice').value = p.unitPrice;
-  document.getElementById('pProcCost').value = p.procCost;
-  document.getElementById('pDeliv').value = p.deliv;
   document.getElementById('pTotal').value = rowTotal(p).toFixed(2);
   document.getElementById('pChannel').value = p.channel;
   document.getElementById('pStatus').value = p.status;
@@ -1560,7 +1542,6 @@ function editPurchase(id){
   document.getElementById('pFxAmount').value = hasFx ? p.originalAmount : 0;
   document.getElementById('pFxRate').value = hasFx ? (p.exchangeRate||0) : 0;
   toggleFxFields();
-  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1570,14 +1551,10 @@ function closePurchaseModal(){
 function recalcTotal(){
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const price = parseFloat(document.getElementById('pUnitPrice').value)||0;
-  const proc = parseFloat(document.getElementById('pProcCost').value)||0;
-  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
-  const total = qty*price+proc+deliv;
+  const total = qty*price;
   document.getElementById('pTotal').value = total.toFixed(2);
   document.getElementById('pTotalDisplay').textContent = fmt(total);
   document.getElementById('pCalcLine').textContent = qty+' × '+fmt(price)+' = '+fmt(qty*price);
-  document.getElementById('pCalcProc').textContent = fmt(proc);
-  document.getElementById('pCalcDeliv').textContent = fmt(deliv);
   // Input VAT is informational display only — total_cost (and WAC/COGS) never include it,
   // per spec: "Foreign currency fields are reference only" / VAT is reported, not costed in.
   if(vatSettings.isRegistered){
@@ -1640,9 +1617,6 @@ function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
 function expCatByName(name){ return expenseCategories.find(c=>c.name===name); }
 
-// Only Injera Blend carries Processing Cost / Delivery In per spec (Col H/I)
-const PROC_DELIV_ITEMS = new Set(['Injera Blend']);
-
 function buildCategoryDropdown(type, selectedId=''){
   const el = document.getElementById('pCategory');
   const source = type === 'Expense' ? expenseCategories : inventoryItems;
@@ -1654,27 +1628,6 @@ function buildCategoryDropdown(type, selectedId=''){
     ).join('');
 }
 
-// Proc Cost / Delivery In are Injera Blend only (spec Col H/I). All other
-// Purchase categories and all Expense rows keep those fields hidden and zeroed.
-function updateProcDelivVisibility(){
-  const type = document.getElementById('pType').value;
-  const itemId = document.getElementById('pCategory').value;
-  const item = type === 'Purchase' ? itemById(itemId) : null;
-  const showProcDeliv = !!item && PROC_DELIV_ITEMS.has(item.name);
-  const procRow = document.getElementById('procCostRow');
-  const delivInGrp = document.getElementById('delivInGrp');
-  const channelGrp = document.getElementById('pChannelGrp');
-  if(procRow) procRow.style.display = showProcDeliv ? '' : 'none';
-  // Only Delivery In toggles — Payment Channel (channelGrp) always stays visible so every
-  // Purchase/Expense/Asset row can pick Bank/Cash/Mobile Money, not just Injera Blend rows.
-  if(delivInGrp) delivInGrp.style.display = showProcDeliv ? '' : 'none';
-  if(channelGrp) channelGrp.style.gridColumn = showProcDeliv ? '' : '1 / -1';
-  if(!showProcDeliv){
-    document.getElementById('pProcCost').value = 0;
-    document.getElementById('pDeliv').value = 0;
-  }
-}
-
 function onCategoryChange(){
   const type = document.getElementById('pType').value;
   const catId = document.getElementById('pCategory').value;
@@ -1684,7 +1637,6 @@ function onCategoryChange(){
     const item = itemById(catId);
     if(item) document.getElementById('pUnit').value = item.unit;
   }
-  updateProcDelivVisibility();
   recalcTotal();
 }
 
@@ -1698,7 +1650,6 @@ function onTypeChange(){
     // Asset Name/Category/Useful Life above replace it.
     document.getElementById('pQty').value = 1;
     document.getElementById('pUnit').value = 'unit';
-    updateProcDelivVisibility();
     recalcTotal();
     return;
   }
@@ -1910,8 +1861,6 @@ async function savePurchase(){
   const date = document.getElementById('pDate').value;
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const unitPrice = parseFloat(document.getElementById('pUnitPrice').value)||0;
-  const procCost = parseFloat(document.getElementById('pProcCost').value)||0;
-  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
 
   // Asset Purchase: supplier is optional (schema allows NULL supplier_id for type='asset'),
   // and Category is replaced by Asset Name/Category/Useful Life — validate those instead.
@@ -1931,7 +1880,7 @@ async function savePurchase(){
 
   // --- Data Integrity Guards (spec §9, also enforced server-side by CHECK constraints) ---
   if(qty === 0){ showToast('Quantity cannot be zero.'); return; }
-  if(qty < 0 || unitPrice < 0 || procCost < 0 || deliv < 0){
+  if(qty < 0 || unitPrice < 0){
     showToast('Value cannot be negative.');
     return;
   }
@@ -1944,7 +1893,7 @@ async function savePurchase(){
     }
   }
 
-  const total = qty*unitPrice+procCost+deliv;
+  const total = qty*unitPrice;
 
   // Duplicate detection per spec: same supplier_id + total_cost + date, entered within
   // 5 minutes of an existing row's creation. Uses a real createdAt timestamp on each
@@ -1975,8 +1924,6 @@ async function savePurchase(){
     qty,
     unit: document.getElementById('pUnit').value, // local-only display — real unit lives on inventory_items
     unitPrice,
-    procCost,
-    deliv,
     channel: document.getElementById('pChannel').value,
     status: resolveApprovalStatus(type, total, existing),
     createdAt: existing ? (existing.createdAt || now) : now,
@@ -2573,7 +2520,7 @@ async function loadFromSupabase(){
           supplier: sup ? sup.name : (isAsset ? '' : 'Unknown'),
           type: isAsset ? 'Asset Purchase' : (isExpense ? 'Expense' : 'Purchase'),
           categoryId: isAsset ? null : (isExpense ? r.expense_category_id : r.item_id),
-          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Injera Blend')),
+          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Unknown Item')),
           assetName: isAsset ? r.asset_name : undefined,
           assetCategory: isAsset ? r.asset_category : undefined,
           usefulLifeYears: isAsset ? parseFloat(r.useful_life_years || 0) : undefined,
@@ -2581,8 +2528,6 @@ async function loadFromSupabase(){
           qty: parseFloat(r.quantity ?? 1),
           unit: isAsset ? 'unit' : (catObj && catObj.unit ? catObj.unit : (isExpense ? 'ls' : 'kg')),
           unitPrice: parseFloat(r.unit_price || 0),
-          procCost: parseFloat(r.processing_cost || 0),
-          deliv: parseFloat(r.delivery_in || 0),
           channel: r.payment_channel === 'mobile' ? 'Mobile Money' : r.payment_channel === 'bank' ? 'Bank' : r.payment_channel === 'cash' ? 'Cash' : 'Bank',
           status: fromDbApprovalStatus(r.approval_status),
           rejectionReason: r.rejection_reason || '',
@@ -2645,10 +2590,11 @@ async function saveToSupabase(p){
       useful_life_years: isAsset ? p.usefulLifeYears : null,
       quantity: p.qty,
       unit_price: p.unitPrice,
-      processing_cost: p.procCost,
-      delivery_in: p.deliv,
       // total_cost, vat_amount, period, expiry_date are all trigger-computed server-side
       // (purchases_computed() in injera_bms_COMPLETE.sql) — never sent from the client.
+      // NOTE: processing_cost/delivery_in columns were dropped from this table — that cost
+      // is now captured properly via the Milling/Conversion module (Teff+Rice+Sifting+
+      // Grinding+Transport rolled into Injera Blend's real cost), not guessed on one row.
       payment_channel: channelMap[p.channel] || 'bank',
       approval_status: toDbApprovalStatus(p),
       rejection_reason: p.status === 'Rejected' ? (p.rejectionReason || null) : null,

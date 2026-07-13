@@ -497,6 +497,7 @@ function computeCashFlow(data){
   const rawMaterials = zero(), packaging = zero();
   const expenseByCat = {}; // catName -> {cash,bank,mobile}
   data.purchases.forEach(p=>{
+    if(p.source === 'milling_conversion') return; // synthetic cost entry, not a real payment — Teff/Rice/Sifting/Grinding/Transport are already counted as their own real purchases above
     const ch = p.payment_channel;
     if(!CHANNELS.includes(ch)) return;
     const amt = parseFloat(p.total_cost||0);

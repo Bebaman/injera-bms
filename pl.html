@@ -569,9 +569,17 @@ function calcFigures(d){
     const name = pc.expense_categories?.name || 'Other';
     expMap[name] = (expMap[name]||0) + num(pc.amount);
   });
-  const deliveryOut = expMap['Delivery Out']||0;
+  const deliveryOut = (expMap['Delivery Out']||0) + (expMap['Transport']||0);
   const marketing = expMap['Marketing']||0;
-  const otherOperatingExpenses = (expMap['Bank Charges']||0) + (expMap['Other']||0);
+  // Everything else counts as Other Operating Expenses EXCEPT the categories that are
+  // already folded into Injera Blend's cost via the Milling/Conversion record (Sifting/
+  // Grinding/Milling & Conversion Fees/Delivery In/Milling Material Transport — same
+  // exclusion monthly_pnl uses) and the ones broken out into their own line above.
+  const MILLING_COGS_CATS = new Set(['Milling & Conversion Fees','Sifting Fees','Grinding Fees','Delivery In','Milling Material Transport']);
+  const BROKEN_OUT_CATS = new Set(['Delivery Out','Transport','Marketing']);
+  const otherOperatingExpenses = Object.entries(expMap)
+    .filter(([name])=>!MILLING_COGS_CATS.has(name) && !BROKEN_OUT_CATS.has(name))
+    .reduce((s,[,amt])=>s+amt, 0);
 
   // Accrual basis: count all interest that accrued (due_date fell in this
   // period), regardless of whether it's been paid yet. This intentionally

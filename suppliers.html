@@ -224,7 +224,7 @@ const db = createClient(
 }
 
 /* fadeIn/popIn now come from shared-shell.css; fadeUp is page-specific */
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .card,.kc{animation:fadeUp .3s ease both}
 
 /* ══ TOAST ════════════════════════════════════════════
@@ -559,7 +559,7 @@ html,body{overflow-x:hidden}
       </div>
       <div class="frm-row">
         <div class="frm-grp"><label>Category *</label>
-          <select id="supCategory"><option>Grain</option><option>Packaging</option><option>Services</option><option>Utilities</option><option>General</option></select>
+          <select id="supCategory" onchange="updateProductsSectionLabel()"><option>Grain</option><option>Packaging</option><option>Services</option><option>Utilities</option><option>General</option></select>
         </div>
         <div class="frm-grp"><label>Status</label>
           <select id="supStatus"><option>Active</option><option>Inactive</option></select>
@@ -584,7 +584,7 @@ html,body{overflow-x:hidden}
         </div>
       </div>
 
-      <div class="frm-divider">Products Supplied</div>
+      <div class="frm-divider" id="supProductsDivider">Products Supplied</div>
       <div id="supProductsList"></div>
       <button type="button" class="btn-sec" style="margin-bottom:14px" onclick="addProductRow()">
         <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;vertical-align:-2px;margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Product
@@ -1096,7 +1096,7 @@ function renderDetails(s){
     </div>
     ${s.itemsSupplied && s.itemsSupplied.length>1 ? `
     <div class="sd-section-label" style="cursor:default">
-      Products Supplied
+      ${isServiceCategory(s.category) ? 'Services Provided' : 'Products Supplied'}
     </div>
     <div class="sd-products">
       ${s.itemsSupplied.map(it=>`
@@ -1232,15 +1232,33 @@ function renderAll(){
 const DAY_LABELS = ['Su','Mo','Tu','We','Th','Fr','Sa']; // index 0-6 -> display; stored days are 1-7 (Sun=1)
 let selectedMarketDays = [];
 let supProductRows = [];
+/* Categories that are inherently service-based (a processing site, a
+   transporter, a utility provider) don't "supply products" — they provide
+   services. The section divider + placeholder text below flip to match
+   whichever category is selected, instead of always saying "Products". */
+function isServiceCategory(cat){
+  return cat === 'Services' || cat === 'Utilities';
+}
+function updateProductsSectionLabel(){
+  const cat = document.getElementById('supCategory').value;
+  const svc = isServiceCategory(cat);
+  document.getElementById('supProductsDivider').textContent = svc ? 'Services Provided' : 'Products Supplied';
+  renderProductRows();
+}
 function renderProductRows(){
   const c = document.getElementById('supProductsList');
+  const svc = isServiceCategory(document.getElementById('supCategory').value);
+  const namePh = svc ? 'Service name (e.g. Teff Processing/Milling)' : 'Product name (e.g. Teff White)';
+  const emptyMsg = svc
+    ? 'No services added — this supplier will show a single blended rate instead.'
+    : 'No products added — this supplier will show a single blended price instead.';
   if(!supProductRows.length){
-    c.innerHTML = '<div class="prod-empty">No products added — this supplier will show a single blended price instead.</div>';
+    c.innerHTML = `<div class="prod-empty">${emptyMsg}</div>`;
     return;
   }
   c.innerHTML = supProductRows.map((r,i)=>`
     <div class="prod-row">
-      <input type="text" placeholder="Product name (e.g. Teff White)" value="${(r.name||'').replace(/"/g,'&quot;')}" oninput="supProductRows[${i}].name=this.value">
+      <input type="text" placeholder="${namePh}" value="${(r.name||'').replace(/"/g,'&quot;')}" oninput="supProductRows[${i}].name=this.value">
       <input type="text" class="prod-unit" placeholder="Unit" value="${(r.unit||'').replace(/"/g,'&quot;')}" oninput="supProductRows[${i}].unit=this.value">
       <input type="number" class="prod-price" placeholder="Price" value="${r.price===''||r.price==null?'':r.price}" min="0" step="0.01" oninput="supProductRows[${i}].price=this.value">
       <div class="prod-remove" onclick="removeProductRow(${i})" title="Remove product">✕</div>
@@ -1290,7 +1308,7 @@ function openAddSupplierModal(){
   selectedMarketDays = [];
   renderMarketDayPicker();
   supProductRows = [{name:'',unit:'kg',price:''}];
-  renderProductRows();
+  updateProductsSectionLabel();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function editSupplier(id){
@@ -1315,7 +1333,7 @@ function editSupplier(id){
   selectedMarketDays = (s.marketDays||[]).slice();
   renderMarketDayPicker();
   supProductRows = (s.itemsSupplied&&s.itemsSupplied.length) ? s.itemsSupplied.map(it=>({name:it.name,unit:it.unit,price:it.price})) : [{name:'',unit:'kg',price:''}];
-  renderProductRows();
+  updateProductsSectionLabel();
   document.getElementById('supplierModalOverlay').classList.add('show');
 }
 function closeAddSupplierModal(){
