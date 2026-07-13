@@ -97,8 +97,8 @@
 .vall:hover{color:#19733f;text-decoration:underline}
 .rsel{border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:var(--fs-xs);font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none;transition:border-color .15s}
 .rsel:hover{border-color:#b5cfc0}
-.chart-box{padding:0 16px 14px;flex:1;display:flex;flex-direction:column}
-.chart-box canvas{flex:1}
+.chart-box{padding:0 16px 14px;flex:1;display:flex;flex-direction:column;height:260px;min-height:260px;max-height:260px;position:relative}
+.chart-box canvas{flex:1;min-height:0}
 .leg{display:flex;gap:14px;margin-bottom:7px;font-size:var(--fs-xs);font-weight:600;color:var(--tm)}
 .leg-ln{display:inline-block;width:18px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
