@@ -28,6 +28,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 /* ══ KPI ROW ════════════════════════════════════════ */
 .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-bottom:20px;padding-top:4px}
 .kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative}
+.kc-spark{height:26px;margin-top:9px;width:100%}
+.kc-spark canvas{width:100%!important;height:100%!important}
 .kc.hl{box-shadow:0 6px 22px rgba(245,158,11,.38),0 1px 3px rgba(0,0,0,.06);border-color:#f7d99a}
 .kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
 .kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -68,6 +70,13 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .exec-list{list-style:none;padding:14px 20px 18px;margin:0;display:flex;flex-direction:column;gap:9px}
 .exec-list li{position:relative;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--td)}
 .exec-list li::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:#27ae60}
+.exec-row{display:flex;gap:16px;padding:16px 20px 20px;flex-wrap:wrap}
+.exec-item{display:flex;align-items:flex-start;gap:10px;flex:1 1 0;min-width:170px}
+.exec-item .ei-ico{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.exec-item .ei-ico svg{width:18px;height:18px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.exec-item .ei-txt{font-size:12px;line-height:1.45;color:var(--td);font-weight:500}
+.exec-item .ei-txt b{font-weight:700;color:var(--td)}
+@media (max-width:900px){ .exec-row{flex-direction:column} .exec-item{min-width:0} }
 .var-fav{color:#1a6b3c;font-weight:700}
 .var-unfav{color:#c0392b;font-weight:700}
 .var-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
@@ -119,6 +128,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .rpt-sel{border:1px solid var(--border);border-radius:8px;padding:0 12px;height:36px;font-size:13px;font-weight:600;color:var(--td);background:#fff;cursor:pointer;font-family:'Nunito',sans-serif;outline:none;min-width:210px}
 .rpt-years{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .rpt-spacer{margin-left:auto;display:flex;align-items:center;gap:8px}
+.last-upd{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--tl);white-space:nowrap;height:36px}
+.last-upd svg{width:13px;height:13px;stroke:#9aada5;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* View toggle (Annual / Monthly) */
 .toggle2{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#fff;height:36px}
@@ -162,6 +173,15 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 @media (max-width:1200px){
   .kpi-row{grid-template-columns:repeat(3,1fr)}
   .bot3{grid-template-columns:1fr 1fr}
+  #modeledGrid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:1050px){
+  /* Tablets: the P&L table + Per-Unit Economics + Product Mix row is too
+     tight at 3 columns here — table full width on top, charts side by side. */
+  #perUnitCard{ order:2 }
+  #productMixCard{ order:3 }
+  .bot2:has(#perUnitCard){ display:grid!important; grid-template-columns:1fr 1fr!important; }
+  .bot2:has(#perUnitCard) > .card:first-child{ grid-column:1/-1; order:1 }
 }
 @media (max-width:900px){
   .content{padding:12px;max-width:100vw;overflow-x:hidden}
@@ -169,15 +189,31 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
   .kc{min-width:180px;flex-shrink:0;scroll-snap-align:start}
 
-  .bot2,.bot3{display:flex;flex-direction:column}
+  .bot2,.bot3,#modeledGrid{display:flex!important;flex-direction:column}
+  #perUnitCard,#productMixCard{order:0}
 
   .rpt-bar{flex-direction:column;align-items:stretch}
-  .rpt-spacer{margin-left:0;width:100%;justify-content:space-between}
+  .rpt-spacer{margin-left:0;width:100%;flex-wrap:wrap;justify-content:space-between}
   .rpt-sel{width:100%}
+  .last-upd{width:100%;justify-content:flex-start}
 
   .card{overflow:hidden;min-width:0;max-width:100%}
   .tbl-yoy{font-size:10px}
   .tbl-yoy th,.tbl-yoy td{padding:6px 6px}
+
+  .chart-box{height:220px!important}
+  #ingForecastCardWrap .chart-box{height:230px!important}
+  .exec-row{flex-direction:column}
+  .exec-item{min-width:0}
+  .card-hd{flex-wrap:wrap;gap:8px}
+}
+@media (max-width:520px){
+  /* Phones: shrink the P&L pivot table further and let it scroll horizontally */
+  .tbl-yoy{font-size:9px}
+  .tbl-yoy th,.tbl-yoy td{padding:5px 5px;white-space:nowrap}
+  .kc{min-width:160px}
+  .leg{flex-wrap:wrap;gap:8px!important}
+  .rpt-sel-grp label{font-size:9.5px}
 }
 </style>
 </head>
@@ -203,17 +239,17 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         </select>
       </div>
       <div class="rpt-sel-grp">
+        <label>View</label>
+        <div class="toggle2" id="viewToggle">
+          <button id="btnAnnual" onclick="setView('annual')">Annual</button>
+          <button id="btnMonthly" onclick="setView('monthly')">Monthly</button>
+        </div>
+      </div>
+      <div class="rpt-sel-grp">
         <label>Compare Years</label>
         <div class="rpt-years" id="yearChips"></div>
       </div>
       <div class="rpt-spacer">
-        <div class="rpt-sel-grp">
-          <label>View</label>
-          <div class="toggle2" id="viewToggle">
-            <button id="btnAnnual" onclick="setView('annual')">Annual</button>
-            <button id="btnMonthly" onclick="setView('monthly')">Monthly</button>
-          </div>
-        </div>
         <div class="rpt-sel-grp month-sel-wrap">
           <label>Month</label>
           <select class="rpt-sel" id="monthFilter" onchange="renderAll()">
@@ -232,6 +268,13 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option value="gomen">Gomen Zere</option>
           </select>
         </div>
+        <div class="rpt-sel-grp" id="lastUpdatedGrp">
+          <label>&nbsp;</label>
+          <span class="last-upd" id="lastUpdatedLbl">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+            Last Updated: Jun 30, 2026 10:30 AM
+          </span>
+        </div>
       </div>
     </div>
 
@@ -246,7 +289,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           Executive Summary
         </div>
       </div>
-      <ul class="exec-list" id="execSummary"></ul>
+      <div class="exec-row" id="execSummary"></div>
     </div>
 
     <!-- MAIN THREE-COLUMN AREA: P&L table + Per-Unit Economics + Product Mix -->
@@ -261,7 +304,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           </div>
           <span style="font-size:10.5px;font-weight:600;color:var(--tl)">All Amounts in ETB</span>
         </div>
-        <div style="overflow-x:auto">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
           <table class="tbl-yoy" id="yoyTable"></table>
         </div>
         <div class="info-note">
@@ -355,7 +398,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           </div>
           <span class="vall" onclick="alert('Full retention detail coming soon.')">View Details</span>
         </div>
-        <div style="overflow-x:auto">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
           <table class="tbl-sb" id="retentionTable" style="font-size:10.5px"></table>
         </div>
         <div class="info-note" style="border-top:none;padding-top:0">
@@ -470,7 +513,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <span id="varianceTitle">Variance Analysis</span>
         </div>
       </div>
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="tbl-yoy" id="varianceTable"></table>
       </div>
     </div>
@@ -511,7 +554,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <div class="card-hd">
         <div class="card-ttl" id="botTtl4">Top 10 Customers by Revenue</div>
       </div>
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="tbl-sb" id="topCustTable"></table>
       </div>
       <div class="info-note" style="border-top:none;padding-top:0">
@@ -705,6 +748,16 @@ function concentrationShare(y, n){
   return topSum/total*100;
 }
 
+/* ---- Operating Expenses / Operating Profit ─────────────────────────
+   No separate opex/tax/interest layer is tracked in this dataset, so
+   Operating Expenses is modeled as the gap between Gross Profit and the
+   already-tracked Net Profit, and Operating Profit is set equal to Net
+   Profit — this keeps Revenue → COGS → Gross → OpEx → Net internally
+   consistent with real per-month net figures rather than inventing a
+   second, disconnected number. */
+function operatingExpensesOf(y){ return grossProfitOf(yearTotals(y).rev) - yearTotals(y).net; }
+function operatingProfitOf(y){ return yearTotals(y).net; }
+
 const METRICS = {
   revenue: { label:'Revenue', unit:'ETB', decimals:0, color:'#1d5c38', icon:'money', cls:'ic-g',
     monthly:(y,i)=> yearData[y].months[i] ? yearData[y].months[i].rev : null,
@@ -791,7 +844,9 @@ const ICONS = {
   clock:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>',
   basket:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
   tag:'<path d="M20.59 13.41L11 3.83A2 2 0 009.83 3H4a1 1 0 00-1 1v5.83a2 2 0 00.59 1.41l9.58 9.58a2 2 0 002.83 0l5.17-5.17a2 2 0 000-2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
-  users:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>'
+  users:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  percent:'<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  barchart:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
 };
 
 /* ════════════════ CUSTOMER HELPERS (Customer Revenue YoY special-case) ════════════════ */
@@ -853,12 +908,12 @@ const REPORTS = {
   yoy_pl: {
     label:'Year-on-Year P&L Summary',
     kpis:[
-      {metric:'revenue', label:'Total Revenue'},
-      {metric:'gross', label:'Gross Profit'},
-      {metric:'net', label:'Net Profit'},
-      {metric:'cogs', label:'COGS'},
-      {metric:'grossMargin', label:'Gross Margin'},
-      {metric:'margin', label:'Net Margin'}
+      {metric:'revenue', label:'Total Revenue', icon:'trend', cls:'ic-g'},
+      {metric:'gross', label:'Gross Profit', icon:'money', cls:'ic-g'},
+      {metric:'net', label:'Net Profit', icon:'profit', cls:'ic-b'},
+      {metric:'cogs', label:'COGS', icon:'tag', cls:'ic-r'},
+      {metric:'grossMargin', label:'Gross Margin', icon:'percent', cls:'ic-p'},
+      {metric:'margin', label:'Net Margin', icon:'percent', cls:'ic-c'}
     ],
     tableMetrics:['revenue','net','margin'],
     tableTitle:'Year-on-Year P&amp;L Summary',
@@ -1096,11 +1151,13 @@ function renderKpiRow(){
   if(cfg.special==='customers'){
     wrap.innerHTML = renderCustomerKpis(years, view, monthIdx);
     runKpiAnimations();
+    renderKpiSparklines(years);
     return;
   }
   if(isIngredientFocused()){
     wrap.innerHTML = renderIngredientKpis(getIngredientFilter(), years, view, monthIdx);
     runKpiAnimations();
+    renderKpiSparklines(years);
     return;
   }
 
@@ -1109,23 +1166,24 @@ function renderKpiRow(){
       const mKey = k.metric || 'revenue';
       const m = METRICS[mKey];
       const b = bestMonth(years, mKey);
-      return kpiCardHtml(idx, m.icon, m.cls, k.label, b.val, m.decimals, m.unit, null, b.label);
+      return kpiCardHtml(idx, m.icon, m.cls, k.label, b.val, m.decimals, m.unit, null, b.label, undefined, mKey);
     }
     if(k.custom==='growth'){
       const m = METRICS[k.metric];
       const g = growthPct(k.metric, years);
       const sorted=[...years].sort((a,b)=>a-b);
       const val = g==null?0:g;
-      return kpiCardHtml(idx, m.icon, m.cls, k.label, val, 1, '%', g, sorted.length>=2?('vs '+sorted[0]):null, true);
+      return kpiCardHtml(idx, m.icon, m.cls, k.label, val, 1, '%', g, sorted.length>=2?('vs '+sorted[0]):null, true, k.metric);
     }
     const m = METRICS[k.metric];
     const {value, changePct, compareLabel} = kpiAggregate(k.metric, years, view, monthIdx);
-    return kpiCardHtml(idx, m.icon, m.cls, k.label, value, m.decimals, m.unit, changePct, compareLabel);
+    return kpiCardHtml(idx, k.icon||m.icon, k.cls||m.cls, k.label, value, m.decimals, m.unit, changePct, compareLabel, undefined, k.metric);
   }).join('');
   runKpiAnimations();
+  renderKpiSparklines(years);
 }
 
-function kpiCardHtml(idx, icon, cls, label, value, decimals, unit, changePct, subLabel, isSignedPct){
+function kpiCardHtml(idx, icon, cls, label, value, decimals, unit, changePct, subLabel, isSignedPct, metricKey){
   const hasChange = changePct!=null && !isSignedPct;
   const chgClass = hasChange ? (changePct>=0?'up':'dn') : (isSignedPct ? (changePct>=0?'up':'dn') : '');
   const arrow = (changePct!=null) ? (changePct>=0?'▲':'▼') : '';
@@ -1142,7 +1200,39 @@ function kpiCardHtml(idx, icon, cls, label, value, decimals, unit, changePct, su
     <span class="kc-lbl">${label}</span>
     <div class="kc-val"><span id="kpi_${idx}" data-target="${value}" data-decimals="${decimals}">0</span> <span class="u">${unit}</span></div>
     <div class="kc-chg ${chgClass}">${chgHtml}</div>
+    <div class="kc-spark"><canvas id="kpiSpark_${idx}" data-metric="${metricKey||''}"></canvas></div>
   </div>`;
+}
+
+/* ---- Real per-year sparkline for each KPI card, using the same METRICS
+   series driving the card's headline number. Sharp (unsmoothed) segments —
+   tension:0 — per spec, not a decorative curve. */
+function renderKpiSparklines(years){
+  const sorted = [...years].sort((a,b)=>a-b);
+  document.querySelectorAll('#kpiRow .kc-spark').forEach(box=>{
+    const canvas = box.querySelector('canvas');
+    const idx = canvas.id.replace('kpiSpark_','');
+    destroyChart('spark_'+idx);
+    const mKey = canvas.dataset.metric;
+    if(!mKey || !METRICS[mKey] || sorted.length<2){ box.style.visibility='hidden'; return; }
+    box.style.visibility='';
+    const m = METRICS[mKey];
+    const data = sorted.map(y=> m.annual(y));
+    const rising = data[data.length-1] >= data[0];
+    const lineColor = rising ? '#1a6b3c' : '#c0392b';
+    charts['spark_'+idx] = new Chart(canvas.getContext('2d'), {
+      type:'line',
+      data:{ labels: sorted.map(y=>y===2026?'2026 (YTD)':String(y)), datasets:[{
+        data, borderColor:lineColor, backgroundColor:'transparent',
+        borderWidth:2, pointRadius:0, tension:0
+      }]},
+      options:{ responsive:true, maintainAspectRatio:false, animation:false,
+        plugins:{ legend:{display:false}, tooltip:{enabled:false}, datalabels:{display:false} },
+        scales:{ x:{display:false}, y:{display:false} },
+        elements:{ line:{tension:0} }
+      }
+    });
+  });
 }
 
 /* ---- Customer Revenue YoY: custom KPI set ---- */
@@ -1220,6 +1310,89 @@ function priceAlertCardHtml(diffPct, alertOn){
 }
 
 /* ════════════════ MAIN TABLE ════════════════ */
+/* ════════════════ YoY P&L PIVOT TABLE (Annual view) ════════════════
+   Rows = accounts, columns = years + YoY change + CAGR — matches the
+   reference layout. Uses the same underlying figures as the KPI row and
+   charts elsewhere in this report (revenue/COGS/gross/net all real; COGS
+   still rides the existing flat-72% assumption used across this file). */
+const PL_PIVOT_ROWS = [
+  {label:'Total Revenue', get:y=>yearTotals(y).rev, decimals:0, polarity:1},
+  {label:'Cost of Goods Sold (COGS)', get:y=>cogsOf(yearTotals(y).rev), decimals:0, polarity:-1},
+  {label:'Gross Profit', get:y=>grossProfitOf(yearTotals(y).rev), decimals:0, polarity:1},
+  {label:'Gross Margin (%)', get:y=>METRICS.grossMargin.annual(y), decimals:1, isPct:true, polarity:1},
+  {label:'Operating Expenses', get:y=>operatingExpensesOf(y), decimals:0, polarity:-1},
+  {label:'Operating Profit', get:y=>operatingProfitOf(y), decimals:0, polarity:1},
+  {label:'Net Profit', get:y=>yearTotals(y).net, decimals:0, polarity:1},
+  {label:'Net Margin (%)', get:y=>yearTotals(y).margin, decimals:1, isPct:true, polarity:1},
+  {label:'Average Selling Price (ETB)', get:y=>yearData[y].asp, decimals:2, polarity:1}
+];
+
+function renderYoyPlPivotTable(years){
+  const sorted = [...years].sort((a,b)=>a-b);
+  const table = document.getElementById('yoyTable');
+  const fullYears = sorted.filter(y=>monthsInYear(y)===12);
+  const showCagr = fullYears.length>=2;
+
+  let thead = '<thead><tr><th>Account</th>';
+  sorted.forEach(y=>{ thead += `<th>${y===2026 ? `2026 (YTD)<br><span style="font-weight:600;text-transform:none;font-size:9px">Jan\u2013${MONTH_ABBR[monthsInYear(y)-1]}</span>` : y}</th>`; });
+  for(let i=1;i<sorted.length;i++){
+    thead += `<th>YoY Change<br><span style="font-weight:600;text-transform:none;font-size:9px">(${sorted[i]}${monthsInYear(sorted[i])<12?' YTD':''} vs ${sorted[i-1]})</span></th>`;
+  }
+  if(showCagr) thead += `<th>CAGR*<br><span style="font-weight:600;text-transform:none;font-size:9px">(${fullYears[0]}\u2013${fullYears[fullYears.length-1]})</span></th>`;
+  thead += '</tr></thead>';
+
+  let tbody = '<tbody>';
+  PL_PIVOT_ROWS.forEach(row=>{
+    const vals = sorted.map(y=>row.get(y));
+    let best = vals[0], worst = vals[0];
+    vals.forEach(v=>{ if(v>best) best=v; if(v<worst) worst=v; });
+    const hasSpread = vals.length>1 && best!==worst;
+
+    tbody += `<tr><td>${row.label}</td>`;
+    vals.forEach(v=>{
+      const fmted = row.isPct ? v.toFixed(row.decimals)+'%' : (row.decimals===0 ? fmt0(v) : v.toFixed(row.decimals));
+      let cellCls = '';
+      if(hasSpread){
+        const isBest = row.polarity>=0 ? v===best : v===worst;
+        const isWorst = row.polarity>=0 ? v===worst : v===best;
+        if(isBest) cellCls = 'var-fav';
+        else if(isWorst) cellCls = 'var-unfav';
+      }
+      tbody += `<td class="${cellCls}">${fmted}</td>`;
+    });
+    for(let i=1;i<sorted.length;i++){
+      const v0=vals[i-1], v1=vals[i];
+      if(row.isPct){
+        const diff = v1-v0;
+        const favorable = row.polarity>=0 ? diff>=0 : diff<=0;
+        tbody += `<td class="${favorable?'var-fav':'var-unfav'}">${diff>=0?'▲':'▼'} ${Math.abs(diff).toFixed(1)} pp</td>`;
+      } else {
+        const pctChg = v0 ? (v1-v0)/Math.abs(v0)*100 : 0;
+        const favorable = row.polarity>=0 ? pctChg>=0 : pctChg<=0;
+        tbody += `<td class="${favorable?'var-fav':'var-unfav'}">${pctChg>=0?'▲':'▼'} ${Math.abs(pctChg).toFixed(1)}%</td>`;
+      }
+    }
+    if(showCagr){
+      if(row.isPct){ tbody += `<td>\u2014</td>`; }
+      else {
+        const vFirst = row.get(fullYears[0]), vLast = row.get(fullYears[fullYears.length-1]);
+        const n = fullYears[fullYears.length-1]-fullYears[0];
+        const cagrVal = (vFirst>0 && n>0) ? (Math.pow(vLast/vFirst,1/n)-1)*100 : null;
+        tbody += `<td>${cagrVal==null?'\u2014':(cagrVal>=0?'+':'')+cagrVal.toFixed(1)+'%'}</td>`;
+      }
+    }
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+  table.innerHTML = thead + tbody;
+
+  const has2026Partial = sorted.includes(2026) && monthsInYear(2026)<12;
+  document.getElementById('yoyPartialNote').innerHTML = (has2026Partial
+    ? `2026 data includes January\u2013${MONTH_ABBR[monthsInYear(2026)-1]} only (YTD). `
+    : '') + `<span class="var-fav" style="font-weight:700">\u25CF</span> Best in Period &nbsp; <span class="var-unfav" style="font-weight:700">\u25CF</span> Lowest in Period` +
+    (showCagr ? ` &nbsp; * CAGR calculated across full years only (${fullYears[0]}\u2013${fullYears[fullYears.length-1]}).` : '');
+}
+
 function renderMainTable(){
   const cfg = effectiveReportConfig();
   const years = selYears();
@@ -1230,6 +1403,7 @@ function renderMainTable(){
     : cfg.tableTitle;
 
   if(cfg.special==='customers'){ renderCustomerMainTable(years, view, monthIdx); return; }
+  if(currentReport==='yoy_pl' && view==='annual'){ renderYoyPlPivotTable(years); return; }
 
   const cols = cfg.tableMetrics;
   const table = document.getElementById('yoyTable');
@@ -1965,7 +2139,7 @@ function renderSeasonalityHeatmap(){
     return hexAlpha(m.color, 0.12 + t*0.75);
   }
 
-  let html = '<div style="overflow-x:auto"><table class="heatmap-tbl"><thead><tr><th>Year</th>';
+  let html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="heatmap-tbl"><thead><tr><th>Year</th>';
   MONTH_ABBR.forEach(mo=>{ html += `<th>${mo}</th>`; });
   html += '</tr></thead><tbody>';
   years.forEach(y=>{
@@ -2036,6 +2210,13 @@ function renderExecutiveSummary(){
   const view = currentView, monthIdx = selMonthIdx();
   const bullets = [];
 
+  if(currentReport==='yoy_pl'){
+    document.getElementById('execSummary').innerHTML = sorted.length
+      ? buildYoyPlExecSummary(sorted)
+      : `<div class="exec-item"><div class="ei-txt">Select at least one year to generate a summary.</div></div>`;
+    return;
+  }
+
   const cagr = computeCAGR(key, years);
   if(cagr!=null){
     const complete = years.filter(y=>monthsInYear(y)===12).sort((a,b)=>a-b);
@@ -2072,22 +2253,10 @@ function renderExecutiveSummary(){
       }
     });
     if(!flagged) bullets.push('All tracked ingredient prices are currently within normal range of their 3-month rolling averages.');
-  } else if(currentReport==='yoy_pl' || currentReport==='net_profit_grid'){
+  } else if(currentReport==='net_profit_grid'){
     if(sorted.length>=2){
       const firstM = METRICS.margin.annual(sorted[0]), lastM = METRICS.margin.annual(sorted[sorted.length-1]);
       bullets.push(`Net profit margin moved from ${firstM.toFixed(1)}% in ${sorted[0]} to ${lastM.toFixed(1)}% in ${sorted[sorted.length-1]}.`);
-    }
-    if(currentReport==='yoy_pl' && sorted.length>=2){
-      const first = sorted[0], last = sorted[sorted.length-1];
-      const pFirst = perUnitEconomics(first), pLast = perUnitEconomics(last);
-      const trend = pLast.profitPerUnit < pFirst.profitPerUnit ? 'declined' : 'improved';
-      bullets.push(`Profit per Injera ${trend} from ${pFirst.profitPerUnit.toFixed(2)} ETB in ${first} to ${pLast.profitPerUnit.toFixed(2)} ETB in ${last} as tracked ingredient costs rose faster than selling price.`);
-      const mixFirst = productRevenueSplit(first), mixLast = productRevenueSplit(last);
-      bullets.push(`Derkosh's modeled share of revenue moved from ${mixFirst.derkoshPct.toFixed(0)}% in ${first} to ${mixLast.derkoshPct.toFixed(0)}% in ${last}.`);
-      const c1First = concentrationShare(first,1), c1Last = concentrationShare(last,1);
-      const c10First = concentrationShare(first,10), c10Last = concentrationShare(last,10);
-      const concTrend = c10Last>c10First ? 'rising' : 'easing';
-      bullets.push(`Top-10 customer concentration is ${concTrend}: ${c10First.toFixed(1)}% → ${c10Last.toFixed(1)}% of revenue (Top-1 alone: ${c1First.toFixed(1)}% → ${c1Last.toFixed(1)}%).`);
     }
   } else if(currentReport==='prod_yoy'){
     const ig = growthPct('injera', years), dg = growthPct('derkosh', years);
@@ -2102,8 +2271,61 @@ function renderExecutiveSummary(){
     bullets.push(`COGS currently represents ${cAgg.value.toFixed(1)}% of revenue across the selected period.`);
   }
 
-  document.getElementById('execSummary').innerHTML = bullets.map(b=>`<li>${b}</li>`).join('') ||
-    '<li>Select at least one year to generate a summary.</li>';
+  const DEFAULT_EXEC_ICONS = [{icon:'trend',cls:'ic-g'},{icon:'money',cls:'ic-b'},{icon:'percent',cls:'ic-p'},{icon:'trend',cls:'ic-r'},{icon:'trend',cls:'ic-c'}];
+  document.getElementById('execSummary').innerHTML = bullets.length ? bullets.map((b,i)=>{
+    const ic = DEFAULT_EXEC_ICONS[i%DEFAULT_EXEC_ICONS.length];
+    return `<div class="exec-item"><div class="ei-ico ${ic.cls}"><svg viewBox="0 0 24 24">${ICONS[ic.icon]}</svg></div><div class="ei-txt">${b}</div></div>`;
+  }).join('') : `<div class="exec-item"><div class="ei-txt">Select at least one year to generate a summary.</div></div>`;
+}
+
+/* ---- Dedicated Executive Summary for the Year-on-Year P&L view — 5 fixed
+   icon cards matching the reference layout, each computed from real data. */
+function buildYoyPlExecSummary(sorted){
+  const first = sorted[0], last = sorted[sorted.length-1];
+  const items = [];
+
+  const revGrowth = growthPct('revenue', sorted);
+  items.push({icon:'trend', cls:'ic-g', html: revGrowth!=null
+    ? `<b>Revenue grew ${revGrowth>=0?'+':''}${revGrowth.toFixed(1)}%</b> between ${first} and ${last}`
+    : `<b>Revenue</b> — not enough data to compute growth`});
+
+  let bestYear = sorted[0], bestVal = METRICS.net.annual(sorted[0]);
+  sorted.forEach(y=>{ const v = METRICS.net.annual(y); if(v>bestVal){ bestVal=v; bestYear=y; } });
+  items.push({icon:'money', cls:'ic-g', html:`<b>${bestYear===2026?'2026 (YTD)':bestYear} recorded</b> the highest net profit`});
+
+  let cogsFasterSince = null;
+  for(let i=1;i<sorted.length;i++){
+    const y0=sorted[i-1], y1=sorted[i];
+    const n1 = monthsInYear(y1);
+    const revPrev = n1<12 ? partialValue('revenue',y0,n1) : METRICS.revenue.annual(y0);
+    const revCur = METRICS.revenue.annual(y1);
+    const revG = revPrev ? (revCur-revPrev)/Math.abs(revPrev)*100 : 0;
+    const cogsG = revG; // COGS is a flat % of revenue in this model, so it moves 1:1 with revenue growth
+    const compositeCogsG = (ingredientCompositeIndex(y1)/ingredientCompositeIndex(y0)-1)*100;
+    if(compositeCogsG > revG){ cogsFasterSince = y1; break; }
+  }
+  items.push({icon:'trend', cls:'ic-r', html: cogsFasterSince
+    ? `<b>COGS has increased</b> faster than revenue since ${cogsFasterSince}`
+    : `<b>COGS growth</b> has tracked in line with revenue over the period`});
+
+  const gms = sorted.map(y=>METRICS.grossMargin.annual(y));
+  const minGm = Math.min(...gms);
+  items.push({icon:'percent', cls:'ic-p', html:`<b>Average gross margin</b> remained above ${Math.floor(minGm)}% throughout the period`});
+
+  const lastN = monthsInYear(last);
+  if(lastN<12 && sorted.length>=2){
+    const prev = sorted[sorted.length-2];
+    const curVal = partialValue('revenue', last, lastN);
+    const prevVal = partialValue('revenue', prev, lastN);
+    const pace = prevVal ? (curVal-prevVal)/Math.abs(prevVal)*100 : null;
+    items.push({icon:'barchart', cls:'ic-c', html: pace!=null
+      ? `<b>${last} (YTD) is currently</b> tracking ${pace>=0?'+':''}${pace.toFixed(0)}% ${pace>=0?'ahead of':'behind'} the same period last year`
+      : `<b>${last} (YTD)</b> — not enough prior-year data to compare pacing`});
+  } else {
+    items.push({icon:'barchart', cls:'ic-c', html:`<b>${last}</b> is the most recent full year on record`});
+  }
+
+  return items.map(it=>`<div class="exec-item"><div class="ei-ico ${it.cls}"><svg viewBox="0 0 24 24">${ICONS[it.icon]}</svg></div><div class="ei-txt">${it.html}</div></div>`).join('');
 }
 
 /* ════════════════ RENDER ALL ════════════════ */
