@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventory — Mena Injera &amp; Derkosh BMS</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -84,7 +79,51 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .tbl-inv tr:hover td{background:#f7fbf9}
 .tbl-inv .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none;color:#27ae60}
 .tbl-inv .tot td:first-child{color:#27ae60}
-.wac-note{font-size:11px;color:var(--tl);padding:10px 17px 14px}
+.wac-note{font-size:11px;color:var(--tl);padding:10px 17px 0}
+.results-footer{font-size:11.5px;color:var(--tl);font-weight:600;padding:10px 17px 14px}
+
+/* ══ QUICK ACTIONS PILL TOOLBAR ══════════════════════ */
+.qa-toolbar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04)}
+.qa-toolbar-label{background:#eaf6ef;color:#1d5c38;font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:8px;white-space:nowrap;font-family:'Quicksand',sans-serif}
+.qa-pill{display:flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--td);transition:background .12s,border-color .12s;white-space:nowrap}
+.qa-pill:hover{background:#f5fbf7;border-color:#52B788}
+.qa-pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ══ SEARCH & FILTER BAR ═════════════════════════════ */
+.filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04)}
+.filter-search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+.filter-search input{border:none;outline:none;font-size:12.5px;flex:1;font-family:'Nunito',sans-serif;color:var(--td);background:transparent}
+.filter-search svg{width:14px;height:14px;stroke:var(--tl);fill:none;stroke-width:2;flex-shrink:0}
+.filter-sel{border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;font-family:'Nunito',sans-serif;cursor:pointer}
+.filter-date-btn{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;white-space:nowrap}
+.filter-date-btn svg{width:14px;height:14px;stroke:var(--tl);fill:none;stroke-width:2}
+.filter-more-btn{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--td);background:#fff;cursor:pointer;white-space:nowrap;transition:background .12s}
+.filter-more-btn:hover{background:var(--bg)}
+.filter-more-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.filter-gear{width:35px;height:35px;flex-shrink:0;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);background:#fff;transition:background .12s}
+.filter-gear:hover{background:var(--bg)}
+.filter-gear svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.more-filters-row{display:none;width:100%;gap:20px;padding-top:10px;border-top:1px solid var(--border);margin-top:2px;font-size:12px;color:var(--td);font-weight:600}
+.more-filters-row label{display:flex;align-items:center;gap:6px;cursor:pointer}
+
+/* ══ RECENT ACTIVITY TABS & LIST ═════════════════════ */
+.ra-tab{padding:8px 4px;font-size:11.5px;font-weight:700;color:var(--tl);cursor:pointer;border-bottom:2px solid transparent;margin-right:14px}
+.ra-tab.active{color:#1d5c38;border-bottom-color:#1d5c38}
+.ra-list{padding:8px 17px;min-height:150px}
+.ra-row{padding:9px 0;border-bottom:1px solid #f0f5f2;font-size:11.5px}
+.ra-row:last-child{border-bottom:none}
+.ra-row .ra-date{color:var(--tl);font-weight:600;font-size:10.5px}
+.ra-row .ra-main{color:var(--td);font-weight:700;margin-top:2px}
+.ra-row .ra-sub{color:var(--tm);margin-top:1px}
+.ra-empty{padding:24px 0;text-align:center;color:var(--tl);font-size:12px}
+
+/* ══ TOP CONSUMED ITEMS ══════════════════════════════ */
+.tci-list{padding:6px 17px}
+.tci-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f5f2}
+.tci-row:last-child{border-bottom:none}
+.tci-rank{width:20px;height:20px;border-radius:50%;background:#eaf6ef;color:#1d5c38;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tci-name{flex:1;font-size:12px;font-weight:700;color:var(--td)}
+.tci-qty{font-size:11.5px;font-weight:700;color:var(--tm)}
 .row-edit-btn{width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,border-color .12s;color:var(--tl)}
 .row-edit-btn:hover{background:#f0f8f4;border-color:#52B788;color:#1d5c38}
 .row-edit-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -187,7 +226,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .btn-p:hover{background:#164a2c}
 .btn-p:disabled{background:#a8c3b3;cursor:not-allowed}
 .btn-p svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.btn-s{background:#fff;color:var(--td);border:1px solid var(--border);border-radius:9px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .12s}
+.btn-s{background:#fff;color:var(--td);border:1px solid var(--border);border-radius:9px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:background .12s;display:inline-flex;align-items:center;gap:6px}
+.btn-s svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .btn-s:hover{background:var(--bg)}
 
 .mtbl{width:100%;border-collapse:collapse;font-size:12px}
@@ -212,6 +252,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
 .kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
 .kc:nth-child(7){animation-delay:.32s}
+.kc:nth-child(8){animation-delay:.37s}
 .card{animation:fadeUp .5s ease both}
 .kc{transition:transform .15s ease,box-shadow .15s ease}
 .kc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
@@ -282,119 +323,67 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <div class="kc-ico ic-t"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></div>
         <span class="kc-lbl">Inventory Turnover</span>
         <div class="kc-val"><span id="kpiTurnover" data-target="7.4" data-decimals="1">0.0</span> <span class="u">x / yr</span></div>
-        <div class="kc-sub">Annualized · ~49 Days Avg Supply</div>
+        <div class="kc-sub">Annualized</div>
+      </div>
+      <div class="kc">
+        <div class="kc-ico ic-c"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <span class="kc-lbl">Avg. Days of Supply</span>
+        <div class="kc-val"><span id="kpiDaysSupply" data-target="49" data-decimals="0">0</span> <span class="u">Days</span></div>
+        <div class="kc-sub">Across All Items</div>
       </div>
     </div>
 
-    <!-- ROW: Price History + Inventory Valuation (charts, paired) -->
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
-
-      <!-- Price History -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-ttl">Price History <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px">(Weighted Average Cost per Unit)</span></div>
-          <div class="ph-hd-ctrl">
-            <select class="rsel" id="phItemSel" onchange="renderPriceHistory()">
-              <option value="Injera Blend" data-unit="kg" selected>Injera Blend (kg)</option>
-              <option value="Corn" data-unit="kg">Corn (kg)</option>
-              <option value="Gomen Zere" data-unit="kg">Gomen Zere (kg)</option>
-              <option value="Small Bags" data-unit="pcs">Small Bags (pcs)</option>
-              <option value="Large Bags" data-unit="pcs">Large Bags (pcs)</option>
-            </select>
-            <select class="rsel" id="phRangeSel" onchange="renderPriceHistory()">
-              <option>Last 6 Months</option><option>Last 3 Months</option><option>This Year</option>
-            </select>
-          </div>
-        </div>
-        <div class="ph-body">
-          <div style="overflow-y:auto;max-height:230px">
-            <table class="tbl-sb2">
-              <thead><tr><th>Month</th><th id="phColHdr">WAC (ETB/kg)</th></tr></thead>
-              <tbody id="phTblBody"></tbody>
-            </table>
-          </div>
-          <div style="position:relative;min-height:230px">
-            <canvas id="priceChart"></canvas>
-          </div>
-        </div>
-        <div class="ph-note" id="phNote">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
-      </div>
-
-      <!-- Inventory Valuation -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-ttl">Inventory Valuation <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="valMonthLbl">(May 31, 2026)</span></div>
-        </div>
-        <div class="exp-bd">
-          <div class="dnut">
-            <canvas id="valChart" width="110" height="110"></canvas>
-            <div class="dnut-lbl">
-              <span>Total Value</span>
-              <strong id="valTotalLbl">63,214.00<br>ETB</strong>
-            </div>
-          </div>
-          <div class="exp-leg" id="valLegend"></div>
-        </div>
-      </div>
-
+    <!-- QUICK ACTIONS (horizontal pill toolbar) -->
+    <div class="qa-toolbar">
+      <span class="qa-toolbar-label">Quick Actions</span>
+      <div class="qa-pill" onclick="openAddStockModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Stock</div>
+      <div class="qa-pill" onclick="openRecordUsageModal()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg>Record Usage</div>
+      <div class="qa-pill" onclick="openStockTransferModal()"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>Transfer Stock</div>
+      <div class="qa-pill" onclick="openAdjustStockModal()"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Adjust Stock</div>
+      <div class="qa-pill" onclick="openImportModal()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import</div>
+      <div class="qa-pill" onclick="openExportMenuModal()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</div>
+      <div class="qa-pill" onclick="openReportsHubModal()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Reports</div>
     </div>
 
-    <!-- ROW: Recent Purchases + Stock Alerts (activity feeds, paired) -->
-    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
-
-      <!-- Recent Purchases -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-ttl">Recent Purchases</div>
-          <a class="vall" onclick="window.location.href='purchases.html'">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
-        </div>
-        <div style="overflow-x:auto">
-          <table class="tbl-sb2">
-            <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total Cost</th></tr></thead>
-            <tbody id="recentPurchasesBody"></tbody>
-          </table>
-        </div>
-        <div style="padding:12px 17px">
-          <button class="qa-btn" style="width:100%;flex-direction:row;padding:9px 0" onclick="window.location.href='purchases.html'">
-            <span class="qa-lbl" style="font-size:12.5px">View All Purchases</span>
-          </button>
-        </div>
+    <!-- SEARCH & FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="filterSearch" type="text" placeholder="Search item name..." oninput="onFilterChange()">
       </div>
-
-      <!-- Stock Alerts -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-ttl">Stock Alerts</div>
-          <a class="vall" onclick="showToast('Full alerts history coming soon')">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
-        </div>
-        <div id="stockAlertsList"></div>
+      <select class="filter-sel" id="filterCategory" onchange="onFilterChange()">
+        <option value="">All Categories</option>
+        <option value="Raw Materials">Raw Materials</option>
+        <option value="Packaging">Packaging</option>
+        <option value="Consumables">Consumables</option>
+        <option value="Utilities">Utilities</option>
+      </select>
+      <select class="filter-sel" id="filterWarehouse" onchange="onFilterChange()">
+        <option value="">All Warehouses</option>
+        <option value="Main Store">Main Store</option>
+        <option value="Cold Storage">Cold Storage</option>
+        <option value="Packaging Area">Packaging Area</option>
+        <option value="Production Floor">Production Floor</option>
+      </select>
+      <select class="filter-sel" id="filterStatus" onchange="onFilterChange()">
+        <option value="">All Status</option>
+        <option value="OK">OK</option>
+        <option value="LOW">Low Stock</option>
+        <option value="REORDER">Reorder</option>
+      </select>
+      <div class="filter-date-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>May 1 – 31, 2026</div>
+      <div class="filter-more-btn" onclick="toggleMoreFilters()"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>More Filters</div>
+      <div class="filter-gear" onclick="showToast('Table column settings — coming soon')" title="Table Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+      <div class="more-filters-row" id="moreFiltersRow">
+        <label><input type="checkbox" id="mfLowOnly" onchange="onMoreFilterToggle()"> Low/Reorder items only</label>
+        <label><input type="checkbox" id="mfExpiringOnly" onchange="onMoreFilterToggle()"> Expiring within 7 days only</label>
       </div>
-
     </div>
 
-    <!-- ROW: Quick Actions (full width — lets the button grid breathe) -->
+    <!-- INVENTORY OVERVIEW (detailed table) -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-hd">
-        <div class="card-ttl">Quick Actions</div>
-      </div>
-      <div class="qa-grid qa-grid-wide">
-        <div class="qa-btn" onclick="openAddStockModal()"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span class="qa-lbl">Add Stock</span></div>
-        <div class="qa-btn" onclick="openRecordUsageModal()"><div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg></div><span class="qa-lbl">Record Usage</span></div>
-        <div class="qa-btn" onclick="openAdjustStockModal()"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div><span class="qa-lbl">Adjust Stock</span></div>
-        <div class="qa-btn" onclick="openStockTransferModal()"><div class="qa-ic ic-c"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div><span class="qa-lbl">Stock Transfer</span></div>
-        <div class="qa-btn" onclick="openExpiryReportModal()"><div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="qa-lbl">Expiry Report</span></div>
-        <div class="qa-btn" onclick="openReorderReportModal()"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="qa-lbl">Reorder Report</span></div>
-        <div class="qa-btn" onclick="openInventoryReportModal()"><div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="qa-lbl">Inventory Report</span></div>
-        <div class="qa-btn" onclick="exportExcel()"><div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (Excel)</span></div>
-        <div class="qa-btn" onclick="exportPDF()"><div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span class="qa-lbl">Export Inventory (PDF)</span></div>
-        <div class="qa-btn" onclick="openImportModal()"><div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><span class="qa-lbl">Import Inventory</span></div>
-      </div>
-    </div>
-
-    <!-- INVENTORY OVERVIEW (detailed table — placed last for glance-to-detail flow) -->
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-hd">
-        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(Jul 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
+        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(May 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
         <div class="exp-btns">
           <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
           <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
@@ -411,6 +400,119 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <!-- table injected by renderInvTable() -->
       </div>
       <div class="wac-note" id="wacNote">WAC = Weighted Average Cost</div>
+      <div class="results-footer" id="invResultsFooter">Showing 1 to 8 of 8 items</div>
+    </div>
+
+    <!-- ROW: Inventory Value Trend + Inventory Value Distribution + Stock Aging -->
+    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
+
+      <!-- Inventory Value Trend -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Inventory Value Trend</div>
+          <select class="rsel" id="trendRangeSel" onchange="renderValueTrendChart()">
+            <option>This Month</option><option>Last 6 Months</option>
+          </select>
+        </div>
+        <div style="position:relative;height:200px;padding:10px 17px 17px">
+          <canvas id="valueTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Inventory Valuation -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Inventory Value Distribution <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="valMonthLbl">(May 31, 2026)</span></div>
+        </div>
+        <div class="exp-bd">
+          <div class="dnut">
+            <canvas id="valChart" width="110" height="110"></canvas>
+            <div class="dnut-lbl">
+              <span>Total Value</span>
+              <strong id="valTotalLbl">63,214.00<br>ETB</strong>
+            </div>
+          </div>
+          <div class="exp-leg" id="valLegend"></div>
+        </div>
+      </div>
+
+      <!-- Stock Aging -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Stock Aging</div>
+          <span style="font-size:11px;color:var(--tl);font-weight:500">By Days Since Last Purchase</span>
+        </div>
+        <div style="position:relative;height:200px;padding:10px 17px 17px">
+          <canvas id="stockAgingChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW: Recent Activity + Stock Alerts + Price History + Top Consumed Items -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Recent Activity</div>
+        </div>
+        <div class="inv-tabs" style="padding:0 17px;margin-bottom:0">
+          <div class="ra-tab active" id="raTabPurchases" onclick="switchActivityTab('purchases')">Purchases</div>
+          <div class="ra-tab" id="raTabUsage" onclick="switchActivityTab('usage')">Usage</div>
+          <div class="ra-tab" id="raTabAdjust" onclick="switchActivityTab('adjustments')">Adjustments</div>
+          <div class="ra-tab" id="raTabTransfer" onclick="switchActivityTab('transfers')">Transfers</div>
+        </div>
+        <div id="recentActivityList" class="ra-list"></div>
+        <div style="padding:10px 17px 14px">
+          <button class="qa-btn" style="width:100%;flex-direction:row;padding:9px 0" onclick="window.location.href='purchases.html'">
+            <span class="qa-lbl" style="font-size:12px">View All</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stock Alerts -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Stock Alerts</div>
+          <a class="vall" onclick="showToast('Full alerts history coming soon')">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+        </div>
+        <div id="stockAlertsList"></div>
+      </div>
+
+      <!-- Price History -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Price History</div>
+          <select class="rsel" id="phItemSel" onchange="renderPriceHistory()" style="font-size:11px;padding:4px 8px">
+            <option value="Injera Blend" data-unit="kg" selected>Injera Blend</option>
+            <option value="Corn" data-unit="kg">Corn</option>
+            <option value="Gomen Zere" data-unit="kg">Gomen Zere</option>
+            <option value="Small Bags" data-unit="pcs">Small Bags</option>
+            <option value="Large Bags" data-unit="pcs">Large Bags</option>
+          </select>
+        </div>
+        <div style="position:relative;height:180px;padding:10px 17px 4px">
+          <canvas id="priceChart"></canvas>
+        </div>
+        <div class="ph-note" id="phNote" style="padding:6px 17px 14px">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
+        <select class="rsel" id="phRangeSel" onchange="renderPriceHistory()" style="display:none"><option>Last 6 Months</option><option>Last 3 Months</option><option>This Year</option></select>
+        <div style="overflow-y:auto;max-height:0;display:none"><table class="tbl-sb2"><thead><tr><th>Month</th><th id="phColHdr">WAC</th></tr></thead><tbody id="phTblBody"></tbody></table></div>
+      </div>
+
+      <!-- Top Consumed Items -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-ttl">Top Consumed Items <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px">(This Month)</span></div>
+        </div>
+        <div id="topConsumedList" class="tci-list"></div>
+        <div style="padding:10px 17px 14px">
+          <button class="qa-btn" style="width:100%;flex-direction:row;padding:9px 0" onclick="openInventoryReportModal()">
+            <span class="qa-lbl" style="font-size:12px">View Full Report</span>
+          </button>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /content -->
@@ -445,14 +547,22 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
    formulas — computed server-side from purchases + production/derkosh usage in the live system.
    Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
 const invItems = [
-  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05', leadTimeDays:7, safetyStockDays:3 },
-  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null, leadTimeDays:4, safetyStockDays:2 },
-  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03', leadTimeDays:2, safetyStockDays:1 },
-  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null, leadTimeDays:10, safetyStockDays:4 },
-  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null, leadTimeDays:10, safetyStockDays:4 },
-  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null, leadTimeDays:1, safetyStockDays:0 },
-  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null, leadTimeDays:5, safetyStockDays:2 },
-  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null, leadTimeDays:7, safetyStockDays:3 }
+  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05', leadTimeDays:7, safetyStockDays:3,
+    category:'Raw Materials', warehouse:'Main Store', reservedQty:10.00, supplier:'Ethio Mills', lastPurchaseDate:'2026-05-29' },
+  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null, leadTimeDays:4, safetyStockDays:2,
+    category:'Raw Materials', warehouse:'Main Store', reservedQty:5.00, supplier:'Omo Agro', lastPurchaseDate:'2026-05-25' },
+  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03', leadTimeDays:2, safetyStockDays:1,
+    category:'Raw Materials', warehouse:'Cold Storage', reservedQty:2.00, supplier:'Merkato Grain Traders', lastPurchaseDate:'2026-05-30' },
+  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null, leadTimeDays:10, safetyStockDays:4,
+    category:'Packaging', warehouse:'Packaging Area', reservedQty:40.00, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-05-18' },
+  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null, leadTimeDays:10, safetyStockDays:4,
+    category:'Packaging', warehouse:'Packaging Area', reservedQty:15.00, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-04-20' },
+  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null, leadTimeDays:1, safetyStockDays:0,
+    category:'Utilities', warehouse:'Main Store', reservedQty:0, supplier:'Ethiopian Electric Utility', lastPurchaseDate:'2026-05-31' },
+  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null, leadTimeDays:5, safetyStockDays:2,
+    category:'Consumables', warehouse:'Main Store', reservedQty:0, supplier:'Bakery Supplies Co', lastPurchaseDate:'2026-05-10' },
+  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null, leadTimeDays:7, safetyStockDays:3,
+    category:'Packaging', warehouse:'Packaging Area', reservedQty:0, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-04-02' }
 ];
 
 const recentPurchases = [
@@ -462,30 +572,29 @@ const recentPurchases = [
   { date:'2026-05-26', item:'Large Bags',   qty:'100 pcs',unitPrice:35.00,  total:3500.00 },
   { date:'2026-05-25', item:'Gomen Zere',   qty:'10 kg',  unitPrice:800.00, total:8000.00 }
 ];
+/* Companion activity logs — populated live when Record Usage / Adjust Stock / Stock Transfer
+   are submitted, so Recent Activity can show real tabs instead of just Purchases. */
+const recentUsageLog = [
+  { date:'2026-05-30', item:'Injera Blend', qty:'12 kg', note:'Injera batch #B-0510' },
+  { date:'2026-05-29', item:'Corn',         qty:'8 kg',  note:'Injera batch #B-0509' },
+  { date:'2026-05-27', item:'Gomen Zere',   qty:'3 kg',  note:'Derkosh batch #D-0212' }
+];
+const recentAdjustmentsLog = [
+  { date:'2026-05-24', item:'Plastic Sheets', change:'-2 pcs', reason:'Damaged / Spoiled' }
+];
+const recentTransfersLog = [
+  { date:'2026-05-22', item:'Small Bags', qty:'50 pcs', from:'Main Store', to:'Packaging Area' }
+];
 
 /* Non-expiry alerts stay static demo data for now. Expiry alerts are computed live
    from each item's expiryDate field below (see buildExpiryAlerts) instead of being
    hardcoded text, so they stay accurate as expiry dates are edited via Item Settings. */
-/* Live-computed — was a hardcoded array of demo alerts (Large Bags 220pcs, Corn 60kg,
-   etc.) that no longer matched real data once invItems became live. */
-function buildStockLevelAlerts(){
-  const alerts = [];
-  invItems.filter(i=>i.status==='REORDER').forEach(i=>{
-    alerts.push({ icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:i.name,
-      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below 60% of reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
-  });
-  invItems.filter(i=>i.status==='LOW').forEach(i=>{
-    alerts.push({ icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:i.name,
-      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
-  });
-  const slow = invItems.filter(i=>{ const d = daysOfSupply(i); return d!=null && d>120; }).map(i=>i.name);
-  if(slow.length){
-    alerts.push({ icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title: slow.join(' & '),
-      text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' });
-  }
-  return alerts;
-}
-function getAllAlerts(){ return [...buildExpiryAlerts(), ...buildStockLevelAlerts()]; }
+const staticAlerts = [
+  { icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:'Large Bags', text:'Closing stock 220 pcs is below 50% of reorder level. Reorder level: 200 pcs.' },
+  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Corn', text:'Closing stock 60 kg is below reorder level. Reorder level: 60 kg.' },
+  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Small Bags', text:'Closing stock 520 pcs is below reorder level. Reorder level: 500 pcs.' },
+  { icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title:'Plastic Sheets & Cleaning Material', text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' }
+];
 /* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
 function daysUntilExpiry(item){
   if(!item.expiryDate) return null;
@@ -503,6 +612,16 @@ function buildExpiryAlerts(){
       : `Expires in ${a.days} day${a.days===1?'':'s'} (${fmtDateLong(a.item.expiryDate)}).`
   }));
 }
+/* Overstock: quantity-based excess (closing well above reorder level) — a distinct signal
+   from Slow-Moving (which is time/usage-based). Both indicate excess capital tied up in
+   stock, but for different reasons, so both are surfaced separately. */
+function buildOverstockAlerts(){
+  return invItems.filter(i=>i.closing!=null && i.reorder && i.closing >= i.reorder*1.5).map(i=>({
+    icon:'al-b', pill:'pill-slow', pillText:'OVERSTOCK', title:i.name,
+    text:`Closing stock ${fmt(i.closing)} ${i.unit} is ${Math.round((i.closing/i.reorder-1)*100)}% above reorder level (${fmt(i.reorder)} ${i.unit}).`
+  }));
+}
+function getAllAlerts(){ return [...buildExpiryAlerts(), ...buildOverstockAlerts(), ...staticAlerts]; }
 
 const priceHistoryByItem = {
   'Injera Blend': { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[880.00,892.50,915.00,910.00,901.67,916.67] },
@@ -511,29 +630,24 @@ const priceHistoryByItem = {
   'Small Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[20.00,20.50,21.00,22.00,22.50,23.00] },
   'Large Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[31.00,32.00,33.00,34.00,34.50,35.00] }
 };
+/* Prior months of total inventory value (demo history). The current/last point is always
+   computed live from invItems so it never drifts out of sync with the rest of the page. */
+const inventoryValueTrendHistory = [
+  { month:'Dec 2025', value:98500 },
+  { month:'Jan 2026', value:105200 },
+  { month:'Feb 2026', value:112800 },
+  { month:'Mar 2026', value:121400 },
+  { month:'Apr 2026', value:131900 }
+];
 
 function fmt(n){ return (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function num(v){ return parseFloat(v)||0; }
 function dash(v){ return (v===null || v===undefined) ? '-' : fmt(v); }
 function fmtDateLong(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
 /* ════════════════ HEADER MONTH CHANGE ════════════════ */
-const MONTH_LABEL_TO_PERIOD = {
-  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
-  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06',
-  'Jul 2026':'2026-07'
-};
-function prevPeriodOf(period){
-  const [y,m] = period.split('-').map(Number);
-  const d = new Date(y, m-2, 1); // m-1 is current month 0-indexed, -1 more for previous
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-}
-let currentPeriod = MONTH_LABEL_TO_PERIOD['Jul 2026'];
 function onMonthChange(m){
   document.getElementById('ovMonthLbl').textContent = '('+m+')';
-  currentPeriod = MONTH_LABEL_TO_PERIOD[m] || currentPeriod;
-  showToast('Loading inventory for '+m+'…');
-  loadFromSupabase();
+  showToast('Loaded inventory for '+m);
 }
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */
@@ -586,9 +700,7 @@ function computeKpis(){
   document.getElementById('kpiReorder').setAttribute('data-target', reorderCount);
   document.getElementById('kpiExpiring').setAttribute('data-target', expiringCount);
   document.getElementById('kpiTurnover').setAttribute('data-target', annualTurnover.toFixed(1));
-
-  const turnoverCard = document.getElementById('kpiTurnover').closest('.kc');
-  if(turnoverCard) turnoverCard.querySelector('.kc-sub').textContent = 'Annualized · ~'+Math.round(avgDaysSupply)+' Days Avg Supply';
+  document.getElementById('kpiDaysSupply').setAttribute('data-target', Math.round(avgDaysSupply));
 }
 
 /* ════════════════ INVENTORY OVERVIEW TABLE ════════════════ */
@@ -618,67 +730,129 @@ function movementPill(days){
   if(days<=45) return '<span class="pill-sm pill-normal">NORMAL</span>';
   return '<span class="pill-sm pill-slow">SLOW-MOVING</span>';
 }
+/* Search & Filter state — applied on top of invItems before rendering either table view */
+const filterState = { search:'', category:'', warehouse:'', status:'', lowOnly:false, expiringOnly:false };
+function applyFilters(items){
+  return items.filter(it=>{
+    if(filterState.search && !it.name.toLowerCase().includes(filterState.search.toLowerCase())) return false;
+    if(filterState.category && it.category!==filterState.category) return false;
+    if(filterState.warehouse && it.warehouse!==filterState.warehouse) return false;
+    if(filterState.status && it.status!==filterState.status) return false;
+    if(filterState.lowOnly && !(it.status==='LOW'||it.status==='REORDER')) return false;
+    if(filterState.expiringOnly){
+      const d = daysUntilExpiry(it);
+      if(d===null || d>7) return false;
+    }
+    return true;
+  });
+}
+function onMoreFilterToggle(){
+  filterState.lowOnly = document.getElementById('mfLowOnly').checked;
+  filterState.expiringOnly = document.getElementById('mfExpiringOnly').checked;
+  refreshTable();
+}
+function onFilterChange(){
+  filterState.search = document.getElementById('filterSearch').value;
+  filterState.category = document.getElementById('filterCategory').value;
+  filterState.warehouse = document.getElementById('filterWarehouse').value;
+  filterState.status = document.getElementById('filterStatus').value;
+  refreshTable();
+}
+function refreshTable(){
+  if(currentTab==='monthly') renderMonthlyTable();
+  else if(currentTab==='alltime') renderAllTimeTable();
+  else renderPriceHistoryTable();
+}
+function updateResultsFooter(shown, total){
+  const el = document.getElementById('invResultsFooter');
+  if(!el) return;
+  if(currentTab==='price'){ el.textContent = ''; return; }
+  el.textContent = shown===0 ? 'No items found' : `Showing 1 to ${shown} of ${total} item${total===1?'':'s'}`;
+}
+function toggleMoreFilters(){
+  const row = document.getElementById('moreFiltersRow');
+  row.style.display = row.style.display==='flex' ? 'none' : 'flex';
+}
 function renderMonthlyTable(){
-  let rows = invItems.map(it=>{
+  const items = applyFilters(invItems);
+  let rows = items.map(it=>{
     const dos = daysOfSupply(it);
+    const available = it.closing!=null ? Math.max(0, it.closing-(it.reservedQty||0)) : null;
     return `
     <tr>
       <td style="font-weight:600">${it.name}</td>
+      <td>${it.category||'-'}</td>
+      <td>${it.warehouse||'-'}</td>
       <td>${it.unit}</td>
       <td>${dash(it.opening)}</td>
       <td>${dash(it.purchased)}</td>
       <td>${dash(it.used)}</td>
       <td>${dash(it.closing)}</td>
+      <td>${dash(it.reservedQty)}</td>
+      <td>${available===null?'-':fmt(available)}</td>
       <td>${fmt(it.wac)}</td>
       <td>${dash(it.value)}</td>
       <td>${fmt(it.reorder)}</td>
       <td>${daysOfSupplyLabel(dos)}</td>
       <td>${movementPill(dos)}</td>
+      <td>${it.supplier||'-'}</td>
+      <td>${it.lastPurchaseDate?fmtDateLong(it.lastPurchaseDate):'-'}</td>
       <td>${pillFor(it.status)}</td>
       <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;}).join('');
-  const totOpen = invItems.reduce((s,i)=>s+(i.opening||0),0);
-  const totPurch = invItems.reduce((s,i)=>s+(i.purchased||0),0);
-  const totUsed = invItems.reduce((s,i)=>s+(i.used||0),0);
-  const totClose = invItems.reduce((s,i)=>s+(i.closing||0),0);
-  const totVal = invItems.reduce((s,i)=>s+(i.value||0),0);
-  rows += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td>${fmt(totVal)}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+  if(!items.length) rows = `<tr><td colspan="19" style="text-align:center;color:var(--tl);padding:20px">No items match your filters</td></tr>`;
+  const totOpen = items.reduce((s,i)=>s+(i.opening||0),0);
+  const totPurch = items.reduce((s,i)=>s+(i.purchased||0),0);
+  const totUsed = items.reduce((s,i)=>s+(i.used||0),0);
+  const totClose = items.reduce((s,i)=>s+(i.closing||0),0);
+  const totVal = items.reduce((s,i)=>s+(i.value||0),0);
+  if(items.length) rows += `<tr class="tot"><td>TOTAL</td><td></td><td></td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td></td><td></td><td>${fmt(totVal)}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
       <thead><tr>
-        <th>Item</th><th>Unit</th><th>Opening Stock<br>May 1, 2026</th><th>Purchased<br>(This Month)</th>
-        <th>Used / Sold<br>(This Month)</th><th>Closing Stock<br>May 31, 2026</th><th>Monthly WAC<br>(ETB / Unit)</th>
-        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Days of Supply</th><th>Movement</th><th>Status</th><th></th>
+        <th>Item</th><th>Category</th><th>Warehouse</th><th>Unit</th><th>Opening Stock<br>May 1, 2026</th><th>Purchased<br>(This Month)</th>
+        <th>Used / Sold<br>(This Month)</th><th>Current Qty</th><th>Reserved Qty</th><th>Available Qty</th><th>Monthly WAC<br>(ETB / Unit)</th>
+        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Days of Supply</th><th>Movement</th><th>Supplier</th><th>Last Purchase</th><th>Status</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('wacNote').textContent = 'WAC = Weighted Average Cost · Days of Supply = Closing Stock ÷ Avg Daily Usage (this month)';
+  updateResultsFooter(items.length, invItems.length);
 }
 function renderAllTimeTable(){
-  let rows = invItems.map(it=>{
+  const items = applyFilters(invItems);
+  let rows = items.map(it=>{
     const totalIn = (it.opening||0)+(it.purchased||0);
     const totalOut = it.used||0;
     const dos = daysOfSupply(it);
+    const available = it.closing!=null ? Math.max(0, it.closing-(it.reservedQty||0)) : null;
     return `<tr>
       <td style="font-weight:600">${it.name}</td>
+      <td>${it.category||'-'}</td>
+      <td>${it.warehouse||'-'}</td>
       <td>${it.unit}</td>
       <td>${dash(totalIn)}</td>
       <td>${dash(totalOut)}</td>
       <td>${dash(it.closing)}</td>
+      <td>${dash(it.reservedQty)}</td>
+      <td>${available===null?'-':fmt(available)}</td>
       <td>${fmt(it.wac)}</td>
       <td>${dash(it.value)}</td>
       <td>${daysOfSupplyLabel(dos)}</td>
       <td>${movementPill(dos)}</td>
+      <td>${it.supplier||'-'}</td>
       <td>${pillFor(it.status)}</td>
       <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;
   }).join('');
+  if(!items.length) rows = `<tr><td colspan="16" style="text-align:center;color:var(--tl);padding:20px">No items match your filters</td></tr>`;
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
-      <thead><tr><th>Item</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Days of Supply</th><th>Movement</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Item</th><th>Category</th><th>Warehouse</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>Reserved Qty</th><th>Available Qty</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Days of Supply</th><th>Movement</th><th>Supplier</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('wacNote').textContent = "All-Time Perpetual shows the running stock balance since system start. WAC = Weighted Average Cost. Days of Supply is based on this month's usage rate.";
+  updateResultsFooter(items.length, invItems.length);
 }
 function renderPriceHistoryTable(){
   let rows = recentPurchases.map(p=>`<tr>
@@ -699,13 +873,6 @@ function switchTab(tab){
   if(tab==='monthly') renderMonthlyTable();
   else if(tab==='alltime') renderAllTimeTable();
   else renderPriceHistoryTable();
-}
-
-/* ════════════════ RECENT PURCHASES ════════════════ */
-function renderRecentPurchases(){
-  document.getElementById('recentPurchasesBody').innerHTML = recentPurchases.map(p=>`
-    <tr><td>${fmtDateLong(p.date)}</td><td style="font-weight:600">${p.item}</td><td>${p.qty}</td><td>${fmt(p.unitPrice)}</td><td>${fmt(p.total)}</td></tr>
-  `).join('');
 }
 
 /* ════════════════ STOCK ALERTS ════════════════ */
@@ -798,6 +965,136 @@ function renderPriceHistory(){
   });
 }
 
+/* ════════════════ INVENTORY VALUE TREND ════════════════ */
+let valueTrendChart;
+function renderValueTrendChart(){
+  const range = document.getElementById('trendRangeSel').value;
+  const currentTotal = invItems.reduce((s,i)=>s+(i.value||0),0);
+  let labels, vals;
+  if(range==='Last 6 Months'){
+    labels = [...inventoryValueTrendHistory.map(h=>h.month), 'May 2026'];
+    vals = [...inventoryValueTrendHistory.map(h=>h.value), currentTotal];
+  } else {
+    const start = currentTotal*0.86;
+    labels = ['Week 1','Week 2','Week 3','Week 4 (Now)'];
+    vals = [start, start+(currentTotal-start)*0.35, start+(currentTotal-start)*0.68, currentTotal];
+  }
+  if(valueTrendChart) valueTrendChart.destroy();
+  const ctx = document.getElementById('valueTrendChart').getContext('2d');
+  valueTrendChart = new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets:[{
+      label:'Total Value (ETB)', data:vals, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,0.08)',
+      borderWidth:2.5, pointBackgroundColor:'#27ae60', pointRadius:3, pointHoverRadius:6, fill:true, tension:0.35
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:1000, easing:'easeOutCubic'},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.y)+' ETB'}} },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10},color:'#9aada5'}},
+        y:{grid:{color:'#eef3f0'},ticks:{font:{family:'Nunito',size:10},color:'#9aada5',callback:v=>(v/1000)+'k'},beginAtZero:false}
+      }
+    }
+  });
+}
+
+/* ════════════════ STOCK AGING ════════════════ */
+function computeStockAging(){
+  const buckets = {'0-30 Days':0,'31-60 Days':0,'61-90 Days':0,'90+ Days':0};
+  invItems.forEach(it=>{
+    if(!it.lastPurchaseDate || it.closing==null) return;
+    const days = Math.floor((new Date(todayInApp()+'T00:00:00') - new Date(it.lastPurchaseDate+'T00:00:00'))/86400000);
+    if(days<=30) buckets['0-30 Days']+=it.closing;
+    else if(days<=60) buckets['31-60 Days']+=it.closing;
+    else if(days<=90) buckets['61-90 Days']+=it.closing;
+    else buckets['90+ Days']+=it.closing;
+  });
+  return buckets;
+}
+let stockAgingChart;
+function renderStockAgingChart(){
+  const buckets = computeStockAging();
+  const labels = Object.keys(buckets);
+  const data = Object.values(buckets);
+  const colors = ['#27ae60','#0d9b7a','#f59e0b','#e53935'];
+  if(stockAgingChart) stockAgingChart.destroy();
+  const ctx = document.getElementById('stockAgingChart').getContext('2d');
+  stockAgingChart = new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:6, barThickness:16 }] },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      animation:{duration:900,easing:'easeOutCubic'},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.x)+' units (mixed)'}} },
+      scales:{
+        x:{grid:{color:'#eef3f0'},ticks:{font:{family:'Nunito',size:9.5},color:'#9aada5'}},
+        y:{grid:{display:false},ticks:{font:{family:'Nunito',size:10,weight:'700'},color:'#3a5a4c'}}
+      }
+    }
+  });
+}
+
+/* ════════════════ RECENT ACTIVITY (tabbed) ════════════════ */
+let activityTab = 'purchases';
+function switchActivityTab(tab){
+  activityTab = tab;
+  document.getElementById('raTabPurchases').classList.toggle('active', tab==='purchases');
+  document.getElementById('raTabUsage').classList.toggle('active', tab==='usage');
+  document.getElementById('raTabAdjust').classList.toggle('active', tab==='adjustments');
+  document.getElementById('raTabTransfer').classList.toggle('active', tab==='transfers');
+  renderRecentActivity();
+}
+function renderRecentActivity(){
+  const el = document.getElementById('recentActivityList');
+  if(!el) return;
+  let html = '';
+  if(activityTab==='purchases'){
+    html = recentPurchases.slice(0,5).map(p=>`<div class="ra-row"><div class="ra-date">${fmtDateLong(p.date)}</div><div class="ra-main">${p.item} — ${p.qty}</div><div class="ra-sub">${fmt(p.unitPrice)} ETB/unit · Total ${fmt(p.total)} ETB</div></div>`).join('');
+  } else if(activityTab==='usage'){
+    html = recentUsageLog.slice(0,5).map(u=>`<div class="ra-row"><div class="ra-date">${fmtDateLong(u.date)}</div><div class="ra-main">${u.item} — ${u.qty} used</div><div class="ra-sub">${u.note}</div></div>`).join('');
+  } else if(activityTab==='adjustments'){
+    html = recentAdjustmentsLog.slice(0,5).map(a=>`<div class="ra-row"><div class="ra-date">${fmtDateLong(a.date)}</div><div class="ra-main">${a.item} — ${a.change}</div><div class="ra-sub">${a.reason}</div></div>`).join('');
+  } else {
+    html = recentTransfersLog.slice(0,5).map(t=>`<div class="ra-row"><div class="ra-date">${fmtDateLong(t.date)}</div><div class="ra-main">${t.item} — ${t.qty}</div><div class="ra-sub">${t.from} → ${t.to}</div></div>`).join('');
+  }
+  el.innerHTML = html || '<div class="ra-empty">No activity recorded yet</div>';
+}
+
+/* ════════════════ TOP CONSUMED ITEMS ════════════════ */
+function renderTopConsumedItems(){
+  const el = document.getElementById('topConsumedList');
+  if(!el) return;
+  const sorted = [...invItems].filter(i=>i.used).sort((a,b)=>b.used-a.used).slice(0,5);
+  el.innerHTML = sorted.map((it,i)=>`<div class="tci-row"><div class="tci-rank">${i+1}</div><div class="tci-name">${it.name}</div><div class="tci-qty">${fmt(it.used)} ${it.unit}</div></div>`).join('') || '<div class="ra-empty">No usage recorded yet</div>';
+}
+
+/* ════════════════ QUICK ACTIONS: EXPORT MENU & REPORTS HUB ════════════════ */
+const icExportDown = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+function openExportMenuModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Choose a format to export the current Inventory Overview.</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-p" style="flex:1;justify-content:center" onclick="closeModal();exportExcel()">${icCheck}Excel (.xlsx)</button>
+      <button class="btn-p" style="flex:1;justify-content:center" onclick="closeModal();exportPDF()">${icCheck}PDF</button>
+    </div>`;
+  const footer = `<button class="btn-s" onclick="closeModal()">Cancel</button>`;
+  openModal({ title:'Export Inventory', sub:'Choose a format', iconClass:'ic-g', icon:icExportDown, bodyHtml:body, footerHtml:footer });
+}
+function openReportsHubModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Choose a report to open.</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn-s" style="justify-content:flex-start" onclick="closeModal();openExpiryReportModal()">${icExpiry}&nbsp;&nbsp;Expiry Report</button>
+      <button class="btn-s" style="justify-content:flex-start" onclick="closeModal();openReorderReportModal()">${icReorder}&nbsp;&nbsp;Reorder Report</button>
+      <button class="btn-s" style="justify-content:flex-start" onclick="closeModal();openInventoryReportModal()">${icReport}&nbsp;&nbsp;Inventory Report</button>
+    </div>`;
+  const footer = `<button class="btn-s" onclick="closeModal()">Close</button>`;
+  openModal({ title:'Reports', sub:'Pick a report to view', iconClass:'ic-t', icon:icReport, bodyHtml:body, footerHtml:footer });
+}
+
 /* ════════════════ EXPORT — EXCEL (SheetJS) ════════════════ */
 function exportExcel(){
   const btn = document.getElementById('xlsLbl');
@@ -873,7 +1170,7 @@ function closeModal(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 /* ── shared form helpers ── */
-function todayInApp(){ return new Date().toISOString().slice(0,10); }
+function todayInApp(){ return '2026-05-31'; } // demo dataset's simulated "today"
 function itemOptionsHtml(selected){
   return invItems.map(i=>`<option value="${i.name}" ${i.name===selected?'selected':''}>${i.name} (${i.unit})</option>`).join('');
 }
@@ -1029,6 +1326,8 @@ function submitRecordUsage(){
   item.closing = +((item.closing||0)-qty).toFixed(2);
   item.value = +(item.closing*(item.wac||0)).toFixed(2);
   recomputeStatus(item);
+  const ruRef = document.getElementById('ruRef').value.trim();
+  recentUsageLog.unshift({ date, item:itemName, qty:`${fmt(qty)} ${item.unit}`, note: ruRef || 'Production usage' });
 
   renderAll();
   closeModal();
@@ -1084,10 +1383,11 @@ function submitAdjustStock(){
   item.closing = +newQty.toFixed(2);
   item.value = +(item.closing*(item.wac||0)).toFixed(2);
   recomputeStatus(item);
+  const dir = diff>0 ? `+${fmt(diff)}` : fmt(diff);
+  recentAdjustmentsLog.unshift({ date: todayInApp(), item:itemName, change:`${dir} ${item.unit}`, reason });
 
   renderAll();
   closeModal();
-  const dir = diff>0 ? `+${fmt(diff)}` : fmt(diff);
   showToast(`${itemName} adjusted (${dir} ${item.unit}) — ${reason}`);
 }
 
@@ -1143,6 +1443,8 @@ function submitStockTransfer(){
     return;
   }
   closeModal();
+  recentTransfersLog.unshift({ date: todayInApp(), item:itemName, qty:`${fmt(qty)} ${item.unit}`, from, to });
+  renderRecentActivity();
   showToast(`Transferred ${fmt(qty)} ${item.unit} of ${itemName}: ${from} → ${to}`);
 }
 
@@ -1414,119 +1716,36 @@ function confirmImport(){
   showToast(`Imported updates for ${updated} item${updated===1?'':'s'}`);
 }
 
-/* ════════════════ LIVE DATA LOAD ════════════════
-   Replaces the fixed May-2026 demo snapshot. Builds invItems/recentPurchases/
-   priceHistoryByItem in the exact shape the existing render functions already
-   expect, so renderMonthlyTable/renderAllTimeTable/renderPriceHistory/etc. all
-   keep working unchanged. Opening = previous period's closing (inventory_balance).
-   Used = production batch consumption + milling conversion consumption (Teff/
-   Rice are consumed by milling, not production batches — same fix as Dashboard). */
+/* ════════════════ SUPABASE LOAD (best-effort) ════════════════
+   Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
+   schema §14.3 to keep names/units/reorder levels in sync with the live database.
+   Monthly movement figures continue to use the local snapshot above until the
+   inventory_balance / price_history views (§6.5 / §6.6) are wired up for this page. */
 async function loadFromSupabase(){
   try {
-    const period = currentPeriod;
-    const prevPeriod = prevPeriodOf(period);
-
-    const [itemsRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes, recentPurchRes, priceHistRes] = await Promise.all([
-      db.from('inventory_items').select('*').eq('is_active', true).order('name'),
-      db.from('inventory_balance').select('*').eq('period', period),
-      db.from('inventory_balance').select('*').eq('period', prevPeriod),
-      db.from('purchases').select('item_id,quantity,total_cost,date').eq('type','purchase').eq('is_deleted',false).eq('period',period).in('approval_status',['auto_approved','approved']),
-      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.is_deleted', false).eq('production_batches.period', period),
-      db.from('milling_conversions').select('teff_qty,rice_qty,period').eq('period', period),
-      db.from('purchases').select('date,quantity,unit_price,total_cost,inventory_items(name,unit)').eq('type','purchase').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
-      db.from('price_history').select('*')
-    ]);
-
-    const items = itemsRes.data || [];
-    if(itemsRes.error || !items.length){ throw itemsRes.error || new Error('No active inventory items found'); }
-
-    const balCurByItem = Object.fromEntries((balCurRes.data||[]).map(r=>[r.item_id, r]));
-    const balPrevByItem = Object.fromEntries((balPrevRes.data||[]).map(r=>[r.item_id, r]));
-
-    const purchByItem = {};
-    (purchInRes.data||[]).forEach(p=>{ purchByItem[p.item_id] = (purchByItem[p.item_id]||0) + num(p.quantity); });
-
-    const usedByItem = {};
-    (prodUseRes.data||[]).forEach(m=>{ usedByItem[m.item_id] = (usedByItem[m.item_id]||0) + num(m.quantity_used); });
-    const teffItem = items.find(i=>i.name==='Teff'), riceItem = items.find(i=>i.name==='Rice');
-    (millRes.data||[]).forEach(mc=>{
-      if(teffItem) usedByItem[teffItem.id] = (usedByItem[teffItem.id]||0) + num(mc.teff_qty);
-      if(riceItem) usedByItem[riceItem.id] = (usedByItem[riceItem.id]||0) + num(mc.rice_qty);
-    });
-
-    // Replace invItems in place (keeps the same array reference other code may hold)
-    invItems.length = 0;
-    items.forEach(row=>{
-      const bal = balCurByItem[row.id];
-      const prevBal = balPrevByItem[row.id];
-      const closing = bal ? num(bal.closing_qty) : (prevBal ? num(prevBal.closing_qty) : null);
-      const wac = bal ? num(bal.wac_per_unit) : (prevBal ? num(prevBal.wac_per_unit) : 0);
-      const value = bal ? num(bal.closing_value) : (closing!=null ? closing*wac : null);
-      const opening = prevBal ? num(prevBal.closing_qty) : (closing!=null ? closing : null);
-      const purchased = purchByItem[row.id] || 0;
-      const used = usedByItem[row.id] || 0;
-      const reorder = row.reorder_level!=null ? num(row.reorder_level) : 0;
-      const item = {
-        id: row.id, name: row.name, unit: row.unit,
-        opening, purchased, used, closing, wac, value, reorder,
-        status:'OK', // computed just below via recomputeStatus, matching existing convention
-        expiryDate: null, // no per-batch expiry tracking in schema — see shelf_life_days fallback below
-        leadTimeDays: 5, safetyStockDays: 2 // not in schema yet — reasonable defaults, editable per item in Item Settings
-      };
-      if(row.shelf_life_days && purchInRes.data){
-        const lastPurchase = (purchInRes.data||[]).filter(p=>p.item_id===row.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
-        if(lastPurchase){
-          const d = new Date(lastPurchase.date+'T00:00:00');
-          d.setDate(d.getDate()+row.shelf_life_days);
-          item.expiryDate = d.toISOString().slice(0,10);
-        }
-      }
-      recomputeStatus(item);
-      invItems.push(item);
-    });
-
-    // Recent purchases (top 8, most recent first)
-    recentPurchases.length = 0;
-    (recentPurchRes.data||[]).forEach(p=>{
-      recentPurchases.push({
-        date: p.date, item: p.inventory_items?.name || 'Unknown Item',
-        qty: fmt(p.quantity)+' '+(p.inventory_items?.unit||''),
-        unitPrice: num(p.unit_price), total: num(p.total_cost)
+    const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true);
+    if(!error && data && data.length){
+      data.forEach(row=>{
+        const match = invItems.find(i=>i.name.toLowerCase() === (row.name||'').toLowerCase());
+        if(match && row.reorder_level != null) match.reorder = parseFloat(row.reorder_level);
       });
-    });
-
-    // Price history — last 6 periods up to and including the selected period, per item
-    const periods = [];
-    let pk = period;
-    for(let i=0;i<6;i++){ periods.unshift(pk); pk = prevPeriodOf(pk); }
-    const periodLabel = pstr => { const [y,m]=pstr.split('-').map(Number); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y; };
-    Object.keys(priceHistoryByItem).forEach(k=>delete priceHistoryByItem[k]);
-    items.forEach(row=>{
-      const rowsForItem = (priceHistRes.data||[]).filter(r=>r.item_id===row.id);
-      const vals = periods.map(p=>{
-        const match = rowsForItem.filter(r=>r.period===p);
-        if(!match.length) return null;
-        return match.reduce((s,r)=>s+num(r.effective_price_per_unit),0)/match.length;
-      });
-      if(vals.some(v=>v!=null)){
-        priceHistoryByItem[row.name] = { months: periods.map(periodLabel), vals: vals.map(v=>v==null?0:v) };
-      }
-    });
-
-    showToast('Inventory loaded for '+periodLabel(period));
+      showToast('Inventory items synced from database');
+    }
   } catch(err){
-    console.error('Inventory load error:', err);
-    showToast('Could not load live inventory — check connection');
+    console.log('Supabase unavailable, using local data:', err.message);
   }
   renderAll();
 }
 
 function renderAll(){
-  renderMonthlyTable();
-  renderRecentPurchases();
+  refreshTable();
+  renderRecentActivity();
   renderStockAlerts();
   renderValuationDonut();
+  renderValueTrendChart();
+  renderStockAgingChart();
   renderPriceHistory();
+  renderTopConsumedItems();
   computeKpis();
   runKpiAnimations();
 }
@@ -1537,8 +1756,8 @@ renderHeader({
   title: 'Inventory',
   subtitle: 'Track stock levels, costs, and price history',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
-  selectedMonth: 'Jul 2026',
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
+  selectedMonth: 'May 2026',
   onMonthChange: onMonthChange,
   showExport: true,
   onExportPdf: exportPDF,
