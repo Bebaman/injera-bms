@@ -47,8 +47,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .kc-pend{font-size:11px;font-weight:700;margin-top:5px;color:#f59e0b}
 
 /* ══ CARD ═══════════════════════════════════════════ */
-.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
-.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;flex-wrap:wrap;gap:10px}
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;display:flex;flex-direction:column}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 17px 10px;flex-wrap:wrap;gap:10px;flex-shrink:0}
 .card-ttl{font-family:'Quicksand',sans-serif;font-size:14px;font-weight:700;color:var(--td);display:flex;align-items:center;gap:7px}
 .card-ttl svg{width:15px;height:15px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .info-ic{width:14px;height:14px;border-radius:50%;border:1.4px solid var(--tl);color:var(--tl);font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;cursor:default}
@@ -74,8 +74,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 
 /* ══ TABLE ══════════════════════════════════════════ */
 .tbl-inv{width:100%;border-collapse:collapse;font-size:12px}
-.tbl-inv th{padding:9px 13px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
-.tbl-inv td{padding:10px 13px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.tbl-inv th{padding:11px 16px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.tbl-inv td{padding:12px 16px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl-inv tr:hover td{background:#f7fbf9}
 .tbl-inv .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none;color:#27ae60}
 .tbl-inv .tot td:first-child{color:#27ae60}
@@ -109,7 +109,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 /* ══ RECENT ACTIVITY TABS & LIST ═════════════════════ */
 .ra-tab{padding:8px 4px;font-size:11.5px;font-weight:700;color:var(--tl);cursor:pointer;border-bottom:2px solid transparent;margin-right:14px}
 .ra-tab.active{color:#1d5c38;border-bottom-color:#1d5c38}
-.ra-list{padding:8px 17px;min-height:150px}
+.ra-list{padding:8px 17px;min-height:150px;flex:1}
 .ra-row{padding:9px 0;border-bottom:1px solid #f0f5f2;font-size:11.5px}
 .ra-row:last-child{border-bottom:none}
 .ra-row .ra-date{color:var(--tl);font-weight:600;font-size:10.5px}
@@ -118,7 +118,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .ra-empty{padding:24px 0;text-align:center;color:var(--tl);font-size:12px}
 
 /* ══ TOP CONSUMED ITEMS ══════════════════════════════ */
-.tci-list{padding:6px 17px}
+.tci-list{padding:6px 17px;flex:1}
 .tci-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f5f2}
 .tci-row:last-child{border-bottom:none}
 .tci-rank{width:20px;height:20px;border-radius:50%;background:#eaf6ef;color:#1d5c38;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -153,21 +153,17 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .ph-note{margin:6px 17px 14px;background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:9px 13px;font-size:11.5px;color:var(--tm)}
 
 /* ══ STOCK ALERTS ═══════════════════════════════════ */
-.alert-row{display:flex;align-items:flex-start;gap:11px;padding:11px 17px;border-bottom:1px solid #f0f5f2}
-.alert-row:last-child{border-bottom:none}
-.alert-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.alert-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.al-r{background:#fdecea;color:#e53935}
-.al-o{background:#fef3e2;color:#f59e0b}
-.al-p{background:#f3e8fd;color:#8b5cf6}
-.al-b{background:#eef2fb;color:#3355a8}
-.alert-txt{flex:1;min-width:0}
-.alert-txt h5{font-size:12px;font-weight:700;color:var(--td);margin-bottom:2px}
-.alert-txt p{font-size:11px;color:var(--tm);line-height:1.4}
-.alert-pill-wrap{flex-shrink:0}
+.alert-tiles{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;padding:12px 17px 17px;flex:1}
+.alert-tile{border:1px solid var(--border);border-radius:10px;padding:12px 13px;display:flex;flex-direction:column;gap:3px;cursor:pointer;transition:background .12s,border-color .12s}
+.alert-tile:hover{background:var(--bg);border-color:#52B788}
+.at-ic{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:3px}
+.at-ic svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.at-lbl{font-size:11px;font-weight:600;color:var(--tm)}
+.at-val{font-size:17px;font-weight:800;color:var(--td);font-family:'Quicksand',sans-serif}
+.at-link{font-size:10.5px;font-weight:700;color:#27ae60;margin-top:auto}
 
 /* ══ DONUT ══════════════════════════════════════════ */
-.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;gap:14px}
+.exp-bd{padding:6px 17px 14px;display:flex;align-items:center;gap:14px;flex:1}
 .dnut{position:relative;flex-shrink:0}
 .dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:80px}
 .dnut-lbl span{font-size:9px;color:var(--tl);font-weight:600;display:block;line-height:1.2}
@@ -180,8 +176,18 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .exp-p{color:var(--tl);margin-left:2px}
 
 /* ══ QUICK ACTIONS ══════════════════════════════════ */
-.qa-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;padding:6px 17px 17px}
+.qa-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:6px 17px 17px}
 .qa-grid-wide{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.row-3col{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:14px;align-items:stretch}
+.row-4col{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px;align-items:stretch}
+@media (max-width:1200px){
+  .row-3col{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .row-4col{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:700px){
+  .row-3col{grid-template-columns:minmax(0,1fr)}
+  .row-4col{grid-template-columns:minmax(0,1fr)}
+}
 .qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:14px 6px;border-radius:10px;border:1px solid var(--border);background:#fff;cursor:pointer;transition:all .12s;text-align:center}
 .qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
 .qa-ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
@@ -207,7 +213,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .modal-ft{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:15px 22px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .modal-ft-note{font-size:11px;color:var(--tl);margin-right:auto;font-weight:500}
 
-.frm-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.content{overflow-x:hidden;max-width:100vw}
+.frm-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .frm-grp{margin-bottom:14px}
 .frm-grp:last-child{margin-bottom:0}
 .frm-lbl{display:block;font-size:11.5px;font-weight:700;color:var(--td);margin-bottom:6px}
@@ -231,8 +238,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .btn-s:hover{background:var(--bg)}
 
 .mtbl{width:100%;border-collapse:collapse;font-size:12px}
-.mtbl th{padding:8px 11px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
-.mtbl td{padding:9px 11px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
+.mtbl th{padding:10px 13px;text-align:left;font-size:9.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.mtbl td{padding:11px 13px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .mtbl tr:last-child td{border-bottom:none}
 
 .dz{border:1.6px dashed var(--border);border-radius:10px;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .12s,background .12s}
@@ -262,12 +269,11 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .content{padding:12px;max-width:100vw;overflow-x:hidden}
   .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
   .kc{min-width:180px;flex-shrink:0;scroll-snap-align:start}
-  .bot2{display:flex;flex-direction:column}
   .card{overflow:hidden;min-width:0;max-width:100%}
   .ph-body{grid-template-columns:1fr}
-  div[style*="grid-template-columns:1fr 330px"]{display:flex !important;flex-direction:column}
-  div[style*="grid-template-columns:1.4fr 1fr"]{display:flex !important;flex-direction:column}
-  .qa-grid{grid-template-columns:1fr 1fr}
+  .qa-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa-toolbar,.filter-bar{padding:10px 12px}
+  .filter-search{min-width:100%;order:-1}
 }
 @media (max-width:480px){
   .kc{min-width:160px}
@@ -373,7 +379,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       </select>
       <div class="filter-date-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>May 1 – 31, 2026</div>
       <div class="filter-more-btn" onclick="toggleMoreFilters()"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>More Filters</div>
-      <div class="filter-gear" onclick="showToast('Table column settings — coming soon')" title="Table Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+      <div class="filter-gear" onclick="openTableSettingsModal()" title="Table Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
       <div class="more-filters-row" id="moreFiltersRow">
         <label><input type="checkbox" id="mfLowOnly" onchange="onMoreFilterToggle()"> Low/Reorder items only</label>
         <label><input type="checkbox" id="mfExpiringOnly" onchange="onMoreFilterToggle()"> Expiring within 7 days only</label>
@@ -383,7 +389,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     <!-- INVENTORY OVERVIEW (detailed table) -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-hd">
-        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(May 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
+        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(Jul 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
         <div class="exp-btns">
           <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
           <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
@@ -404,7 +410,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     </div>
 
     <!-- ROW: Inventory Value Trend + Inventory Value Distribution + Stock Aging -->
-    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
+    <div class="row-3col">
 
       <!-- Inventory Value Trend -->
       <div class="card">
@@ -414,7 +420,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option>This Month</option><option>Last 6 Months</option>
           </select>
         </div>
-        <div style="position:relative;height:200px;padding:10px 17px 17px">
+        <div style="position:relative;min-height:250px;padding:10px 17px 17px;flex:1">
           <canvas id="valueTrendChart"></canvas>
         </div>
       </div>
@@ -442,7 +448,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <div class="card-ttl">Stock Aging</div>
           <span style="font-size:11px;color:var(--tl);font-weight:500">By Days Since Last Purchase</span>
         </div>
-        <div style="position:relative;height:200px;padding:10px 17px 17px">
+        <div style="position:relative;min-height:250px;padding:10px 17px 17px;flex:1">
           <canvas id="stockAgingChart"></canvas>
         </div>
       </div>
@@ -450,7 +456,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     </div>
 
     <!-- ROW: Recent Activity + Stock Alerts + Price History + Top Consumed Items -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;align-items:start">
+    <div class="row-4col">
 
       <!-- Recent Activity -->
       <div class="card">
@@ -475,7 +481,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl">Stock Alerts</div>
-          <a class="vall" onclick="showToast('Full alerts history coming soon')">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
+          <a class="vall" onclick="openAllAlertsModal()">View All <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></a>
         </div>
         <div id="stockAlertsList"></div>
       </div>
@@ -492,7 +498,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option value="Large Bags" data-unit="pcs">Large Bags</option>
           </select>
         </div>
-        <div style="position:relative;height:180px;padding:10px 17px 4px">
+        <div style="position:relative;min-height:180px;padding:10px 17px 4px;flex:1">
           <canvas id="priceChart"></canvas>
         </div>
         <div class="ph-note" id="phNote" style="padding:6px 17px 14px">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
@@ -546,55 +552,19 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
    Monthly movement figures (opening/purchased/used/closing/WAC/value) follow §3.3 Monthly View
    formulas — computed server-side from purchases + production/derkosh usage in the live system.
    Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
-const invItems = [
-  { name:'Injera Blend',       unit:'kg',   opening:120.00, purchased:50.00,  used:70.00,  closing:100.00, wac:916.67, value:91667.00, reorder:100.00, status:'OK', expiryDate:'2026-06-05', leadTimeDays:7, safetyStockDays:3,
-    category:'Raw Materials', warehouse:'Main Store', reservedQty:10.00, supplier:'Ethio Mills', lastPurchaseDate:'2026-05-29' },
-  { name:'Corn',                unit:'kg',   opening:80.00,  purchased:40.00,  used:60.00,  closing:60.00,  wac:260.00, value:15600.00, reorder:60.00,  status:'LOW', expiryDate:null, leadTimeDays:4, safetyStockDays:2,
-    category:'Raw Materials', warehouse:'Main Store', reservedQty:5.00, supplier:'Omo Agro', lastPurchaseDate:'2026-05-25' },
-  { name:'Gomen Zere',          unit:'kg',   opening:15.00,  purchased:10.00,  used:8.00,   closing:17.00,  wac:800.00, value:13600.00, reorder:20.00,  status:'OK', expiryDate:'2026-06-03', leadTimeDays:2, safetyStockDays:1,
-    category:'Raw Materials', warehouse:'Cold Storage', reservedQty:2.00, supplier:'Merkato Grain Traders', lastPurchaseDate:'2026-05-30' },
-  { name:'Small Bags',          unit:'pcs',  opening:500.00, purchased:200.00, used:180.00, closing:520.00, wac:23.00,  value:11960.00, reorder:500.00, status:'LOW', expiryDate:null, leadTimeDays:10, safetyStockDays:4,
-    category:'Packaging', warehouse:'Packaging Area', reservedQty:40.00, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-05-18' },
-  { name:'Large Bags',          unit:'pcs',  opening:200.00, purchased:100.00, used:80.00,  closing:220.00, wac:35.00,  value:7700.00,  reorder:200.00, status:'REORDER', expiryDate:null, leadTimeDays:10, safetyStockDays:4,
-    category:'Packaging', warehouse:'Packaging Area', reservedQty:15.00, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-04-20' },
-  { name:'Electricity Prepaid', unit:'unit', opening:null,   purchased:1.00,   used:1.00,   closing:null,   wac:2300.00,value:null,      reorder:5.00,   status:'OK', expiryDate:null, leadTimeDays:1, safetyStockDays:0,
-    category:'Utilities', warehouse:'Main Store', reservedQty:0, supplier:'Ethiopian Electric Utility', lastPurchaseDate:'2026-05-31' },
-  { name:'Cleaning Material',   unit:'pcs',  opening:30.00,  purchased:10.00,  used:8.00,   closing:32.00,  wac:45.00,  value:1440.00,  reorder:20.00,  status:'OK', expiryDate:null, leadTimeDays:5, safetyStockDays:2,
-    category:'Consumables', warehouse:'Main Store', reservedQty:0, supplier:'Bakery Supplies Co', lastPurchaseDate:'2026-05-10' },
-  { name:'Plastic Sheets',      unit:'pcs',  opening:10.00,  purchased:5.00,   used:3.00,   closing:12.00,  wac:40.00,  value:480.00,   reorder:15.00,  status:'OK', expiryDate:null, leadTimeDays:7, safetyStockDays:3,
-    category:'Packaging', warehouse:'Packaging Area', reservedQty:0, supplier:'Addis Poly Pack', lastPurchaseDate:'2026-04-02' }
-];
+// Populated live by loadFromSupabase(). Starting empty rather than with
+// plausible-looking fabricated numbers — the database may genuinely have
+// no data yet for some items/periods, and blank is more honest than invented.
+let invItems = [];
+let recentPurchases = [];
+let recentUsageLog = [];
+let recentAdjustmentsLog = [];   // no real adjustments table yet (see loadFromSupabase note) — stays empty until built
+let recentTransfersLog = [];
+let staticAlerts = [];           // replaced by buildStockLevelAlerts() below, kept as empty for getAllAlerts() compat
+let priceHistoryByItem = {};
+let inventoryValueTrendHistory = [];
+let warehousesList = [];         // [{id,name}] — populated live, used by Item Settings / Transfer dropdowns
 
-const recentPurchases = [
-  { date:'2026-05-29', item:'Injera Blend', qty:'50 kg',  unitPrice:920.00, total:46000.00 },
-  { date:'2026-05-28', item:'Corn',         qty:'40 kg',  unitPrice:260.00, total:10400.00 },
-  { date:'2026-05-27', item:'Small Bags',   qty:'200 pcs',unitPrice:23.00,  total:4600.00 },
-  { date:'2026-05-26', item:'Large Bags',   qty:'100 pcs',unitPrice:35.00,  total:3500.00 },
-  { date:'2026-05-25', item:'Gomen Zere',   qty:'10 kg',  unitPrice:800.00, total:8000.00 }
-];
-/* Companion activity logs — populated live when Record Usage / Adjust Stock / Stock Transfer
-   are submitted, so Recent Activity can show real tabs instead of just Purchases. */
-const recentUsageLog = [
-  { date:'2026-05-30', item:'Injera Blend', qty:'12 kg', note:'Injera batch #B-0510' },
-  { date:'2026-05-29', item:'Corn',         qty:'8 kg',  note:'Injera batch #B-0509' },
-  { date:'2026-05-27', item:'Gomen Zere',   qty:'3 kg',  note:'Derkosh batch #D-0212' }
-];
-const recentAdjustmentsLog = [
-  { date:'2026-05-24', item:'Plastic Sheets', change:'-2 pcs', reason:'Damaged / Spoiled' }
-];
-const recentTransfersLog = [
-  { date:'2026-05-22', item:'Small Bags', qty:'50 pcs', from:'Main Store', to:'Packaging Area' }
-];
-
-/* Non-expiry alerts stay static demo data for now. Expiry alerts are computed live
-   from each item's expiryDate field below (see buildExpiryAlerts) instead of being
-   hardcoded text, so they stay accurate as expiry dates are edited via Item Settings. */
-const staticAlerts = [
-  { icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:'Large Bags', text:'Closing stock 220 pcs is below 50% of reorder level. Reorder level: 200 pcs.' },
-  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Corn', text:'Closing stock 60 kg is below reorder level. Reorder level: 60 kg.' },
-  { icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:'Small Bags', text:'Closing stock 520 pcs is below reorder level. Reorder level: 500 pcs.' },
-  { icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title:'Plastic Sheets & Cleaning Material', text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' }
-];
 /* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
 function daysUntilExpiry(item){
   if(!item.expiryDate) return null;
@@ -621,33 +591,48 @@ function buildOverstockAlerts(){
     text:`Closing stock ${fmt(i.closing)} ${i.unit} is ${Math.round((i.closing/i.reorder-1)*100)}% above reorder level (${fmt(i.reorder)} ${i.unit}).`
   }));
 }
-function getAllAlerts(){ return [...buildExpiryAlerts(), ...buildOverstockAlerts(), ...staticAlerts]; }
-
-const priceHistoryByItem = {
-  'Injera Blend': { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[880.00,892.50,915.00,910.00,901.67,916.67] },
-  'Corn':         { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[235.00,240.00,255.00,250.00,248.00,260.00] },
-  'Gomen Zere':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[720.00,740.00,760.00,780.00,790.00,800.00] },
-  'Small Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[20.00,20.50,21.00,22.00,22.50,23.00] },
-  'Large Bags':   { months:['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'], vals:[31.00,32.00,33.00,34.00,34.50,35.00] }
-};
-/* Prior months of total inventory value (demo history). The current/last point is always
-   computed live from invItems so it never drifts out of sync with the rest of the page. */
-const inventoryValueTrendHistory = [
-  { month:'Dec 2025', value:98500 },
-  { month:'Jan 2026', value:105200 },
-  { month:'Feb 2026', value:112800 },
-  { month:'Mar 2026', value:121400 },
-  { month:'Apr 2026', value:131900 }
-];
+// Was a hardcoded staticAlerts array (Large Bags 220pcs, Corn 60kg, etc.) that no
+// longer matched real data once invItems became live — now computed from real status.
+function buildStockLevelAlerts(){
+  const alerts = [];
+  invItems.filter(i=>i.status==='REORDER').forEach(i=>{
+    alerts.push({ icon:'al-r', pill:'pill-reorder', pillText:'REORDER NOW', title:i.name,
+      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below 60% of reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
+  });
+  invItems.filter(i=>i.status==='LOW').forEach(i=>{
+    alerts.push({ icon:'al-o', pill:'pill-low', pillText:'LOW STOCK', title:i.name,
+      text:`Closing stock ${fmt(i.closing)} ${i.unit} is below reorder level. Reorder level: ${fmt(i.reorder)} ${i.unit}.` });
+  });
+  const slow = invItems.filter(i=>{ const d = daysOfSupply(i); return d!=null && d>120; }).map(i=>i.name);
+  if(slow.length){
+    alerts.push({ icon:'al-b', pill:'pill-slow', pillText:'SLOW-MOVING', title: slow.join(' & '),
+      text:'120+ days of supply on hand at current usage rate — consider pausing reorders and reviewing for dead stock.' });
+  }
+  return [...alerts, ...buildOverstockAlerts()];
+}
+function getAllAlerts(){ return [...buildExpiryAlerts(), ...buildStockLevelAlerts()]; }
 
 function fmt(n){ return (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function num(v){ return parseFloat(v)||0; }
 function dash(v){ return (v===null || v===undefined) ? '-' : fmt(v); }
 function fmtDateLong(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
 /* ════════════════ HEADER MONTH CHANGE ════════════════ */
+const MONTH_LABEL_TO_PERIOD = {
+  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
+  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06','Jul 2026':'2026-07'
+};
+function prevPeriodOf(period){
+  const [y,m] = period.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+let currentPeriod = MONTH_LABEL_TO_PERIOD['Jul 2026'];
 function onMonthChange(m){
   document.getElementById('ovMonthLbl').textContent = '('+m+')';
-  showToast('Loaded inventory for '+m);
+  currentPeriod = MONTH_LABEL_TO_PERIOD[m] || currentPeriod;
+  showToast('Loading inventory for '+m+'…');
+  loadFromSupabase();
 }
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */
@@ -781,22 +766,22 @@ function renderMonthlyTable(){
     return `
     <tr>
       <td style="font-weight:600">${it.name}</td>
-      <td>${it.category||'-'}</td>
-      <td>${it.warehouse||'-'}</td>
+      <td data-col="category">${it.category||'-'}</td>
+      <td data-col="warehouse">${it.warehouse||'-'}</td>
       <td>${it.unit}</td>
-      <td>${dash(it.opening)}</td>
-      <td>${dash(it.purchased)}</td>
-      <td>${dash(it.used)}</td>
+      <td data-col="opening">${dash(it.opening)}</td>
+      <td data-col="purchased">${dash(it.purchased)}</td>
+      <td data-col="used">${dash(it.used)}</td>
       <td>${dash(it.closing)}</td>
-      <td>${dash(it.reservedQty)}</td>
-      <td>${available===null?'-':fmt(available)}</td>
-      <td>${fmt(it.wac)}</td>
-      <td>${dash(it.value)}</td>
-      <td>${fmt(it.reorder)}</td>
-      <td>${daysOfSupplyLabel(dos)}</td>
-      <td>${movementPill(dos)}</td>
-      <td>${it.supplier||'-'}</td>
-      <td>${it.lastPurchaseDate?fmtDateLong(it.lastPurchaseDate):'-'}</td>
+      <td data-col="reserved">${dash(it.reservedQty)}</td>
+      <td data-col="available">${available===null?'-':fmt(available)}</td>
+      <td data-col="wac">${fmt(it.wac)}</td>
+      <td data-col="value">${dash(it.value)}</td>
+      <td data-col="reorder">${fmt(it.reorder)}</td>
+      <td data-col="dos">${daysOfSupplyLabel(dos)}</td>
+      <td data-col="movement">${movementPill(dos)}</td>
+      <td data-col="supplier">${it.supplier||'-'}</td>
+      <td data-col="lastPurchase">${it.lastPurchaseDate?fmtDateLong(it.lastPurchaseDate):'-'}</td>
       <td>${pillFor(it.status)}</td>
       <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;}).join('');
@@ -806,18 +791,19 @@ function renderMonthlyTable(){
   const totUsed = items.reduce((s,i)=>s+(i.used||0),0);
   const totClose = items.reduce((s,i)=>s+(i.closing||0),0);
   const totVal = items.reduce((s,i)=>s+(i.value||0),0);
-  if(items.length) rows += `<tr class="tot"><td>TOTAL</td><td></td><td></td><td></td><td>${fmt(totOpen)}</td><td>${fmt(totPurch)}</td><td>${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td></td><td></td><td></td><td>${fmt(totVal)}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+  if(items.length) rows += `<tr class="tot"><td>TOTAL</td><td data-col="category"></td><td data-col="warehouse"></td><td></td><td data-col="opening">${fmt(totOpen)}</td><td data-col="purchased">${fmt(totPurch)}</td><td data-col="used">${fmt(totUsed)}</td><td>${fmt(totClose)}</td><td data-col="reserved"></td><td data-col="available"></td><td data-col="wac"></td><td data-col="value">${fmt(totVal)}</td><td data-col="reorder"></td><td data-col="dos"></td><td data-col="movement"></td><td data-col="supplier"></td><td data-col="lastPurchase"></td><td></td><td></td></tr>`;
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
       <thead><tr>
-        <th>Item</th><th>Category</th><th>Warehouse</th><th>Unit</th><th>Opening Stock<br>May 1, 2026</th><th>Purchased<br>(This Month)</th>
-        <th>Used / Sold<br>(This Month)</th><th>Current Qty</th><th>Reserved Qty</th><th>Available Qty</th><th>Monthly WAC<br>(ETB / Unit)</th>
-        <th>Total Value<br>(ETB)</th><th>Reorder</th><th>Days of Supply</th><th>Movement</th><th>Supplier</th><th>Last Purchase</th><th>Status</th><th></th>
+        <th>Item</th><th data-col="category">Category</th><th data-col="warehouse">Warehouse</th><th>Unit</th><th data-col="opening">Opening Stock<br>May 1, 2026</th><th data-col="purchased">Purchased<br>(This Month)</th>
+        <th data-col="used">Used / Sold<br>(This Month)</th><th>Current Qty</th><th data-col="reserved">Reserved Qty</th><th data-col="available">Available Qty</th><th data-col="wac">Monthly WAC<br>(ETB / Unit)</th>
+        <th data-col="value">Total Value<br>(ETB)</th><th data-col="reorder">Reorder</th><th data-col="dos">Days of Supply</th><th data-col="movement">Movement</th><th data-col="supplier">Supplier</th><th data-col="lastPurchase">Last Purchase</th><th>Status</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('wacNote').textContent = 'WAC = Weighted Average Cost · Days of Supply = Closing Stock ÷ Avg Daily Usage (this month)';
   updateResultsFooter(items.length, invItems.length);
+  applyColumnVisibility();
 }
 function renderAllTimeTable(){
   const items = applyFilters(invItems);
@@ -828,19 +814,19 @@ function renderAllTimeTable(){
     const available = it.closing!=null ? Math.max(0, it.closing-(it.reservedQty||0)) : null;
     return `<tr>
       <td style="font-weight:600">${it.name}</td>
-      <td>${it.category||'-'}</td>
-      <td>${it.warehouse||'-'}</td>
+      <td data-col="category">${it.category||'-'}</td>
+      <td data-col="warehouse">${it.warehouse||'-'}</td>
       <td>${it.unit}</td>
-      <td>${dash(totalIn)}</td>
-      <td>${dash(totalOut)}</td>
+      <td data-col="opening">${dash(totalIn)}</td>
+      <td data-col="used">${dash(totalOut)}</td>
       <td>${dash(it.closing)}</td>
-      <td>${dash(it.reservedQty)}</td>
-      <td>${available===null?'-':fmt(available)}</td>
-      <td>${fmt(it.wac)}</td>
-      <td>${dash(it.value)}</td>
-      <td>${daysOfSupplyLabel(dos)}</td>
-      <td>${movementPill(dos)}</td>
-      <td>${it.supplier||'-'}</td>
+      <td data-col="reserved">${dash(it.reservedQty)}</td>
+      <td data-col="available">${available===null?'-':fmt(available)}</td>
+      <td data-col="wac">${fmt(it.wac)}</td>
+      <td data-col="value">${dash(it.value)}</td>
+      <td data-col="dos">${daysOfSupplyLabel(dos)}</td>
+      <td data-col="movement">${movementPill(dos)}</td>
+      <td data-col="supplier">${it.supplier||'-'}</td>
       <td>${pillFor(it.status)}</td>
       <td><button class="row-edit-btn" onclick="openItemSettingsModal('${it.name}')" title="Item Settings — Reorder Level &amp; Expiry"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button></td>
     </tr>`;
@@ -848,11 +834,12 @@ function renderAllTimeTable(){
   if(!items.length) rows = `<tr><td colspan="16" style="text-align:center;color:var(--tl);padding:20px">No items match your filters</td></tr>`;
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
-      <thead><tr><th>Item</th><th>Category</th><th>Warehouse</th><th>Unit</th><th>Total In (All-Time)</th><th>Total Out (All-Time)</th><th>Current Balance</th><th>Reserved Qty</th><th>Available Qty</th><th>All-Time WAC</th><th>Current Value (ETB)</th><th>Days of Supply</th><th>Movement</th><th>Supplier</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Item</th><th data-col="category">Category</th><th data-col="warehouse">Warehouse</th><th>Unit</th><th data-col="opening">Total In (All-Time)</th><th data-col="used">Total Out (All-Time)</th><th>Current Balance</th><th data-col="reserved">Reserved Qty</th><th data-col="available">Available Qty</th><th data-col="wac">All-Time WAC</th><th data-col="value">Current Value (ETB)</th><th data-col="dos">Days of Supply</th><th data-col="movement">Movement</th><th data-col="supplier">Supplier</th><th>Status</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('wacNote').textContent = "All-Time Perpetual shows the running stock balance since system start. WAC = Weighted Average Cost. Days of Supply is based on this month's usage rate.";
   updateResultsFooter(items.length, invItems.length);
+  applyColumnVisibility();
 }
 function renderPriceHistoryTable(){
   let rows = recentPurchases.map(p=>`<tr>
@@ -875,22 +862,42 @@ function switchTab(tab){
   else renderPriceHistoryTable();
 }
 
-/* ════════════════ STOCK ALERTS ════════════════ */
+/* ════════════════ STOCK ALERTS (tile design, matching reference) ════════════════ */
+const icAlertTriangle = '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+const icClock = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+const icTrendDown = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l-2.5 2.5"/><path d="M16.5 7.5l1.5-1.5"/></svg>';
 function renderStockAlerts(){
-  document.getElementById('stockAlertsList').innerHTML = getAllAlerts().map(a=>`
-    <div class="alert-row">
-      <div class="alert-ic ${a.icon}">
-        ${a.icon==='al-r' ? '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-          : a.icon==='al-o' ? '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-          : a.icon==='al-b' ? '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l-2.5 2.5"/><path d="M16.5 7.5l1.5-1.5"/></svg>'
-          : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'}
+  const lowCount = invItems.filter(i=>i.status==='LOW'||i.status==='REORDER').length;
+  const expiringCount = buildExpiryAlerts().filter(a=>a.pillText==='EXPIRING SOON').length;
+  const overstockCount = buildOverstockAlerts().length;
+  const slowCount = invItems.filter(i=>{ const d=daysOfSupply(i); return d!==null && d>45; }).length;
+  document.getElementById('stockAlertsList').innerHTML = `
+    <div class="alert-tiles">
+      <div class="alert-tile" onclick="openReorderReportModal()">
+        <div class="at-ic ic-o">${icAlertTriangle}</div>
+        <div class="at-lbl">Low Stock</div>
+        <div class="at-val">${lowCount} Item${lowCount===1?'':'s'}</div>
+        <a class="at-link">View Details →</a>
       </div>
-      <div class="alert-txt">
-        <h5>${a.title}</h5>
-        <p>${a.text}</p>
+      <div class="alert-tile" onclick="openExpiryReportModal()">
+        <div class="at-ic ic-p">${icClock}</div>
+        <div class="at-lbl">Expiring Soon</div>
+        <div class="at-val">${expiringCount} Item${expiringCount===1?'':'s'}</div>
+        <a class="at-link">View Details →</a>
       </div>
-      <div class="alert-pill-wrap"><span class="pill-sm ${a.pill}">${a.pillText}</span></div>
-    </div>`).join('');
+      <div class="alert-tile" onclick="openOverstockReportModal()">
+        <div class="at-ic ic-c">${icBox}</div>
+        <div class="at-lbl">Overstock</div>
+        <div class="at-val">${overstockCount} Item${overstockCount===1?'':'s'}</div>
+        <a class="at-link">View Details →</a>
+      </div>
+      <div class="alert-tile" onclick="openSlowMovingReportModal()">
+        <div class="at-ic ic-r">${icTrendDown}</div>
+        <div class="at-lbl">Slow Moving</div>
+        <div class="at-val">${slowCount} Item${slowCount===1?'':'s'}</div>
+        <a class="at-link">View Details →</a>
+      </div>
+    </div>`;
 }
 
 /* ════════════════ INVENTORY VALUATION DONUT ════════════════ */
@@ -1170,7 +1177,7 @@ function closeModal(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 /* ── shared form helpers ── */
-function todayInApp(){ return '2026-05-31'; } // demo dataset's simulated "today"
+function todayInApp(){ return new Date().toISOString().slice(0,10); }
 function itemOptionsHtml(selected){
   return invItems.map(i=>`<option value="${i.name}" ${i.name===selected?'selected':''}>${i.name} (${i.unit})</option>`).join('');
 }
@@ -1393,20 +1400,17 @@ function submitAdjustStock(){
 
 /* ════════════════ 4. STOCK TRANSFER ════════════════ */
 function openStockTransferModal(){
+  const whOptions = warehousesList.map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
   const body = `
     <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-      Logs a movement between storage areas. Total on-hand quantity is unchanged.</div>
+      Logs a movement between storage areas. Total on-hand quantity is unchanged — the item's current warehouse becomes the destination.</div>
     <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
       <select class="frm-sel" id="stItem" onchange="updateTransferAvailable()">${itemOptionsHtml()}</select></div>
     <div class="frm-row">
       <div class="frm-grp"><label class="frm-lbl">From <span class="req">*</span></label>
-        <select class="frm-sel" id="stFrom">
-          <option>Main Store</option><option>Production Floor</option><option>Cold Storage</option><option>Packaging Area</option>
-        </select></div>
+        <select class="frm-sel" id="stFrom">${whOptions}</select></div>
       <div class="frm-grp"><label class="frm-lbl">To <span class="req">*</span></label>
-        <select class="frm-sel" id="stTo">
-          <option>Production Floor</option><option>Main Store</option><option>Cold Storage</option><option>Packaging Area</option>
-        </select></div>
+        <select class="frm-sel" id="stTo">${whOptions}</select></div>
     </div>
     <div class="frm-grp" id="stQtyGrp">
       <label class="frm-lbl">Quantity <span class="req">*</span></label>
@@ -1423,29 +1427,42 @@ function openStockTransferModal(){
     <button class="btn-p" onclick="submitStockTransfer()">${icCheck}Save Transfer</button>`;
   openModal({ title:'Stock Transfer', sub:'Move stock between storage areas', iconClass:'ic-c', icon:icTransfer, bodyHtml:body, footerHtml:footer });
   updateTransferAvailable();
+  const firstItem = invItems.find(i=>i.name===document.getElementById('stItem').value);
+  if(firstItem && firstItem.warehouseId) document.getElementById('stFrom').value = firstItem.warehouseId;
 }
 function updateTransferAvailable(){
   const item = invItems.find(i=>i.name===document.getElementById('stItem').value);
   const el = document.getElementById('stAvail');
   if(item && el) el.textContent = `Available: ${dash(item.closing)} ${item.unit}`;
+  if(item && item.warehouseId){ const f = document.getElementById('stFrom'); if(f) f.value = item.warehouseId; }
 }
-function submitStockTransfer(){
+async function submitStockTransfer(){
   const itemName = document.getElementById('stItem').value;
-  const from = document.getElementById('stFrom').value;
-  const to = document.getElementById('stTo').value;
+  const fromId = document.getElementById('stFrom').value;
+  const toId = document.getElementById('stTo').value;
   const qty = parseFloat(document.getElementById('stQty').value);
+  const notes = document.getElementById('stNotes').value || null;
   const item = invItems.find(i=>i.name===itemName);
   const available = item ? (item.closing||0) : 0;
-  const bad = !(qty>0) || qty>available || from===to;
+  const bad = !(qty>0) || qty>available || fromId===toId;
   toggleFieldError('stQty', bad);
   if(bad || !item){
-    if(from===to) showToast('From and To locations must be different');
+    if(fromId===toId) showToast('From and To locations must be different');
     return;
   }
-  closeModal();
-  recentTransfersLog.unshift({ date: todayInApp(), item:itemName, qty:`${fmt(qty)} ${item.unit}`, from, to });
-  renderRecentActivity();
-  showToast(`Transferred ${fmt(qty)} ${item.unit} of ${itemName}: ${from} → ${to}`);
+  try {
+    const { error } = await db.from('inventory_transfers').insert({
+      date: todayInApp(), item_id: item.id, quantity: qty,
+      from_warehouse_id: fromId, to_warehouse_id: toId, notes
+    });
+    if(error) throw error;
+    closeModal();
+    showToast(`Transferred ${fmt(qty)} ${item.unit} of ${itemName}`);
+    await loadFromSupabase();
+  } catch(err){
+    console.error('Transfer save failed:', err);
+    showToast('Could not save transfer — check connection');
+  }
 }
 
 /* ════════════════ ITEM SETTINGS (Reorder Level, Lead Time & Expiry Date) ════════════════ */
@@ -1471,9 +1488,25 @@ function openItemSettingsModal(itemName){
       These are master settings for <strong>${item.name}</strong> — they drive Stock Alerts, Reorder status, and the Expiry Report.</div>
 
     <div class="frm-row">
+      <div class="frm-grp"><label class="frm-lbl">Category</label>
+        <select class="frm-sel" id="isCategory">
+          ${['Raw Materials','Packaging','Utilities','Consumables'].map(c=>`<option value="${c}" ${item.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div class="frm-grp"><label class="frm-lbl">Warehouse</label>
+        <select class="frm-sel" id="isWarehouse">
+          ${warehousesList.map(w=>`<option value="${w.id}" ${item.warehouseId===w.id?'selected':''}>${w.name}</option>`).join('')}
+        </select></div>
+    </div>
+    <div class="frm-grp">
+      <label class="frm-lbl">Reserved Qty (${item.unit})</label>
+      <input class="frm-in" type="number" min="0" step="0.01" id="isReserved" value="${item.reservedQty ?? 0}">
+      <div class="frm-hint">Stock earmarked/committed but not yet used — informational, doesn't reduce Closing Stock.</div>
+    </div>
+
+    <div class="frm-row" id="isLeadGrpRow">
       <div class="frm-grp" id="isLeadGrp"><label class="frm-lbl">Lead Time (days)</label>
         <input class="frm-in" type="number" min="0" step="1" id="isLead" value="${item.leadTimeDays ?? 5}" oninput="refreshSuggestedReorder('${item.name}')">
-        <div class="frm-hint">Days from placing an order to receiving stock.</div></div>
+        <div class="frm-hint">Days from placing an order to receiving stock. (Not yet persisted to the database — resets to default 5 next load.)</div></div>
       <div class="frm-grp" id="isSafetyGrp"><label class="frm-lbl">Safety Stock (days)</label>
         <input class="frm-in" type="number" min="0" step="1" id="isSafety" value="${item.safetyStockDays ?? 2}" oninput="refreshSuggestedReorder('${item.name}')">
         <div class="frm-hint">Buffer for demand spikes or delivery delays.</div></div>
@@ -1532,7 +1565,7 @@ function applySuggestedReorder(itemName){
   document.getElementById('isReorder').value = suggested.toFixed(2);
   document.getElementById('isReorderGrp').classList.remove('err');
 }
-function submitItemSettings(itemName){
+async function submitItemSettings(itemName){
   const item = invItems.find(i=>i.name===itemName);
   if(!item) return;
   const reorder = parseFloat(document.getElementById('isReorder').value);
@@ -1540,19 +1573,34 @@ function submitItemSettings(itemName){
   const safetyStockDays = parseFloat(document.getElementById('isSafety').value);
   const hasExpiry = document.getElementById('isHasExpiry').checked;
   const expiryVal = document.getElementById('isExpiry').value;
-  const bad = !(reorder>=0);
+  const category = document.getElementById('isCategory').value;
+  const warehouseId = document.getElementById('isWarehouse').value;
+  const reservedQty = parseFloat(document.getElementById('isReserved').value)||0;
+  const bad = !(reorder>=0) || !(reservedQty>=0);
   toggleFieldError('isReorder', bad);
   if(bad) return;
 
-  item.reorder = +reorder.toFixed(2);
-  item.leadTimeDays = leadTimeDays>=0 ? leadTimeDays : item.leadTimeDays;
-  item.safetyStockDays = safetyStockDays>=0 ? safetyStockDays : item.safetyStockDays;
-  item.expiryDate = hasExpiry && expiryVal ? expiryVal : null;
-  recomputeStatus(item);
+  try {
+    const { error } = await db.from('inventory_items').update({
+      reorder_level: reorder, category, warehouse_id: warehouseId, reserved_qty: reservedQty
+    }).eq('id', item.id);
+    if(error) throw error;
 
-  renderAll();
-  closeModal();
-  showToast(`Updated settings for ${item.name}`);
+    item.reorder = +reorder.toFixed(2);
+    item.leadTimeDays = leadTimeDays>=0 ? leadTimeDays : item.leadTimeDays;
+    item.safetyStockDays = safetyStockDays>=0 ? safetyStockDays : item.safetyStockDays;
+    item.expiryDate = hasExpiry && expiryVal ? expiryVal : null;
+    item.category = category;
+    item.reservedQty = reservedQty;
+    recomputeStatus(item);
+
+    closeModal();
+    showToast(`Updated settings for ${item.name}`);
+    await loadFromSupabase();
+  } catch(err){
+    console.error('Item settings save failed:', err);
+    showToast('Could not save settings — check connection');
+  }
 }
 
 
@@ -1591,6 +1639,61 @@ function openReorderReportModal(){
     <button class="btn-s" onclick="closeModal()">Close</button>
     <button class="btn-p" onclick="exportReportPDF('Reorder Report', ['Item','Unit','Closing','Reorder Level','Days of Supply','Status'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Reorder_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
   openModal({ title:'Reorder Report', sub:'Items at or below reorder level', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* ════════════════ OVERSTOCK REPORT ════════════════ */
+const icBox = '<svg viewBox="0 0 24 24"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><line x1="12" y1="13" x2="12" y2="21"/></svg>';
+function openOverstockReportModal(){
+  const flagged = buildOverstockAlerts();
+  const rows = flagged.length ? flagged.map(a=>{
+    const it = invItems.find(i=>i.name===a.title);
+    return `<tr><td style="font-weight:600">${a.title}</td><td>${it.unit}</td><td>${fmt(it.closing)}</td><td>${fmt(it.reorder)}</td><td>${a.text}</td></tr>`;
+  }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--tl)">No overstocked items right now</td></tr>`;
+  const body = `
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Unit</th><th>Closing</th><th>Reorder Level</th><th>Detail</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} overstocked</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-p" onclick="exportReportPDF('Overstock Report', ['Item','Unit','Closing','Reorder Level','Detail'], ${JSON.stringify(flagged.map(a=>{const it=invItems.find(i=>i.name===a.title);return [a.title,it.unit,fmt(it.closing),fmt(it.reorder),a.text];}))}, 'Overstock_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+  openModal({ title:'Overstock Report', sub:'Items well above reorder level', iconClass:'ic-c', icon:icBox, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* ════════════════ SLOW MOVING REPORT ════════════════ */
+function openSlowMovingReportModal(){
+  const flagged = invItems.filter(i=>{ const d=daysOfSupply(i); return d!==null && d>45; });
+  const rows = flagged.length ? flagged.map(i=>{
+    const dos = daysOfSupply(i);
+    return `<tr><td style="font-weight:600">${i.name}</td><td>${i.unit}</td><td>${fmt(i.closing)}</td><td>${daysOfSupplyLabel(dos)}</td><td>${movementPill(dos)}</td></tr>`;
+  }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--tl)">No slow-moving items right now</td></tr>`;
+  const body = `
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Unit</th><th>Closing</th><th>Days of Supply</th><th>Movement</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} slow-moving</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Slow_Moving_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+  openModal({ title:'Slow Moving Report', sub:'Items with excess days of supply', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
+}
+
+/* ════════════════ ALL STOCK ALERTS (View All) ════════════════ */
+function openAllAlertsModal(){
+  const alerts = getAllAlerts();
+  const rows = alerts.length ? alerts.map(a=>`<tr><td style="font-weight:600">${a.title}</td><td>${a.text}</td><td><span class="pill-sm ${a.pill}">${a.pillText}</span></td></tr>`).join('')
+    : `<tr><td colspan="3" style="text-align:center;color:var(--tl)">No active alerts</td></tr>`;
+  const body = `
+    <div style="overflow-x:auto"><table class="mtbl">
+      <thead><tr><th>Item</th><th>Detail</th><th>Type</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const footer = `
+    <span class="modal-ft-note">${alerts.length} active alert${alerts.length===1?'':'s'}</span>
+    <button class="btn-s" onclick="closeModal()">Close</button>`;
+  openModal({ title:'All Stock Alerts', sub:'Every active alert across categories', iconClass:'ic-o', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
 /* ════════════════ 7. INVENTORY REPORT ════════════════ */
@@ -1716,38 +1819,225 @@ function confirmImport(){
   showToast(`Imported updates for ${updated} item${updated===1?'':'s'}`);
 }
 
+/* Column visibility state for the Inventory Overview table — toggled via the gear icon */
+const visibleCols = { category:true, warehouse:true, opening:true, purchased:true, used:true, reserved:true, available:true, wac:true, value:true, reorder:true, dos:true, movement:true, supplier:true, lastPurchase:true };
+function applyColumnVisibility(){
+  Object.keys(visibleCols).forEach(key=>{
+    document.querySelectorAll(`[data-col="${key}"]`).forEach(el=>{
+      el.style.display = visibleCols[key] ? '' : 'none';
+    });
+  });
+}
+const COL_LABELS = { category:'Category', warehouse:'Warehouse', opening:'Opening / Total In', purchased:'Purchased', used:'Used / Sold', reserved:'Reserved Qty', available:'Available Qty', wac:'WAC', value:'Total Value', reorder:'Reorder Level', dos:'Days of Supply', movement:'Movement', supplier:'Supplier', lastPurchase:'Last Purchase' };
+function openTableSettingsModal(){
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Choose which columns to show in the Inventory Overview table. Item, Unit, Qty, and Status always stay visible.</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px">
+      ${Object.keys(COL_LABELS).map(k=>`<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer">
+        <input type="checkbox" id="col_${k}" ${visibleCols[k]?'checked':''}> ${COL_LABELS[k]}
+      </label>`).join('')}
+    </div>`;
+  const footer = `
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="applyTableSettings()">${icCheck}Apply</button>`;
+  openModal({ title:'Table Columns', sub:'Choose which columns show in Inventory Overview', iconClass:'ic-t', icon:icSettings, bodyHtml:body, footerHtml:footer });
+}
+function applyTableSettings(){
+  Object.keys(visibleCols).forEach(k=>{
+    const el = document.getElementById('col_'+k);
+    if(el) visibleCols[k] = el.checked;
+  });
+  closeModal();
+  applyColumnVisibility();
+  showToast('Table columns updated');
+}
+
 /* ════════════════ SUPABASE LOAD (best-effort) ════════════════
    Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
    schema §14.3 to keep names/units/reorder levels in sync with the live database.
    Monthly movement figures continue to use the local snapshot above until the
    inventory_balance / price_history views (§6.5 / §6.6) are wired up for this page. */
+/* ════════════════ LIVE DATA LOAD ════════════════
+   Replaces the frozen May-2026 demo snapshot. Builds invItems/recentPurchases/
+   recentUsageLog/recentTransfersLog/priceHistoryByItem/warehousesList live.
+   Used = production batch consumption + milling conversion consumption (Teff/
+   Rice are consumed by milling, not production batches). recentAdjustmentsLog
+   stays empty — there's no real "manual stock adjustment" table in the schema
+   yet (see submitAdjustStock), so nothing fabricated is shown in its place. */
 async function loadFromSupabase(){
   try {
-    const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true);
-    if(!error && data && data.length){
-      data.forEach(row=>{
-        const match = invItems.find(i=>i.name.toLowerCase() === (row.name||'').toLowerCase());
-        if(match && row.reorder_level != null) match.reorder = parseFloat(row.reorder_level);
+    const period = currentPeriod;
+    const prevPeriod = prevPeriodOf(period);
+
+    const [itemsRes, whRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes,
+           recentPurchRes, priceHistRes, transfersRes] = await Promise.all([
+      db.from('inventory_items').select('*').eq('is_active', true).order('name'),
+      db.from('warehouses').select('id,name').order('name'),
+      db.from('inventory_balance').select('*').eq('period', period),
+      db.from('inventory_balance').select('*').eq('period', prevPeriod),
+      db.from('purchases').select('item_id,quantity,total_cost,date').eq('type','purchase').eq('is_deleted',false).eq('period',period).in('approval_status',['auto_approved','approved']),
+      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted,date,batch_number)').eq('production_batches.is_deleted', false).eq('production_batches.period', period),
+      db.from('milling_conversions').select('date,teff_qty,rice_qty,period').eq('period', period),
+      db.from('purchases').select('date,quantity,unit_price,total_cost,inventory_items(name,unit),suppliers(name)').eq('type','purchase').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
+      db.from('price_history').select('*'),
+      db.from('inventory_transfers').select('date,quantity,item_id,inventory_items(name,unit),from:from_warehouse_id(name),to:to_warehouse_id(name)').eq('is_deleted',false).order('date',{ascending:false}).limit(8)
+    ]);
+
+    const items = itemsRes.data || [];
+    if(itemsRes.error || !items.length){ throw itemsRes.error || new Error('No active inventory items found'); }
+    warehousesList = whRes.data || [];
+    const whNameById = Object.fromEntries(warehousesList.map(w=>[w.id, w.name]));
+
+    const balCurByItem = Object.fromEntries((balCurRes.data||[]).map(r=>[r.item_id, r]));
+    const balPrevByItem = Object.fromEntries((balPrevRes.data||[]).map(r=>[r.item_id, r]));
+
+    const purchByItem = {};
+    (purchInRes.data||[]).forEach(p=>{ purchByItem[p.item_id] = (purchByItem[p.item_id]||0) + num(p.quantity); });
+
+    const usedByItem = {};
+    (prodUseRes.data||[]).forEach(m=>{ usedByItem[m.item_id] = (usedByItem[m.item_id]||0) + num(m.quantity_used); });
+    const teffItem = items.find(i=>i.name==='Teff'), riceItem = items.find(i=>i.name==='Rice');
+    (millRes.data||[]).forEach(mc=>{
+      if(teffItem) usedByItem[teffItem.id] = (usedByItem[teffItem.id]||0) + num(mc.teff_qty);
+      if(riceItem) usedByItem[riceItem.id] = (usedByItem[riceItem.id]||0) + num(mc.rice_qty);
+    });
+
+    // Most recent real purchase per item — used for both "Last Purchase Date" and the
+    // display-only "Supplier" column (derived live, not a duplicated stored field).
+    const lastPurchaseByItem = {};
+    (purchInRes.data||[]).forEach(p=>{
+      const cur = lastPurchaseByItem[p.item_id];
+      if(!cur || p.date > cur.date) lastPurchaseByItem[p.item_id] = p;
+    });
+    // Need supplier name too — separate lightweight query scoped to just what we display
+    const { data: allApprovedPurchRows } = await db.from('purchases')
+      .select('item_id,date,suppliers(name)').eq('type','purchase').eq('is_deleted',false)
+      .in('approval_status',['auto_approved','approved']).order('date',{ascending:false});
+    const supplierByItem = {};
+    (allApprovedPurchRows||[]).forEach(p=>{
+      if(!supplierByItem[p.item_id]) supplierByItem[p.item_id] = p.suppliers?.name || null;
+    });
+
+    invItems.length = 0;
+    items.forEach(row=>{
+      const bal = balCurByItem[row.id];
+      const prevBal = balPrevByItem[row.id];
+      const closing = bal ? num(bal.closing_qty) : (prevBal ? num(prevBal.closing_qty) : null);
+      const wac = bal ? num(bal.wac_per_unit) : (prevBal ? num(prevBal.wac_per_unit) : 0);
+      const value = bal ? num(bal.closing_value) : (closing!=null ? closing*wac : null);
+      const opening = prevBal ? num(prevBal.closing_qty) : (closing!=null ? closing : null);
+      const purchased = purchByItem[row.id] || 0;
+      const used = usedByItem[row.id] || 0;
+      const reorder = row.reorder_level!=null ? num(row.reorder_level) : 0;
+      const item = {
+        id: row.id, name: row.name, unit: row.unit,
+        opening, purchased, used, closing, wac, value, reorder,
+        status:'OK',
+        expiryDate: null,
+        leadTimeDays: 5, safetyStockDays: 2, // not in schema — reasonable defaults, editable but not persisted yet
+        category: row.category || null,
+        warehouse: row.warehouse_id ? (whNameById[row.warehouse_id] || null) : null,
+        warehouseId: row.warehouse_id || null,
+        reservedQty: num(row.reserved_qty),
+        supplier: supplierByItem[row.id] || null,
+        lastPurchaseDate: lastPurchaseByItem[row.id] ? lastPurchaseByItem[row.id].date : null
+      };
+      if(row.shelf_life_days && item.lastPurchaseDate){
+        const d = new Date(item.lastPurchaseDate+'T00:00:00');
+        d.setDate(d.getDate()+row.shelf_life_days);
+        item.expiryDate = d.toISOString().slice(0,10);
+      }
+      recomputeStatus(item);
+      invItems.push(item);
+    });
+
+    // Recent activity — real purchases, real usage (production + milling), real transfers
+    recentPurchases.length = 0;
+    (recentPurchRes.data||[]).forEach(p=>{
+      recentPurchases.push({
+        date: p.date, item: p.inventory_items?.name || 'Unknown Item',
+        qty: fmt(p.quantity)+' '+(p.inventory_items?.unit||''),
+        unitPrice: num(p.unit_price), total: num(p.total_cost)
       });
-      showToast('Inventory items synced from database');
-    }
+    });
+
+    recentUsageLog.length = 0;
+    const prodUsageRows = (prodUseRes.data||[]).map(m=>({
+      date: m.production_batches?.date, item: items.find(i=>i.id===m.item_id)?.name || 'Unknown Item',
+      qty: fmt(num(m.quantity_used))+' '+(items.find(i=>i.id===m.item_id)?.unit||''),
+      note: 'Batch #'+(m.production_batches?.batch_number || '—')
+    }));
+    const millUsageRows = [];
+    (millRes.data||[]).forEach(mc=>{
+      if(teffItem) millUsageRows.push({ date: mc.date, item:'Teff', qty: fmt(num(mc.teff_qty))+' kg', note:'Milling conversion' });
+      if(riceItem) millUsageRows.push({ date: mc.date, item:'Rice', qty: fmt(num(mc.rice_qty))+' kg', note:'Milling conversion' });
+    });
+    [...prodUsageRows, ...millUsageRows].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8).forEach(r=>recentUsageLog.push(r));
+
+    recentAdjustmentsLog.length = 0; // no real adjustments table yet — stays empty rather than fabricated
+
+    recentTransfersLog.length = 0;
+    (transfersRes.data||[]).forEach(t=>{
+      recentTransfersLog.push({
+        date: t.date, item: t.inventory_items?.name || 'Unknown Item',
+        qty: fmt(t.quantity)+' '+(t.inventory_items?.unit||''),
+        from: t.from?.name || '—', to: t.to?.name || '—'
+      });
+    });
+
+    // Price history — last 6 periods up to and including the selected period, per item
+    const periods = [];
+    let pk = period;
+    for(let i=0;i<6;i++){ periods.unshift(pk); pk = prevPeriodOf(pk); }
+    const periodLabel = pstr => { const [y,m]=pstr.split('-').map(Number); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y; };
+    priceHistoryByItem = {};
+    let runningValueHistory = [];
+    items.forEach(row=>{
+      const rowsForItem = (priceHistRes.data||[]).filter(r=>r.item_id===row.id);
+      const vals = periods.map(p=>{
+        const match = rowsForItem.filter(r=>r.period===p);
+        if(!match.length) return null;
+        return match.reduce((s,r)=>s+num(r.effective_price_per_unit),0)/match.length;
+      });
+      if(vals.some(v=>v!=null)){
+        priceHistoryByItem[row.name] = { months: periods.map(periodLabel), vals: vals.map(v=>v==null?0:v) };
+      }
+    });
+
+    // Inventory value trend — total closing value per of the last 5 periods before
+    // the selected one (the current point is always the live-computed total below).
+    const balAllRes = await db.from('inventory_balance').select('period,closing_value').in('period', periods.slice(0,5));
+    const valueByPeriod = {};
+    (balAllRes.data||[]).forEach(r=>{ valueByPeriod[r.period] = (valueByPeriod[r.period]||0) + num(r.closing_value); });
+    inventoryValueTrendHistory = periods.slice(0,5).map(p=>({ month: periodLabel(p), value: valueByPeriod[p]||0 }));
+
+    showToast('Inventory loaded for '+periodLabel(period));
   } catch(err){
-    console.log('Supabase unavailable, using local data:', err.message);
+    console.error('Inventory load error:', err);
+    showToast('Could not load live inventory — check connection');
   }
   renderAll();
 }
 
+/* Each step runs in isolation: if one throws (e.g. a charting library failed to load),
+   it's logged but doesn't block the rest of the page — table, KPIs, and alerts are far
+   more important to keep working than any single chart. */
+function safeRender(fn, label){
+  try { fn(); }
+  catch(e){ console.log('Render step failed ('+label+'):', e.message); }
+}
 function renderAll(){
-  refreshTable();
-  renderRecentActivity();
-  renderStockAlerts();
-  renderValuationDonut();
-  renderValueTrendChart();
-  renderStockAgingChart();
-  renderPriceHistory();
-  renderTopConsumedItems();
-  computeKpis();
-  runKpiAnimations();
+  safeRender(refreshTable, 'table');
+  safeRender(renderRecentActivity, 'recent activity');
+  safeRender(renderStockAlerts, 'stock alerts');
+  safeRender(renderValuationDonut, 'valuation donut');
+  safeRender(renderValueTrendChart, 'value trend chart');
+  safeRender(renderStockAgingChart, 'stock aging chart');
+  safeRender(renderPriceHistory, 'price history chart');
+  safeRender(renderTopConsumedItems, 'top consumed items');
+  safeRender(computeKpis, 'kpi computation');
+  safeRender(runKpiAnimations, 'kpi animations');
 }
 
 /* ════════════════ HEADER ════════════════ */
@@ -1756,8 +2046,8 @@ renderHeader({
   title: 'Inventory',
   subtitle: 'Track stock levels, costs, and price history',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
+  selectedMonth: 'Jul 2026',
   onMonthChange: onMonthChange,
   showExport: true,
   onExportPdf: exportPDF,
