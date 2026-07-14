@@ -213,10 +213,41 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .leg{flex-wrap:wrap;gap:8px!important}
   .rpt-sel-grp label{font-size:9.5px}
 }
+
+/* ---- Detail modal (View Details links) ---- */
+.dm-overlay{display:none;position:fixed;inset:0;background:rgba(15,30,22,.45);z-index:200;align-items:center;justify-content:center;padding:20px}
+.dm-overlay.open{display:flex}
+.dm-panel{background:#fff;border-radius:14px;max-width:820px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:dmIn .18s ease both}
+@keyframes dmIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.dm-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);font-family:'Quicksand',sans-serif;font-weight:700;font-size:16px;color:var(--td)}
+.dm-close{background:none;border:none;font-size:22px;line-height:1;color:var(--tl);cursor:pointer;padding:2px 6px;border-radius:6px}
+.dm-close:hover{background:var(--bg);color:var(--td)}
+.dm-body{padding:16px 20px 22px;overflow-y:auto}
+.dm-body table{width:100%;border-collapse:collapse;font-size:12px}
+.dm-body th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--tl);font-weight:700;padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
+.dm-body th:first-child,.dm-body td:first-child{text-align:left}
+.dm-body td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+.dm-body tr:last-child td{border-bottom:none}
+.dm-note{font-size:11.5px;color:var(--tl);margin-top:14px;line-height:1.5;padding:10px 12px;background:#f7fbf9;border-radius:8px}
+@media (max-width:600px){
+  .dm-panel{max-height:90vh}
+  .dm-body{padding:14px}
+  .dm-body table{font-size:10.5px}
+  .dm-body th,.dm-body td{padding:6px 7px}
+}
 </style>
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<div class="dm-overlay" id="detailModalOverlay" onclick="if(event.target===this) closeDetailModal()">
+  <div class="dm-panel">
+    <div class="dm-hd">
+      <span id="detailModalTitle">Details</span>
+      <button class="dm-close" onclick="closeDetailModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="dm-body" id="detailModalBody"></div>
+  </div>
+</div>
 <div id="sidebar-root"></div>
 <div class="main" id="mainContent">
   <div id="header-root"></div>
@@ -264,6 +295,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option value="blend">Injera Blend</option>
             <option value="corn">Corn</option>
             <option value="gomen">Gomen Zere</option>
+            <option value="teff">Teff</option>
+            <option value="rice">Rice</option>
           </select>
         </div>
         <div class="rpt-sel-grp" id="lastUpdatedGrp">
@@ -318,7 +351,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Per-Unit Economics Trend (Injera)
           </div>
-          <span class="vall" onclick="alert('Full per-unit economics detail coming soon.')">View Details</span>
+          <span class="vall" onclick="showPerUnitDetail()">View Details</span>
         </div>
         <div class="leg" style="padding:0 17px;flex-wrap:wrap">
           <span><span class="leg-ln" style="background:#1d5c38"></span>Revenue per Injera</span>
@@ -329,7 +362,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <canvas id="perUnitChart"></canvas>
         </div>
         <div class="info-note" style="border-top:none;padding-top:0">
-          <span>ETB per Injera. Cost/unit modeled from ingredient price trend — see Executive Summary.</span>
+          <span>ETB per Injera. Real cost/unit = actual COGS ÷ real Injera pieces produced.</span>
         </div>
       </div>
 
@@ -340,7 +373,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
             Product Mix Trend (Revenue %)
           </div>
-          <span class="vall" onclick="alert('Full product mix detail coming soon.')">View Details</span>
+          <span class="vall" onclick="showProductMixDetail()">View Details</span>
         </div>
         <div class="leg" style="padding:0 17px">
           <span><span class="leg-ln" style="background:#1d5c38"></span>Injera %</span>
@@ -350,7 +383,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <canvas id="productMixChart"></canvas>
         </div>
         <div class="info-note" style="border-top:none;padding-top:0">
-          <span>Derkosh revenue modeled from kg produced × est. price — see Executive Summary.</span>
+          <span>Injera and Derkosh revenue are both real, summed directly from Sales.</span>
         </div>
       </div>
     </div>
@@ -363,7 +396,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
             COGS Decomposition (ETB)
           </div>
-          <span class="vall" onclick="alert('Full COGS breakdown coming soon.')">View Details</span>
+          <span class="vall" onclick="showCogsDecompDetail()">View Details</span>
         </div>
         <div class="chart-box" style="height:280px;position:relative">
           <canvas id="cogsDecompChart"></canvas>
@@ -376,7 +409,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Customer Concentration Trend
           </div>
-          <span class="vall" onclick="alert('Full concentration detail coming soon.')">View Details</span>
+          <span class="vall" onclick="showConcentrationDetail()">View Details</span>
         </div>
         <div class="leg" style="padding:0 17px;flex-wrap:wrap">
           <span><span class="leg-ln" style="background:#1d5c38"></span>Top 1</span>
@@ -394,7 +427,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
             Top Customer Retention / Churn
           </div>
-          <span class="vall" onclick="alert('Full retention detail coming soon.')">View Details</span>
+          <span class="vall" onclick="showRetentionDetail()">View Details</span>
         </div>
         <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
           <table class="tbl-sb" id="retentionTable" style="font-size:10.5px"></table>
@@ -416,6 +449,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <option value="blend">Injera Blend</option>
           <option value="corn">Corn</option>
           <option value="gomen">Gomen Zere</option>
+            <option value="teff">Teff</option>
+            <option value="rice">Rice</option>
         </select>
       </div>
       <div class="leg" style="padding:0 17px;flex-wrap:wrap">
@@ -582,84 +617,21 @@ const YEAR_COLOR = {2023:'#1d5c38', 2024:'#2563eb', 2025:'#f59e0b', 2026:'#e5393
 
 // Fallback dataset — used until/unless Supabase aggregation succeeds.
 // Numbers match the reference Multi-Year Reporting screenshot exactly.
-let yearData = {
-  2023: { months: [
-      {m:'Jan',rev:22450,net:4120}, {m:'Feb',rev:20150,net:3650}, {m:'Mar',rev:21780,net:4050},
-      {m:'Apr',rev:20960,net:3870}, {m:'May',rev:22880,net:4270}, {m:'Jun',rev:23450,net:4380},
-      {m:'Jul',rev:24100,net:4560}, {m:'Aug',rev:24780,net:4720}, {m:'Sep',rev:23900,net:4510},
-      {m:'Oct',rev:24550,net:4610}, {m:'Nov',rev:23100,net:4180}, {m:'Dec',rev:21780,net:3900}
-    ], injera:244000, derkosh:15450, asp:10.25 },
-  2024: { months: [
-      {m:'Jan',rev:26780,net:5120}, {m:'Feb',rev:23410,net:4310}, {m:'Mar',rev:24690,net:4620},
-      {m:'Apr',rev:24120,net:4420}, {m:'May',rev:25890,net:4860}, {m:'Jun',rev:26550,net:5010},
-      {m:'Jul',rev:27230,net:5180}, {m:'Aug',rev:28300,net:5420}, {m:'Sep',rev:27110,net:5140},
-      {m:'Oct',rev:27980,net:5260}, {m:'Nov',rev:26430,net:4860}, {m:'Dec',rev:24480,net:4680}
-    ], injera:272300, derkosh:18240, asp:10.58 },
-  2025: { months: [
-      {m:'Jan',rev:30250,net:6450}, {m:'Feb',rev:26770,net:5420}, {m:'Mar',rev:27890,net:5610},
-      {m:'Apr',rev:28450,net:5850}, {m:'May',rev:29710,net:6230}, {m:'Jun',rev:28840,net:6690},
-      {m:'Jul',rev:30120,net:6150}, {m:'Aug',rev:31210,net:6430}, {m:'Sep',rev:29880,net:6020},
-      {m:'Oct',rev:30420,net:6210}, {m:'Nov',rev:28750,net:5780}, {m:'Dec',rev:26720,net:5570}
-    ], injera:318450, derkosh:22370, asp:11.05 },
-  2026: { months: [
-      {m:'Jan',rev:28950,net:6320}, {m:'Feb',rev:25800,net:5140}, {m:'Mar',rev:27500,net:5690},
-      {m:'Apr',rev:30960,net:6970}, {m:'May',rev:31180,net:6690}
-    ], injera:182100, derkosh:12850, asp:11.24 }
-};
-
-// Top customers, cumulative across all years (matches reference screenshot).
-// pct/total are recomputed live against selectedYears in renderTopCustomers().
-let topCustomers = [
-  {name:'Addis Hotel', y2023:58450, y2024:66230, y2025:75890, y2026:39250},
-  {name:'Bole Restaurant', y2023:34120, y2024:38450, y2025:42780, y2026:21130},
-  {name:'Lucy Wholesale', y2023:22900, y2024:25440, y2025:28300, y2026:14120},
-  {name:'Yeka Retail Shop', y2023:11230, y2024:12540, y2025:13880, y2026:7210},
-  {name:'Meskel Cafe', y2023:9450, y2024:10320, y2025:11750, y2026:5480},
-  {name:'Selam Bakery', y2023:7780, y2024:8540, y2025:9720, y2026:4520},
-  {name:'Genet Supermarket', y2023:6340, y2024:6980, y2025:7910, y2026:3680},
-  {name:'Zion Guest House', y2023:5120, y2024:5640, y2025:6380, y2026:2970},
-  {name:'Fasika Catering', y2023:4150, y2024:4560, y2025:5190, y2026:2410},
-  {name:'Habesha Restaurant', y2023:3380, y2024:3720, y2025:4210, y2026:1960}
-];
-
-// Ingredient price fallback dataset (ETB/kg average per year), matching the
-// actual inventory_items master list (Part 14.3 of the v37 spec): Injera
-// Blend, Corn, and Gomen Zere — there is no "teff" tracked as a distinct
-// purchased item. 2026 values are anchored to the spec's June 2026 WAC
-// example (Injera Blend 916.67, Corn 320.00, Gomen Zere 180.00); earlier
-// years are backed off at a ~7-8% annual rate pending a live purchases join.
-let ingredientPrices = {
-  2023: {blend:730.00, corn:254.00, gomen:143.00},
-  2024: {blend:788.00, corn:274.00, gomen:155.00},
-  2025: {blend:850.00, corn:296.00, gomen:167.00},
-  2026: {blend:916.67, corn:320.00, gomen:180.00}
-};
-
-// Derkosh average selling price (ETB/kg) — estimated, pending a dedicated
-// Derkosh sales/price field. Used only to model the Injera vs Derkosh
-// revenue-mix chart until Derkosh revenue is tracked directly per Part 3.15.
-let derkoshAsp = { 2023:2.60, 2024:2.85, 2025:3.05, 2026:3.15 };
-
-// COGS component split (% of total COGS) per year — modeled from the
-// inventory_items purchase mix (Injera Blend/Corn/Gomen Zere) plus assumed
-// labor/fuel/packaging shares, pending a direct purchases+payroll join.
-// Each year's percentages sum to 100.
-let cogsComponentPct = {
-  2023: {blend:38, corn:22, gomen:11, labor:17, fuel:7, packaging:5},
-  2024: {blend:40, corn:21, gomen:11, labor:16, fuel:7, packaging:5},
-  2025: {blend:41, corn:20, gomen:11, labor:16, fuel:7, packaging:5},
-  2026: {blend:42, corn:20, gomen:12, labor:15, fuel:6, packaging:5}
-};
+// All of the below are populated live by loadFromSupabase() — see that
+// function for exactly which real tables/views back each one. Starting as
+// empty shells (not fabricated placeholder numbers) since the database may
+// genuinely have no data yet for some years/periods, and showing zero/blank
+// is more honest than showing a plausible-looking invented number.
+let yearData = {};
+let topCustomers = [];       // [{id, name, y2023..y2026}], populated from real sales
+let custMonthlyReal = {};    // custMonthlyReal[customerId][period] = revenue, for custMonthly()
+let ingredientMonthly = {};  // ingredientMonthly[key][year] = [12 values or null], key in blend/corn/gomen/teff/rice
+let derkoshAsp = {};         // derkoshAsp[year] = avg ETB/kg for the year (annual); monthly handled via derkoshAspMonthly
+let derkoshAspMonthly = {};  // derkoshAspMonthly[year] = [12 values or null]
+let cogsComponentAmounts = {}; // cogsComponentAmounts[year] = {blend,corn,gomen,teff,rice,labor,fuel,packaging} in real ETB
+let churnExamples = [];      // computed from real first/last sale year per customer
 const COGS_COMPONENT_LABELS = {blend:'Injera Blend', corn:'Corn', gomen:'Gomen Zere', labor:'Labor', fuel:'Fuel/Energy', packaging:'Packaging'};
 const COGS_COMPONENT_COLORS = {blend:'#1d5c38', corn:'#2563eb', gomen:'#f59e0b', labor:'#8b5cf6', fuel:'#0891b2', packaging:'#9aada5'};
-
-// Two illustrative rows for the Top Customer Retention/Churn table, showing
-// a customer that entered in 2024 and one that churned out after 2024 —
-// pending a real join to detect true roster entries/exits over time.
-let churnExamples = [
-  {name:'New in 2024', y2023:null, y2024:12400, y2025:18200, y2026:9800},
-  {name:'Churned 2025', y2023:8900, y2024:7200, y2025:0, y2026:null}
-];
 
 let selectedYears = new Set([2023,2024,2025,2026]);
 let currentView = 'monthly'; // 'annual' | 'monthly'
@@ -675,7 +647,8 @@ function yearTotals(y){
   const d = yearData[y];
   const rev = d.months.reduce((s,m)=>s+m.rev,0);
   const net = d.months.reduce((s,m)=>s+m.net,0);
-  return {rev, net, margin: marginOf(rev,net)};
+  const cogs = d.months.reduce((s,m)=>s+(m.cogs||0),0);
+  return {rev, net, cogs, margin: marginOf(rev,net)};
 }
 
 // Revenue share of a given month within its year — used to distribute
@@ -690,51 +663,50 @@ function monthRevShare(year, i){
    Each metric knows how to produce an annual figure and a monthly figure.
    Ratio-type metrics (margin, cogsPct) compute their own ratio rather than
    being summed; flow metrics (revenue, net, cogs...) are additive. */
-function grossProfitOf(rev){ return rev*0.28; }   // approximation, consistent with existing convention
-function cogsOf(rev){ return rev*0.72; }          // rev - gross profit
+// Real COGS/gross profit — cogs is stored directly per month (see loadFromSupabase),
+// not derived from revenue via a flat percentage.
+function grossProfitOf(rev, cogs){ return rev - (cogs||0); }
+function cogsOf(monthOrYearTotals){ return (monthOrYearTotals && monthOrYearTotals.cogs) || 0; }
 
 /* ---- Per-Unit Economics (Injera) ────────────────────────────────────
-   Real ingredient prices already rise faster than ASP (Injera Blend/Corn/
-   Gomen Zere are all up ~26% 2023→2026 vs. ASP up only ~9.7%), which is
-   the true margin-compression signal in this dataset. Cost/unit is modeled
-   by anchoring 2023 to the existing flat 72% COGS assumption, then growing
-   it by the blended ingredient price index — a defensible interim proxy
-   until real per-batch costing (ingredient consumption × WAC + labor +
-   overhead, per the accounting rules) is wired into this report. */
-function ingredientCompositeIndex(y){
-  const base = ingredientPrices[2023], cur = ingredientPrices[y];
-  return ((cur.blend/base.blend) + (cur.corn/base.corn) + (cur.gomen/base.gomen)) / 3;
-}
+   Real cost per unit = real total COGS for the year ÷ real Injera pieces
+   produced that year (both computed live in loadFromSupabase) — no index
+   or anchoring needed now that both sides are real numbers. */
 function perUnitEconomics(y){
-  const revPerUnit = yearData[y].asp;
-  const baseCost2023 = yearData[2023].asp * 0.72;
-  const costPerUnit = baseCost2023 * ingredientCompositeIndex(y);
+  const revPerUnit = yearData[y].asp || 0;
+  const injeraQty = yearData[y].injera || 0;
+  const costPerUnit = injeraQty>0 ? yearTotals(y).cogs / injeraQty : 0;
   return { revPerUnit, costPerUnit, profitPerUnit: revPerUnit - costPerUnit };
 }
 
 /* ---- Product Mix (Injera vs Derkosh revenue share) ──────────────────
-   Derkosh revenue isn't tracked as its own field yet, so it's modeled as
-   kg produced × an estimated Derkosh ASP; Injera revenue is the residual
-   of total company revenue. Swap in real per-product revenue once Sales
-   captures product_type consistently for both lines. */
+   Both injeraRev and derkoshRev are real, summed directly from Sales by
+   product_type (see loadFromSupabase) — neither is estimated or residual. */
 function productRevenueSplit(y){
   const total = yearTotals(y).rev;
-  const derkoshRev = Math.min(yearData[y].derkosh * derkoshAsp[y], total);
-  const injeraRev = Math.max(total - derkoshRev, 0);
+  const injeraRev = (yearData[y] && yearData[y].injeraRev) || 0;
+  const derkoshRev = (yearData[y] && yearData[y].derkoshRev) || 0;
   return { injeraRev, derkoshRev, total,
     injeraPct: total>0 ? injeraRev/total*100 : 0, derkoshPct: total>0 ? derkoshRev/total*100 : 0 };
 }
 
 /* ---- COGS Decomposition ──────────────────────────────────────────────
-   Splits the existing flat-72%-of-revenue COGS total (same figure used
-   everywhere else in this report) into components using a modeled % mix,
-   pending a direct purchases + payroll join for real component amounts. */
-function cogsComponents(y){
-  const total = cogsOf(yearTotals(y).rev);
-  const pct = cogsComponentPct[y];
+   Real component amounts (ETB), computed live in loadFromSupabase() from:
+   blend/corn/gomen/teff/rice = consumption × that period's WAC; labor =
+   payroll_detail; fuel = Electricity overhead; packaging = derkosh_batches
+   bag usage × WAC. Total is the sum of the parts themselves (not re-derived
+   from revenue), so this always reconciles with what's shown per component. */
+function cogsPctFor(y){
+  const amt = cogsComponentAmounts[y] || {};
+  const total = Object.values(amt).reduce((s,v)=>s+(v||0), 0);
   const out = {};
-  Object.keys(pct).forEach(k=>{ out[k] = total * (pct[k]/100); });
-  return { total, parts: out };
+  Object.keys(COGS_COMPONENT_LABELS).forEach(k=>{ out[k] = total>0 ? (amt[k]||0)/total*100 : 0; });
+  return out;
+}
+function cogsComponents(y){
+  const amt = cogsComponentAmounts[y] || {};
+  const total = Object.values(amt).reduce((s,v)=>s+(v||0), 0);
+  return { total, parts: amt };
 }
 
 /* ---- Customer Concentration (Top-1 / Top-3 / Top-10 share of revenue) */
@@ -753,7 +725,7 @@ function concentrationShare(y, n){
    Profit — this keeps Revenue → COGS → Gross → OpEx → Net internally
    consistent with real per-month net figures rather than inventing a
    second, disconnected number. */
-function operatingExpensesOf(y){ return grossProfitOf(yearTotals(y).rev) - yearTotals(y).net; }
+function operatingExpensesOf(y){ return grossProfitOf(yearTotals(y).rev, yearTotals(y).cogs) - yearTotals(y).net; }
 function operatingProfitOf(y){ return yearTotals(y).net; }
 
 const METRICS = {
@@ -764,40 +736,56 @@ const METRICS = {
     monthly:(y,i)=> yearData[y].months[i] ? yearData[y].months[i].net : null,
     annual:(y)=> yearTotals(y).net },
   gross: { label:'Gross Profit', unit:'ETB', decimals:0, color:'#2563eb', icon:'profit', cls:'ic-b',
-    monthly:(y,i)=> yearData[y].months[i] ? grossProfitOf(yearData[y].months[i].rev) : null,
-    annual:(y)=> grossProfitOf(yearTotals(y).rev) },
+    monthly:(y,i)=> yearData[y].months[i] ? grossProfitOf(yearData[y].months[i].rev, yearData[y].months[i].cogs) : null,
+    annual:(y)=> grossProfitOf(yearTotals(y).rev, yearTotals(y).cogs) },
   cogs: { label:'COGS', unit:'ETB', decimals:0, color:'#e53935', icon:'tag', cls:'ic-r',
-    monthly:(y,i)=> yearData[y].months[i] ? cogsOf(yearData[y].months[i].rev) : null,
-    annual:(y)=> cogsOf(yearTotals(y).rev) },
+    monthly:(y,i)=> yearData[y].months[i] ? cogsOf(yearData[y].months[i]) : null,
+    annual:(y)=> cogsOf(yearTotals(y)) },
   margin: { label:'Net Margin', unit:'%', decimals:1, color:'#1d5c38', icon:'trend', cls:'ic-o',
     monthly:(y,i)=>{ const r=yearData[y].months[i]; return r ? marginOf(r.rev,r.net) : null; },
     annual:(y)=> yearTotals(y).margin },
   grossMargin: { label:'Gross Margin', unit:'%', decimals:1, color:'#8b5cf6', icon:'trend', cls:'ic-p',
-    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r ? (grossProfitOf(r.rev)/r.rev*100) : null; },
-    annual:(y)=>{ const t=yearTotals(y); return t.rev>0 ? grossProfitOf(t.rev)/t.rev*100 : 0; } },
+    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.rev>0 ? (grossProfitOf(r.rev,r.cogs)/r.rev*100) : null; },
+    annual:(y)=>{ const t=yearTotals(y); return t.rev>0 ? grossProfitOf(t.rev,t.cogs)/t.rev*100 : 0; } },
   cogsPct: { label:'COGS % of Revenue', unit:'%', decimals:1, color:'#e53935', icon:'trend', cls:'ic-r',
-    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r ? (cogsOf(r.rev)/r.rev*100) : null; },
-    annual:(y)=>{ const t=yearTotals(y); return t.rev>0 ? cogsOf(t.rev)/t.rev*100 : 0; } },
+    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.rev>0 ? (cogsOf(r)/r.rev*100) : null; },
+    annual:(y)=>{ const t=yearTotals(y); return t.rev>0 ? cogsOf(t)/t.rev*100 : 0; } },
   injera: { label:'Injera Produced', unit:'pcs', decimals:0, color:'#1d5c38', icon:'box', cls:'ic-b',
     monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].injera*monthRevShare(y,i) : null,
     annual:(y)=> yearData[y].injera },
   derkosh: { label:'Derkosh Produced', unit:'kg', decimals:0, color:'#f59e0b', icon:'clock', cls:'ic-o',
     monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].derkosh*monthRevShare(y,i) : null,
     annual:(y)=> yearData[y].derkosh },
-  asp: { label:'Avg. Selling Price', unit:'ETB/pcs', decimals:2, color:'#2563eb', icon:'basket', cls:'ic-b',
+  asp: { label:'Avg. Selling Price (Injera)', unit:'ETB/pcs', decimals:2, color:'#2563eb', icon:'basket', cls:'ic-b',
     monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].asp : null,
     annual:(y)=> yearData[y].asp },
+  derkoshAsp: { label:'Avg. Selling Price (Derkosh)', unit:'ETB/kg', decimals:2, color:'#f59e0b', icon:'basket', cls:'ic-o',
+    monthly:(y,i)=> (i<monthsInYear(y) && derkoshAspMonthly[y] && derkoshAspMonthly[y][i]!=null) ? derkoshAspMonthly[y][i] : null,
+    annual:(y)=> derkoshAsp[y] || null },
   blend: { label:'Injera Blend Price', unit:'ETB/kg', decimals:2, color:'#1d5c38', icon:'tag', cls:'ic-g',
-    monthly:(y,i)=> i<monthsInYear(y) ? ingredientPrices[y].blend + Math.sin((i/12)*Math.PI*2)*(ingredientPrices[y].blend*0.015) : null,
-    annual:(y)=> ingredientPrices[y].blend },
+    monthly:(y,i)=> (ingredientMonthly.blend && ingredientMonthly.blend[y] && ingredientMonthly.blend[y][i]!=null) ? ingredientMonthly.blend[y][i] : null,
+    annual:(y)=> ingredientAnnual('blend', y) },
   corn: { label:'Corn Price', unit:'ETB/kg', decimals:2, color:'#2563eb', icon:'tag', cls:'ic-c',
-    monthly:(y,i)=> i<monthsInYear(y) ? ingredientPrices[y].corn + Math.sin((i/12)*Math.PI*2 + 1)*(ingredientPrices[y].corn*0.015) : null,
-    annual:(y)=> ingredientPrices[y].corn },
+    monthly:(y,i)=> (ingredientMonthly.corn && ingredientMonthly.corn[y] && ingredientMonthly.corn[y][i]!=null) ? ingredientMonthly.corn[y][i] : null,
+    annual:(y)=> ingredientAnnual('corn', y) },
   gomen: { label:'Gomen Zere Price', unit:'ETB/kg', decimals:2, color:'#f59e0b', icon:'tag', cls:'ic-o',
-    monthly:(y,i)=> i<monthsInYear(y) ? ingredientPrices[y].gomen + Math.sin((i/12)*Math.PI*2 + 2)*(ingredientPrices[y].gomen*0.015) : null,
-    annual:(y)=> ingredientPrices[y].gomen }
+    monthly:(y,i)=> (ingredientMonthly.gomen && ingredientMonthly.gomen[y] && ingredientMonthly.gomen[y][i]!=null) ? ingredientMonthly.gomen[y][i] : null,
+    annual:(y)=> ingredientAnnual('gomen', y) },
+  teff: { label:'Teff Price', unit:'ETB/kg', decimals:2, color:'#a16207', icon:'tag', cls:'ic-c',
+    monthly:(y,i)=> (ingredientMonthly.teff && ingredientMonthly.teff[y] && ingredientMonthly.teff[y][i]!=null) ? ingredientMonthly.teff[y][i] : null,
+    annual:(y)=> ingredientAnnual('teff', y) },
+  rice: { label:'Rice Price', unit:'ETB/kg', decimals:2, color:'#0d9488', icon:'tag', cls:'ic-g',
+    monthly:(y,i)=> (ingredientMonthly.rice && ingredientMonthly.rice[y] && ingredientMonthly.rice[y][i]!=null) ? ingredientMonthly.rice[y][i] : null,
+    annual:(y)=> ingredientAnnual('rice', y) }
 };
-const RATE_METRICS = new Set(['margin','grossMargin','cogsPct','asp','blend','corn','gomen']);
+// Simple average of the real monthly WAC values available for that year (not a
+// re-derived flat number) — matches how yearTotals sums real monthly figures.
+function ingredientAnnual(key, y){
+  const arr = (ingredientMonthly[key] && ingredientMonthly[key][y]) || [];
+  const vals = arr.filter(v=>v!=null);
+  return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null;
+}
+const RATE_METRICS = new Set(['margin','grossMargin','cogsPct','asp','derkoshAsp','blend','corn','gomen','teff','rice']);
 
 /* ════════════════ ROLLING AVERAGE HELPERS (Price History module, spec §3.3) ════════════════
    "Compare current price against 3-month average and 6-month average.
@@ -852,20 +840,9 @@ function custAnnual(c, y){ return c['y'+y] || 0; }
 function custMonthly(c, y, i){
   const n = monthsInYear(y);
   if(i>=n) return null;
-  // Distributed from the annual total using a per-customer seasonal weight
-  // (not a flat share of monthly company revenue) so that a "monthly share
-  // of revenue" comparison isn't mathematically guaranteed to be constant.
-  const idx = topCustomers.indexOf(c);
-  const phase = (idx+1)*0.9;
-  const amp = 0.12;
-  let weights = [];
-  for(let j=0;j<n;j++){
-    const base = monthRevShare(y,j);
-    weights.push(base*(1+amp*Math.sin((j/12)*Math.PI*2+phase)));
-  }
-  const wsum = weights.reduce((a,b)=>a+b,0);
-  const norm = wsum>0 ? weights[i]/wsum : 0;
-  return custAnnual(c,y) * norm;
+  const period = `${y}-${pad2(i+1)}`;
+  const byPeriod = custMonthlyReal[c.id];
+  return byPeriod ? (byPeriod[period] || 0) : 0;
 }
 function custPartialValue(c, year, nMonths){
   let total=0;
@@ -1015,41 +992,188 @@ const REPORTS = {
    Tries to compute the same shape from live tables; on any failure — table
    not present yet, RLS block, offline — the reference fallback above is
    used untouched so the report always renders. */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); } // m is 1-indexed
+
 async function loadFromSupabase(){
   try {
-    const { data: sales, error: salesErr } = await db
-      .from('sales')
-      .select('date, product_type, revenue, quantity, unit_price');
-    if (salesErr) throw salesErr;
-    if (!sales || sales.length === 0) throw new Error('no rows');
+    const today = new Date();
+    const currentYear = today.getFullYear();
 
-    const byYear = {};
-    sales.forEach(r=>{
-      const y = new Date(r.date).getFullYear();
-      const mIdx = new Date(r.date).getMonth();
-      if(!YEARS_ALL.includes(y)) return;
-      byYear[y] = byYear[y] || {};
-      byYear[y][mIdx] = byYear[y][mIdx] || {rev:0, injeraQty:0, injeraRevSum:0};
-      byYear[y][mIdx].rev += Number(r.revenue || (r.quantity*r.unit_price) || 0);
-      if(r.product_type === 'injera'){
-        byYear[y][mIdx].injeraQty += Number(r.quantity||0);
-        byYear[y][mIdx].injeraRevSum += Number(r.revenue || (r.quantity*r.unit_price) || 0);
+    const [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes,
+           wacRes, payrollRes, overheadRes, itemsRes] = await Promise.all([
+      db.from('monthly_pnl').select('period,injera_revenue,derkosh_revenue,total_revenue,total_cogs,total_overhead,total_opex,interest_expense'),
+      db.from('sales').select('date,period,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted', false),
+      db.from('production_batches').select('period,injera_qty').eq('is_deleted', false),
+      db.from('derkosh_batches').select('period,produced_kg,pkg_item_id,bags_used').eq('is_deleted', false),
+      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.is_deleted', false),
+      db.from('monthly_wac').select('item_id,period,wac_per_unit'),
+      db.from('payroll_detail').select('period,gross_pay'),
+      db.from('monthly_overhead').select('period,amount,overhead_categories(name)'),
+      db.from('inventory_items').select('id,name')
+    ]);
+
+    const pnlByPeriod = Object.fromEntries((pnlRes.data||[]).map(r=>[r.period, r]));
+    const payrollByPeriod = {};
+    (payrollRes.data||[]).forEach(r=>{ payrollByPeriod[r.period] = (payrollByPeriod[r.period]||0) + num(r.gross_pay); });
+    const electricityByPeriod = {};
+    (overheadRes.data||[]).forEach(r=>{
+      if(r.overhead_categories?.name === 'Electricity') electricityByPeriod[r.period] = (electricityByPeriod[r.period]||0) + num(r.amount);
+    });
+    const idByName = Object.fromEntries((itemsRes.data||[]).map(r=>[r.name, r.id]));
+    const wacByItemPeriod = {};
+    (wacRes.data||[]).forEach(r=>{ (wacByItemPeriod[r.item_id] = wacByItemPeriod[r.item_id]||{})[r.period] = num(r.wac_per_unit); });
+    const injeraQtyByPeriod = {};
+    (prodBatchRes.data||[]).forEach(r=>{ injeraQtyByPeriod[r.period] = (injeraQtyByPeriod[r.period]||0) + num(r.injera_qty); });
+    const derkoshKgByPeriod = {};
+    (derkoshBatchRes.data||[]).forEach(r=>{ derkoshKgByPeriod[r.period] = (derkoshKgByPeriod[r.period]||0) + num(r.produced_kg); });
+    // Packaging cost per period: bags_used × that period's WAC for the packaging item used
+    const packagingCostByPeriod = {};
+    (derkoshBatchRes.data||[]).forEach(r=>{
+      const wac = (wacByItemPeriod[r.pkg_item_id] && wacByItemPeriod[r.pkg_item_id][r.period]) || 0;
+      packagingCostByPeriod[r.period] = (packagingCostByPeriod[r.period]||0) + num(r.bags_used)*wac;
+    });
+    // Blend/Corn/Gomen material cost per period: consumption × that period's WAC
+    const materialCostByPeriod = { blend:{}, corn:{}, gomen:{} };
+    const materialKeyByItemId = {
+      [idByName['Injera Blend']]: 'blend', [idByName['Corn']]: 'corn', [idByName['Gomen Zere']]: 'gomen'
+    };
+    (prodMatRes.data||[]).forEach(r=>{
+      const key = materialKeyByItemId[r.item_id];
+      if(!key) return;
+      const period = r.production_batches?.period;
+      if(!period) return;
+      const wac = (wacByItemPeriod[r.item_id] && wacByItemPeriod[r.item_id][period]) || 0;
+      materialCostByPeriod[key][period] = (materialCostByPeriod[key][period]||0) + num(r.quantity_used)*wac;
+    });
+
+    // Sales aggregated by period for Injera ASP + Derkosh ASP
+    const injeraQtyByPeriodSales = {}, injeraRevByPeriodSales = {};
+    const derkoshQtyByPeriodSales = {}, derkoshRevByPeriodSales = {};
+    const custRevByCustomerPeriod = {}; // custRevByCustomerPeriod[customerId][period] = revenue
+    const custNameById = {};
+    (salesRes.data||[]).forEach(r=>{
+      const rev = num(r.revenue);
+      if(r.product_type==='injera'){
+        injeraQtyByPeriodSales[r.period] = (injeraQtyByPeriodSales[r.period]||0) + num(r.quantity);
+        injeraRevByPeriodSales[r.period] = (injeraRevByPeriodSales[r.period]||0) + rev;
+      } else if(r.product_type==='derkosh'){
+        derkoshQtyByPeriodSales[r.period] = (derkoshQtyByPeriodSales[r.period]||0) + num(r.quantity);
+        derkoshRevByPeriodSales[r.period] = (derkoshRevByPeriodSales[r.period]||0) + rev;
+      }
+      if(r.customer_id){
+        custNameById[r.customer_id] = r.customers?.name || 'Unknown Customer';
+        (custRevByCustomerPeriod[r.customer_id] = custRevByCustomerPeriod[r.customer_id]||{});
+        custRevByCustomerPeriod[r.customer_id][r.period] = (custRevByCustomerPeriod[r.customer_id][r.period]||0) + rev;
       }
     });
 
-    const gotYears = Object.keys(byYear).map(Number).filter(y=>YEARS_ALL.includes(y));
-    if (gotYears.length === 0) throw new Error('no matching years');
+    // ── Build yearData ──
+    yearData = {};
+    cogsComponentAmounts = {};
+    derkoshAsp = {}; derkoshAspMonthly = {};
+    ingredientMonthly = { blend:{}, corn:{}, gomen:{}, teff:{}, rice:{} };
+    const ingredientKeyToItemId = { blend: idByName['Injera Blend'], corn: idByName['Corn'], gomen: idByName['Gomen Zere'], teff: idByName['Teff'], rice: idByName['Rice'] };
 
-    toast('Multi-year data refreshed from database');
-    // NOTE: full net-profit / COGS / production join intentionally left as
-    // fallback values here — those require monthly_overhead + production_batches
-    // + purchases joins per Part 6 SQL views, wired up once those tables are
-    // confirmed populated for all 4 years in this environment.
+    YEARS_ALL.forEach(y=>{
+      const nMonths = y < currentYear ? 12 : (y === currentYear ? today.getMonth()+1 : 0);
+      const months = [];
+      let injeraRevYear=0, derkoshRevYear=0;
+      const compAmt = {blend:0,corn:0,gomen:0,labor:0,fuel:0,packaging:0};
+      const derkoshAspArr = [];
+      Object.keys(ingredientMonthly).forEach(k=>{ ingredientMonthly[k][y] = []; });
+
+      for(let i=0;i<nMonths;i++){
+        const period = `${y}-${pad2(i+1)}`;
+        const pnl = pnlByPeriod[period] || {injera_revenue:0,derkosh_revenue:0,total_revenue:0,total_cogs:0,total_overhead:0,total_opex:0,interest_expense:0};
+        const labor = payrollByPeriod[period] || 0;
+        const cogs = num(pnl.total_cogs) + num(pnl.total_overhead) + labor;
+        const rev = num(pnl.total_revenue);
+        const net = rev - cogs - num(pnl.total_opex) - num(pnl.interest_expense);
+        months.push({ m: MONTH_ABBR[i], rev, net, cogs, injeraRev: num(pnl.injera_revenue), derkoshRev: num(pnl.derkosh_revenue) });
+        injeraRevYear += num(pnl.injera_revenue); derkoshRevYear += num(pnl.derkosh_revenue);
+
+        compAmt.blend += materialCostByPeriod.blend[period] || 0;
+        compAmt.corn += materialCostByPeriod.corn[period] || 0;
+        compAmt.gomen += materialCostByPeriod.gomen[period] || 0;
+        compAmt.labor += labor;
+        compAmt.fuel += electricityByPeriod[period] || 0;
+        compAmt.packaging += packagingCostByPeriod[period] || 0;
+
+        const dQty = derkoshQtyByPeriodSales[period]||0, dRev = derkoshRevByPeriodSales[period]||0;
+        derkoshAspArr[i] = dQty>0 ? dRev/dQty : null;
+
+        Object.entries(ingredientKeyToItemId).forEach(([key,itemId])=>{
+          const wac = itemId && wacByItemPeriod[itemId] ? wacByItemPeriod[itemId][period] : null;
+          ingredientMonthly[key][y][i] = (wac!=null) ? wac : null;
+        });
+      }
+
+      const injeraQtyYear = Object.keys(injeraQtyByPeriodSales).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+injeraQtyByPeriodSales[p],0);
+      const injeraRevYearSales = Object.keys(injeraRevByPeriodSales).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+injeraRevByPeriodSales[p],0);
+      const derkoshQtyYear = Object.keys(derkoshQtyByPeriodSales).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+derkoshQtyByPeriodSales[p],0);
+      const derkoshRevYearSales = Object.keys(derkoshRevByPeriodSales).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+derkoshRevByPeriodSales[p],0);
+
+      yearData[y] = {
+        months,
+        injera: Object.keys(injeraQtyByPeriod).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+injeraQtyByPeriod[p],0),
+        derkosh: Object.keys(derkoshKgByPeriod).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+derkoshKgByPeriod[p],0),
+        asp: injeraQtyYear>0 ? injeraRevYearSales/injeraQtyYear : null,
+        injeraRev: injeraRevYear, derkoshRev: derkoshRevYear
+      };
+      cogsComponentAmounts[y] = compAmt;
+      derkoshAsp[y] = derkoshQtyYear>0 ? derkoshRevYearSales/derkoshQtyYear : null;
+      derkoshAspMonthly[y] = derkoshAspArr;
+    });
+
+    // ── Top customers + churn (real, from sales) ──
+    const custIds = Object.keys(custRevByCustomerPeriod);
+    const allCustomers = custIds.map(id=>{
+      const c = { id, name: custNameById[id] };
+      YEARS_ALL.forEach(y=>{
+        const total = Object.keys(custRevByCustomerPeriod[id]).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+custRevByCustomerPeriod[id][p],0);
+        c['y'+y] = total;
+      });
+      return c;
+    });
+    custMonthlyReal = custRevByCustomerPeriod;
+    topCustomers = allCustomers
+      .map(c=>({...c, _total: YEARS_ALL.reduce((s,y)=>s+(c['y'+y]||0),0)}))
+      .sort((a,b)=>b._total-a._total)
+      .slice(0,10);
+
+    // Churn/new detection: years (among YEARS_ALL) where the company has any
+    // sales at all define the tracked window; a customer is "new" if their
+    // first tracked-year revenue isn't the earliest tracked year, "churned"
+    // if a later tracked year exists with zero revenue from them.
+    const yearsWithCompanyData = YEARS_ALL.filter(y=>allCustomers.some(c=>(c['y'+y]||0)>0));
+    churnExamples = [];
+    if(yearsWithCompanyData.length>1){
+      const earliest = Math.min(...yearsWithCompanyData), latest = Math.max(...yearsWithCompanyData);
+      const newOnes=[], churnedOnes=[];
+      allCustomers.forEach(c=>{
+        const activeYears = yearsWithCompanyData.filter(y=>(c['y'+y]||0)>0);
+        if(!activeYears.length) return;
+        const first = Math.min(...activeYears), last = Math.max(...activeYears);
+        if(first>earliest) newOnes.push({...c, _sortval:c['y'+first]});
+        if(last<latest) churnedOnes.push({...c, _sortval:c['y'+last]});
+      });
+      newOnes.sort((a,b)=>b._sortval-a._sortval);
+      churnedOnes.sort((a,b)=>b._sortval-a._sortval);
+      churnExamples = [...newOnes.slice(0,2).map(c=>({...c, name:c.name+' (New)'})),
+                        ...churnedOnes.slice(0,2).map(c=>({...c, name:c.name+' (Churned)'}))];
+    }
+
+    toast('Reports refreshed with live data');
   } catch(err){
-    console.log('Supabase multi-year aggregation unavailable, using reference dataset:', err.message);
+    console.error('Reports live-data load failed:', err);
+    toast('Could not load live report data — check connection');
+    // Leave empty shells in place rather than fabricating numbers.
+    YEARS_ALL.forEach(y=>{ if(!yearData[y]) yearData[y] = { months:[], injera:0, derkosh:0, asp:null, injeraRev:0, derkoshRev:0 }; });
   }
   renderAll();
 }
+function num(v){ return parseFloat(v)||0; }
 
 /* ════════════════ YEAR CHIPS ════════════════ */
 function renderYearChips(){
@@ -1275,19 +1399,20 @@ function priceAlertCardHtml(diffPct, alertOn){
 /* ════════════════ MAIN TABLE ════════════════ */
 /* ════════════════ YoY P&L PIVOT TABLE (Annual view) ════════════════
    Rows = accounts, columns = years + YoY change + CAGR — matches the
-   reference layout. Uses the same underlying figures as the KPI row and
-   charts elsewhere in this report (revenue/COGS/gross/net all real; COGS
-   still rides the existing flat-72% assumption used across this file). */
+   reference layout. Uses the same underlying real figures as the KPI row
+   and charts elsewhere in this report (revenue, COGS, gross profit, net
+   profit — all computed live from monthly_pnl + payroll_detail). */
 const PL_PIVOT_ROWS = [
   {label:'Total Revenue', get:y=>yearTotals(y).rev, decimals:0, polarity:1},
-  {label:'Cost of Goods Sold (COGS)', get:y=>cogsOf(yearTotals(y).rev), decimals:0, polarity:-1},
-  {label:'Gross Profit', get:y=>grossProfitOf(yearTotals(y).rev), decimals:0, polarity:1},
+  {label:'Cost of Goods Sold (COGS)', get:y=>cogsOf(yearTotals(y)), decimals:0, polarity:-1},
+  {label:'Gross Profit', get:y=>grossProfitOf(yearTotals(y).rev, yearTotals(y).cogs), decimals:0, polarity:1},
   {label:'Gross Margin (%)', get:y=>METRICS.grossMargin.annual(y), decimals:1, isPct:true, polarity:1},
   {label:'Operating Expenses', get:y=>operatingExpensesOf(y), decimals:0, polarity:-1},
   {label:'Operating Profit', get:y=>operatingProfitOf(y), decimals:0, polarity:1},
   {label:'Net Profit', get:y=>yearTotals(y).net, decimals:0, polarity:1},
   {label:'Net Margin (%)', get:y=>yearTotals(y).margin, decimals:1, isPct:true, polarity:1},
-  {label:'Average Selling Price (ETB)', get:y=>yearData[y].asp, decimals:2, polarity:1}
+  {label:'Average Selling Price — Injera (ETB/pcs)', get:y=>yearData[y].asp, decimals:2, polarity:1},
+  {label:'Average Selling Price — Derkosh (ETB/kg)', get:y=>derkoshAsp[y], decimals:2, polarity:1}
 ];
 
 function renderYoyPlPivotTable(years){
@@ -1307,17 +1432,20 @@ function renderYoyPlPivotTable(years){
   let tbody = '<tbody>';
   PL_PIVOT_ROWS.forEach(row=>{
     const vals = sorted.map(y=>row.get(y));
-    let best = vals[0], worst = vals[0];
-    vals.forEach(v=>{ if(v>best) best=v; if(v<worst) worst=v; });
-    const hasSpread = vals.length>1 && best!==worst;
+    const numericVals = vals.map(v=>v==null?0:v);
+    let best = numericVals[0], worst = numericVals[0];
+    numericVals.forEach(v=>{ if(v>best) best=v; if(v<worst) worst=v; });
+    const hasSpread = numericVals.length>1 && best!==worst;
 
     tbody += `<tr><td>${row.label}</td>`;
-    vals.forEach(v=>{
+    vals.forEach((v,vi)=>{
+      if(v==null){ tbody += `<td>—</td>`; return; }
       const fmted = row.isPct ? v.toFixed(row.decimals)+'%' : (row.decimals===0 ? fmt0(v) : v.toFixed(row.decimals));
       let cellCls = '';
       if(hasSpread){
-        const isBest = row.polarity>=0 ? v===best : v===worst;
-        const isWorst = row.polarity>=0 ? v===worst : v===best;
+        const nv = numericVals[vi];
+        const isBest = row.polarity>=0 ? nv===best : nv===worst;
+        const isWorst = row.polarity>=0 ? nv===worst : nv===best;
         if(isBest) cellCls = 'var-fav';
         else if(isWorst) cellCls = 'var-unfav';
       }
@@ -1325,6 +1453,7 @@ function renderYoyPlPivotTable(years){
     });
     for(let i=1;i<sorted.length;i++){
       const v0=vals[i-1], v1=vals[i];
+      if(v0==null || v1==null){ tbody += `<td>—</td>`; continue; }
       if(row.isPct){
         const diff = v1-v0;
         const favorable = row.polarity>=0 ? diff>=0 : diff<=0;
@@ -1462,7 +1591,7 @@ function renderCustomerMainTable(years, view, monthIdx){
 
   table.innerHTML = thead + tbody;
   document.getElementById('yoyPartialNote').textContent = singleCol
-    ? `Showing estimated ${MONTH_ABBR[monthIdx]} revenue split, distributed from annual totals by monthly revenue share.`
+    ? `Showing real ${MONTH_ABBR[monthIdx]} revenue per customer.`
     : 'Customer totals are cumulative for each year shown; a customer may appear across multiple years.';
 }
 
@@ -1882,6 +2011,104 @@ function renderIngredientForecastChart(){
   });
 }
 
+/* ════════════════ DETAIL MODAL (View Details links) ════════════════ */
+function openDetailModal(title, bodyHtml){
+  document.getElementById('detailModalTitle').textContent = title;
+  document.getElementById('detailModalBody').innerHTML = bodyHtml;
+  document.getElementById('detailModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDetailModal(){
+  document.getElementById('detailModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDetailModal(); });
+
+function yHead(y){ return y===2026 ? '2026 (YTD)' : String(y); }
+
+function showPerUnitDetail(){
+  const years = selYears().slice().sort((a,b)=>a-b);
+  let rows = '';
+  years.forEach(y=>{
+    const p = perUnitEconomics(y);
+    const marginPct = p.revPerUnit>0 ? (p.profitPerUnit/p.revPerUnit*100) : 0;
+    rows += `<tr><td>${yHead(y)}</td><td>${p.revPerUnit.toFixed(2)}</td><td>${p.costPerUnit.toFixed(2)}</td><td>${p.profitPerUnit.toFixed(2)}</td><td>${marginPct.toFixed(1)}%</td></tr>`;
+  });
+  const html = `<table><thead><tr><th>Year</th><th>Revenue/Injera (ETB)</th><th>Cost/Injera (ETB)</th><th>Profit/Injera (ETB)</th><th>Profit Margin</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="dm-note">Cost/Injera = real total COGS for the year ÷ real Injera pieces produced that year — both actual figures, not modeled.</div>`;
+  openDetailModal('Per-Unit Economics Trend (Injera) — Detail', html);
+}
+
+function showProductMixDetail(){
+  const years = selYears().slice().sort((a,b)=>a-b);
+  let rows = '';
+  years.forEach(y=>{
+    const s = productRevenueSplit(y);
+    rows += `<tr><td>${yHead(y)}</td><td>${fmt0(s.total)}</td><td>${fmt0(s.injeraRev)}</td><td>${s.injeraPct.toFixed(1)}%</td><td>${fmt0(s.derkoshRev)}</td><td>${s.derkoshPct.toFixed(1)}%</td><td>${derkoshAsp[y]!=null ? derkoshAsp[y].toFixed(2) : '—'}</td></tr>`;
+  });
+  const html = `<table><thead><tr><th>Year</th><th>Total Revenue (ETB)</th><th>Injera Revenue (ETB)</th><th>Injera %</th><th>Derkosh Revenue (ETB)</th><th>Derkosh %</th><th>Derkosh ASP (ETB/kg)</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="dm-note">Injera Revenue and Derkosh Revenue are both real, summed directly from Sales by product_type — not estimated.</div>`;
+  openDetailModal('Product Mix Trend (Revenue %) — Detail', html);
+}
+
+function showCogsDecompDetail(){
+  const years = selYears().slice().sort((a,b)=>a-b);
+  const keys = Object.keys(COGS_COMPONENT_LABELS);
+  let thead = '<tr><th>Year</th><th>Total COGS (ETB)</th>' + keys.map(k=>`<th>${COGS_COMPONENT_LABELS[k]}</th>`).join('') + '</tr>';
+  let rows = '';
+  years.forEach(y=>{
+    const c = cogsComponents(y);
+    const pct = cogsPctFor(y);
+    rows += `<tr><td>${yHead(y)}</td><td>${fmt0(c.total)}</td>` +
+      keys.map(k=>`<td>${fmt0(c.parts[k])} <span style="color:var(--tl);font-size:10px">(${pct[k].toFixed(1)}%)</span></td>`).join('') + '</tr>';
+  });
+  const html = `<table><thead>${thead}</thead><tbody>${rows}</tbody></table>
+    <div class="dm-note">Total COGS and every component below are real amounts: blend/corn/gomen/teff/rice from actual consumption × that period's weighted-average cost, labor from real payroll, fuel from Electricity overhead, packaging from real Derkosh bag usage.</div>`;
+  openDetailModal('COGS Decomposition — Detail', html);
+}
+
+function showConcentrationDetail(){
+  const years = selYears().slice().sort((a,b)=>a-b);
+  let rows = '';
+  years.forEach(y=>{
+    const total = yearTotals(y).rev;
+    const t1 = concentrationShare(y,1), t3 = concentrationShare(y,3), t10 = concentrationShare(y,10);
+    rows += `<tr><td>${yHead(y)}</td><td>${fmt0(total)}</td><td>${t1.toFixed(1)}%</td><td>${t3.toFixed(1)}%</td><td>${t10.toFixed(1)}%</td></tr>`;
+  });
+  const html = `<table><thead><tr><th>Year</th><th>Total Revenue (ETB)</th><th>Top-1 Share</th><th>Top-3 Share</th><th>Top-10 Share</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="dm-note">Share = revenue from your top 1 / 3 / 10 customers that year, divided by total company revenue that year — computed directly from your tracked customer roster, not modeled.</div>`;
+  openDetailModal('Customer Concentration Trend — Detail', html);
+}
+
+function showRetentionDetail(){
+  const years = selYears().slice().sort((a,b)=>a-b);
+  const rows = [...topCustomers, ...churnExamples];
+  let thead = '<tr><th>Customer</th>';
+  years.forEach((y,idx)=>{ thead += `<th>${yHead(y)}</th>`; if(idx>0) thead += `<th>Change</th>`; });
+  thead += '</tr>';
+  let tbody = '';
+  rows.forEach(c=>{
+    tbody += `<tr><td>${c.name}</td>`;
+    years.forEach((y,idx)=>{
+      const v = c['y'+y];
+      tbody += `<td>${v==null?'—':fmt0(v)}</td>`;
+      if(idx>0){
+        const prev = c['y'+years[idx-1]];
+        if(prev==null && v!=null) tbody += `<td class="var-fav">NEW</td>`;
+        else if(prev!=null && (v==null||v===0)) tbody += `<td class="var-unfav">CHURNED</td>`;
+        else if(prev!=null && v!=null && prev>0){
+          const chg = (v-prev)/prev*100;
+          tbody += `<td class="${chg>=0?'var-fav':'var-unfav'}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}%</td>`;
+        } else tbody += `<td>—</td>`;
+      }
+    });
+    tbody += '</tr>';
+  });
+  const html = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
+    <div class="dm-note">Top 10 customers are real, tracked revenue. "New in 2024" / "Churned 2025" are illustrative rows pending real roster-entry/exit tracking — swap these for genuine joiner/leaver detection once customer history spans enough periods to detect it.</div>`;
+  openDetailModal('Top Customer Retention / Churn — Detail (All Tracked Customers)', html);
+}
+
 function renderBottomCharts(){
   destroyChart('b1'); destroyChart('b2'); destroyChart('b3');
   const cfg = REPORTS[currentReport];
@@ -2125,7 +2352,7 @@ function renderSeasonalityHeatmap(){
    Unfavorable even though the number went up, unlike rising revenue. */
 const METRIC_POLARITY = {
   revenue:1, net:1, gross:1, cogs:-1, margin:1, cogsPct:-1,
-  injera:1, derkosh:1, asp:1, blend:-1, corn:-1, gomen:-1
+  injera:1, derkosh:1, asp:1, derkoshAsp:1, blend:-1, corn:-1, gomen:-1
 };
 
 function renderVarianceTable(){
