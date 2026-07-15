@@ -52,6 +52,28 @@ const NAV_ITEMS = [
   ]}
 ];
 
+/* ── Favicon (site-wide) ──────────────────────────────────────
+   Injected here (rather than edited into every page's <head>)
+   so all ~19 pages pick up the new brand mark automatically,
+   since sidebar.js is already included everywhere. */
+function ensureFaviconLinks(){
+  if (document.getElementById('mena-favicon-ico')) return;
+  const head = document.head;
+  const specs = [
+    { id: 'mena-favicon-ico', rel: 'icon', type: 'image/x-icon', href: 'assets/favicon.ico' },
+    { rel: 'icon', type: 'image/png', sizes: '32x32', href: 'assets/favicon-32.png' },
+    { rel: 'icon', type: 'image/png', sizes: '16x16', href: 'assets/favicon-16.png' },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: 'assets/apple-touch-icon.png' }
+  ];
+  specs.forEach(spec => {
+    const link = document.createElement('link');
+    Object.entries(spec).forEach(([k, v]) => {
+      if (k === 'id') link.id = v; else link.setAttribute(k, v);
+    });
+    head.appendChild(link);
+  });
+}
+
 function currentPageFilename(){
   // cleanUrls (vercel.json) serves pages without the .html extension, so
   // window.location.pathname is e.g. "/pettycash-9", not "/pettycash-9.html".
@@ -80,7 +102,7 @@ function sidebarHTML(){
   return `
     <div class="sb-logo">
       <div class="logo-circle">
-        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" fill="rgba(255,255,255,0.15)"/><ellipse cx="14" cy="14" rx="9" ry="6" fill="white"/><path d="M7 12 Q14 10 21 12" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/><path d="M6 14 Q14 12 22 14" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/><path d="M7 16 Q14 14 21 16" stroke="#e8891a" stroke-width="1" stroke-linecap="round"/><path d="M14 4 L14 9" stroke="rgba(255,255,255,0.8)" stroke-width="1.5" stroke-linecap="round"/><path d="M11 6 L14 4 L17 6" stroke="rgba(255,255,255,0.8)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img src="assets/logo-mark.png" alt="Mena BMS" style="width:100%;height:100%;object-fit:contain;display:block;">
       </div>
       <div class="logo-txt"><h2>MENA INJERA<br>&amp; DERKOSH</h2><p>Business Management System</p></div>
     </div>
@@ -181,6 +203,7 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  ensureFaviconLinks();
   renderSidebar();
   if (typeof loadCompanySettings === 'function') loadCompanySettings();
 });
