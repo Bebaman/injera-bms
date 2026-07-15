@@ -228,6 +228,11 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .dm-body th:first-child,.dm-body td:first-child{text-align:left}
 .dm-body td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
 .dm-body tr:last-child td{border-bottom:none}
+#snapshotBody table{width:100%;border-collapse:collapse;font-size:12px}
+#snapshotBody th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--tl);font-weight:700;padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
+#snapshotBody th:first-child,#snapshotBody td:first-child{text-align:left}
+#snapshotBody td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
+#snapshotBody tr:last-child td{border-bottom:none}
 .dm-note{font-size:11.5px;color:var(--tl);margin-top:14px;line-height:1.5;padding:10px 12px;background:#f7fbf9;border-radius:8px}
 @media (max-width:600px){
   .dm-panel{max-height:90vh}
@@ -265,6 +270,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <option value="net_profit_grid">Annual Net Profit Summary</option>
           <option value="cust_yoy">Customer Revenue YoY</option>
           <option value="prod_yoy">Production Volume YoY</option>
+          <option value="monthly_snapshot">Monthly Report (Full Detail)</option>
         </select>
       </div>
       <div class="rpt-sel-grp">
@@ -309,6 +315,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       </div>
     </div>
 
+    <div id="standardReportView">
     <!-- KPI ROW (cards generated dynamically per report type — see renderKpiRow()) -->
     <div class="kpi-row" id="kpiRow"></div>
 
@@ -594,6 +601,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <span id="botNote4">* Customers may overlap across years.</span>
       </div>
     </div>
+    <!-- /standardReportView -->
+    <div id="monthlySnapshotView" style="display:none"></div>
 
   </div><!-- /content -->
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
@@ -1175,6 +1184,129 @@ async function loadFromSupabase(){
 }
 function num(v){ return parseFloat(v)||0; }
 
+/* ════════════════ MONTHLY REPORT (FULL DETAIL) ════════════════
+   Combines, for one selected month: the P&L summary (monthly_pnl), the Cash
+   Flow summary (monthly_cash_flow, all channels), a full itemized Purchases
+   list, and a full itemized Milling Conversion breakdown — the "everything
+   for this month in one place" view, since the P&L/Cash Flow pages only
+   show totals by design (see earlier conversation). */
+let snapshotPeriod = null;
+function periodLabelFull(pstr){
+  const [y,m] = pstr.split('-').map(Number);
+  return MONTH_ABBR[m-1]+' '+y;
+}
+function buildSnapshotPeriodOptions(){
+  const today = new Date();
+  const opts = [];
+  for(let y of YEARS_ALL){
+    const maxM = y < today.getFullYear() ? 12 : (y===today.getFullYear() ? today.getMonth()+1 : 0);
+    for(let m=1; m<=maxM; m++){ opts.push(`${y}-${pad2(m)}`); }
+  }
+  return opts.reverse();
+}
+async function loadMonthlySnapshot(){
+  const el = document.getElementById('monthlySnapshotView');
+  if(!snapshotPeriod){
+    const opts = buildSnapshotPeriodOptions();
+    snapshotPeriod = opts[0] || null;
+  }
+  if(!snapshotPeriod){
+    el.innerHTML = '<div class="card"><div class="card-bd">No periods available yet.</div></div>';
+    return;
+  }
+  const periodOptions = buildSnapshotPeriodOptions().map(p=>`<option value="${p}" ${p===snapshotPeriod?'selected':''}>${periodLabelFull(p)}</option>`).join('');
+  el.innerHTML = `
+    <div class="rpt-bar" style="margin-bottom:16px">
+      <div class="rpt-sel-grp"><label>Month</label>
+        <select class="rpt-sel" id="snapshotMonthSel" onchange="snapshotPeriod=this.value;loadMonthlySnapshot()">${periodOptions}</select>
+      </div>
+    </div>
+    <div id="snapshotBody"><div class="card"><div class="card-bd">Loading…</div></div></div>
+  `;
+
+  try {
+    const [pnlRes, cfRes, purchRes, millRes] = await Promise.all([
+      db.from('monthly_pnl').select('*').eq('period', snapshotPeriod),
+      db.from('monthly_cash_flow').select('*').eq('period', snapshotPeriod),
+      db.from('purchases').select('date,type,quantity,unit_price,total_cost,payment_channel,inventory_items(name,unit),expense_categories(name),suppliers(name),source').eq('is_deleted',false).eq('period',snapshotPeriod).order('date'),
+      db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date')
+    ]);
+    renderMonthlySnapshot(pnlRes.data?.[0]||null, cfRes.data||[], purchRes.data||[], millRes.data||[]);
+  } catch(err){
+    console.error('Monthly snapshot load failed:', err);
+    document.getElementById('snapshotBody').innerHTML = '<div class="card"><div class="card-bd">Could not load — check connection.</div></div>';
+  }
+}
+function renderMonthlySnapshot(pnl, cfRows, purchases, millings){
+  const label = periodLabelFull(snapshotPeriod);
+
+  // ── P&L summary ──
+  const p = pnl || {};
+  const totalCogsIas2 = num(p.total_cogs)+num(p.total_overhead); // materials + overhead (labor not in this view — see Purchases/Payroll for that detail)
+  const netApprox = num(p.total_revenue) - totalCogsIas2 - num(p.total_opex) - num(p.interest_expense);
+  const plHtml = !pnl ? `<div class="dm-note">No sales recorded for ${label} yet.</div>` : `
+    <table class="mtbl"><tbody>
+      <tr><td>Injera Revenue</td><td>${fmt0(p.injera_revenue)}</td></tr>
+      <tr><td>Derkosh Revenue</td><td>${fmt0(p.derkosh_revenue)}</td></tr>
+      <tr><td><strong>Total Revenue</strong></td><td><strong>${fmt0(p.total_revenue)}</strong></td></tr>
+      <tr><td>Materials COGS (Injera Blend/Corn/Gomen Zere)</td><td>${fmt0(p.total_cogs)}</td></tr>
+      <tr><td>Overhead (Electricity/Water/Rent/Maintenance/Other)</td><td>${fmt0(p.total_overhead)}</td></tr>
+      <tr><td>Operating Expenses</td><td>${fmt0(p.total_opex)}</td></tr>
+      <tr><td>Interest Expense</td><td>${fmt0(p.interest_expense)}</td></tr>
+      <tr><td><strong>Net Profit (approx.)</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
+    </tbody></table>
+    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into Materials COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown.</div>`;
+
+  // ── Cash Flow summary ──
+  let cfHtml = '<div class="dm-note">No cash flow data for this month yet.</div>';
+  if(cfRows.length){
+    const rows = cfRows.map(c=>{
+      const totalIn = num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in);
+      const totalOut = num(c.op_payments)+num(c.payroll_payments)+num(c.petty_cash_payments)+num(c.other_out);
+      return `<tr><td>${c.channel}</td><td>${fmt0(c.opening_balance)}</td><td>${fmt0(totalIn)}</td><td>${fmt0(totalOut)}</td><td>${fmt0(c.closing_balance)}</td></tr>`;
+    }).join('');
+    const grand = cfRows.reduce((s,c)=>({
+      opening: s.opening+num(c.opening_balance),
+      totalIn: s.totalIn+num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in),
+      totalOut: s.totalOut+num(c.op_payments)+num(c.payroll_payments)+num(c.petty_cash_payments)+num(c.other_out),
+      closing: s.closing+num(c.closing_balance)
+    }), {opening:0,totalIn:0,totalOut:0,closing:0});
+    cfHtml = `<table class="mtbl"><thead><tr><th>Channel</th><th>Opening</th><th>Cash In</th><th>Cash Out</th><th>Closing</th></tr></thead>
+      <tbody>${rows}<tr><td><strong>Total</strong></td><td><strong>${fmt0(grand.opening)}</strong></td><td><strong>${fmt0(grand.totalIn)}</strong></td><td><strong>${fmt0(grand.totalOut)}</strong></td><td><strong>${fmt0(grand.closing)}</strong></td></tr></tbody></table>`;
+  }
+
+  // ── Itemized Purchases ──
+  let purchHtml = '<div class="dm-note">No purchases logged for this month yet.</div>';
+  if(purchases.length){
+    const rows = purchases.map(p2=>{
+      const category = p2.inventory_items?.name || p2.expense_categories?.name || (p2.type==='asset'?'Asset':'—');
+      const isSynthetic = p2.source==='milling_conversion';
+      return `<tr${isSynthetic?' style="color:var(--tl)"':''}><td>${p2.date}</td><td>${category}${isSynthetic?' <span style="font-size:10px">(from milling)</span>':''}</td><td>${p2.suppliers?.name||'—'}</td><td>${p2.quantity!=null?fmt(p2.quantity):'—'}</td><td>${p2.unit_price!=null?fmt(p2.unit_price):'—'}</td><td>${fmt0(p2.total_cost)}</td><td>${p2.payment_channel||'—'}</td></tr>`;
+    }).join('');
+    const total = purchases.filter(p2=>p2.source!=='milling_conversion').reduce((s,p2)=>s+num(p2.total_cost),0);
+    purchHtml = `<table class="mtbl"><thead><tr><th>Date</th><th>Item/Category</th><th>Supplier</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Channel</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="dm-note">Real cash total (excludes the "from milling" rows, which are cost-only entries already represented by their own Teff/Rice/fee purchases above): <strong>${fmt0(total)} ETB</strong></div>`;
+  }
+
+  // ── Milling Conversions ──
+  let millHtml = '<div class="dm-note">No milling runs recorded for this month yet.</div>';
+  if(millings.length){
+    const rows = millings.map(m=>`<tr><td>${m.date}</td><td>${fmt(m.teff_qty)} kg</td><td>${fmt(m.rice_qty)} kg</td><td>${fmt0(m.sifting_cost)}</td><td>${fmt0(m.grinding_cost)}</td><td>${fmt0(m.transport_cost)}</td><td>${fmt(m.blend_qty_produced)} kg</td><td>${fmt0(m.total_cost)}</td><td>${fmt((num(m.total_cost)/num(m.blend_qty_produced))||0)}</td></tr>`).join('');
+    millHtml = `<table class="mtbl"><thead><tr><th>Date</th><th>Teff Used</th><th>Rice Used</th><th>Sifting</th><th>Grinding</th><th>Transport</th><th>Blend Produced</th><th>Total Cost</th><th>Cost/kg</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  document.getElementById('snapshotBody').innerHTML = `
+    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
+      <div class="card"><div class="card-hd"><div class="card-ttl">P&amp;L Summary — ${label}</div></div><div class="card-bd">${plHtml}</div></div>
+      <div class="card"><div class="card-hd"><div class="card-ttl">Cash Flow Summary — ${label}</div></div><div class="card-bd">${cfHtml}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">Itemized Purchases — ${label}</div></div><div class="card-bd" style="overflow-x:auto">${purchHtml}</div></div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">Milling Conversions — ${label}</div></div><div class="card-bd" style="overflow-x:auto">${millHtml}</div></div>
+  `;
+}
+
 /* ════════════════ YEAR CHIPS ════════════════ */
 function renderYearChips(){
   const wrap = document.getElementById('yearChips');
@@ -1208,6 +1340,17 @@ function setView(v){
 function onReportTypeChange(){
   currentReport = document.getElementById('reportType').value;
   document.getElementById('ingredientSelGrp').style.display = currentReport==='price_history' ? 'flex' : 'none';
+  const isSnapshot = currentReport==='monthly_snapshot';
+  document.getElementById('standardReportView').style.display = isSnapshot ? 'none' : '';
+  document.getElementById('monthlySnapshotView').style.display = isSnapshot ? '' : 'none';
+  // These controls (View toggle, Compare Years, Month filter) don't apply to a
+  // single-month full-detail report — hide them while it's active.
+  ['viewToggle','yearChips'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
+  });
+  document.getElementById('monthFilter').closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
+  if(isSnapshot){ loadMonthlySnapshot(); return; }
   renderAll();
 }
 
