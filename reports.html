@@ -1204,6 +1204,16 @@ function buildSnapshotPeriodOptions(){
   }
   return opts.reverse();
 }
+const MILLING_FEE_CATEGORIES = ['Sifting Fees','Grinding Fees','Delivery In','Milling Material Transport'];
+function prevPeriodOf(pstr){
+  const [y,m] = pstr.split('-').map(Number);
+  const d = new Date(y, m-2, 1); // m-2 because Date months are 0-indexed and we want one month back
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+}
+function currentUserId(){
+  try { return (window.AppState && AppState.currentUser && AppState.currentUser.id) || null; } catch(e){ return null; }
+}
+
 async function loadMonthlySnapshot(){
   const el = document.getElementById('monthlySnapshotView');
   if(!snapshotPeriod){
@@ -1225,40 +1235,116 @@ async function loadMonthlySnapshot(){
   `;
 
   try {
-    const [pnlRes, cfRes, purchRes, millRes] = await Promise.all([
+    const prevPeriod = prevPeriodOf(snapshotPeriod);
+    const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshCostRes,
+           prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
+           stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes] = await Promise.all([
       db.from('monthly_pnl').select('*').eq('period', snapshotPeriod),
+      db.from('monthly_pnl').select('*').eq('period', prevPeriod),
       db.from('monthly_cash_flow').select('*').eq('period', snapshotPeriod),
       db.from('purchases').select('date,type,quantity,unit_price,total_cost,payment_channel,inventory_items(name,unit),expense_categories(name),suppliers(name),source').eq('is_deleted',false).eq('period',snapshotPeriod).order('date'),
-      db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date')
+      db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date'),
+      db.from('sales').select('date,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted',false).eq('period',snapshotPeriod),
+      db.from('production_batch_costs').select('*').eq('period', snapshotPeriod),
+      db.from('derkosh_batch_costs').select('*').eq('period', snapshotPeriod),
+      db.from('production_batches').select('type').eq('is_deleted',false).eq('period',snapshotPeriod),
+      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.period', snapshotPeriod).eq('production_batches.is_deleted', false),
+      db.from('payroll_detail').select('gross_pay').eq('period', snapshotPeriod),
+      db.from('monthly_overhead').select('amount,overhead_categories(name)').eq('period', snapshotPeriod),
+      db.from('inventory_items').select('id,name,unit'),
+      db.from('inventory_opening_balances').select('item_id,opening_qty,opening_value').eq('period', snapshotPeriod),
+      db.from('inventory_balance').select('item_id,closing_qty,closing_value,wac_per_unit').eq('period', snapshotPeriod),
+      db.from('stock_alerts').select('*'),
+      db.from('period_closes').select('period,closed_at,locked,users(name)').eq('period', snapshotPeriod),
+      db.from('report_notes').select('*').eq('period', snapshotPeriod),
+      db.from('batch_standards').select('*')
     ]);
-    renderMonthlySnapshot(pnlRes.data?.[0]||null, cfRes.data||[], purchRes.data||[], millRes.data||[]);
+    renderMonthlySnapshot({
+      pnl: pnlRes.data?.[0]||null,
+      prevPnl: prevPnlRes.data?.[0]||null,
+      cfRows: cfRes.data||[],
+      purchases: purchRes.data||[],
+      millings: millRes.data||[],
+      sales: salesRes.data||[],
+      prodCosts: prodCostRes.data||[],
+      derkoshCosts: derkoshCostRes.data||[],
+      batchTypes: prodBatchRes.data||[],
+      prodMaterials: prodMatRes.data||[],
+      payroll: payrollRes.data||[],
+      overhead: overheadRes.data||[],
+      items: itemsRes.data||[],
+      openingBal: openBalRes.data||[],
+      closingBal: closeBalRes.data||[],
+      stockAlerts: stockAlertRes.data||[],
+      periodClose: periodCloseRes.data?.[0]||null,
+      reportNote: reportNoteRes.data?.[0]||null,
+      batchStandards: batchStdRes.data||[]
+    });
   } catch(err){
     console.error('Monthly snapshot load failed:', err);
     document.getElementById('snapshotBody').innerHTML = '<div class="card"><div class="card-bd">Could not load — check connection.</div></div>';
   }
 }
-function renderMonthlySnapshot(pnl, cfRows, purchases, millings){
-  const label = periodLabelFull(snapshotPeriod);
 
-  // ── P&L summary ──
-  const p = pnl || {};
+function renderMonthlySnapshot(d){
+  const label = periodLabelFull(snapshotPeriod);
+  const p = d.pnl || {};
   const totalCogsIas2 = num(p.total_cogs)+num(p.total_overhead); // materials + overhead (labor not in this view — see Purchases/Payroll for that detail)
   const netApprox = num(p.total_revenue) - totalCogsIas2 - num(p.total_opex) - num(p.interest_expense);
-  const plHtml = !pnl ? `<div class="dm-note">No sales recorded for ${label} yet.</div>` : `
+  const rev = num(p.total_revenue);
+  const grossMargin = rev>0 ? (rev-totalCogsIas2)/rev*100 : null;
+  const netMargin = rev>0 ? netApprox/rev*100 : null;
+
+  const itemNameById = Object.fromEntries((d.items||[]).map(it=>[it.id, it.name]));
+  const idByName = Object.fromEntries((d.items||[]).map(it=>[it.name, it.id]));
+
+  // ══ 1. EXECUTIVE SUMMARY ══
+  let health = {label:'No Data Yet', cls:'ic-o', icon:'clock'};
+  if(netMargin!=null){
+    if(netMargin>=15) health = {label:'Strong', cls:'ic-g', icon:'trend'};
+    else if(netMargin>=5) health = {label:'Stable', cls:'ic-t', icon:'trend'};
+    else if(netMargin>=0) health = {label:'Thin Margins', cls:'ic-o', icon:'percent'};
+    else health = {label:'Loss-Making', cls:'ic-r', icon:'trend'};
+  }
+  const injeraProducedTotal = (d.prodCosts||[]).reduce((s,b)=>s+num(b.injera_qty),0);
+  const derkoshProducedTotal = (d.derkoshCosts||[]).reduce((s,b)=>s+num(b.produced_kg),0);
+  const execBullets = [];
+  execBullets.push({icon:'clock', cls:'ic-c', html:`<b>Reporting period:</b> ${label}`});
+  if(d.prevPnl){
+    const prevRev = num(d.prevPnl.total_revenue);
+    const revDelta = prevRev>0 ? (rev-prevRev)/prevRev*100 : null;
+    execBullets.push({icon:'trend', cls: revDelta==null?'ic-c':(revDelta>=0?'ic-g':'ic-r'), html: revDelta!=null
+      ? `<b>Revenue ${revDelta>=0?'up':'down'} ${Math.abs(revDelta).toFixed(1)}%</b> vs ${periodLabelFull(prevPeriodOf(snapshotPeriod))}`
+      : `<b>Revenue:</b> ${fmt0(rev)} ETB (no prior-month comparison available)`});
+  } else {
+    execBullets.push({icon:'money', cls:'ic-b', html:`<b>Total Revenue:</b> ${fmt0(rev)} ETB`});
+  }
+  execBullets.push({icon:'money', cls: netApprox>=0?'ic-g':'ic-r', html: p.total_revenue!=null
+    ? `<b>Net Profit (approx.):</b> ${fmt0(netApprox)} ETB${netMargin!=null?` (${netMargin.toFixed(1)}% margin)`:''}`
+    : `<b>Net Profit:</b> no sales recorded yet for ${label}`});
+  execBullets.push({icon:'box', cls:'ic-p', html:`<b>Production:</b> ${fmt0(injeraProducedTotal)} injera pieces, ${fmt(derkoshProducedTotal)} kg derkosh`});
+  execBullets.push({icon: health.icon, cls: health.cls, html:`<b>Overall business health:</b> ${health.label}`});
+
+  const execHtml = execBullets.map(b=>`<div class="exec-item"><div class="ei-ico ${b.cls}"><svg viewBox="0 0 24 24">${ICONS[b.icon]}</svg></div><div class="ei-txt">${b.html}</div></div>`).join('');
+
+  // ══ 2. P&L SUMMARY ══
+  const plHtml = !d.pnl ? `<div class="dm-note">No sales recorded for ${label} yet.</div>` : `
     <table class="mtbl"><tbody>
       <tr><td>Injera Revenue</td><td>${fmt0(p.injera_revenue)}</td></tr>
       <tr><td>Derkosh Revenue</td><td>${fmt0(p.derkosh_revenue)}</td></tr>
       <tr><td><strong>Total Revenue</strong></td><td><strong>${fmt0(p.total_revenue)}</strong></td></tr>
       <tr><td>Materials COGS (Injera Blend/Corn/Gomen Zere)</td><td>${fmt0(p.total_cogs)}</td></tr>
       <tr><td>Overhead (Electricity/Water/Rent/Maintenance/Other)</td><td>${fmt0(p.total_overhead)}</td></tr>
+      <tr><td><strong>Gross Profit</strong></td><td><strong>${fmt0(rev-totalCogsIas2)}</strong></td></tr>
       <tr><td>Operating Expenses</td><td>${fmt0(p.total_opex)}</td></tr>
-      <tr><td>Interest Expense</td><td>${fmt0(p.interest_expense)}</td></tr>
+      <tr><td>Finance Costs (Interest)</td><td>${fmt0(p.interest_expense)}</td></tr>
       <tr><td><strong>Net Profit (approx.)</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
     </tbody></table>
     <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into Materials COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown.</div>`;
 
-  // ── Cash Flow summary ──
+  // ══ 3. CASH FLOW SUMMARY ══
   let cfHtml = '<div class="dm-note">No cash flow data for this month yet.</div>';
+  const cfRows = d.cfRows||[];
   if(cfRows.length){
     const rows = cfRows.map(c=>{
       const totalIn = num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in);
@@ -1275,7 +1361,95 @@ function renderMonthlySnapshot(pnl, cfRows, purchases, millings){
       <tbody>${rows}<tr><td><strong>Total</strong></td><td><strong>${fmt0(grand.opening)}</strong></td><td><strong>${fmt0(grand.totalIn)}</strong></td><td><strong>${fmt0(grand.totalOut)}</strong></td><td><strong>${fmt0(grand.closing)}</strong></td></tr></tbody></table>`;
   }
 
-  // ── Itemized Purchases ──
+  // ══ 4. SALES SUMMARY ══
+  const sales = d.sales||[];
+  let salesHtml = '<div class="dm-note">No sales logged for this month yet.</div>';
+  if(sales.length){
+    const totalSales = sales.reduce((s,r)=>s+num(r.revenue),0);
+    const orders = sales.length;
+    const aov = orders>0 ? totalSales/orders : 0;
+    const byCust = {};
+    sales.forEach(r=>{
+      if(!r.customer_id) return;
+      const name = r.customers?.name || 'Unknown Customer';
+      byCust[name] = (byCust[name]||0) + num(r.revenue);
+    });
+    const topCust = Object.entries(byCust).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const byProduct = {injera:{rev:0,qty:0}, derkosh:{rev:0,qty:0}};
+    sales.forEach(r=>{
+      const k = r.product_type==='derkosh' ? 'derkosh' : 'injera';
+      byProduct[k].rev += num(r.revenue);
+      byProduct[k].qty += num(r.quantity);
+    });
+    salesHtml = `
+      <table class="mtbl"><tbody>
+        <tr><td>Total Sales</td><td>${fmt0(totalSales)} ETB</td></tr>
+        <tr><td>Orders</td><td>${orders}</td></tr>
+        <tr><td>Average Order Value</td><td>${fmt0(aov)} ETB</td></tr>
+      </tbody></table>
+      <div class="bot2" style="margin-top:14px;margin-bottom:0">
+        <div>
+          <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Top Customers</div>
+          <table class="mtbl"><tbody>${topCust.length ? topCust.map(([name,v])=>`<tr><td>${name}</td><td>${fmt0(v)}</td></tr>`).join('') : '<tr><td colspan="2">No customer-linked sales</td></tr>'}</tbody></table>
+        </div>
+        <div>
+          <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Top Products</div>
+          <table class="mtbl"><tbody>
+            <tr><td>Injera</td><td>${fmt0(byProduct.injera.qty)} pcs — ${fmt0(byProduct.injera.rev)} ETB</td></tr>
+            <tr><td>Derkosh</td><td>${fmt(byProduct.derkosh.qty)} kg — ${fmt0(byProduct.derkosh.rev)} ETB</td></tr>
+          </tbody></table>
+        </div>
+      </div>`;
+  }
+
+  // ══ 5. PRODUCTION SUMMARY ══
+  const blendId = idByName['Injera Blend'], cornId = idByName['Corn'], gomenId = idByName['Gomen Zere'];
+  const flourConsumed = (d.prodMaterials||[]).filter(m=>m.item_id===blendId).reduce((s,m)=>s+num(m.quantity_used),0);
+  const stdByType = Object.fromEntries((d.batchStandards||[]).map(s=>[s.batch_type, s]));
+  const batchCountByType = {};
+  (d.batchTypes||[]).forEach(b=>{ batchCountByType[b.type] = (batchCountByType[b.type]||0)+1; });
+  let expectedInjera = 0, expectedMaterial = 0;
+  Object.entries(batchCountByType).forEach(([type,count])=>{
+    const std = stdByType[type];
+    if(!std) return;
+    expectedInjera += num(std.target_injera_count)*count;
+    expectedMaterial += (num(std.target_blend_kg)+num(std.target_corn_kg)+num(std.target_gomen_kg))*count;
+  });
+  const efficiencyPct = expectedInjera>0 ? (injeraProducedTotal/expectedInjera*100) : null;
+  const actualMaterial = (d.prodMaterials||[]).filter(m=>[blendId,cornId,gomenId].includes(m.item_id)).reduce((s,m)=>s+num(m.quantity_used),0);
+  const wastePct = expectedMaterial>0 ? ((actualMaterial-expectedMaterial)/expectedMaterial*100) : null;
+  const prodHtml = `
+    <table class="mtbl"><tbody>
+      <tr><td>Injera Produced</td><td>${fmt0(injeraProducedTotal)} pcs</td></tr>
+      <tr><td>Derkosh Produced</td><td>${fmt(derkoshProducedTotal)} kg</td></tr>
+      <tr><td>Injera Blend Consumed</td><td>${fmt(flourConsumed)} kg</td></tr>
+      <tr><td>Production Efficiency</td><td>${efficiencyPct!=null ? efficiencyPct.toFixed(1)+'% of standard output' : '— (no batch standard for batches this month)'}</td></tr>
+      <tr><td>Material Usage vs Standard</td><td>${wastePct!=null ? `${wastePct>=0?'+':''}${wastePct.toFixed(1)}%` : '—'}</td></tr>
+    </tbody></table>
+    <div class="dm-note">Production Efficiency compares actual Injera output to Batch Standards' target count for the batch types run this month. Material Usage vs Standard compares actual Injera Blend/Corn/Gomen Zere consumption to the standard recipe quantities for those same batches — positive means more material was used than the standard recipe calls for.</div>`;
+
+  // ══ 6. INVENTORY SUMMARY ══
+  const openingValue = (d.openingBal||[]).reduce((s,r)=>s+num(r.opening_value),0);
+  const closingValue = (d.closingBal||[]).reduce((s,r)=>s+num(r.closing_value),0);
+  const purchasesValue = (d.purchases||[]).filter(p=>p.type==='purchase').reduce((s,p)=>s+num(p.total_cost),0);
+  const consumptionValue = openingValue + purchasesValue - closingValue;
+  const lowStock = (d.stockAlerts||[]).filter(s=>s.low_stock);
+  const invHtml = `
+    <table class="mtbl"><tbody>
+      <tr><td>Opening Inventory Value</td><td>${fmt0(openingValue)}</td></tr>
+      <tr><td>Purchases (Materials)</td><td>${fmt0(purchasesValue)}</td></tr>
+      <tr><td>Consumption</td><td>${fmt0(consumptionValue)}</td></tr>
+      <tr><td><strong>Closing Inventory Value</strong></td><td><strong>${fmt0(closingValue)}</strong></td></tr>
+    </tbody></table>
+    <div style="margin-top:12px">
+      <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Low-Stock Items ${lowStock.length?`(${lowStock.length})`:''}</div>
+      ${lowStock.length
+        ? `<table class="mtbl"><tbody>${lowStock.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.closing_qty)} on hand (reorder at ${fmt(s.reorder_level)})</td></tr>`).join('')}</tbody></table>`
+        : '<div class="dm-note">No items currently below reorder level.</div>'}
+    </div>`;
+
+  // ══ 7. ITEMIZED PURCHASES ══
+  const purchases = d.purchases||[];
   let purchHtml = '<div class="dm-note">No purchases logged for this month yet.</div>';
   if(purchases.length){
     const rows = purchases.map(p2=>{
@@ -1289,7 +1463,8 @@ function renderMonthlySnapshot(pnl, cfRows, purchases, millings){
       <div class="dm-note">Real cash total (excludes the "from milling" rows, which are cost-only entries already represented by their own Teff/Rice/fee purchases above): <strong>${fmt0(total)} ETB</strong></div>`;
   }
 
-  // ── Milling Conversions ──
+  // ══ 8. MILLING CONVERSIONS ══
+  const millings = d.millings||[];
   let millHtml = '<div class="dm-note">No milling runs recorded for this month yet.</div>';
   if(millings.length){
     const rows = millings.map(m=>`<tr><td>${m.date}</td><td>${fmt(m.teff_qty)} kg</td><td>${fmt(m.rice_qty)} kg</td><td>${fmt0(m.sifting_cost)}</td><td>${fmt0(m.grinding_cost)}</td><td>${fmt0(m.transport_cost)}</td><td>${fmt(m.blend_qty_produced)} kg</td><td>${fmt0(m.total_cost)}</td><td>${fmt((num(m.total_cost)/num(m.blend_qty_produced))||0)}</td></tr>`).join('');
@@ -1297,14 +1472,132 @@ function renderMonthlySnapshot(pnl, cfRows, purchases, millings){
       <tbody>${rows}</tbody></table>`;
   }
 
-  document.getElementById('snapshotBody').innerHTML = `
-    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
-      <div class="card"><div class="card-hd"><div class="card-ttl">P&amp;L Summary — ${label}</div></div><div class="card-bd">${plHtml}</div></div>
-      <div class="card"><div class="card-hd"><div class="card-ttl">Cash Flow Summary — ${label}</div></div><div class="card-bd">${cfHtml}</div></div>
+  // ══ 9. EXPENSE BREAKDOWN ══
+  const salaries = (d.payroll||[]).reduce((s,r)=>s+num(r.gross_pay),0);
+  const overheadByCat = {};
+  (d.overhead||[]).forEach(r=>{
+    const name = r.overhead_categories?.name || 'Other Overhead';
+    overheadByCat[name] = (overheadByCat[name]||0) + num(r.amount);
+  });
+  const utilities = (overheadByCat['Electricity']||0) + (overheadByCat['Water']||0);
+  const rentAmt = overheadByCat['Rent']||0;
+  const maintenanceAmt = overheadByCat['Maintenance']||0;
+  const otherOverheadAmt = overheadByCat['Other Overhead']||0;
+  const opexPurchases = purchases.filter(p=>p.type==='expense' && !MILLING_FEE_CATEGORIES.includes(p.expense_categories?.name));
+  const otherOpexTotal = opexPurchases.reduce((s,p)=>s+num(p.total_cost),0);
+  const opexByCat = {};
+  opexPurchases.forEach(p=>{ const name=p.expense_categories?.name||'Other'; opexByCat[name]=(opexByCat[name]||0)+num(p.total_cost); });
+  const expHtml = `
+    <table class="mtbl"><tbody>
+      <tr><td>Salaries &amp; Wages</td><td>${fmt0(salaries)}</td></tr>
+      <tr><td>Utilities (Electricity + Water)</td><td>${fmt0(utilities)}</td></tr>
+      <tr><td>Rent</td><td>${fmt0(rentAmt)}</td></tr>
+      <tr><td>Maintenance</td><td>${fmt0(maintenanceAmt)}</td></tr>
+      <tr><td>Other Overhead</td><td>${fmt0(otherOverheadAmt)}</td></tr>
+      <tr><td><strong>Other Operating Expenses</strong></td><td><strong>${fmt0(otherOpexTotal)}</strong></td></tr>
+      ${Object.entries(opexByCat).map(([name,v])=>`<tr><td style="padding-left:24px;font-size:11.5px;color:var(--tl)">${name}</td><td style="font-size:11.5px;color:var(--tl)">${fmt0(v)}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="dm-note">Milling-related expense categories (Sifting Fees, Grinding Fees, Delivery In, Milling Material Transport) are excluded here since they're already folded into Materials COGS — see the P&amp;L note above and the Milling Conversions table.</div>`;
+
+  // ══ 10. KEY BUSINESS KPIS ══
+  const totalProdCost = (d.prodCosts||[]).reduce((s,b)=>s+num(b.total_cost),0);
+  const avgProductionCost = (d.prodCosts||[]).length ? totalProdCost/(d.prodCosts||[]).length : null;
+  const costPerInjera = injeraProducedTotal>0 ? totalProdCost/injeraProducedTotal : null;
+  const revenuePerInjera = injeraProducedTotal>0 ? num(p.injera_revenue)/injeraProducedTotal : null;
+  const profitPerInjera = (costPerInjera!=null && revenuePerInjera!=null) ? revenuePerInjera-costPerInjera : null;
+  const avgInventory = (openingValue+closingValue)/2;
+  const inventoryTurnover = avgInventory>0 ? totalCogsIas2/avgInventory : null;
+  const kpiRows = [
+    ['Gross Margin', grossMargin!=null ? grossMargin.toFixed(1)+'%' : '—'],
+    ['Net Margin', netMargin!=null ? netMargin.toFixed(1)+'%' : '—'],
+    ['Inventory Turnover (Monthly)', inventoryTurnover!=null ? inventoryTurnover.toFixed(2)+'×' : '—'],
+    ['Average Production Cost / Batch', avgProductionCost!=null ? fmt0(avgProductionCost)+' ETB' : '—'],
+    ['Cost per Injera', costPerInjera!=null ? fmt(costPerInjera)+' ETB' : '—'],
+    ['Revenue per Injera', revenuePerInjera!=null ? fmt(revenuePerInjera)+' ETB' : '—'],
+    ['Profit per Injera', profitPerInjera!=null ? fmt(profitPerInjera)+' ETB' : '—']
+  ];
+  const kpiHtml = `<table class="mtbl"><tbody>${kpiRows.map(([l,v])=>`<tr><td>${l}</td><td>${v}</td></tr>`).join('')}</tbody></table>`;
+
+  // ══ 11. NOTES & APPROVALS ══
+  const note = d.reportNote || {};
+  const pc = d.periodClose || null;
+  const approvedHtml = pc && pc.locked
+    ? `<div class="pill pill-done">Approved by ${pc.users?.name||'Accountant'} on ${new Date(pc.closed_at).toLocaleDateString()}</div>`
+    : `<div class="pill" style="background:#fef3e2;color:#b45309">Pending Accountant Approval</div>`;
+  const notesHtml = `
+    <div style="margin-bottom:14px">
+      <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Manager Comments</div>
+      <textarea id="mgrComment" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--td);resize:vertical" placeholder="Add commentary on this month's performance…">${note.manager_comment||''}</textarea>
+      <button class="rsel" style="margin-top:8px;cursor:pointer" onclick="saveManagerComment()">Save Comment</button>
     </div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">Itemized Purchases — ${label}</div></div><div class="card-bd" style="overflow-x:auto">${purchHtml}</div></div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">Milling Conversions — ${label}</div></div><div class="card-bd" style="overflow-x:auto">${millHtml}</div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="card-ttl" style="font-size:12px;margin-bottom:6px">Accountant Approval</div>
+        ${approvedHtml}
+      </div>
+      ${!(pc && pc.locked) ? `<button class="rsel" style="cursor:pointer" onclick="approvePeriod()">Mark as Approved</button>` : ''}
+      <div class="dm-note" style="margin:0">Date Generated: ${new Date().toLocaleDateString()}</div>
+    </div>`;
+
+  document.getElementById('snapshotBody').innerHTML = `
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">1. Executive Summary — ${label}</div></div><div class="exec-row">${execHtml}</div></div>
+    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
+      <div class="card"><div class="card-hd"><div class="card-ttl">2. P&amp;L Summary</div></div><div class="card-bd">${plHtml}</div></div>
+      <div class="card"><div class="card-hd"><div class="card-ttl">3. Cash Flow Summary</div></div><div class="card-bd">${cfHtml}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">4. Sales Summary</div></div><div class="card-bd" style="overflow-x:auto">${salesHtml}</div></div>
+    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
+      <div class="card"><div class="card-hd"><div class="card-ttl">5. Production Summary</div></div><div class="card-bd">${prodHtml}</div></div>
+      <div class="card"><div class="card-hd"><div class="card-ttl">6. Inventory Summary</div></div><div class="card-bd">${invHtml}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">7. Itemized Purchases</div></div><div class="card-bd" style="overflow-x:auto">${purchHtml}</div></div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">8. Milling Conversions</div></div><div class="card-bd" style="overflow-x:auto">${millHtml}</div></div>
+    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
+      <div class="card"><div class="card-hd"><div class="card-ttl">9. Expense Breakdown</div></div><div class="card-bd">${expHtml}</div></div>
+      <div class="card"><div class="card-hd"><div class="card-ttl">10. Key Business KPIs</div></div><div class="card-bd">${kpiHtml}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">11. Notes &amp; Approvals</div></div><div class="card-bd">${notesHtml}</div></div>
   `;
+}
+
+async function saveManagerComment(){
+  const val = document.getElementById('mgrComment').value;
+  try {
+    await db.from('report_notes').upsert({
+      period: snapshotPeriod,
+      manager_comment: val,
+      updated_by: currentUserId(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'period' });
+    toast('Comment saved');
+  } catch(err){
+    console.error('Save comment failed:', err);
+    toast('Could not save comment — check connection');
+  }
+}
+
+async function approvePeriod(){
+  try {
+    await db.from('period_closes').upsert({
+      period: snapshotPeriod,
+      closed_at: new Date().toISOString(),
+      closed_by: currentUserId(),
+      locked: true
+    }, { onConflict: 'period' });
+    await db.from('report_notes').upsert({
+      period: snapshotPeriod,
+      accountant_approved: true,
+      approved_by: currentUserId(),
+      approved_at: new Date().toISOString(),
+      updated_by: currentUserId(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'period' });
+    toast('Period marked as approved');
+    loadMonthlySnapshot();
+  } catch(err){
+    console.error('Approval failed:', err);
+    toast('Could not save approval — check connection');
+  }
 }
 
 /* ════════════════ YEAR CHIPS ════════════════ */
