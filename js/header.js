@@ -34,6 +34,31 @@
    Everything is optional except `title`.
    ============================================================ */
 
+/* ── Favicon (shared across every page) ───────────────────────
+   Injected once, here, so individual HTML files no longer need
+   to hardcode <link rel="icon"> tags in their own <head>. Safe to
+   run even if a page still has old tags left over — it skips any
+   rel+href pair that's already present instead of duplicating it. */
+(function ensureFavicons(){
+  const FAVICONS = [
+    { rel: 'icon',             type: 'image/x-icon', href: '/favicon.ico' },
+    { rel: 'icon',             type: 'image/png',     sizes: '16x16',  href: '/favicon-16x16.png' },
+    { rel: 'icon',             type: 'image/png',     sizes: '32x32',  href: '/favicon-32x32.png' },
+    { rel: 'icon',             type: 'image/png',     sizes: '48x48',  href: '/favicon-48x48.png' },
+    { rel: 'icon',             type: 'image/png',     sizes: '192x192', href: '/android-chrome-192x192.png' },
+    { rel: 'icon',             type: 'image/png',     sizes: '512x512', href: '/android-chrome-512x512.png' },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+    { rel: 'manifest',         href: '/site.webmanifest' }
+  ];
+  const existing = Array.from(document.querySelectorAll('link')).map(l => l.rel + '|' + (l.getAttribute('href') || ''));
+  FAVICONS.forEach(f => {
+    if (existing.includes(f.rel + '|' + f.href)) return;
+    const link = document.createElement('link');
+    Object.keys(f).forEach(k => link.setAttribute(k, f[k]));
+    document.head.appendChild(link);
+  });
+})();
+
 let _headerConfig = {};
 
 function renderHeader(config){

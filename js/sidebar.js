@@ -52,28 +52,6 @@ const NAV_ITEMS = [
   ]}
 ];
 
-/* ── Favicon (site-wide) ──────────────────────────────────────
-   Injected here (rather than edited into every page's <head>)
-   so all ~19 pages pick up the new brand mark automatically,
-   since sidebar.js is already included everywhere. */
-function ensureFaviconLinks(){
-  if (document.getElementById('mena-favicon-ico')) return;
-  const head = document.head;
-  const specs = [
-    { id: 'mena-favicon-ico', rel: 'icon', type: 'image/x-icon', href: 'assets/favicon.ico' },
-    { rel: 'icon', type: 'image/png', sizes: '32x32', href: 'assets/favicon-32.png' },
-    { rel: 'icon', type: 'image/png', sizes: '16x16', href: 'assets/favicon-16.png' },
-    { rel: 'apple-touch-icon', sizes: '180x180', href: 'assets/apple-touch-icon.png' }
-  ];
-  specs.forEach(spec => {
-    const link = document.createElement('link');
-    Object.entries(spec).forEach(([k, v]) => {
-      if (k === 'id') link.id = v; else link.setAttribute(k, v);
-    });
-    head.appendChild(link);
-  });
-}
-
 function currentPageFilename(){
   // cleanUrls (vercel.json) serves pages without the .html extension, so
   // window.location.pathname is e.g. "/pettycash-9", not "/pettycash-9.html".
@@ -102,7 +80,7 @@ function sidebarHTML(){
   return `
     <div class="sb-logo">
       <div class="logo-circle">
-        <img src="assets/logo-mark.png" alt="Mena BMS" style="width:100%;height:100%;object-fit:contain;display:block;">
+        <img src="/android-chrome-192x192.png" alt="Mena Injera &amp; Derkosh" style="width:100%;height:100%;object-fit:contain;display:block;">
       </div>
       <div class="logo-txt"><h2>MENA INJERA<br>&amp; DERKOSH</h2><p>Business Management System</p></div>
     </div>
@@ -203,7 +181,6 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  ensureFaviconLinks();
   renderSidebar();
   if (typeof loadCompanySettings === 'function') loadCompanySettings();
 });
