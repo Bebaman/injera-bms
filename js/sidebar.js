@@ -80,7 +80,7 @@ function sidebarHTML(){
   return `
     <div class="sb-logo">
       <div class="logo-circle">
-        <img src="/favicon/android-chrome-192x192.png" alt="Mena Injera &amp; Derkosh" style="width:100%;height:100%;object-fit:contain;display:block;">
+        <img src="/favicon/white-logo-192.png" alt="Mena Injera &amp; Derkosh" style="width:100%;height:100%;object-fit:contain;display:block;">
       </div>
       <div class="logo-txt"><h2>MENA INJERA<br>&amp; DERKOSH</h2><p>Business Management System</p></div>
     </div>
