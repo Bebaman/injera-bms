@@ -192,7 +192,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    both cards always match each other regardless of how many distinct categories either
    one has in a given month — content beyond the visible area scrolls instead of the two
    cards silently drifting to different heights. ~7 rows visible before scrolling. */
-.bar-list{max-height:266px;overflow-y:auto}
+.bar-list{min-height:266px;max-height:266px;overflow-y:auto}
 .bar-list::-webkit-scrollbar{width:5px}
 .bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
 
@@ -2390,10 +2390,7 @@ function renderQuantityBars(rows){
   const wrap = document.getElementById('qtyBars');
   if(!wrap) return;
   if(ranked.length===0){
-    wrap.innerHTML = `<div style="text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
-    return;
-  }
-  wrap.innerHTML = ranked.map(([cat,d],i)=>{
+    wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
     const widthPct = (d.qty/maxVal*100).toFixed(1);
     const color = catColors[i % catColors.length];
     const qtyDisplay = d.qty.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
@@ -2412,6 +2409,13 @@ function renderCategoryBars(grandTotal, rows){
   const ranked = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const maxVal = ranked.length ? ranked[0][1] : 1;
   const wrap = document.getElementById('catBars');
+  if(ranked.length===0){
+    // Without this, an empty month collapses #catBars to 0px (just its padding), while
+    // #qtyBars shows a real "No purchases this month" message — the two cards' heights
+    // would silently diverge any month with zero purchases. Match renderQuantityBars here.
+    wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
+    return;
+  }
   wrap.innerHTML = ranked.map(([cat,val],i)=>{
     const pctOfTotal = grandTotal>0 ? (val/grandTotal*100) : 0;
     const widthPct = (val/maxVal*100).toFixed(1);
