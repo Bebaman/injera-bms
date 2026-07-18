@@ -113,6 +113,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .tbl-pl th{padding:7px 5px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
 .tbl-pl td{padding:7px 5px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl-pl tr:hover td{background:#f7fbf9}
+.tbl-pl .row-blank td{border-bottom:1px solid #f0f5f2;pointer-events:none}
+.tbl-pl .row-blank:hover td{background:transparent}
 
 /* Compact sidebar table (fits 330px cards, e.g. Top Suppliers) */
 .tbl-sb{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
@@ -1288,10 +1290,12 @@ function renderTable(){
   const pageRows = filtered.slice(startIdx, startIdx+perPage);
 
   const tbody = document.getElementById('tblBody');
-  if(pageRows.length===0){
+  if(total===0){
+    // Genuinely nothing to show at all (no filters applied, table just empty) — single
+    // centered message row, no point padding this case out to perPage blank rows.
     tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No purchases match your filters.</td></tr>`;
   } else {
-    tbody.innerHTML = pageRows.map(p=>`
+    const dataRowsHtml = pageRows.map(p=>`
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
         <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
@@ -1303,6 +1307,13 @@ function renderTable(){
         </td>
       </tr>
     `).join('');
+    // Pad this page out to a constant `perPage` rows so the table (and everything below it,
+    // like the Purchase Trend / Spend by Category row) doesn't keep growing taller and
+    // shrinking shorter as purchases are added or filtered — height stays fixed at perPage
+    // rows on every page except a legitimately partial last page under 10/25/50.
+    const blankCount = Math.max(0, perPage - pageRows.length);
+    const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
+    tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
   }
 
   document.getElementById('pgInfo').textContent =
@@ -1595,7 +1606,6 @@ function updateApprovalReadout(total){
 // purchases[type=expense].total_cost as separate P&L lines, so keeping both in
 // sync here would double-count them). Don't re-add them to this fallback.
 let inventoryItems = [
-  { id:'local-inj', name:'Injera Blend', unit:'kg', group:'Raw Materials' },
   { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
   { id:'local-gomen', name:'Gomen Zere', unit:'kg', group:'Raw Materials' },
   { id:'local-sbag', name:'Small Bags', unit:'pcs', group:'Packaging' },
