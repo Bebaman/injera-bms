@@ -83,21 +83,25 @@
 .leg-ln{display:inline-block;width:18px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
 /* ══ ALERTS ═════════════════════════════════════════════ */
-.al{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.al{display:flex;align-items:flex-start;gap:11px;padding:11px 16px;border-bottom:1px solid var(--border);transition:background .15s}
 .al:last-child{border-bottom:none}
 .al:hover{background:#f7fbf9}
-.al-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.al-ic{width:37px;height:37px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
 .al:hover .al-ic{transform:scale(1.1)}
-.al-ic svg{width:15px;height:15px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.al-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ai-r{background:#fdeaea}.ai-r svg{stroke:var(--red)}
 .ai-o{background:#fef2e0}.ai-o svg{stroke:var(--amber)}
 .ai-p{background:#fce3eb}.ai-p svg{stroke:#e91e63}
 .ai-b{background:#dfeefe}.ai-b svg{stroke:#2563eb}
 .ai-g{background:#e3f6ec}.ai-g svg{stroke:var(--green)}
 .al-bd{flex:1;min-width:0}
-.al-bd h5{font-size:var(--fs-sm);font-weight:700;color:var(--td);margin-bottom:2px;line-height:1.3}
-.al-bd p{font-size:var(--fs-xs);color:var(--tl)}
-.al-t{font-size:9px;color:var(--tl);white-space:nowrap;padding-top:2px;flex-shrink:0}
+.al-bd h5{font-size:13.5px;font-weight:700;color:var(--td);margin-bottom:2px;line-height:1.3}
+.al-bd p{font-size:11.5px;color:var(--tl)}
+.al-t{font-size:9.5px;color:var(--tl);white-space:nowrap;padding-top:2px;flex-shrink:0}
+.al-sec-hd{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--tl);padding:9px 16px 4px;background:#fbfdfc}
+.al-sec-hd.crit{color:#c1272d}
+.al-sec-hd.notice{color:#0d9b7a}
+.al-mod-tag{font-size:9px;font-weight:700;color:var(--tl);background:#eef3f0;border-radius:6px;padding:1.5px 6px;margin-left:6px;text-transform:uppercase;letter-spacing:.3px}
 /* ══ ALERTS MODAL ═══════════════════════════════════════ */
 .al-modal-ovl{position:fixed;inset:0;background:rgba(16,38,28,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
 .al-modal-ovl.show{display:flex}
@@ -174,22 +178,24 @@
 .cst-stat-lbl{font-size:9px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.4px}
 .cst-stat-val{font-size:13px;font-weight:700;color:var(--td)}
 
-/* Inventory redesigned */
-.inv-list2{padding:6px 14px 12px;display:flex;flex-direction:column;gap:8px}
-.inv-item{display:flex;align-items:center;gap:10px;padding:9px 10px;background:#f6faf7;border-radius:10px;transition:background .15s}
+/* Inventory redesigned — compact + height-capped so it stays balanced next to Sales by Customer Type */
+.inv-list2{padding:6px 14px 10px;display:flex;flex-direction:column;gap:6px;max-height:222px;overflow-y:auto}
+.inv-list2::-webkit-scrollbar{width:5px}
+.inv-list2::-webkit-scrollbar-thumb{background:#d3e2d9;border-radius:3px}
+.inv-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f6faf7;border-radius:9px;transition:background .15s}
 .inv-item:hover{background:#eef6f1}
-.inv-item-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.inv-item-ico svg{width:16px;height:16px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.inv-item-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.inv-item-ico svg{width:13px;height:13px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .inv-item-mid{flex:1;min-width:0}
-.inv-item-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px}
-.inv-name{font-size:var(--fs-sm);font-weight:600;color:var(--td)}
-.inv-qty-val{font-size:var(--fs-xs);font-weight:700;color:var(--td);flex-shrink:0}
+.inv-item-top{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.inv-name{font-size:12px;font-weight:600;color:var(--td);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-qty-val{font-size:11px;font-weight:700;color:var(--td);flex-shrink:0}
 .inv-qty-val .u{font-size:9px;color:var(--tl)}
-.inv-bar-track{width:100%;height:4px;background:#e6efe9;border-radius:3px;overflow:hidden}
+.inv-bar-track{width:100%;height:3px;background:#e6efe9;border-radius:3px;overflow:hidden;margin-top:3px}
 .inv-bar-fill{height:100%;border-radius:3px;transition:width 1.1s cubic-bezier(.22,.61,.36,1)}
 .inv-ok .inv-bar-fill{background:linear-gradient(90deg,#1e8a4f,var(--green))}
 .inv-low .inv-bar-fill{background:linear-gradient(90deg,#c1272d,var(--red))}
-.inv-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.inv-tag{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:9px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
 .inv-tag.ok{background:#e3f6ec;color:#19733f}
 .inv-tag.low{background:#fdeaea;color:#c1272d}
 
@@ -529,6 +535,7 @@
                 <div class="cst-stat"><span class="cst-stat-lbl">Top Segment</span><span class="cst-stat-val" id="custStatTop">—</span></div>
                 <div class="cst-stat"><span class="cst-stat-lbl">Active Accounts</span><span class="cst-stat-val" id="custStatActive">—</span></div>
                 <div class="cst-stat"><span class="cst-stat-lbl">Avg Order</span><span class="cst-stat-val" id="custStatAvg">—</span></div>
+                <div class="cst-stat"><span class="cst-stat-lbl">Total Customers</span><span class="cst-stat-val" id="custStatTotal">—</span></div>
               </div>
             </div>
             <div class="card">
@@ -699,9 +706,9 @@ function clamp(n,lo,hi){ return Math.max(lo, Math.min(hi, n)); }
 // time to act. If an item has no usage history yet, this falls back to a
 // plain "is stock at/below reorder_level?" check, since there's no rate to
 // project from.
-function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances){
-  const WINDOW_DAYS = 60;
-  const REORDER_LEAD_DAYS = 7;
+function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances, windowDays, reorderLeadDays){
+  const WINDOW_DAYS = windowDays ?? 60;
+  const REORDER_LEAD_DAYS = reorderLeadDays ?? 7;
   const todayD = new Date();
   const cutoff = new Date(todayD); cutoff.setDate(cutoff.getDate() - WINDOW_DAYS);
 
@@ -808,7 +815,10 @@ async function refreshDashboard(){
       loanSummaryRows, customersRows, budgetRows, batchStandardRows,
       salesToday, expenseToday, pettyToday, productionToday,
       pendingApprovals, customerProfitability, businessSettingsRows,
-      allPurchasesByItem, allUsageByItem, openingBalances, millingConversionsAll
+      allPurchasesByItem, allUsageByItem, openingBalances, millingConversionsAll,
+      suppliersRows, lastPurchaseBySupplier, fixedAssetsRows, workersRows,
+      payrollDetailRows, periodCloseRows, vatSummaryRows, recentLoginFailures,
+      priceHistoryRows, anyPeriodCloseEver
     ] = await Promise.all([
       sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -824,7 +834,7 @@ async function refreshDashboard(){
       sbGet(`monthly_cash_flow?select=*&period=in.(${period},${prevP})`),
       sbGet(`stock_alerts?select=*`),
       sbGet(`loan_summary?select=*&status=eq.active`),
-      sbGet(`customers?select=id,name,type,credit_limit&is_active=eq.true`),
+      sbGet(`customers?select=id,name,type,credit_limit,created_at&is_active=eq.true`),
       sbGet(`budget_lines?select=*&period=eq.${period}`),
       sbGet(`batch_standards?select=*`),
       sbGet(`sales?select=revenue&date=eq.${today}&is_deleted=eq.false`),
@@ -833,7 +843,7 @@ async function refreshDashboard(){
       sbGet(`production_batches?select=injera_qty&date=eq.${today}&is_deleted=eq.false`),
       sbGet(`purchases?select=id,total_cost,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false`),
       sbGet(`customer_profitability?select=*`),
-      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences,teff_item_id,rice_item_id&limit=1`),
+      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences,teff_item_id,rice_item_id,is_vat_registered,supplier_inactive_days,price_spike_pct,payroll_alert_day,customer_overdue_critical_days,expiry_warning_days,failed_login_threshold,milling_yield_target_pct,inventory_usage_window_days,reorder_lead_days,low_sales_pct,high_sales_pct,low_sales_min_day_of_month,large_sale_multiplier,production_target_pct,cash_low_pct,loan_due_soon_days,loan_critical_days&limit=1`),
       // ── Inventory forecast inputs (added 2026-07) — real purchase-in / usage-out history,
       // used to compute average daily usage and days-of-stock-remaining per item. ──
       sbGet(`purchases?select=item_id,quantity,date&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=not.is.null`),
@@ -842,7 +852,18 @@ async function refreshDashboard(){
       // Teff/Rice are consumed by Milling/Conversion runs, not Production Batches — without
       // this, their stock forecast above would never decrease after a milling run and would
       // never trigger a reorder recommendation no matter how much has actually been milled.
-      sbGet(`milling_conversions?select=date,teff_qty,rice_qty`)
+      sbGet(`milling_conversions?select=date,teff_qty,rice_qty,blend_qty_produced`),
+      // ── New alert-module data (added 2026-07) ──
+      sbGet(`suppliers?select=id,name,is_active,created_at`),
+      sbGet(`purchases?select=supplier_id,date&type=eq.purchase&is_deleted=eq.false&supplier_id=not.is.null&order=date.desc`),
+      sbGet(`fixed_assets?select=id,asset_name,created_at,status,disposed_date`),
+      sbGet(`workers?select=id,name,is_active`),
+      sbGet(`payroll_detail?select=worker_id,payment_date&period=eq.${period}`),
+      sbGet(`period_closes?select=period&period=eq.${prevP}`),
+      sbGet(`vat_summary?select=*&period=eq.${period}`),
+      sbGet(`login_log?select=email,outcome,created_at&outcome=neq.success&created_at=gte.${new Date(Date.now()-86400000).toISOString()}`),
+      sbGet(`price_history?select=item_name,date,unit_price,rolling_3_avg&period=eq.${period}`),
+      sbGet(`period_closes?select=period&limit=1`)
     ]);
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -852,6 +873,25 @@ async function refreshDashboard(){
     // bell (added 2026-07). Only covers the in-app bell; Email/SMS toggles aren't wired to any
     // delivery mechanism yet since that needs a real email/SMS provider integration.
     const NOTIF_PREFS = (businessSettingsRows && businessSettingsRows[0] && businessSettingsRows[0].notification_preferences) || {};
+    const IS_VAT_REGISTERED = !!(businessSettingsRows && businessSettingsRows[0] && businessSettingsRows[0].is_vat_registered);
+    // Alert thresholds — live from Settings (added 2026-07). Falls back to the same
+    // defaults stored in the migration if the row/columns aren't reachable yet.
+    const BS = (businessSettingsRows && businessSettingsRows[0]) || {};
+    const SUPPLIER_INACTIVE_DAYS = BS.supplier_inactive_days ?? 60;
+    const PRICE_SPIKE_PCT = (BS.price_spike_pct ?? 15) / 100;
+    const PAYROLL_ALERT_DAY = BS.payroll_alert_day ?? 25;
+    const CUSTOMER_OVERDUE_CRITICAL_DAYS = BS.customer_overdue_critical_days ?? 14;
+    const EXPIRY_WARNING_DAYS = BS.expiry_warning_days ?? 7;
+    const FAILED_LOGIN_THRESHOLD = BS.failed_login_threshold ?? 3;
+    const MILLING_YIELD_TARGET_PCT = (BS.milling_yield_target_pct ?? 90) / 100;
+    const LOW_SALES_PCT = (BS.low_sales_pct ?? 35) / 100;
+    const HIGH_SALES_PCT = (BS.high_sales_pct ?? 150) / 100;
+    const LOW_SALES_MIN_DAY_OF_MONTH = BS.low_sales_min_day_of_month ?? 3;
+    const LARGE_SALE_MULTIPLIER = BS.large_sale_multiplier ?? 3;
+    const PRODUCTION_TARGET_PCT = BS.production_target_pct ?? 70;
+    const CASH_LOW_PCT = (BS.cash_low_pct ?? 15) / 100;
+    const LOAN_DUE_SOON_DAYS = BS.loan_due_soon_days ?? 10;
+    const LOAN_CRITICAL_DAYS = BS.loan_critical_days ?? 3;
 
     // ── Reflect the real pending-approvals count on the Quick Actions badge ──
     const approvalBadgeEl = document.getElementById('qaApprovalBadge');
@@ -957,6 +997,9 @@ async function refreshDashboard(){
     const TYPE_COLORS = {hotel:'#3b82f6', restaurant:'#8b5cf6', wholesale:'#f59e0b', retail:'#27ae60', other:'#94a3b8'};
     const activeAccounts = new Set(salesRows.map(s=>s.customer_id)).size;
     const avgOrder = salesRows.length ? custTotal / salesRows.length : 0;
+    // customersRows (customers table) was being fetched every refresh but never read anywhere —
+    // wired in here as a real "Total Customers" stat instead of a dead API call.
+    const totalCustomers = customersRows.length;
 
     // ── Inventory levels — now computed from real usage velocity (added 2026-07), not just
     // a static "at/below reorder level" flag. See computeInventoryForecast() below for the
@@ -975,7 +1018,7 @@ async function refreshDashboard(){
       if(teffId) millingUsageRows.push({item_id: teffId, quantity_used: num(mc.teff_qty), production_batches:{date: mc.date, is_deleted:false}});
       if(riceId) millingUsageRows.push({item_id: riceId, quantity_used: num(mc.rice_qty), production_batches:{date: mc.date, is_deleted:false}});
     });
-    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances);
+    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances, BS.inventory_usage_window_days, BS.reorder_lead_days);
     // Derkosh has no reorder_level in the schema (it's produced, not purchased), so we derive a
     // sensible buffer from this period's own production rather than just checking "> 0" —
     // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.
@@ -1042,36 +1085,208 @@ async function refreshDashboard(){
     ];
     const healthLabel = healthOverall>=80?'Strong':healthOverall>=60?'Stable':healthOverall>=40?'Needs Attention':'At Risk';
 
-    // ── Alerts (built from live data) ───────────────────────
-    const alerts = [];
+    // ── Alerts & Notifications (built from live data across modules) ─────────
+    // 'alert'  = needs action, shown red/orange/pink — surfaced first, capped tighter
+    // 'notice' = fyi / completed activity, shown green/blue — fills remaining space
+    // Every entry carries a module tag so the "View All" modal can group/filter by module.
+    const alerts = [];   // kind:'alert'
+    const notices = [];  // kind:'notice'
+
+    // ── 1. Inventory — low/critical stock ──────────────────
     inventoryLevels.filter(i=>i.status==='low').forEach(i=>{
-      alerts.push({icon:'ai-r', svg:'warn', title:`${i.name}: ${i.recommendation}`, sub:`Current: ${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit} · Reorder level: ${i.reorder.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit}`});
+      const runway = (i.daysRemaining!=null && isFinite(i.daysRemaining) && i.daysRemaining>=0)
+        ? ` · ~${Math.round(i.daysRemaining)} day${Math.round(i.daysRemaining)===1?'':'s'} of stock left at current usage — plan to reorder`
+        : '';
+      alerts.push({icon:'ai-r', svg:'warn', title:`${i.name}: ${i.recommendation}`, sub:`Current: ${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit} · Reorder level: ${i.reorder.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit}${runway}`, module:'Inventory', priority:'critical', kind:'alert'});
     });
+    // Live rows from the dedicated stock_alerts view — previously read wrong column
+    // names (message/severity, which don't exist on this view) so it silently produced
+    // nothing. Real columns: name, closing_qty, reorder_level, low_stock, next_expiry_date.
+    (stockAlertRows||[]).forEach(sa=>{
+      if(sa.low_stock){
+        const isOut = num(sa.closing_qty) <= 0;
+        alerts.push({icon:'ai-r', svg:'warn', title: isOut ? `${sa.name} is out of stock` : `${sa.name} below reorder level`, sub:`On hand: ${num(sa.closing_qty).toLocaleString('en-US',{maximumFractionDigits:2})} · Reorder level: ${num(sa.reorder_level).toLocaleString('en-US',{maximumFractionDigits:2})}`, module:'Inventory', priority:'critical', kind:'alert'});
+      }
+      if(sa.next_expiry_date){
+        const daysToExpiry = Math.round((new Date(sa.next_expiry_date)-new Date())/86400000);
+        if(daysToExpiry>=0 && daysToExpiry<=EXPIRY_WARNING_DAYS){
+          alerts.push({icon:'ai-o', svg:'clock', title:`${sa.name} expiring soon`, sub:`Expires ${sa.next_expiry_date} (${daysToExpiry} day${daysToExpiry===1?'':'s'})`, module:'Inventory', priority: daysToExpiry<=2?'critical':'high', kind:'alert'});
+        }
+      }
+    });
+
+    // ── 2. Purchase — pending approvals, overdue POs ───────
     pendingApprovals.slice(0,3).forEach(p=>{
-      alerts.push({icon:'ai-o', svg:'clock', title:'Expense approval pending', sub:`${p.expense_categories?.name || 'Expense'} — ${fmtETB(p.total_cost)} ETB`, link:'purchases.html?approvals=1'});
+      alerts.push({icon:'ai-o', svg:'clock', title:'Purchase approval pending', sub:`${p.expense_categories?.name || 'Expense'} — ${fmtETB(p.total_cost)} ETB`, link:'purchases.html?approvals=1', module:'Purchase', priority:'high', kind:'alert'});
     });
+
+    // ── 3. Sales — unusually low/high daily sales, target ──
+    {
+      const dayOfMonth = new Date().getDate();
+      const avgDailyRevenue = dayOfMonth>0 ? curD.revenue/dayOfMonth : 0;
+      if(avgDailyRevenue>0 && dayOfMonth>LOW_SALES_MIN_DAY_OF_MONTH && salesTodayTotal < avgDailyRevenue*LOW_SALES_PCT){
+        alerts.push({icon:'ai-o', svg:'warn', title:'Unusually low sales today', sub:`${fmtETB(salesTodayTotal)} ETB so far vs ${fmtETB(avgDailyRevenue)} ETB average`, module:'Sales', priority:'medium', kind:'alert'});
+      } else if(avgDailyRevenue>0 && salesTodayTotal > avgDailyRevenue*HIGH_SALES_PCT){
+        notices.push({icon:'ai-g', svg:'check', title:'Strong sales day', sub:`${fmtETB(salesTodayTotal)} ETB today — above the ${fmtETB(avgDailyRevenue)} ETB daily average`, module:'Sales', priority:'success', kind:'notice'});
+      }
+      const largestSaleToday = salesToday.reduce((max,r)=>num(r.revenue)>num(max?.revenue||0)?r:max, null);
+      if(largestSaleToday && num(largestSaleToday.revenue) >= avgOrder*LARGE_SALE_MULTIPLIER && avgOrder>0){
+        notices.push({icon:'ai-b', svg:'users', title:'Large sale completed', sub:`${fmtETB(largestSaleToday.revenue)} ETB order recorded today`, module:'Sales', priority:'info', kind:'notice'});
+      }
+    }
+
+    // ── 4. Production — behind target, completed batches ───
+    if(targetTotal>0 && mfgEfficiency<PRODUCTION_TARGET_PCT){
+      alerts.push({icon:'ai-o', svg:'warn', title:'Production below target', sub:`${mfgEfficiency}% of monthly target — ${fmtInt(injeraBaked)} of ${fmtInt(targetTotal)} pcs`, module:'Production', priority:'high', kind:'alert'});
+    }
+    if(prodBatchRows.length){
+      const latest = [...prodBatchRows].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      notices.push({icon:'ai-g', svg:'check', title:'Production batch completed', sub:`Batch B-${String(latest.batch_number).padStart(3,'0')} — ${fmtInt(latest.injera_qty)} pcs injera`, module:'Production', priority:'success', kind:'notice'});
+    }
+
+    // ── 5. Cash — running low, healthy position ────────────
+    if(monthlyOpexApprox>0 && cashTotalCur < monthlyOpexApprox*CASH_LOW_PCT){
+      alerts.push({icon:'ai-r', svg:'warn', title:'Cash balance running low', sub:`${fmtETB(cashTotalCur)} ETB on hand vs ~${fmtETB(monthlyOpexApprox)} ETB monthly overhead`, module:'Cash', priority:'critical', kind:'alert'});
+    } else if(cashTotalCur > cashTotalPrev && cashTotalPrev>0){
+      notices.push({icon:'ai-g', svg:'check', title:'Cash position improved', sub:`Up ${fmtETB(cashTotalCur-cashTotalPrev)} ETB vs last month — now ${fmtETB(cashTotalCur)} ETB`, module:'Cash', priority:'success', kind:'notice'});
+    }
+
+    // ── 6. Loans — payment due soon ─────────────────────────
     loanSummaryRows.forEach(l=>{
       if(l.next_payment_due){
         const days = Math.round((new Date(l.next_payment_due) - new Date())/86400000);
-        if(days<=10) alerts.push({icon:'ai-p', svg:'calendar', title:`Loan payment due in ${Math.max(days,0)} days`, sub:`${l.lender_name} — ${fmtETB(l.next_payment_amount)} ETB`});
+        if(days<=LOAN_DUE_SOON_DAYS) alerts.push({icon:'ai-p', svg:'calendar', title:`Loan payment due in ${Math.max(days,0)} days`, sub:`${l.lender_name} — ${fmtETB(l.next_payment_amount)} ETB`, module:'Cash', priority: days<=LOAN_CRITICAL_DAYS?'critical':'high', kind:'alert'});
       }
     });
+
+    // ── 7. Customers — credit limit approaching ─────────────
     customerProfitability.filter(c=>num(c.credit_limit)>0 && (num(c.outstanding_ar)/num(c.credit_limit))*100>=CREDIT_WARNING_PCT).slice(0,2).forEach(c=>{
-      alerts.push({icon:'ai-b', svg:'users', title:'Credit limit approaching', sub:`${c.name} — ${Math.round(num(c.outstanding_ar)/num(c.credit_limit)*100)}% of limit used`});
+      alerts.push({icon:'ai-b', svg:'users', title:'Credit limit approaching', sub:`${c.name} — ${Math.round(num(c.outstanding_ar)/num(c.credit_limit)*100)}% of limit used`, module:'Customers', priority:'high', kind:'alert'});
     });
-    if(prodBatchRows.length){
-      const latest = [...prodBatchRows].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
-      alerts.push({icon:'ai-g', svg:'check', title:'Production batch completed', sub:`Batch B-${String(latest.batch_number).padStart(3,'0')} — ${fmtInt(latest.injera_qty)} pcs injera`});
+
+    // ── 8. Expense / Budget — over-budget line items ────────
+    budgetTiles.filter(b=>b.status==='over').slice(0,2).forEach(b=>{
+      alerts.push({icon:'ai-r', svg:'warn', title:`${b.name} over budget`, sub:`${fmtETB(b.spent)} ETB spent vs ${fmtETB(b.budget)} ETB budgeted`, module:'Expense', priority:'high', link:'budget.html', kind:'alert'});
+    });
+
+    // ── 9. Suppliers — inactive suppliers, newly added ───────
+    {
+      const lastPurchaseBySupplierMap = {};
+      (lastPurchaseBySupplier||[]).forEach(p=>{
+        if(!lastPurchaseBySupplierMap[p.supplier_id]) lastPurchaseBySupplierMap[p.supplier_id] = p.date; // rows arrive date desc
+      });
+      (suppliersRows||[]).filter(s=>s.is_active).forEach(s=>{
+        const last = lastPurchaseBySupplierMap[s.id];
+        if(last){
+          const daysSince = Math.round((new Date(today)-new Date(last))/86400000);
+          if(daysSince>=SUPPLIER_INACTIVE_DAYS) alerts.push({icon:'ai-o', svg:'warn', title:`No orders from ${s.name} in ${daysSince} days`, sub:'Supplier may be inactive — confirm status or find an alternate source', module:'Suppliers', priority:'medium', kind:'alert'});
+        }
+        if(s.created_at && (new Date(today)-new Date(s.created_at.slice(0,10)))/86400000 <= 7){
+          notices.push({icon:'ai-b', svg:'users', title:'New supplier added', sub:s.name, module:'Suppliers', priority:'info', kind:'notice'});
+        }
+      });
+    }
+
+    // ── 10. Purchase — significant price increases ──────────
+    {
+      const byItem = {};
+      (priceHistoryRows||[]).forEach(r=>{ (byItem[r.item_name] ||= []).push(r); });
+      Object.entries(byItem).forEach(([name, rows])=>{
+        const latest = rows.reduce((mx,r)=>new Date(r.date)>new Date(mx.date)?r:mx, rows[0]);
+        if(latest.rolling_3_avg>0 && latest.unit_price > latest.rolling_3_avg*(1+PRICE_SPIKE_PCT)){
+          const pct = Math.round((latest.unit_price/latest.rolling_3_avg-1)*100);
+          alerts.push({icon:'ai-o', svg:'warn', title:`${name} price up ${pct}%`, sub:`Latest ${fmtETB(latest.unit_price)} ETB vs recent average ${fmtETB(latest.rolling_3_avg)} ETB`, module:'Purchase', priority:'medium', kind:'alert'});
+        }
+      });
+    }
+
+    // ── 11. Milling — teff/rice running low, yield check ────
+    {
+      const bs = (businessSettingsRows && businessSettingsRows[0]) || {};
+      [bs.teff_item_id, bs.rice_item_id].filter(Boolean).forEach(itemId=>{
+        const lvl = inventoryLevels.find(i=>i.id===itemId);
+        if(lvl && lvl.status==='low') alerts.push({icon:'ai-r', svg:'warn', title:`${lvl.name} running low for milling`, sub:`Current: ${lvl.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${lvl.unit}`, module:'Milling', priority:'critical', kind:'alert'});
+      });
+      const millingThisPeriod = (millingConversionsAll||[]).filter(m=>m.date>=period+'-01' && m.date<=cutoffCur);
+      if(millingThisPeriod.length){
+        const latestRun = [...millingThisPeriod].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        const expectedYield = (num(latestRun.teff_qty)+num(latestRun.rice_qty)) * MILLING_YIELD_TARGET_PCT;
+        if(expectedYield>0 && num(latestRun.blend_qty_produced) < expectedYield){
+          const shortPct = Math.round((1-num(latestRun.blend_qty_produced)/expectedYield)*100);
+          alerts.push({icon:'ai-o', svg:'warn', title:'Milling yield below expected', sub:`${latestRun.date} run produced ${shortPct}% less blend than teff+rice input suggests`, module:'Milling', priority:'medium', kind:'alert'});
+        } else {
+          notices.push({icon:'ai-g', svg:'check', title:'Milling completed', sub:`${latestRun.date} — ${fmtInt(latestRun.blend_qty_produced)} kg blend produced`, module:'Milling', priority:'success', kind:'notice'});
+        }
+      }
+    }
+
+    // ── 12. Customers — overdue payment, inactive, new signups ──
+    {
+      customerProfitability.filter(c=>num(c.outstanding_ar)>0 && c.last_purchase_date && c.payment_terms_days>0).forEach(c=>{
+        const dueDate = new Date(c.last_purchase_date); dueDate.setDate(dueDate.getDate()+c.payment_terms_days);
+        const daysOverdue = Math.round((new Date(today)-dueDate)/86400000);
+        if(daysOverdue>0) alerts.push({icon:'ai-p', svg:'calendar', title:`${c.name} payment overdue`, sub:`${fmtETB(c.outstanding_ar)} ETB outstanding, ${daysOverdue} day${daysOverdue===1?'':'s'} past terms`, module:'Customers', priority: daysOverdue>CUSTOMER_OVERDUE_CRITICAL_DAYS?'critical':'high', kind:'alert'});
+      });
+      (customersRows||[]).forEach(c=>{
+        if(c.created_at && (new Date(today)-new Date(c.created_at.slice(0,10)))/86400000 <= 7){
+          notices.push({icon:'ai-b', svg:'users', title:'New customer registered', sub:c.name, module:'Customers', priority:'info', kind:'notice'});
+        }
+      });
+    }
+
+    // ── 13. HR — payroll not yet processed this period ──────
+    {
+      const dayOfMonth = new Date().getDate();
+      const activeWorkers = (workersRows||[]).filter(w=>w.is_active);
+      const paidWorkerIds = new Set((payrollDetailRows||[]).filter(p=>p.payment_date).map(p=>p.worker_id));
+      const unpaid = activeWorkers.filter(w=>!paidWorkerIds.has(w.id));
+      if(activeWorkers.length && dayOfMonth>=PAYROLL_ALERT_DAY && unpaid.length){
+        alerts.push({icon:'ai-o', svg:'clock', title:'Payroll not yet processed', sub:`${unpaid.length} of ${activeWorkers.length} active worker${activeWorkers.length===1?'':'s'} unpaid for ${period}`, module:'HR', priority:'high', kind:'alert'});
+      } else if(activeWorkers.length && paidWorkerIds.size>=activeWorkers.length && activeWorkers.length>0){
+        notices.push({icon:'ai-g', svg:'check', title:'Salary processed', sub:`All ${activeWorkers.length} active workers paid for ${period}`, module:'HR', priority:'success', kind:'notice'});
+      }
+    }
+
+    // ── 14. Assets — newly registered, disposed ──────────────
+    (fixedAssetsRows||[]).forEach(a=>{
+      if(a.created_at && (new Date(today)-new Date(a.created_at.slice(0,10)))/86400000 <= 7){
+        notices.push({icon:'ai-b', svg:'check', title:'New asset registered', sub:a.asset_name, module:'Assets', priority:'info', kind:'notice'});
+      }
+      if(a.status==='disposed' && a.disposed_date && (new Date(today)-new Date(a.disposed_date))/86400000 <= 7){
+        notices.push({icon:'ai-b', svg:'check', title:'Asset disposed', sub:a.asset_name, module:'Assets', priority:'info', kind:'notice'});
+      }
+    });
+
+    // ── 15. Accounting — prior month not closed, VAT payable ──
+    {
+      // Only nag about an unclosed period if this business actually uses the
+      // period-close feature — otherwise this would fire every month for a
+      // business that's never closed a single period.
+      if((anyPeriodCloseEver||[]).length && !(periodCloseRows||[]).length){
+        alerts.push({icon:'ai-o', svg:'calendar', title:`${periodToLabel(prevP)} not closed`, sub:'Close the prior period once all entries are reconciled', module:'Accounting', priority:'medium', link:'settings.html', kind:'alert'});
+      }
+      if(IS_VAT_REGISTERED && (vatSummaryRows||[]).length && num(vatSummaryRows[0].vat_payable)>0){
+        alerts.push({icon:'ai-o', svg:'warn', title:'VAT payable this period', sub:`${fmtETB(vatSummaryRows[0].vat_payable)} ETB due`, module:'Accounting', priority:'medium', kind:'alert'});
+      }
+    }
+
+    // ── 16. Security — repeated failed logins ─────────────────
+    {
+      const byEmail = {};
+      (recentLoginFailures||[]).forEach(l=>{ byEmail[l.email] = (byEmail[l.email]||0)+1; });
+      Object.entries(byEmail).filter(([,n])=>n>=FAILED_LOGIN_THRESHOLD).forEach(([email,n])=>{
+        alerts.push({icon:'ai-r', svg:'warn', title:'Repeated failed login attempts', sub:`${email} — ${n} failed attempts in the last 24 hours`, module:'Security', priority:'critical', kind:'alert'});
+      });
     }
 
     // ── Cache & render ───────────────────────────────────────
     LAST = {
       period, prevP, curD, prevD, derkoshStockCur, derkoshStockPrev, arCur, arPrev,
       cashCur, cashPrev, cashTotalCur, cashTotalPrev, expenseEntries, expenseTotal, EXP_COLORS,
-      top5, top5Total, custTotal, typeEntries, TYPE_LABELS, TYPE_COLORS, activeAccounts, avgOrder,
+      top5, top5Total, custTotal, typeEntries, TYPE_LABELS, TYPE_COLORS, activeAccounts, avgOrder, totalCustomers,
       inventoryLevels, flourUsed, injeraBaked, batchesCompleted, derkoshPacked, mfgEfficiency,
       salesTodayTotal, expenseTodayTotal, injeraTodayTotal, netProfitToday,
-      loanSummaryRows, loanTotalOutstanding, budgetTiles, healthOverall, healthPillars, healthLabel, alerts
+      loanSummaryRows, loanTotalOutstanding, budgetTiles, healthOverall, healthPillars, healthLabel, alerts, notices
     };
     renderKpis();
     renderAlerts();
@@ -1081,14 +1296,16 @@ async function refreshDashboard(){
     // actually gates whether it reaches the bell. 'ai-g' (production completed) has no matching
     // Settings toggle — there's no preference for it, so it's always shown.
     const ALERT_ICON_TO_SLUG = { 'ai-r':'low_stock', 'ai-o':'expense_approval', 'ai-p':'loan_payment_due', 'ai-b':'credit_overdue' };
-    const pushFilteredAlerts = alerts.filter(a=>{
+    const pushFilter = a => {
       const slug = ALERT_ICON_TO_SLUG[a.icon];
       if(!slug) return true; // no matching preference (e.g. ai-g) — always show
       const pref = NOTIF_PREFS[slug];
       return !pref || pref.push !== false; // default to shown if preferences haven't been saved yet
-    });
+    };
+    // Alerts first (need action), then notices (fyi) — mirrors the on-card ordering.
+    const bellFeed = [...alerts.filter(pushFilter), ...notices.filter(pushFilter)];
     if (typeof refreshNotifications === 'function') {
-      refreshNotifications(pushFilteredAlerts.map(a => ({ type: (a.icon||'ai-g').replace('ai-',''), title: a.title, sub: a.sub, time: '' })));
+      refreshNotifications(bellFeed.map(a => ({ type: (a.icon||'ai-g').replace('ai-',''), title: a.title, sub: a.sub, time: '', module: a.module, kind: a.kind })));
     }
     renderExpenseDonut();
     renderTopCustomers();
@@ -1128,65 +1345,54 @@ function renderKpis(){
   set('kpiCash', d.cashTotalCur.toFixed(2), 'kpiCashChg', d.cashTotalCur, d.cashTotalPrev, false);
 }
 
-function renderAlerts(){
-  const wrap = document.getElementById('alertsList');
-  if(!LAST.alerts.length){ wrap.innerHTML = `<div class="al" style="border-bottom:none"><div class="al-bd"><h5>No active alerts</h5><p>Everything looks good</p></div></div>`; return; }
-  const ICONS = {
-    warn: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
-    clock: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
-    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-    users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
-    check: '<polyline points="20 6 9 17 4 12"/>'
-  };
-  wrap.innerHTML = LAST.alerts.slice(0,6).map((a,i,arr)=>{
-    const styles = [];
-    if(i===arr.length-1) styles.push('border-bottom:none');
-    if(a.link) styles.push('cursor:pointer');
-    const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
-    const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
-    return `
-    <div class="al"${styleAttr}${clickAttr}>
-      <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${ICONS[a.svg]||ICONS.check}</svg></div>
-      <div class="al-bd"><h5>${a.title}</h5><p>${a.sub}</p></div>
-      <div class="al-t"></div>
-    </div>`;
-  }).join('');
-  // Keep the "View All" link's affordance honest: hide it when there's nothing more to show.
-  const vall = document.getElementById('alertsViewAll');
-  if(vall) vall.style.display = LAST.alerts.length > 6 ? '' : 'none';
-}
-
-// ── Alerts & Notifications: "View All" modal ─────────────────────────────
-// There's no dedicated alerts/notifications page in the BMS, so "View All"
-// opens an in-page modal listing every live alert (not just the 6 shown on
-// the dashboard card).
-const ALERT_MODAL_ICONS = {
+const AL_ICONS = {
   warn: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
   clock: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
   check: '<polyline points="20 6 9 17 4 12"/>'
 };
+function alertRowHtml(a){
+  const styles = a.link ? ' style="cursor:pointer"' : '';
+  const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
+  return `<div class="al"${styles}${clickAttr}>
+      <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${AL_ICONS[a.svg]||AL_ICONS.check}</svg></div>
+      <div class="al-bd"><h5>${a.title}${a.module?`<span class="al-mod-tag">${a.module}</span>`:''}</h5><p>${a.sub}</p></div>
+      <div class="al-t"></div>
+    </div>`;
+}
+function renderAlerts(){
+  const wrap = document.getElementById('alertsList');
+  const alerts = LAST.alerts||[], notices = LAST.notices||[];
+  if(!alerts.length && !notices.length){ wrap.innerHTML = `<div class="al" style="border-bottom:none"><div class="al-bd"><h5>All clear</h5><p>No alerts or notifications right now</p></div></div>`; return; }
+  // Card is compact: up to 3 alerts + up to 3 notices (5-6 rows total) — "View All" opens the full modal.
+  const shownAlerts = alerts.slice(0,3);
+  const shownNotices = notices.slice(0, Math.max(2, 6-shownAlerts.length));
+  let html = '';
+  if(shownAlerts.length) html += `<div class="al-sec-hd crit">🔴 Alerts (${alerts.length})</div>` + shownAlerts.map(alertRowHtml).join('');
+  if(shownNotices.length) html += `<div class="al-sec-hd notice">🔔 Notifications (${notices.length})</div>` + shownNotices.map(alertRowHtml).join('');
+  wrap.innerHTML = html;
+  // Keep the "View All" link's affordance honest: hide it when there's nothing more to show.
+  const vall = document.getElementById('alertsViewAll');
+  if(vall) vall.style.display = (alerts.length + notices.length) > (shownAlerts.length + shownNotices.length) ? '' : 'none';
+}
+
+// ── Alerts & Notifications: "View All" modal ─────────────────────────────
+// There's no dedicated alerts/notifications page in the BMS, so "View All"
+// opens an in-page modal listing every live alert (not just the 6 shown on
+// the dashboard card).
 function renderAlertsModal(){
   const body = document.getElementById('alertsModalBody');
   const alerts = (LAST && LAST.alerts) || [];
-  if(!alerts.length){
-    body.innerHTML = `<div class="al" style="border-bottom:none"><div class="al-bd"><h5>No active alerts</h5><p>Everything looks good</p></div></div>`;
+  const notices = (LAST && LAST.notices) || [];
+  if(!alerts.length && !notices.length){
+    body.innerHTML = `<div class="al" style="border-bottom:none"><div class="al-bd"><h5>All clear</h5><p>No alerts or notifications right now</p></div></div>`;
     return;
   }
-  body.innerHTML = alerts.map((a,i,arr)=>{
-    const styles = [];
-    if(i===arr.length-1) styles.push('border-bottom:none');
-    if(a.link) styles.push('cursor:pointer');
-    const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
-    const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
-    return `
-    <div class="al"${styleAttr}${clickAttr}>
-      <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${ALERT_MODAL_ICONS[a.svg]||ALERT_MODAL_ICONS.check}</svg></div>
-      <div class="al-bd"><h5>${a.title}</h5><p>${a.sub}</p></div>
-      <div class="al-t"></div>
-    </div>`;
-  }).join('');
+  let html = '';
+  if(alerts.length) html += `<div class="al-sec-hd crit">🔴 Alerts (${alerts.length})</div>` + alerts.map(alertRowHtml).join('');
+  if(notices.length) html += `<div class="al-sec-hd notice">🔔 Notifications (${notices.length})</div>` + notices.map(alertRowHtml).join('');
+  body.innerHTML = html;
 }
 function openAlertsModal(){
   renderAlertsModal();
@@ -1340,11 +1546,12 @@ function renderSecondaryPanels(){
   document.getElementById('custStatTop').textContent = typeLabels[0] || '—';
   document.getElementById('custStatActive').textContent = d.activeAccounts;
   document.getElementById('custStatAvg').textContent = `${fmtInt(d.avgOrder)} ETB`;
+  document.getElementById('custStatTotal').textContent = d.totalCustomers;
 
   // Inventory
   document.getElementById('invList').innerHTML = d.inventoryLevels.map(i=>`
-    <div class="inv-item"><div class="inv-item-ico ${i.status==='low'?'ic-r':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
-    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${i.name}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><div class="inv-recommendation" style="font-size:10.5px;color:${i.status==='low'?'#b71c1c':'#7a8a80'};margin-top:3px">${i.recommendation}</div></div>
+    <div class="inv-item" title="${(i.recommendation||'').replace(/"/g,'&quot;')}"><div class="inv-item-ico ${i.status==='low'?'ic-r':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
+    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${i.name}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><span class="inv-recommendation" style="display:none">${i.recommendation}</span></div>
     <span class="inv-tag ${i.status}">${i.status==='low'?'Low':'OK'}</span></div>`).join('');
 
 
