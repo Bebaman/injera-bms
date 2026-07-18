@@ -188,6 +188,14 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .bar-row .bp{font-size:11.5px;font-weight:700;color:var(--tm);width:34px;text-align:right;flex-shrink:0}
 .bar-row .bv{font-size:11.5px;font-weight:700;color:var(--td);text-align:right;flex-shrink:0;margin-left:2px;white-space:nowrap}
 
+/* Shared fixed height for Spend by Category + Monthly Purchased Quantity bar lists, so
+   both cards always match each other regardless of how many distinct categories either
+   one has in a given month — content beyond the visible area scrolls instead of the two
+   cards silently drifting to different heights. ~7 rows visible before scrolling. */
+.bar-list{max-height:266px;overflow-y:auto}
+.bar-list::-webkit-scrollbar{width:5px}
+.bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
+
 /* ══ ACTIONS DOTS ═══════════════════════════════════ */
 .act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px}
 .act-dots:hover{background:var(--bg);color:var(--tm)}
@@ -624,7 +632,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <div class="card-ttl">Spend by Category <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
             <span style="font-size:11px;font-weight:600;color:var(--tl);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block"></span>ETB</span>
           </div>
-          <div style="padding-bottom:10px" id="catBars">
+          <div class="bar-list" style="padding-bottom:10px" id="catBars">
           </div>
         </div>
       </div>
@@ -683,7 +691,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div class="card-hd">
             <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
           </div>
-          <div style="padding-bottom:10px" id="qtyBars">
+          <div class="bar-list" style="padding-bottom:10px" id="qtyBars">
           </div>
         </div>
 
