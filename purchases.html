@@ -278,11 +278,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    Full-width centered block spanning the table's usual row height, instead of a single
    thin message row — icon, title, helper text, CTA — mirrors the pattern used on
    Petty Cash Transactions and other list modules in the app. */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:56px 20px;min-height:360px}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:70px 20px;min-height:480px}
 .empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
 .empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
-.empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:14px}
-.empty-state .btn-new{padding:0 20px;height:38px;font-size:13px}
+.empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:18px}
+.empty-state-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#1d5c38;color:#fff;font-size:15px;font-weight:700;padding:0 34px;height:58px;min-width:200px;border-radius:12px;border:none;cursor:pointer;transition:background .12s}
+.empty-state-btn:hover{background:#164a2d}
+.empty-state-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;margin:0}
 
 /* ══ LAPTOP RANGE (901px–1220px) ════════════════════
    Between the full desktop layout and the mobile drawer breakpoint, a fixed 220px sidebar
@@ -1316,7 +1318,7 @@ function renderTable(){
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <div class="empty-state-title">No purchases found</div>
         <div class="empty-state-sub">${subtext}</div>
-        <button class="btn-new" onclick="openPurchaseModal()">
+        <button class="empty-state-btn" onclick="openPurchaseModal()">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Purchase
         </button>
