@@ -303,7 +303,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    right-column cards (Top Suppliers, donuts, approval summary) sit below at full width. */
 @media (max-width:1220px) and (min-width:901px){
   .bot2{grid-template-columns:1fr}
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{grid-template-columns:1fr 1fr}
+  /* Purchase Trend + Spend by Category + Monthly Purchased Quantity: at laptop widths
+     there isn't room for 3 side-by-side cards without squeezing the trend chart, so
+     Trend takes the full top row and the two bar-list cards share the row beneath it. */
+  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"]{grid-template-columns:1fr 1fr;grid-template-areas:"trend trend" "cat qty"}
+  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(1){grid-area:trend}
+  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(2){grid-area:cat}
+  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(3){grid-area:qty}
 }
 @media (max-width:900px){
   /* Sidebar/topbar responsive behavior now lives in shared-shell.css.
@@ -601,8 +607,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
       </div>
 
-      <!-- Purchase Trend + Spend by Category (left column, full width) -->
-      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
+      <!-- Purchase Trend + Spend by Category + Monthly Purchased Quantity (left column,
+           full width). Quantity moved here from the right sidebar so it sits directly next
+           to Spend by Category — both bar-list cards already share the same fixed height
+           (see .bar-list rule) so they line up exactly. -->
+      <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px">
         <!-- Purchase Trend -->
         <div class="card" style="display:flex;flex-direction:column">
           <div class="card-hd">
@@ -634,6 +643,19 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <span style="font-size:11px;font-weight:600;color:var(--tl);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block"></span>ETB</span>
           </div>
           <div class="bar-list" style="padding-bottom:10px" id="catBars">
+          </div>
+        </div>
+
+        <!-- Monthly Purchased Quantity — right next to Spend by Category, same fixed
+             height via the shared .bar-list rule. Shows quantity per raw-material/packaging
+             category, kept unit-aware (kg vs pcs shown per row) rather than summed into one
+             meaningless combined number, since Purchase rows span multiple units. Expense
+             rows have no real quantity so they're excluded. -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
+          </div>
+          <div class="bar-list" style="padding-bottom:10px" id="qtyBars">
           </div>
         </div>
       </div>
@@ -682,18 +704,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </div>
           </div>
           <a class="view-exp" onclick="openApprovalModal()" style="cursor:pointer">View Approval Queue</a>
-        </div>
-
-        <!-- Monthly Purchased Quantity — sized to match Spend by Category. Shows quantity
-             per raw-material/packaging category, kept unit-aware (kg vs pcs shown per row)
-             rather than summed into one meaningless combined number, since Purchase rows
-             span multiple units. Expense rows have no real quantity so they're excluded. -->
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
-          </div>
-          <div class="bar-list" style="padding-bottom:10px" id="qtyBars">
-          </div>
         </div>
 
       </div><!-- /right column -->
