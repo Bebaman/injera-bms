@@ -222,6 +222,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .kc{animation:fadeUp .45s ease both}
 .kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
 .kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
@@ -1345,7 +1346,9 @@ function renderTable(){
       </div>
     </td></tr>`;
   } else {
-    const dataRowsHtml = pageRows.map(p=>`
+    const dataRowsHtml = pageRows.map(p=>{
+      try {
+        return `
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
         <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
@@ -1356,7 +1359,16 @@ function renderTable(){
           </div>
         </td>
       </tr>
-    `).join('');
+    `;
+      } catch(err){
+        // A single malformed row (bad date, missing field, etc.) used to throw inside
+        // .map() and silently abort the WHOLE render — every row after it (and the
+        // padding logic below) never ran, leaving the table blank despite pgInfo/
+        // pagination showing real counts, since those run in a separate statement.
+        console.error('renderTable: failed to render row', p, err);
+        return `<tr><td colspan="14" style="color:#b3261e;font-style:italic">Row failed to render (id: ${p?.id ?? 'unknown'}) — see console</td></tr>`;
+      }
+    }).join('');
     // Pad this page out to a constant `perPage` rows so the table (and everything below it,
     // like the Purchase Trend / Spend by Category row) doesn't keep growing taller and
     // shrinking shorter as purchases are added or filtered — height stays fixed at perPage
