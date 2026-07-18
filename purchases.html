@@ -274,6 +274,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 /* Empty state */
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
 
+/* ══ EMPTY STATE PANEL (table has zero rows) ═══════════
+   Full-width centered block spanning the table's usual row height, instead of a single
+   thin message row — icon, title, helper text, CTA — mirrors the pattern used on
+   Petty Cash Transactions and other list modules in the app. */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:56px 20px;min-height:360px}
+.empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
+.empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
+.empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:14px}
+.empty-state .btn-new{padding:0 20px;height:38px;font-size:13px}
+
 /* ══ LAPTOP RANGE (901px–1220px) ════════════════════
    Between the full desktop layout and the mobile drawer breakpoint, a fixed 220px sidebar
    + 330px right column + a wide data table has no room left and used to force the whole
@@ -1290,10 +1300,28 @@ function renderTable(){
   const pageRows = filtered.slice(startIdx, startIdx+perPage);
 
   const tbody = document.getElementById('tblBody');
+  const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
   if(total===0){
-    // Genuinely nothing to show at all (no filters applied, table just empty) — single
-    // centered message row, no point padding this case out to perPage blank rows.
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No purchases match your filters.</td></tr>`;
+    // Matches the empty-state pattern used elsewhere in the app (e.g. Petty Cash
+    // Transactions): icon + title + helper text + CTA, centered as one block filling the
+    // table's usual height — not a single skinny message row padded out with blank rows.
+    const hasActiveFilters = document.getElementById('fSupplier')?.value !== 'All Suppliers'
+      || document.getElementById('fStatus')?.value !== 'All Statuses'
+      || (document.getElementById('searchInput')?.value || '').trim() !== '';
+    const subtext = hasActiveFilters
+      ? 'No purchases match your filters. Try adjusting or clearing them.'
+      : 'Add your first purchase or expense to get started.';
+    tbody.innerHTML = `<tr><td colspan="14" style="padding:0;border-bottom:none">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="empty-state-title">No purchases found</div>
+        <div class="empty-state-sub">${subtext}</div>
+        <button class="btn-new" onclick="openPurchaseModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Purchase
+        </button>
+      </div>
+    </td></tr>`;
   } else {
     const dataRowsHtml = pageRows.map(p=>`
       <tr class="row-anim" data-id="${p.id}">
@@ -1312,7 +1340,6 @@ function renderTable(){
     // shrinking shorter as purchases are added or filtered — height stays fixed at perPage
     // rows on every page except a legitimately partial last page under 10/25/50.
     const blankCount = Math.max(0, perPage - pageRows.length);
-    const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
     tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
   }
 
