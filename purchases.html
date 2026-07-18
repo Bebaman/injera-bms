@@ -675,6 +675,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <a class="view-exp" onclick="openApprovalModal()" style="cursor:pointer">View Approval Queue</a>
         </div>
 
+        <!-- Monthly Purchased Quantity — sized to match Spend by Category. Shows quantity
+             per raw-material/packaging category, kept unit-aware (kg vs pcs shown per row)
+             rather than summed into one meaningless combined number, since Purchase rows
+             span multiple units. Expense rows have no real quantity so they're excluded. -->
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
+          </div>
+          <div style="padding-bottom:10px" id="qtyBars">
+          </div>
+        </div>
+
       </div><!-- /right column -->
     </div><!-- /two-column area -->
 
@@ -2228,6 +2240,7 @@ function renderCharts(){
   countChgEl.innerHTML = `vs ${priorLabel}: <span style="margin-left:2px">${countDelta>=0?'+ ':'- '}${Math.abs(countDelta)}</span>`;
 
   renderCategoryBars(grandTotal, monthRows);
+  renderQuantityBars(monthRows);
 
   // Expense Approval Summary (derived from row statuses), this month only
   const pendingN = monthRows.filter(p=>p.status==='Pending').length;
@@ -2346,6 +2359,41 @@ function renderTrendChart(mk){
       }
     }
   });
+}
+
+/* ════════════════ MONTHLY PURCHASED QUANTITY (unit-aware bars) ════════════════
+   Mirrors renderCategoryBars' visual style (same card size/row layout as Spend by
+   Category) but for quantity instead of ETB. Purchases span multiple units (kg for
+   Teff/Rice/Corn/Gomen Zere, pcs for bags/cleaning material/etc.), so summing raw
+   quantity across categories would mix units into a meaningless number. Each bar is
+   scoped to its own category (and therefore its own unit), with the unit shown next
+   to the value instead of being combined. Expense rows have no meaningful quantity
+   (unit falls back to 'ls' / lump sum) and are excluded — this chart is Purchases only. */
+function renderQuantityBars(rows){
+  const purchaseRows = (rows || purchases).filter(p=>p.type==='Purchase');
+  const byCat = {};
+  purchaseRows.forEach(p=>{
+    const key = p.category;
+    if(!byCat[key]) byCat[key] = { qty:0, unit:p.unit };
+    byCat[key].qty += Number(p.qty)||0;
+  });
+  const ranked = Object.entries(byCat).sort((a,b)=>b[1].qty-a[1].qty);
+  const maxVal = ranked.length ? ranked[0][1].qty : 1;
+  const wrap = document.getElementById('qtyBars');
+  if(!wrap) return;
+  if(ranked.length===0){
+    wrap.innerHTML = `<div style="text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
+    return;
+  }
+  wrap.innerHTML = ranked.map(([cat,d],i)=>{
+    const widthPct = (d.qty/maxVal*100).toFixed(1);
+    const color = catColors[i % catColors.length];
+    const qtyDisplay = d.qty.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+    return `<div class="bar-row"><span class="bn" title="${cat}">${cat}</span><div class="bar-track"><div class="bar-fill" data-w="${widthPct}" style="width:0%;background:${color}"></div></div><span class="bv">${qtyDisplay} ${d.unit}</span></div>`;
+  }).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    wrap.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.getAttribute('data-w')+'%'; });
+  }));
 }
 
 /* ════════════════ SPEND BY CATEGORY (data-driven bars) ════════════════ */
