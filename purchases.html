@@ -284,10 +284,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
 
 /* ══ EMPTY STATE PANEL (table has zero rows) ═══════════
-   Full-width centered block spanning the table's usual row height, instead of a single
-   thin message row — icon, title, helper text, CTA — mirrors the pattern used on
-   Petty Cash Transactions and other list modules in the app. */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:70px 20px;min-height:480px}
+   Height is set inline by renderTable() to match perPage rows exactly (10/25/50), so the
+   table frame stays a fixed height whether it's showing full data, blank-padded rows, or
+   zero rows — matches the Petty Cash Transactions pattern. This is just a sane fallback. */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:306px}
 .empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
 .empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
 .empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:18px}
@@ -305,7 +305,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .bot2{grid-template-columns:1fr}
   /* Purchase Trend + Spend by Category + Monthly Purchased Quantity: at laptop widths
      there isn't room for 3 side-by-side cards without squeezing the trend chart, so
-     Trend takes the full top row and the two bar-list cards share the row beneath it. */
+     Trend takes the full top row and the two equal-size bar-list cards share the row
+     beneath it. */
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"]{grid-template-columns:1fr 1fr;grid-template-areas:"trend trend" "cat qty"}
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(1){grid-area:trend}
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(2){grid-area:cat}
@@ -608,9 +609,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
 
       <!-- Purchase Trend + Spend by Category + Monthly Purchased Quantity (left column,
-           full width). Quantity moved here from the right sidebar so it sits directly next
-           to Spend by Category — both bar-list cards already share the same fixed height
-           (see .bar-list rule) so they line up exactly. -->
+           full width). Trend is wider (1.4fr) than the two equal-size bar-list cards
+           (1fr each) — Category and Quantity share the same .bar-list fixed height so
+           they always match, regardless of which one has more rows in a given month. -->
       <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px">
         <!-- Purchase Trend -->
         <div class="card" style="display:flex;flex-direction:column">
@@ -646,11 +647,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </div>
         </div>
 
-        <!-- Monthly Purchased Quantity — right next to Spend by Category, same fixed
-             height via the shared .bar-list rule. Shows quantity per raw-material/packaging
-             category, kept unit-aware (kg vs pcs shown per row) rather than summed into one
-             meaningless combined number, since Purchase rows span multiple units. Expense
-             rows have no real quantity so they're excluded. -->
+        <!-- Monthly Purchased Quantity — sized to match Spend by Category via the shared
+             .bar-list fixed-height rule. Shows quantity per raw-material/packaging
+             category, kept unit-aware (kg vs pcs shown per row) rather than summed into
+             one meaningless combined number, since Purchase rows span multiple units.
+             Expense rows have no real quantity so they're excluded. -->
         <div class="card">
           <div class="card-hd">
             <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
@@ -1334,6 +1335,11 @@ function renderTable(){
 
   const tbody = document.getElementById('tblBody');
   const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
+  // Row height is ~34px (7px+7px padding + ~20px line height for .tbl-pl td text). The
+  // empty-state panel replaces what would otherwise be `perPage` data/blank rows, so it's
+  // sized to that same total height — keeps the table frame a fixed height for whatever
+  // page size is selected (10/25/50), instead of shrinking to a generic message row.
+  const emptyStateHeight = perPage * 34;
   if(total===0){
     // Matches the empty-state pattern used elsewhere in the app (e.g. Petty Cash
     // Transactions): icon + title + helper text + CTA, centered as one block filling the
@@ -1345,7 +1351,7 @@ function renderTable(){
       ? 'No purchases match your filters. Try adjusting or clearing them.'
       : 'Add your first purchase or expense to get started.';
     tbody.innerHTML = `<tr><td colspan="14" style="padding:0;border-bottom:none">
-      <div class="empty-state">
+      <div class="empty-state" style="height:${emptyStateHeight}px">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <div class="empty-state-title">No purchases found</div>
         <div class="empty-state-sub">${subtext}</div>
