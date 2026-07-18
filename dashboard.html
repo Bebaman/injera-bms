@@ -818,6 +818,8 @@ async function refreshDashboard(){
   const cutoffCur = periodEndDate(period);
   const cutoffPrev = periodEndDate(prevP);
   const today = todayStr();
+  const yesterday = (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const weekAgo = (()=>{ const d=new Date(); d.setDate(d.getDate()-6); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
   try{
     const [
@@ -831,7 +833,9 @@ async function refreshDashboard(){
       allPurchasesByItem, allUsageByItem, openingBalances, millingConversionsAll,
       suppliersRows, lastPurchaseBySupplier, fixedAssetsRows, workersRows,
       payrollDetailRows, periodCloseRows, vatSummaryRows, recentLoginFailures,
-      priceHistoryRows, anyPeriodCloseEver
+      priceHistoryRows, anyPeriodCloseEver,
+      salesYesterday, prodBatchRowsPrev, salesWeek, purchasesWeek,
+      purchasesForPriceCompare, allInjeraProductionAllTime
     ] = await Promise.all([
       sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -876,7 +880,15 @@ async function refreshDashboard(){
       sbGet(`vat_summary?select=*&period=eq.${period}`),
       sbGet(`login_log?select=email,outcome,created_at&outcome=neq.success&created_at=gte.${new Date(Date.now()-86400000).toISOString()}`),
       sbGet(`price_history?select=item_name,date,unit_price,rolling_3_avg&period=eq.${period}`),
-      sbGet(`period_closes?select=period&limit=1`)
+      sbGet(`period_closes?select=period&limit=1`),
+      // ── New insight-module data (added 2026-07) — every query below reuses tables/
+      // columns already queried elsewhere in this function; nothing new to the schema. ──
+      sbGet(`sales?select=revenue&date=eq.${yesterday}&is_deleted=eq.false`),
+      sbGet(`production_batches?select=type,injera_qty&period=eq.${prevP}&is_deleted=eq.false`),
+      sbGet(`sales?select=revenue,date&date=gte.${weekAgo}&is_deleted=eq.false`),
+      sbGet(`purchases?select=total_cost,date&type=eq.purchase&date=gte.${weekAgo}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
+      sbGet(`purchases?select=item_id,quantity,total_cost,date,supplier_id&type=eq.purchase&is_deleted=eq.false&supplier_id=not.is.null&item_id=not.is.null&approval_status=in.(auto_approved,approved)&order=date.desc&limit=500`),
+      sbGet(`production_batches?select=injera_qty,date&is_deleted=eq.false`)
     ]);
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -1290,6 +1302,146 @@ async function refreshDashboard(){
       Object.entries(byEmail).filter(([,n])=>n>=FAILED_LOGIN_THRESHOLD).forEach(([email,n])=>{
         alerts.push({icon:'ai-r', svg:'warn', title:'Repeated failed login attempts', sub:`${email} — ${n} failed attempts in the last 24 hours`, module:'Security', priority:'critical', kind:'alert'});
       });
+    }
+
+    // ══ Added 2026-07 — every block below reuses tables/columns already queried
+    // elsewhere in this function (see the new sbGet calls above); nothing new added
+    // to the schema. ══
+
+    // ── 17. Sales — vs yesterday (day-over-day) ────────────────
+    {
+      const yesterdayTotal = (salesYesterday||[]).reduce((s,r)=>s+num(r.revenue),0);
+      if(yesterdayTotal>0){
+        const chg = ((salesTodayTotal-yesterdayTotal)/yesterdayTotal)*100;
+        if(chg>=10){
+          notices.push({icon:'ai-g', svg:'check', title:`Sales increased ${chg.toFixed(0)}% compared to yesterday`, sub:`${fmtETB(salesTodayTotal)} ETB today vs ${fmtETB(yesterdayTotal)} ETB yesterday`, module:'Sales', priority:'success', kind:'notice'});
+        } else if(chg<=-15){
+          alerts.push({icon:'ai-o', svg:'warn', title:`Sales dropped ${Math.abs(chg).toFixed(0)}% compared to yesterday`, sub:`${fmtETB(salesTodayTotal)} ETB today vs ${fmtETB(yesterdayTotal)} ETB yesterday`, module:'Sales', priority:'medium', kind:'alert'});
+        }
+      }
+    }
+
+    // ── 18. Sales — weekly gross margin ─────────────────────────
+    // Only sales.date and purchases.date carry per-day granularity in this schema —
+    // monthly_overhead/opex have no date column — so this is a *gross* margin
+    // (revenue vs raw-material cost only), not the full net margin used elsewhere.
+    {
+      const weekRevenue = (salesWeek||[]).reduce((s,r)=>s+num(r.revenue),0);
+      const weekRawCost = (purchasesWeek||[]).reduce((s,r)=>s+num(r.total_cost),0);
+      if(weekRevenue>0){
+        const weekGrossMarginPct = ((weekRevenue-weekRawCost)/weekRevenue)*100;
+        if(weekGrossMarginPct<20){
+          alerts.push({icon:'ai-o', svg:'warn', title:'Gross margin dropped below 20% this week', sub:`${weekGrossMarginPct.toFixed(1)}% over the last 7 days — ${fmtETB(weekRevenue)} ETB revenue vs ${fmtETB(weekRawCost)} ETB raw material cost`, module:'Sales', priority:'high', kind:'alert'});
+        }
+      }
+    }
+
+    // ── 19. Production — efficiency vs last month ───────────────
+    {
+      let prevInjeraBaked = 0, prevTargetTotal = 0;
+      (prodBatchRowsPrev||[]).forEach(b=>{
+        prevInjeraBaked += num(b.injera_qty);
+        const std = batchStandardRows.find(s=>s.batch_type===b.type);
+        if(std) prevTargetTotal += num(std.target_injera_count);
+      });
+      const prevMfgEfficiency = prevTargetTotal>0 ? clamp(Math.round((prevInjeraBaked/prevTargetTotal)*100),0,100) : null;
+      if(prevMfgEfficiency!=null && targetTotal>0){
+        const effDelta = mfgEfficiency - prevMfgEfficiency;
+        if(effDelta>=5){
+          notices.push({icon:'ai-g', svg:'check', title:`Production efficiency improved ${effDelta}% this month`, sub:`${mfgEfficiency}% this period vs ${prevMfgEfficiency}% last period`, module:'Production', priority:'success', kind:'notice'});
+        } else if(effDelta<=-5){
+          alerts.push({icon:'ai-o', svg:'warn', title:`Production efficiency dropped ${Math.abs(effDelta)}% this month`, sub:`${mfgEfficiency}% this period vs ${prevMfgEfficiency}% last period`, module:'Production', priority:'medium', kind:'alert'});
+        }
+      }
+    }
+
+    // ── 20. Cash — today's inflow vs outflow ─────────────────────
+    {
+      const netToday = salesTodayTotal - expenseTodayTotal;
+      if(Math.abs(netToday) >= 1000){
+        if(netToday>=0){
+          notices.push({icon:'ai-g', svg:'check', title:`Today's cash inflow exceeded outflow by ${fmtETB(netToday)} ETB`, sub:`${fmtETB(salesTodayTotal)} ETB in vs ${fmtETB(expenseTodayTotal)} ETB out today`, module:'Cash', priority:'success', kind:'notice'});
+        } else {
+          alerts.push({icon:'ai-o', svg:'warn', title:`Today's cash outflow exceeded inflow by ${fmtETB(Math.abs(netToday))} ETB`, sub:`${fmtETB(salesTodayTotal)} ETB in vs ${fmtETB(expenseTodayTotal)} ETB out today`, module:'Cash', priority:'medium', kind:'alert'});
+        }
+      }
+    }
+
+    // ── 21. Purchase — supplier price change vs their own last purchase ──
+    // Unit price is derived as total_cost/quantity from purchases rows already
+    // scoped to type=purchase; compares each supplier+item's two most recent
+    // purchases (rows arrive date-desc from the query above).
+    {
+      const bySupplierItem = {};
+      (purchasesForPriceCompare||[]).forEach(p=>{
+        if(num(p.quantity)<=0) return;
+        const key = `${p.supplier_id}|${p.item_id}`;
+        (bySupplierItem[key] ||= []).push(p);
+      });
+      const supplierNameById = {}; (suppliersRows||[]).forEach(s=>{ supplierNameById[s.id]=s.name; });
+      const itemNameById = {}; (invItems||[]).forEach(i=>{ itemNameById[i.id]=i.name; });
+      Object.values(bySupplierItem).forEach(rows=>{
+        if(rows.length<2) return;
+        const [latest, prior] = rows;
+        const latestUnit = num(latest.total_cost)/num(latest.quantity);
+        const priorUnit = num(prior.total_cost)/num(prior.quantity);
+        if(priorUnit>0 && latestUnit > priorUnit*(1+PRICE_SPIKE_PCT)){
+          const pct = Math.round((latestUnit/priorUnit-1)*100);
+          const supName = supplierNameById[latest.supplier_id] || 'Supplier';
+          const itemName = itemNameById[latest.item_id] || 'Item';
+          alerts.push({icon:'ai-o', svg:'warn', title:`${supName} increased ${itemName} price ${pct}%`, sub:`${fmtETB(latestUnit)} ETB/unit now vs ${fmtETB(priorUnit)} ETB/unit last purchase`, module:'Purchase', priority:'medium', kind:'alert'});
+        }
+      });
+    }
+
+    // ── 22. Customers — single top customer concentration ────────
+    {
+      if(custSorted.length && custTotal>0){
+        const [topName, topRev] = custSorted[0];
+        const topPct = (topRev/custTotal)*100;
+        if(topPct>=40){
+          alerts.push({icon:'ai-b', svg:'users', title:`${topName} contributed ${topPct.toFixed(0)}% of this month's revenue`, sub:`${fmtETB(topRev)} of ${fmtETB(custTotal)} ETB total — high concentration in one account`, module:'Customers', priority:'high', kind:'alert'});
+        } else if(topPct>=20){
+          notices.push({icon:'ai-b', svg:'users', title:`${topName} contributed ${topPct.toFixed(0)}% of this month's revenue`, sub:`${fmtETB(topRev)} of ${fmtETB(custTotal)} ETB total`, module:'Customers', priority:'info', kind:'notice'});
+        }
+      }
+    }
+
+    // ── 23. Customers — balances due within the next 7 days ──────
+    // Note: there's no separate invoices table in this schema — this tracks
+    // customer_profitability balances against payment_terms_days, the same
+    // fields already used for the overdue-payment alert above.
+    {
+      const dueSoonCustomers = customerProfitability.filter(c=>{
+        if(!(num(c.outstanding_ar)>0 && c.last_purchase_date && c.payment_terms_days>0)) return false;
+        const dueDate = new Date(c.last_purchase_date); dueDate.setDate(dueDate.getDate()+c.payment_terms_days);
+        const daysUntilDue = Math.round((dueDate-new Date(today))/86400000);
+        return daysUntilDue>=0 && daysUntilDue<=7;
+      });
+      if(dueSoonCustomers.length){
+        const totalDueSoon = dueSoonCustomers.reduce((s,c)=>s+num(c.outstanding_ar),0);
+        alerts.push({icon:'ai-p', svg:'calendar', title:`${dueSoonCustomers.length} customer balance${dueSoonCustomers.length===1?'':'s'} due within 7 days`, sub:`${fmtETB(totalDueSoon)} ETB total — ${dueSoonCustomers.map(c=>c.name).slice(0,3).join(', ')}${dueSoonCustomers.length>3?'…':''}`, module:'Customers', priority:'high', kind:'alert'});
+      }
+    }
+
+    // ── 24. Inventory — finished Injera days-of-supply ────────────
+    // Stock balance mirrors the existing Derkosh calculation above: all-time produced
+    // (production_batches.injera_qty) minus all-time sold (sales.quantity where
+    // product_type='injera'). Assumes 'injera' is the actual product_type value used
+    // for Injera sales, the same way 'derkosh' is relied on above — if this insight
+    // never appears, check that value matches your data.
+    {
+      const injeraProducedAllTime = (allInjeraProductionAllTime||[]).reduce((s,r)=>s+num(r.injera_qty),0);
+      const injeraSoldAllTime = allSalesAllTime.filter(r=>r.product_type==='injera').reduce((s,r)=>s+num(r.quantity),0);
+      const injeraStockBalance = Math.max(0, injeraProducedAllTime - injeraSoldAllTime);
+      const injeraSalesRecent = allSalesAllTime.filter(r=>r.product_type==='injera' && r.date>=weekAgo).reduce((s,r)=>s+num(r.quantity),0);
+      const avgDailyInjeraSales = injeraSalesRecent / 7; // last 7 days, same window as weekAgo above
+      if(avgDailyInjeraSales>0){
+        const injeraDaysRemaining = injeraStockBalance / avgDailyInjeraSales;
+        if(injeraDaysRemaining<=3){
+          alerts.push({icon:'ai-r', svg:'warn', title:`Finished Injera can satisfy ~${injeraDaysRemaining.toFixed(1)} days of average sales`, sub:`${fmtInt(injeraStockBalance)} pcs on hand vs ~${avgDailyInjeraSales.toFixed(0)} pcs/day average (last 7 days)`, module:'Inventory', priority: injeraDaysRemaining<=1?'critical':'high', kind:'alert'});
+        }
+      }
     }
 
     // ── Cache & render ───────────────────────────────────────
