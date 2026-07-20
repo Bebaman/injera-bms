@@ -113,6 +113,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .tbl-pl th{padding:7px 5px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
 .tbl-pl td{padding:7px 5px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl-pl tr:hover td{background:#f7fbf9}
+.tbl-pl .row-blank td{border-bottom:none;pointer-events:none}
+.tbl-pl .row-blank:hover td{background:transparent}
 
 /* Compact sidebar table (fits 330px cards, e.g. Top Suppliers) */
 .tbl-sb{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
@@ -181,10 +183,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    170px so on wide cards the row stays compact instead of sprawling into mostly-empty pastel. */
 .bar-row{display:flex;align-items:center;gap:8px;padding:6px 15px;min-width:0}
 .bar-row .bn{font-size:12px;font-weight:600;color:var(--td);flex:0 1 88px;min-width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-track{flex:1 1 auto;max-width:170px;min-width:24px;height:8px;background:#e6efe9;border:1px solid #d7e5dd;border-radius:4px;overflow:hidden}
+.bar-track{flex:1 1 auto;min-width:24px;height:8px;background:#e6efe9;border:1px solid #d7e5dd;border-radius:4px;overflow:hidden}
 .bar-fill{height:100%;border-radius:4px}
 .bar-row .bp{font-size:11.5px;font-weight:700;color:var(--tm);width:34px;text-align:right;flex-shrink:0}
 .bar-row .bv{font-size:11.5px;font-weight:700;color:var(--td);text-align:right;flex-shrink:0;margin-left:2px;white-space:nowrap}
+
+/* Fixed height for the Spend by Category bar list — content beyond the visible area
+   scrolls instead of the card's height drifting with however many categories exist in
+   a given month. ~7 rows visible before scrolling. */
+.bar-list{min-height:266px;max-height:266px;overflow-y:auto}
+.bar-list::-webkit-scrollbar{width:5px}
+.bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
 
 /* ══ ACTIONS DOTS ═══════════════════════════════════ */
 .act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px}
@@ -212,6 +221,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .kc{animation:fadeUp .45s ease both}
 .kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
 .kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
@@ -271,6 +281,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 
 /* Empty state */
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
+
+/* ══ EMPTY STATE PANEL (table has zero rows) ═══════════
+   Sits inside a single <tr>, sized to its own content — the remaining rows up to
+   `perPage` are filled by ordinary blank <tr> rows (see renderTable), so the total table
+   height is exactly `perPage` rows whether it's showing full data, partial data, or none. */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px 20px}
+.empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
+.empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
+.empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:18px}
+.empty-state-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#1d5c38;color:#fff;font-size:15px;font-weight:700;padding:0 34px;height:58px;min-width:200px;border-radius:12px;border:none;cursor:pointer;transition:background .12s}
+.empty-state-btn:hover{background:#164a2d}
+.empty-state-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;margin:0}
 
 /* ══ LAPTOP RANGE (901px–1220px) ════════════════════
    Between the full desktop layout and the mobile drawer breakpoint, a fixed 220px sidebar
@@ -511,15 +533,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <div class="card-ttl">Purchase &amp; Expense List</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <!-- Search box — moved here from the old topbar (the shared topbar has no
-                 search slot); same #searchInput id, same renderTable() wiring as before. -->
             <div class="pl-search">
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input type="text" id="searchInput" placeholder="Search purchases..." oninput="renderTable()">
             </div>
-            <!-- Active filter chips — shown when a filter is active -->
             <div id="activeFilterChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-            <!-- Filter toggle button -->
             <div class="filter-btn" id="filterToggleBtn" onclick="toggleFilterPanel()">
               <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
               Filter
@@ -532,7 +550,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </div>
         </div>
 
-        <!-- Collapsible filter panel -->
         <div class="filter-panel" id="filterPanel">
           <div class="filter-panel-inner">
             <div class="f-grp" style="min-width:130px;flex:1">
@@ -562,7 +579,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <thead>
             <tr>
               <th>Date</th><th>Supplier</th><th class="col-type">Type</th><th>Category</th><th>Description</th>
-              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th><th class="col-proc">Proc. Cost</th><th class="col-deliv">Deliv. IN</th>
+              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th>
               <th>Total Cost (ETB)</th><th class="col-channel">Channel</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
@@ -578,16 +595,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
       </div>
 
-      <!-- Purchase Trend + Spend by Category (left column, full width) -->
+      <!-- Purchase Trend + Spend by Category -->
       <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
         <!-- Purchase Trend -->
         <div class="card" style="display:flex;flex-direction:column">
           <div class="card-hd">
             <div class="card-ttl">Purchase Trend (ETB)</div>
-            <!-- BUG FIX (2026-07-11): this select had no id and no onchange handler at all —
-                 picking "Last 3 Months" or "This Year" did nothing because nothing was ever
-                 listening for the change. renderTrendChart() now reads trendRangeSel's value
-                 to decide how many months (or which months) to show. -->
             <select class="rsel" id="trendRangeSel" onchange="renderTrendChart(getMonthKey())">
               <option value="6">Last 6 Months</option>
               <option value="3">Last 3 Months</option>
@@ -610,7 +623,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <div class="card-ttl">Spend by Category <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
             <span style="font-size:11px;font-weight:600;color:var(--tl);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block"></span>ETB</span>
           </div>
-          <div style="padding-bottom:10px" id="catBars">
+          <div class="bar-list" style="padding-bottom:10px" id="catBars">
           </div>
         </div>
       </div>
@@ -664,10 +677,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div><!-- /right column -->
     </div><!-- /two-column area -->
 
-    <!-- Purchases by Type + Purchases by Payment Channel — a full-width side-by-side row
-         (not squeezed into the narrow 330px right sidebar) so both donut charts and their
-         legends have proper room instead of competing with Top Suppliers and the Approval
-         Summary for the same narrow column. -->
     <div class="donut-row">
       <!-- Purchases by Type -->
       <div class="card">
@@ -716,15 +725,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
     </div>
 
-    <!-- Bank Transfer Fee / Expense Approval Threshold / VAT Registration widgets were
-         removed from this page per Superman's note (2026-07-07): these are business-wide
-         settings, not purchase-page settings, and belong in the Settings module instead of
-         being duplicated here. The underlying config (bankFeeConfig, EXPENSE_APPROVAL_THRESHOLD,
-         vatSettings) is still loaded from business_settings via loadBusinessSettingsFromSupabase()
-         further down and used for calculations (recalcTotal, savePurchase, bank fee auto-add) —
-         only the editable UI cards were removed. Once the Settings module exists, this page
-         will simply read whatever values it saves. -->
-
   </div><!-- /content -->
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
 </div>
@@ -764,10 +764,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </select>
         </div>
       </div>
-      <!-- Asset Purchase only — replaces the Category dropdown above.
-           Feeds purchases.asset_name / asset_category / useful_life_years, which the
-           handle_asset_purchase() trigger uses to create the fixed_assets row and the
-           matching Investing entry in cash_flow_entries (see all_gaps_fix_migration.sql). -->
       <div class="f-row" id="assetFieldsRow" style="display:none">
         <div class="f-grp">
           <label>Asset Name</label>
@@ -814,13 +810,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <label>Unit Price (ETB)</label>
           <input type="number" id="pUnitPrice" value="0" step="0.01" oninput="recalcTotal()">
         </div>
-        <div class="f-grp" id="procCostRow">
-          <label>Processing Cost</label>
-          <input type="number" id="pProcCost" value="0" step="0.01" oninput="recalcTotal()">
-        </div>
       </div>
-      <!-- Foreign Currency (reference only) — spec: "The ETB amount is always what gets
-           recorded for accounting. The original currency is stored for reference." -->
       <div class="f-row">
         <div class="f-grp" style="grid-column:1 / -1">
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
@@ -848,20 +838,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div id="pFxHint" style="font-size:11.5px;color:var(--tm);background:#f7f9f8;border:1px solid #e5e9e7;border-radius:8px;padding:8px 10px">Reference only — enter the ETB Unit Price above; it's the authoritative amount for all calculations.</div>
         </div>
       </div>
-      <!-- Delivery In is Injera-Blend-only (toggled by updateProcDelivVisibility). Payment
-           Channel must ALWAYS be visible/selectable regardless of category — it used to live
-           in the same row as Delivery In and got hidden along with it for every non-Injera-
-           Blend purchase, Expense, and Asset Purchase, silently defaulting every one of those
-           rows to "Bank" with no way to change it. Now only Delivery In's own cell toggles;
-           Payment Channel's cell (and its grid-column span) is adjusted in JS instead so it
-           still sits side-by-side with Delivery In when both apply, and takes the full row
-           width when Delivery In is hidden. -->
       <div class="f-row" id="delivRow">
-        <div class="f-grp" id="delivInGrp">
-          <label>Delivery In (ETB)</label>
-          <input type="number" id="pDeliv" value="0" step="0.01" oninput="recalcTotal()">
-        </div>
-        <div class="f-grp" id="pChannelGrp">
+        <div class="f-grp" id="pChannelGrp" style="grid-column:1 / -1">
           <label>Payment Channel</label>
           <select id="pChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
         </div>
@@ -875,7 +853,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </div>
         </div>
       </div>
-      <!-- Total summary box — clean, no big green input -->
       <div id="pTotalBox" style="background:#f0f8f4;border:1.5px solid #b5ddc5;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-top:4px">
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.5px">Total Cost</div>
@@ -883,10 +860,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div style="text-align:right;font-size:11.5px;color:var(--tm)">
           <div>Qty × Price: <strong id="pCalcLine">0 × 0 = 0.00</strong></div>
-          <div style="margin-top:3px">+ Proc: <strong id="pCalcProc">0.00</strong> + Deliv: <strong id="pCalcDeliv">0.00</strong></div>
         </div>
       </div>
-      <!-- Input VAT — only shown when business is VAT-registered (spec "VAT Framework") -->
       <div id="pVatRow" style="display:none;margin-top:8px;background:#fdf7ec;border:1px solid #ecd9a8;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tm)">
         <span>Input VAT (<span id="pVatRatePct">15</span>%)</span>
         <strong id="pVatAmount" style="color:#8a6d1e">0.00 ETB</strong>
@@ -923,9 +898,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   </div>
 </div>
 
-<!-- ════ APPROVAL QUEUE MODAL ════
-     Lists every Pending-status row for the selected month with inline Approve/Reject —
-     a focused queue instead of scrolling/filtering the full transaction table by hand. -->
+<!-- ════ APPROVAL QUEUE MODAL ════ -->
 <div class="modal-overlay" id="approvalModalOverlay" onclick="if(event.target===this)closeApprovalModal()">
   <div class="modal">
     <div class="modal-hd">
@@ -945,16 +918,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 
 <script>
 /* ════════════════ DATA MODEL ════════════════ */
-// Suppliers now carry a real id — purchases reference suppliers by supplierId (FK),
-// matching spec §5 (purchases.supplier_id UUID FK → suppliers). Name is kept on the
-// purchase row too, purely as a display cache so the table doesn't need a join to render.
 function genId(){ return 'sup_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 
-// Suppliers/purchases used to seed from a hardcoded demo dataset (dated May 2026) as an
-// "offline/first-paint fallback" before Supabase finished loading. Removed per Superman's
-// request (2026-07-08) — no mock data anywhere, even briefly. Both start empty and are
-// populated entirely by loadSuppliersFromSupabase()/loadFromSupabase(); the table/charts
-// simply show their real "no data" states until that load completes.
 let suppliers = [];
 function supplierByName(name){ return suppliers.find(s=>s.name===name); }
 function supplierById(id){ return suppliers.find(s=>s.id===id); }
@@ -971,41 +936,30 @@ function fmtDate(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
-function rowTotal(p){ return (p.qty*p.unitPrice)+Number(p.procCost)+Number(p.deliv); }
+function rowTotal(p){ return p.qty*p.unitPrice; }
 
 /* ════════════════ MONTH PICKER ════════════════ */
 function chgM(d){const s=document.getElementById('msel');const i=s.selectedIndex+d;if(i>=0&&i<s.options.length){s.selectedIndex=i;onMonthChange();} else if(i>=s.options.length){ extendMonthOptions(1); s.selectedIndex=s.options.length-1; onMonthChange(); }}
-// MonthKey = TEXT(date,'YYYY-MM') per spec col Z. KPIs/charts/Top Suppliers/export are
-// scoped to this selected month; the table below keeps showing all rows (still filterable
-// by type/category/supplier/status/search) since reviewing other months' line items is a
-// normal audit task — only the "This Month" summary widgets need to actually mean "this month."
 function getMonthKey(){ return document.getElementById('msel').value; }
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-// Computed directly from the key string — not a DOM lookup — so it works for any month,
-// including ones outside whatever range happens to be populated in the <select> right now.
 function monthLabel(mk){
   const [y,m] = mk.split('-').map(Number);
   return MONTH_NAMES[m-1] + ' ' + y;
 }
 function prevMonthKey(mk){
   const [y,m] = mk.split('-').map(Number);
-  const d = new Date(y, m-2, 1); // m-1 is current month 0-indexed, -1 more for previous
+  const d = new Date(y, m-2, 1);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
 function nextMonthKey(mk){
   const [y,m] = mk.split('-').map(Number);
-  const d = new Date(y, m, 1); // m (not m-1) steps one month forward
+  const d = new Date(y, m, 1);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
-// Builds the <option> list for the month picker — a real rolling range that crosses
-// year boundaries correctly, instead of a hardcoded "Jan 2026"–"Jun 2026" list that had
-// nowhere to go once the year changed or data existed outside those six months.
 function populateMonthSelector(){
   const sel = document.getElementById('msel');
   const today = new Date();
   const todayKey = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
-  // Range covers at least 24 months back and 6 months forward from today, widened further
-  // if any purchase/expense row falls outside that window so every real month is reachable.
   let earliest = prevMonthKey(todayKey);
   for(let i=0;i<23;i++) earliest = prevMonthKey(earliest);
   let latest = todayKey;
@@ -1021,23 +975,12 @@ function populateMonthSelector(){
   while(cur <= latest){ keys.push(cur); cur = nextMonthKey(cur); }
   const prevSelected = sel.value;
   sel.innerHTML = keys.map(k=>`<option value="${k}">${monthLabel(k)}</option>`).join('');
-  // BUG FIX (2026-07-08): this function runs twice — once at first paint using the offline/
-  // first-paint fallback purchases (dated well in the past), and again once real Supabase
-  // data has loaded. The old logic always "preferred whatever was already selected", so the
-  // very first call's guess (built from fake fallback dates) got locked in and survived the
-  // second call untouched — the page opened on a stale month instead of the real current one,
-  // even though the real data had nothing to do with that month at all.
-  // Now: only preserve the existing selection if the *user* actually navigated the picker
-  // (monthUserSelected, set in onMonthChange — never set by this function itself). Until
-  // then, always default to today's real calendar month.
   if(monthUserSelected && prevSelected && keys.includes(prevSelected)){
     sel.value = prevSelected;
   } else {
     sel.value = keys.includes(todayKey) ? todayKey : keys[keys.length-1];
   }
 }
-// Adds n more months to the end of the range — used when the ›/chgM(1) arrow is clicked
-// past the currently-populated end of the list, so navigating forward never dead-ends.
 function extendMonthOptions(n){
   const sel = document.getElementById('msel');
   let last = sel.options[sel.options.length-1].value;
@@ -1048,15 +991,10 @@ function extendMonthOptions(n){
     sel.appendChild(opt);
   }
 }
-// Set true only by real user navigation (month arrows or the picker's own change event) —
-// never by populateMonthSelector() itself — so its auto-default logic can tell the
-// difference between "nothing chosen yet" and "the owner deliberately picked a month".
 let monthUserSelected = false;
 function onMonthChange(){ monthUserSelected = true; renderCharts(); renderSummaryCards(); renderTable(); }
 
 /* ════════════════ EXPORT (demo) ════════════════ */
-// Wraps a field in quotes and escapes embedded quotes/commas/newlines per RFC 4180 —
-// without this, a supplier name or description containing a comma silently corrupts columns.
 function csvField(v){
   const s = String(v ?? '');
   if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
@@ -1065,37 +1003,30 @@ function csvField(v){
 function csvRow(fields){ return fields.map(csvField).join(',') + '\r\n'; }
 
 function doExport(){
-  // Export respects whatever's currently filtered/visible in the table (type, category,
-  // supplier, status, search text) rather than silently dumping every row ever entered —
-  // matches what the user sees on screen when they click Export.
   const rows = getFilteredPurchases();
   if(!rows.length){ showToast('No rows match the current filters — nothing to export'); return; }
   const mk = getMonthKey();
   const now = new Date();
 
   let csv = '';
-  // Title/context block so the file is self-explanatory when opened later, not just a
-  // bare grid of numbers — matches what a person expects from a real business export.
   csv += csvRow(['Mena Injera & Derkosh — Purchases & Expenses']);
   csv += csvRow([monthLabel(mk) + ' (filtered view)']);
   csv += csvRow(['Generated', now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})]);
   csv += csvRow(['Rows', rows.length]);
   csv += '\r\n';
 
-  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']);
+  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']);
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     csv += csvRow([fmtDate(p.date), p.supplier, p.type, p.category, p.description, p.qty, p.unit,
-      Number(p.unitPrice).toFixed(2), Number(p.procCost).toFixed(2), Number(p.deliv).toFixed(2),
+      Number(p.unitPrice).toFixed(2),
       total.toFixed(2), p.channel, p.status]);
   });
   csv += '\r\n';
-  csv += csvRow(['', '', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
+  csv += csvRow(['', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
 
-  // UTF-8 BOM so Excel (Windows) detects encoding correctly instead of mangling ETB
-  // symbols or non-ASCII supplier names into garbled characters.
   const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1113,8 +1044,6 @@ function exportExcel(){
   const mk = getMonthKey();
   const monthRows = getMonthPurchases(mk);
 
-  // Sheet 1: Summary — mirrors the "This Month" KPI cards + category/supplier breakdown,
-  // so the workbook is self-explanatory without needing the live dashboard open beside it.
   const rawMaterials = monthRows.filter(p=>p.type==='Purchase').reduce((s,p)=>s+rowTotal(p),0);
   const opEx = monthRows.filter(p=>p.type==='Expense').reduce((s,p)=>s+rowTotal(p),0);
   const byCat = {};
@@ -1141,19 +1070,18 @@ function exportExcel(){
   ws1['!cols'] = [{wch:32},{wch:16}];
   ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:1}},{s:{r:1,c:0},e:{r:1,c:1}}];
 
-  // Sheet 2: Transactions — the same filtered rows as the CSV export, one column per field.
-  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']];
+  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']];
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     txData.push([fmtDate(p.date), p.supplier, p.type, p.category, p.description, Number(p.qty), p.unit,
-      Number(p.unitPrice), Number(p.procCost), Number(p.deliv), total, p.channel, p.status]);
+      Number(p.unitPrice), total, p.channel, p.status]);
   });
   txData.push([]);
-  txData.push(['','','','','','','','','','TOTAL', grandTotal,'','']);
+  txData.push(['','','','','','','','TOTAL', grandTotal,'','']);
   const ws2 = XLSX.utils.aoa_to_sheet(txData);
-  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:12},{wch:11},{wch:13},{wch:12},{wch:11}];
+  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:13},{wch:12},{wch:11}];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
@@ -1163,17 +1091,8 @@ function exportExcel(){
 }
 
 /* ════════════════ PDF EXPORT (print-to-PDF of the whole dashboard) ════════════════ */
-// Uses the browser's native print engine (window.print) rather than a screenshot library —
-// this captures every live-rendered element exactly as shown (Chart.js canvases, computed
-// KPIs, the full data table) at full print resolution, and lets the person pick "Save as PDF"
-// in the print dialog. A dedicated @media print stylesheet hides all interactive chrome
-// (sidebar, buttons, filters, settings widgets, row-action menus, pagination) and reflows
-// the two-column layout into a clean single-column report with a proper header.
 let _pdfPrevPerPage = null, _pdfPrevPage = null;
 function exportPdf(){
-  // The on-screen table only renders the current page (state.perPage rows) — a PDF export
-  // needs every row that matches the active filters, so temporarily lift the page size to
-  // "everything," render once, print, then restore normal pagination afterward.
   _pdfPrevPerPage = state.perPage;
   _pdfPrevPage = state.page;
   const filteredCount = getFilteredPurchases().length;
@@ -1190,23 +1109,14 @@ function exportPdf(){
   document.getElementById('printHeaderRows').textContent =
     filteredCount + (filteredCount===1 ? ' row' : ' rows') + (filteredCount !== getMonthPurchases(mk).length ? ' (filtered)' : '');
 
-  // window.print() doesn't reliably fire the resize events Chart.js's responsive:true
-  // charts rely on to notice the print stylesheet's reflow (single-column, different card
-  // widths). Force a manual .resize() on the trend chart right before printing so it
-  // redraws crisply at the print layout's actual dimensions instead of its last on-screen
-  // size. A short delay lets the print CSS's layout changes apply first.
   setTimeout(()=>{
     if(trendChart) trendChart.resize();
     window.print();
   }, 80);
 }
-// Some browsers (notably Chrome) fire beforeprint/afterprint reliably — use it as a second
-// resize pass in case layout wasn't fully settled when exportPdf's setTimeout fired.
 window.addEventListener('beforeprint', ()=>{
   if(trendChart) trendChart.resize();
 });
-// Restore the normal paginated view once the print dialog closes (works for both the
-// "Cancel" and "Save as PDF" paths — afterprint fires either way).
 window.addEventListener('afterprint', ()=>{
   if(_pdfPrevPerPage === null) return;
   state.perPage = _pdfPrevPerPage;
@@ -1224,7 +1134,7 @@ function animateCount(el, decimals){
   const start = performance.now();
   function step(now){
     const p = Math.min((now-start)/dur, 1);
-    const eased = 1 - Math.pow(1-p, 3); // ease-out cubic
+    const eased = 1 - Math.pow(1-p, 3);
     const val = target * eased;
     el.textContent = decimals===0 ? Math.round(val).toLocaleString('en-US') : fmt(val);
     if(p<1) requestAnimationFrame(step);
@@ -1244,19 +1154,14 @@ function refreshSupplierDropdowns(){
   const filterSel = document.getElementById('fSupplier');
   const modalSel = document.getElementById('pSupplier');
   const filterVal = filterSel.value;
-  // Filter dropdown shows all suppliers (including deactivated) so historical rows stay filterable.
   filterSel.innerHTML = '<option>All Suppliers</option>' + suppliers.map(s=>`<option>${s.name}</option>`).join('');
   if([...filterSel.options].some(o=>o.value===filterVal)) filterSel.value = filterVal;
-  // New-entry picker only offers active suppliers — deactivated ones can't be chosen for new rows.
   const active = suppliers.filter(s=>s.isActive!==false);
   modalSel.innerHTML = active.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   buildFilterCategoryDropdown();
 }
 
 /* ════════════════ PURCHASE TABLE RENDER ════════════════ */
-// Drives the transaction table, CSV/Excel/PDF export — scoped to the selected MonthKey
-// (via #msel) plus whatever type/category/supplier/status/search filters are active. The
-// list follows the month picker exactly like the KPI cards and charts do.
 function getFilteredPurchases(){
   const mk = getMonthKey();
   const type = document.getElementById('fType').value;
@@ -1277,8 +1182,6 @@ function getFilteredPurchases(){
     return true;
   }).sort((a,b)=> new Date(b.date) - new Date(a.date));
 }
-// Rows for the selected MonthKey only, with no other filters applied — the base data set
-// for the "This Month" KPI row, donuts, category bars, Top Suppliers, and Approval Summary.
 function getMonthPurchases(mk){
   return purchases.filter(p => p.date && p.date.slice(0,7) === mk);
 }
@@ -1287,6 +1190,17 @@ function statusPillClass(s){
   if(s==='Completed') return 'pill-done';
   if(s==='Pending') return 'pill-pend';
   return 'pill-rej';
+}
+
+function getRowHeight(tbody){
+  const probe = document.createElement('tr');
+  probe.className = 'row-blank';
+  probe.innerHTML = '<td colspan="14">&nbsp;</td>';
+  probe.style.visibility = 'hidden';
+  tbody.appendChild(probe);
+  const h = probe.getBoundingClientRect().height;
+  tbody.removeChild(probe);
+  return h;
 }
 
 function renderTable(){
@@ -1301,13 +1215,36 @@ function renderTable(){
   const pageRows = filtered.slice(startIdx, startIdx+perPage);
 
   const tbody = document.getElementById('tblBody');
-  if(pageRows.length===0){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No purchases match your filters.</td></tr>`;
+  const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
+
+  if(total===0){
+    const hasActiveFilters = document.getElementById('fSupplier')?.value !== 'All Suppliers'
+      || document.getElementById('fStatus')?.value !== 'All Statuses'
+      || (document.getElementById('searchInput')?.value || '').trim() !== '';
+    const subtext = hasActiveFilters
+      ? 'No purchases match your filters. Try adjusting or clearing them.'
+      : 'Add your first purchase or expense to get started.';
+    const measuredRowHeight = getRowHeight(tbody);
+    const emptyStateHeight = measuredRowHeight * perPage;
+    const messageRowHtml = `<tr><td colspan="14" style="padding:0;border-bottom:none;height:${emptyStateHeight}px;vertical-align:middle">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div class="empty-state-title">No purchases found</div>
+        <div class="empty-state-sub">${subtext}</div>
+        <button class="empty-state-btn" onclick="openPurchaseModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Purchase
+        </button>
+      </div>
+    </td></tr>`;
+    tbody.innerHTML = messageRowHtml;
   } else {
-    tbody.innerHTML = pageRows.map(p=>`
+    const dataRowsHtml = pageRows.map(p=>{
+      try {
+        return `
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
-        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td><td class="col-proc">${fmt(p.procCost)}</td><td class="col-deliv">${fmt(p.deliv)}</td>
+        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
         <td>${fmt(rowTotal(p))}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
         <td style="position:relative">
           <div class="act-dots" onclick="toggleRowMenu(event,'${p.id}')">
@@ -1315,7 +1252,14 @@ function renderTable(){
           </div>
         </td>
       </tr>
-    `).join('');
+    `;
+      } catch(err){
+        console.error('renderTable: failed to render row', p, err);
+        return `<tr><td colspan="14" style="color:#b3261e;font-style:italic">Row failed to render (id: ${p?.id ?? 'unknown'}) — see console</td></tr>`;
+      }
+    }).join('');
+    const blankCount = Math.max(0, perPage - pageRows.length);
+    tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
   }
 
   document.getElementById('pgInfo').textContent =
@@ -1400,7 +1344,6 @@ function deletePurchase(id){
   showToast('Purchase deleted');
 }
 
-// Owner review step per spec §3.2: Approve → status=Completed, entry visible in reports.
 function approvePurchase(id){
   closeRowMenu();
   const p = purchases.find(x=>x.id===id);
@@ -1415,13 +1358,12 @@ function approvePurchase(id){
   showToast(`Approved — ${p.category} (${fmt(rowTotal(p))} ETB)`);
 }
 
-// Owner review step per spec §3.2: Reject → status=Rejected, submitter notified with reason.
 function rejectPurchase(id){
   closeRowMenu();
   const p = purchases.find(x=>x.id===id);
   if(!p) return;
   const reason = prompt('Reason for rejecting this expense (sent to submitter):');
-  if(reason === null) return; // cancelled
+  if(reason === null) return;
   p.status = 'Rejected';
   p.rejectionReason = reason.trim() || 'No reason given';
   saveToSupabase(p);
@@ -1441,9 +1383,6 @@ function closeApprovalModal(){
   document.getElementById('approvalModalOverlay').classList.remove('show');
 }
 function renderApprovalQueue(){
-  // Approval status isn't tied to whichever month happens to be selected on the page —
-  // an expense from a prior month left pending is still pending today. This now spans
-  // all months so it always matches the dashboard's all-time pending count.
   const pending = purchases.filter(p=>p.status==='Pending').sort((a,b)=> new Date(b.date)-new Date(a.date));
   document.getElementById('approvalModalMonth').textContent = pending.length ? `· ${pending.length} pending` : '';
   const list = document.getElementById('approvalQueueList');
@@ -1490,8 +1429,6 @@ function openPurchaseModal(){
   document.getElementById('pQty').value = 1;
   document.getElementById('pUnit').value = 'kg';
   document.getElementById('pUnitPrice').value = 0;
-  document.getElementById('pProcCost').value = 0;
-  document.getElementById('pDeliv').value = 0;
   document.getElementById('pTotal').value = '0';
   document.getElementById('pChannel').value = 'Bank';
   document.getElementById('pStatus').value = 'Completed';
@@ -1503,7 +1440,6 @@ function openPurchaseModal(){
   document.getElementById('pAssetCategory').value = 'equipment';
   document.getElementById('pUsefulLife').value = 5;
   updateAssetFieldsVisibility(false);
-  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1516,12 +1452,8 @@ function editPurchase(id){
   document.getElementById('pDate').value = p.date;
   document.getElementById('pType').value = p.type;
   refreshSupplierDropdowns();
-  // Older/imported rows may only have a supplier name (no supplierId) — fall back to
-  // resolving by name so edit still works, but new saves will always carry the FK.
   const editSupplierId = p.supplierId || (supplierByName(p.supplier)||{}).id || '';
   const supplierSel = document.getElementById('pSupplier');
-  // If that supplier was deactivated since this row was entered, it won't be in the
-  // active-only list — add it back in just for this edit session so the value can be set.
   if(editSupplierId && ![...supplierSel.options].some(o=>o.value===editSupplierId)){
     const s = supplierById(editSupplierId);
     if(s){
@@ -1544,8 +1476,6 @@ function editPurchase(id){
   document.getElementById('pQty').value = p.qty;
   document.getElementById('pUnit').value = p.unit;
   document.getElementById('pUnitPrice').value = p.unitPrice;
-  document.getElementById('pProcCost').value = p.procCost;
-  document.getElementById('pDeliv').value = p.deliv;
   document.getElementById('pTotal').value = rowTotal(p).toFixed(2);
   document.getElementById('pChannel').value = p.channel;
   document.getElementById('pStatus').value = p.status;
@@ -1555,7 +1485,6 @@ function editPurchase(id){
   document.getElementById('pFxAmount').value = hasFx ? p.originalAmount : 0;
   document.getElementById('pFxRate').value = hasFx ? (p.exchangeRate||0) : 0;
   toggleFxFields();
-  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1565,16 +1494,10 @@ function closePurchaseModal(){
 function recalcTotal(){
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const price = parseFloat(document.getElementById('pUnitPrice').value)||0;
-  const proc = parseFloat(document.getElementById('pProcCost').value)||0;
-  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
-  const total = qty*price+proc+deliv;
+  const total = qty*price;
   document.getElementById('pTotal').value = total.toFixed(2);
   document.getElementById('pTotalDisplay').textContent = fmt(total);
   document.getElementById('pCalcLine').textContent = qty+' × '+fmt(price)+' = '+fmt(qty*price);
-  document.getElementById('pCalcProc').textContent = fmt(proc);
-  document.getElementById('pCalcDeliv').textContent = fmt(deliv);
-  // Input VAT is informational display only — total_cost (and WAC/COGS) never include it,
-  // per spec: "Foreign currency fields are reference only" / VAT is reported, not costed in.
   if(vatSettings.isRegistered){
     document.getElementById('pVatRow').style.display = 'flex';
     document.getElementById('pVatRatePct').textContent = vatSettings.ratePct;
@@ -1607,18 +1530,7 @@ function updateApprovalReadout(total){
     readout.style.color = '#b91c1c';
   }
 }
-/* ════════════════ CATEGORY DATA — real FK tables, not text ════════════════ */
-// purchases.item_id → inventory_items.id (type='purchase')
-// purchases.expense_category_id → expense_category.id (type='expense')
-// These arrays are loaded from Supabase at startup (loadLookupsFromSupabase). The
-// literals below are the offline/first-paint fallback.
-// NOTE (2026-07-11): Rent/Electricity/Water/Labor/Maintenance were removed from
-// expense_categories in the DB — the Monthly Overhead module is now the sole
-// place those five are recorded (monthly_pnl sums monthly_overhead.amount and
-// purchases[type=expense].total_cost as separate P&L lines, so keeping both in
-// sync here would double-count them). Don't re-add them to this fallback.
 let inventoryItems = [
-  { id:'local-inj', name:'Injera Blend', unit:'kg', group:'Raw Materials' },
   { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
   { id:'local-gomen', name:'Gomen Zere', unit:'kg', group:'Raw Materials' },
   { id:'local-sbag', name:'Small Bags', unit:'pcs', group:'Packaging' },
@@ -1635,9 +1547,6 @@ function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
 function expCatByName(name){ return expenseCategories.find(c=>c.name===name); }
 
-// Only Injera Blend carries Processing Cost / Delivery In per spec (Col H/I)
-const PROC_DELIV_ITEMS = new Set(['Injera Blend']);
-
 function buildCategoryDropdown(type, selectedId=''){
   const el = document.getElementById('pCategory');
   const source = type === 'Expense' ? expenseCategories : inventoryItems;
@@ -1649,37 +1558,13 @@ function buildCategoryDropdown(type, selectedId=''){
     ).join('');
 }
 
-// Proc Cost / Delivery In are Injera Blend only (spec Col H/I). All other
-// Purchase categories and all Expense rows keep those fields hidden and zeroed.
-function updateProcDelivVisibility(){
-  const type = document.getElementById('pType').value;
-  const itemId = document.getElementById('pCategory').value;
-  const item = type === 'Purchase' ? itemById(itemId) : null;
-  const showProcDeliv = !!item && PROC_DELIV_ITEMS.has(item.name);
-  const procRow = document.getElementById('procCostRow');
-  const delivInGrp = document.getElementById('delivInGrp');
-  const channelGrp = document.getElementById('pChannelGrp');
-  if(procRow) procRow.style.display = showProcDeliv ? '' : 'none';
-  // Only Delivery In toggles — Payment Channel (channelGrp) always stays visible so every
-  // Purchase/Expense/Asset row can pick Bank/Cash/Mobile Money, not just Injera Blend rows.
-  if(delivInGrp) delivInGrp.style.display = showProcDeliv ? '' : 'none';
-  if(channelGrp) channelGrp.style.gridColumn = showProcDeliv ? '' : '1 / -1';
-  if(!showProcDeliv){
-    document.getElementById('pProcCost').value = 0;
-    document.getElementById('pDeliv').value = 0;
-  }
-}
-
 function onCategoryChange(){
   const type = document.getElementById('pType').value;
   const catId = document.getElementById('pCategory').value;
-  // Auto-derive unit (display only — unit isn't a purchases column, it's read from
-  // inventory_items when needed) from the selected item for Purchase rows.
   if(type === 'Purchase'){
     const item = itemById(catId);
     if(item) document.getElementById('pUnit').value = item.unit;
   }
-  updateProcDelivVisibility();
   recalcTotal();
 }
 
@@ -1689,11 +1574,8 @@ function onTypeChange(){
   updateAssetFieldsVisibility(isAsset);
 
   if(isAsset){
-    // Asset Purchase doesn't use the item_id/expense_category_id dropdown —
-    // Asset Name/Category/Useful Life above replace it.
     document.getElementById('pQty').value = 1;
     document.getElementById('pUnit').value = 'unit';
-    updateProcDelivVisibility();
     recalcTotal();
     return;
   }
@@ -1701,7 +1583,6 @@ function onTypeChange(){
   const prevCat = document.getElementById('pCategory').value;
   buildCategoryDropdown(type, prevCat);
   const isExpense = type === 'Expense';
-  // For expenses: qty is always 1 unit ("ls" = lump sum), no proc/deliv
   if(isExpense){
     document.getElementById('pQty').value = 1;
     document.getElementById('pUnit').value = 'ls';
@@ -1709,9 +1590,6 @@ function onTypeChange(){
   onCategoryChange();
 }
 
-// Toggles the Category dropdown vs. the Asset Name/Category/Useful Life fields,
-// and softens the Supplier field to optional (schema allows NULL supplier_id
-// for type='asset' — see supplier_optional_for_assets.sql).
 function updateAssetFieldsVisibility(isAsset){
   document.getElementById('pCategoryGrp').style.display = isAsset ? 'none' : '';
   document.getElementById('assetFieldsRow').style.display = isAsset ? 'flex' : 'none';
@@ -1720,8 +1598,6 @@ function updateAssetFieldsVisibility(isAsset){
   if(isAsset) updateAssetDepreciationPreview();
 }
 
-// Live preview only — the real monthly_depreciation is GENERATED server-side
-// in fixed_assets (cost / useful_life_years / 12), this just mirrors it for the user.
 function updateAssetDepreciationPreview(){
   const total = parseFloat(document.getElementById('pTotal').value) || 0;
   const life = parseFloat(document.getElementById('pUsefulLife').value) || 0;
@@ -1784,24 +1660,15 @@ function clearFilters(){
 }
 
 function buildFilterCategoryDropdown(){
-  // Populate the filter category dropdown with all unique categories from data
   const cats = [...new Set(purchases.map(p=>p.category))].sort();
   const el = document.getElementById('fCategory');
   const prev = el.value;
   el.innerHTML = '<option>All Categories</option>' + cats.map(c=>`<option${c===prev?' selected':''}>${c}</option>`).join('');
 }
 
-// business_settings.approval_threshold_etb (real schema default: 1000.00). Loaded from
-// Supabase at startup via loadBusinessSettingsFromSupabase(); this local default only
-// applies before that load completes or if Supabase is unreachable.
 let EXPENSE_APPROVAL_THRESHOLD = 1000;
 
 function initApprovalThreshold(){
-  // The Approval Threshold card's UI was removed from this page (2026-07-07) — it belongs in
-  // the Settings module. EXPENSE_APPROVAL_THRESHOLD itself still comes from
-  // loadBusinessSettingsFromSupabase() and is used for approval-status calculations; there's
-  // no local UI to sync it into anymore, so this is now a no-op kept only so existing call
-  // sites don't need to change.
 }
 function updateApprovalThresholdPreview(){ /* UI removed from this page — no-op */ }
 async function saveApprovalThreshold(){
@@ -1817,21 +1684,13 @@ async function saveApprovalThreshold(){
   } catch(err){
     showToast('⚠ Saved locally only — database update failed: '+err.message);
   }
-  // Live-refresh the open modal's readout and any Pending/Completed statuses on screen
   if(document.getElementById('purchaseModalOverlay').classList.contains('show')) recalcTotal();
 }
 
-/* ════════════════ VAT FRAMEWORK — real business_settings.is_vat_registered ════════════════ */
-// Note: the real schema only stores is_vat_registered (boolean) on business_settings —
-// there's no dedicated VAT-rate column there. Ethiopia's standard rate is 15% per spec,
-// so the rate itself is kept client-side and applied whenever is_vat_registered is true.
+/* ════════════════ VAT FRAMEWORK ════════════════ */
 let vatSettings = { isRegistered: false, ratePct: 15 };
 
 function initVatSettings(){
-  // The VAT Registration card's UI was removed from this page (2026-07-07) — it belongs in
-  // the Settings module. vatSettings itself still comes from loadBusinessSettingsFromSupabase()
-  // and is used for VAT calculations; toggleVatFieldInModal() below is the only remaining
-  // effect this page needs (shows/hides the VAT row inside the New Purchase modal).
   toggleVatFieldInModal();
 }
 function onVatToggle(){ /* UI removed from this page — no-op */ }
@@ -1853,7 +1712,6 @@ async function saveVatSettings(){
   }
   if(document.getElementById('purchaseModalOverlay').classList.contains('show')) recalcTotal();
 }
-// VAT fields on forms only activate when the business is VAT-registered, per spec.
 function toggleVatFieldInModal(){
   const wrap = document.getElementById('pVatRow');
   if(wrap) wrap.style.display = vatSettings.isRegistered ? '' : 'none';
@@ -1862,7 +1720,7 @@ function computeVatAmount(total){
   return vatSettings.isRegistered ? total * (vatSettings.ratePct/100) : 0;
 }
 
-/* ════════════ Foreign Currency (reference only) — spec "Foreign Currency on Purchases" ════════════ */
+/* ════════════ Foreign Currency (reference only) ════════════ */
 function toggleFxFields(){
   const on = document.getElementById('pFxToggle').checked;
   document.getElementById('pFxRow').style.display = on ? 'flex' : 'none';
@@ -1882,13 +1740,9 @@ function updateFxHint(){
   }
 }
 
-// Compute approval_status per spec workflow, given type/total/existing edit row.
 function resolveApprovalStatus(type, total, existing){
-  if(type === 'Purchase') return 'Completed'; // all purchase rows auto-approved
-  if(existing && existing.status === 'Rejected') return 'Rejected'; // preserve explicit rejection on edit
-  // Expense and Asset Purchase both go through the threshold check — the DB trigger
-  // (purchases_computed() in all_gaps_fix_migration.sql) has no special-case for
-  // type='asset', so we mirror that here rather than inventing a separate rule.
+  if(type === 'Purchase') return 'Completed';
+  if(existing && existing.status === 'Rejected') return 'Rejected';
   return total >= EXPENSE_APPROVAL_THRESHOLD ? 'Pending' : 'Completed';
 }
 
@@ -1905,11 +1759,7 @@ async function savePurchase(){
   const date = document.getElementById('pDate').value;
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const unitPrice = parseFloat(document.getElementById('pUnitPrice').value)||0;
-  const procCost = parseFloat(document.getElementById('pProcCost').value)||0;
-  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
 
-  // Asset Purchase: supplier is optional (schema allows NULL supplier_id for type='asset'),
-  // and Category is replaced by Asset Name/Category/Useful Life — validate those instead.
   const assetName = document.getElementById('pAssetName').value.trim();
   const assetCategory = document.getElementById('pAssetCategory').value;
   const usefulLifeYears = parseFloat(document.getElementById('pUsefulLife').value)||0;
@@ -1921,12 +1771,11 @@ async function savePurchase(){
     if(!supplierObj){ showToast('Please select a supplier'); return; }
     if(!categoryObj){ showToast('Please select a category'); return; }
   }
-  const supplier = supplierObj ? supplierObj.name : ''; // optional for Asset Purchase
-  const category = isAsset ? assetName : categoryObj.name; // display-name cache — purchases table has no category text column
+  const supplier = supplierObj ? supplierObj.name : '';
+  const category = isAsset ? assetName : categoryObj.name;
 
-  // --- Data Integrity Guards (spec §9, also enforced server-side by CHECK constraints) ---
   if(qty === 0){ showToast('Quantity cannot be zero.'); return; }
-  if(qty < 0 || unitPrice < 0 || procCost < 0 || deliv < 0){
+  if(qty < 0 || unitPrice < 0){
     showToast('Value cannot be negative.');
     return;
   }
@@ -1939,11 +1788,8 @@ async function savePurchase(){
     }
   }
 
-  const total = qty*unitPrice+procCost+deliv;
+  const total = qty*unitPrice;
 
-  // Duplicate detection per spec: same supplier_id + total_cost + date, entered within
-  // 5 minutes of an existing row's creation. Uses a real createdAt timestamp on each
-  // row (set below on save) rather than approximating by calendar day.
   const now = Date.now();
   const FIVE_MIN_MS = 5*60*1000;
   const isDup = purchases.some(p =>
@@ -1962,16 +1808,14 @@ async function savePurchase(){
     supplier,
     type,
     categoryId: isAsset ? null : categoryId,
-    category, // display-name cache only — NOT written to purchases.category (no such column)
+    category,
     assetName: isAsset ? assetName : undefined,
     assetCategory: isAsset ? assetCategory : undefined,
     usefulLifeYears: isAsset ? usefulLifeYears : undefined,
-    description: document.getElementById('pDescription').value.trim() || category, // local-only, not persisted (no description column in schema)
+    description: document.getElementById('pDescription').value.trim() || category,
     qty,
-    unit: document.getElementById('pUnit').value, // local-only display — real unit lives on inventory_items
+    unit: document.getElementById('pUnit').value,
     unitPrice,
-    procCost,
-    deliv,
     channel: document.getElementById('pChannel').value,
     status: resolveApprovalStatus(type, total, existing),
     createdAt: existing ? (existing.createdAt || now) : now,
@@ -1992,7 +1836,7 @@ async function savePurchase(){
     renderCharts();
     showToast('Purchase updated');
     await saveToSupabase(purchases.find(x=>x.id==editId));
-    renderTable(); // reflect any trigger-recomputed status/vat after round-trip
+    renderTable();
     renderCharts();
   } else {
     const newP = {id: nextPurchaseId++, ...data};
@@ -2004,13 +1848,10 @@ async function savePurchase(){
     renderCharts();
     showToast(data.status==='Pending' ? 'Expense submitted — awaiting Owner approval' : 'Purchase added');
     await saveToSupabase(newP);
-    renderTable(); // reflect any trigger-recomputed status/vat after round-trip
+    renderTable();
     renderCharts();
   }
 }
-// If a saved row's date falls in a different month than the one currently selected, jump
-// the month picker to follow it — otherwise a purchase you just added would immediately
-// disappear from the (now month-scoped) table with no obvious explanation why.
 function syncMonthSelectorTo(dateStr){
   if(!dateStr) return;
   const mk = dateStr.slice(0,7);
@@ -2018,7 +1859,7 @@ function syncMonthSelectorTo(dateStr){
   if(sel.value === mk) return;
   if(![...sel.options].some(o=>o.value===mk)) populateMonthSelector();
   sel.value = mk;
-  monthUserSelected = true; // deliberate jump to follow a saved row — treat like a real navigation
+  monthUserSelected = true;
 }
 
 /* ════════════════ SUPPLIER MANAGER MODAL ════════════════ */
@@ -2060,14 +1901,11 @@ async function updateSupplier(id, field, value){
   value = value.trim();
   if(!value) { renderSupplierList(); return; }
   if(field==='name'){
-    // Keep the display-name cache on existing purchase rows in sync with the FK'd supplier.
     purchases.forEach(p=>{ if(p.supplierId===id || (!p.supplierId && p.supplier===oldName)) p.supplier = value; });
   }
   s[field] = value;
   const result = await saveSupplierToSupabase(s);
   if(!result.ok){
-    // Roll back — otherwise the input field would show a new name that was never actually
-    // saved, which looks identical to success until the page is refreshed and it reverts.
     s[field] = oldValue;
     if(field==='name'){
       purchases.forEach(p=>{ if(p.supplierId===id) p.supplier = oldValue; });
@@ -2078,9 +1916,6 @@ async function updateSupplier(id, field, value){
   }
   showToast('Supplier updated');
 }
-// Spec §9 Data Integrity Guards: "Block delete of supplier with history... Reject.
-// Deactivate only." A supplier with purchase records cannot be hard-deleted — only
-// deactivated (is_active=false), so historical rows keep a valid FK.
 async function removeSupplier(id){
   const s = supplierById(id);
   if(!s) return;
@@ -2121,9 +1956,6 @@ async function addSupplier(){
   const result = await saveSupplierToSupabase(newSup);
   if(btn){ btn.disabled = false; }
   if(!result.ok){
-    // Don't add it to the local list either — a supplier that only exists in this browser
-    // tab (never saved) would silently disappear on refresh, which is worse than just
-    // telling the user it failed and letting them retry with a different name.
     showToast(result.message);
     return;
   }
@@ -2134,7 +1966,6 @@ async function addSupplier(){
   showToast('Supplier added');
   document.getElementById('newSupName').focus();
 }
-// Allow Enter key to add supplier quickly
 document.addEventListener('DOMContentLoaded', ()=>{
   ['newSupName','newSupCat'].forEach(id=>{
     const el = document.getElementById(id);
@@ -2172,16 +2003,13 @@ function renderCharts(){
   const monthRows = getMonthPurchases(mk);
   const priorRows = getMonthPurchases(prevMonthKey(mk));
 
-  // Aggregate by type — scoped to the selected month, per the "This Month" KPI cards
   const rawMaterials = monthRows.filter(p=>p.type==='Purchase').reduce((s,p)=>s+rowTotal(p),0);
   const opEx = monthRows.filter(p=>p.type==='Expense').reduce((s,p)=>s+rowTotal(p),0);
   const grandTotal = rawMaterials + opEx;
 
-  // Aggregate by channel
   const byChannel = {Bank:0, Cash:0, 'Mobile Money':0};
   monthRows.forEach(p=>{ byChannel[p.channel] = (byChannel[p.channel]||0) + rowTotal(p); });
 
-  // Update donut center totals + legends
   document.getElementById('typeTotalLbl').innerHTML = fmt(grandTotal)+'<br>ETB';
   document.getElementById('chanTotalLbl').innerHTML = fmt(grandTotal)+'<br>ETB';
   const pct = (v)=> grandTotal>0 ? ((v/grandTotal)*100).toFixed(1) : '0.0';
@@ -2193,16 +2021,13 @@ function renderCharts(){
   document.getElementById('rawPct').textContent = pct(rawMaterials)+'% of total';
   document.getElementById('opPct').textContent = pct(opEx)+'% of total';
 
-  // Avg cost / kg for Injera Blend specifically (this month only)
   const blendRows = monthRows.filter(p=>p.category==='Injera Blend');
   const blendKg = blendRows.reduce((s,p)=>s+Number(p.qty),0);
   const blendCost = blendRows.reduce((s,p)=>s+rowTotal(p),0);
   const avgCostKg = blendKg>0 ? blendCost/blendKg : 0;
 
-  // Pending count (large expenses pending = Pending status rows), this month only
   const pendingCount = monthRows.filter(p=>p.status==='Pending').length;
 
-  // Update KPI data-targets so count-up (or live update) always reflects current data
   const targets = {
     kpiTotal: grandTotal, kpiRaw: rawMaterials, kpiOp: opEx,
     kpiCount: monthRows.length, kpiAvg: avgCostKg, kpiPending: pendingCount
@@ -2222,7 +2047,6 @@ function renderCharts(){
   document.getElementById('kpiAvg').dataset.animated = '1';
   document.getElementById('kpiPending').dataset.animated = '1';
 
-  // vs-prior-month comparisons, computed from priorRows instead of a hardcoded month
   const priorLabel = monthLabel(prevMonthKey(mk));
   const priorTotal = priorRows.reduce((s,p)=>s+rowTotal(p),0);
   const priorBlend = priorRows.filter(p=>p.category==='Injera Blend');
@@ -2243,7 +2067,6 @@ function renderCharts(){
 
   renderCategoryBars(grandTotal, monthRows);
 
-  // Expense Approval Summary (derived from row statuses), this month only
   const pendingN = monthRows.filter(p=>p.status==='Pending').length;
   const approvedN = monthRows.filter(p=>p.status==='Completed').length;
   const rejectedN = monthRows.filter(p=>p.status==='Rejected').length;
@@ -2285,20 +2108,12 @@ function renderCharts(){
   renderTrendChart(mk);
 }
 
-// Purchase Trend line chart — range comes from #trendRangeSel (Last 6/3 Months, or This Year),
-// summed from the real `purchases` array (which loadFromSupabase() populates from the DB).
-// Previously this chart was built once at page load from a hardcoded 6-number array and
-// never touched again, so it never reflected actual purchases — this rebuilds it every
-// time renderCharts() runs (month change, save, approve/reject, delete, initial load) and
-// every time the range dropdown itself changes.
 function renderTrendChart(mk){
   const rangeSel = document.getElementById('trendRangeSel');
   const range = rangeSel ? rangeSel.value : '6';
 
   const months = [];
   if(range === 'year'){
-    // Calendar year (Jan–Dec) containing the currently selected month — matches how
-    // "This Year" reads on a business dashboard, not just a trailing 12-month window.
     const year = mk.slice(0,4);
     for(let m=1;m<=12;m++) months.push(year+'-'+String(m).padStart(2,'0'));
   } else {
@@ -2310,8 +2125,6 @@ function renderTrendChart(mk){
   const labels = months.map(monthLabel);
   const data = months.map(m => getMonthPurchases(m).reduce((s,p)=>s+rowTotal(p),0));
   const maxVal = Math.max(...data, 1);
-  // Round the axis max up to a clean step above the highest month so real data (which can
-  // exceed the old hardcoded 100,000 ceiling) always fits instead of getting clipped.
   const step = maxVal > 200000 ? 50000 : 20000;
   const axisMax = Math.ceil((maxVal*1.15)/step)*step;
 
@@ -2370,21 +2183,20 @@ function renderCategoryBars(grandTotal, rows){
   const ranked = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const maxVal = ranked.length ? ranked[0][1] : 1;
   const wrap = document.getElementById('catBars');
+  if(ranked.length===0){
+    wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
+    return;
+  }
   wrap.innerHTML = ranked.map(([cat,val],i)=>{
     const pctOfTotal = grandTotal>0 ? (val/grandTotal*100) : 0;
     const widthPct = (val/maxVal*100).toFixed(1);
     const color = catColors[i % catColors.length];
     return `<div class="bar-row"><span class="bn" title="${cat}">${cat}</span><div class="bar-track"><div class="bar-fill" data-w="${widthPct}" style="width:0%;background:${color}"></div></div><span class="bp">${pctOfTotal.toFixed(1)}%</span><span class="bv">${fmt(val)}</span></div>`;
   }).join('');
-  // animate bars in from 0 width
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     wrap.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.getAttribute('data-w')+'%'; });
   }));
 }
-
-// Purchase Trend line chart — now built inside renderCharts() from real `purchases` data
-// (see renderTrendChart() below) instead of this old hardcoded 6-month array, so it stays
-// connected to Supabase like every other chart on this page and updates on every data change.
 
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){
@@ -2399,48 +2211,25 @@ document.addEventListener('keydown', e=>{
   }
 });
 
-/* ════════════════ BANK TRANSFER FEE — real business_settings.bank_charge_default_pct ════════════════ */
-// Confirmed against the live schema (2026-07-08): business_settings has exactly one bank-fee
-// column, bank_charge_default_pct (numeric, default 0.5000) — a percentage, not the old
-// localStorage model's {type:'fixed'|'percent'|'none', value} shape. There is no fixed-ETB
-// option in the real schema, so this now always applies as a percentage of the purchase total
-// (0 behaves the same as "no fee"). Loaded from Supabase in loadBusinessSettingsFromSupabase();
-// no more localStorage.
+/* ════════════════ BANK TRANSFER FEE ════════════════ */
 let bankFeeConfig = { ratePct: 0.5 };
 
 function getBankFeeAmount(totalCost){
   return totalCost * (bankFeeConfig.ratePct || 0) / 100;
 }
-// Maps UI status ↔ real schema's approval_status ENUM('auto_approved','pending','approved','rejected').
-// IMPORTANT: the purchases_computed() trigger in injera_bms_COMPLETE.sql re-checks the
-// threshold server-side and promotes 'pending' → 'auto_approved' when total_cost is at/under
-// business_settings.approval_threshold_etb. For expenses BELOW threshold we still defer to
-// the DB: send 'pending' and let the trigger's own check promote it to auto_approved.
-//
-// BUG FIX (2026-07-07): an Owner clicking "Approve" in the Approval Queue on an expense that
-// is AT/ABOVE threshold used to also send 'pending' here (the only status this function knew
-// how to send for a non-Purchase row), so the trigger re-checked the same still-over-threshold
-// total, left it 'pending' in the DB, and syncTriggerComputedFields() then read that back and
-// silently flipped the row's local status right back to 'Pending' — the Approve button visibly
-// did nothing. An explicit manual approval (p.approvedAt is set by approvePurchase()) now sends
-// 'approved' so the trigger doesn't re-run the threshold check and undo the Owner's decision.
 function toDbApprovalStatus(p){
   if(p.status === 'Rejected') return 'rejected';
-  if(p.type === 'Purchase') return 'auto_approved'; // trigger has no special-case for this; purchases always auto-approve
-  if(p.status === 'Completed' && p.approvedAt) return 'approved'; // explicit Owner approval via the Approval Queue
+  if(p.type === 'Purchase') return 'auto_approved';
+  if(p.status === 'Completed' && p.approvedAt) return 'approved';
   if(p.status === 'Pending') return 'pending';
-  // Expense/Asset resolved as Completed client-side with no explicit approval timestamp
-  // (i.e. it was under threshold to begin with): let the trigger's threshold check decide.
   return 'pending';
 }
 function fromDbApprovalStatus(dbStatus){
   if(dbStatus === 'pending') return 'Pending';
   if(dbStatus === 'rejected') return 'Rejected';
-  return 'Completed'; // auto_approved or approved
+  return 'Completed';
 }
 
-// Single unified `purchases` table per spec §5 schema — type ENUM('purchase','expense')
-// routes the same row to inventory WAC or OpEx. Replaces the old two-table split.
 const PURCHASES_TABLE = 'purchases';
 
 const SUPPLIERS_TABLE = 'suppliers';
@@ -2462,10 +2251,6 @@ async function loadSuppliersFromSupabase(){
   }
 }
 
-// Returns {ok:true} on success or {ok:false, message} on failure — the caller (addSupplier/
-// updateSupplier) uses this to tell the user the truth instead of always showing a success
-// toast regardless of what actually happened in the database (e.g. the UNIQUE constraint on
-// suppliers.name rejecting a duplicate name that only differs by case).
 async function saveSupplierToSupabase(s){
   try {
     const row = { name: s.name, category: s.category, is_active: s.isActive !== false };
@@ -2488,7 +2273,7 @@ async function saveSupplierToSupabase(s){
 async function deleteSupplierFromSupabase(s){
   try {
     const dbId = s._dbId || s.id;
-    if(!dbId) return {ok:true}; // never synced to the DB in the first place — nothing to delete there
+    if(!dbId) return {ok:true};
     const { error } = await db.from(SUPPLIERS_TABLE).delete().eq('id', dbId);
     if(error) throw error;
     return {ok:true};
@@ -2502,7 +2287,6 @@ async function loadLookupsFromSupabase(){
   try {
     const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true).order('name');
     if(!error && data && data.length > 0){
-      // Group matches the spec's Raw Materials vs Packaging split used in the UI.
       const packagingNames = new Set(['Small Bags','Large Bags']);
       inventoryItems = data.map(r => ({
         id: r.id, name: r.name, unit: r.unit,
@@ -2519,8 +2303,6 @@ async function loadLookupsFromSupabase(){
   } catch(err){ console.log('expense_categories load failed, using local fallback:', err.message); }
 }
 
-// business_settings is a singleton row (unique index on (true)) — approval_threshold_etb
-// and is_vat_registered live here per the real schema, replacing the old localStorage stand-ins.
 let businessSettingsId = null;
 
 async function loadBusinessSettingsFromSupabase(){
@@ -2531,10 +2313,8 @@ async function loadBusinessSettingsFromSupabase(){
       EXPENSE_APPROVAL_THRESHOLD = parseFloat(data.approval_threshold_etb ?? 1000);
       vatSettings = {
         isRegistered: !!data.is_vat_registered,
-        ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15) // rate isn't its own column; 15% is Ethiopia's standard rate per spec
+        ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15)
       };
-      // bank_charge_default_pct confirmed against the live schema (2026-07-08) — a percentage,
-      // not the old localStorage {type,value} shape. Falls back to 0.5% if the row is missing it.
       bankFeeConfig = { ratePct: parseFloat(data.bank_charge_default_pct ?? 0.5) };
       businessSettingsId = data.id;
     }
@@ -2550,7 +2330,6 @@ async function loadFromSupabase(){
     loadBusinessSettingsFromSupabase()
   ]);
   try {
-    // is_deleted = false matches every reporting view in the schema (soft-delete pattern).
     const { data, error } = await db.from(PURCHASES_TABLE).select('*').eq('is_deleted', false).order('date', { ascending: false });
     if(error) throw error;
 
@@ -2568,22 +2347,20 @@ async function loadFromSupabase(){
           supplier: sup ? sup.name : (isAsset ? '' : 'Unknown'),
           type: isAsset ? 'Asset Purchase' : (isExpense ? 'Expense' : 'Purchase'),
           categoryId: isAsset ? null : (isExpense ? r.expense_category_id : r.item_id),
-          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Injera Blend')),
+          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Unknown Item')),
           assetName: isAsset ? r.asset_name : undefined,
           assetCategory: isAsset ? r.asset_category : undefined,
           usefulLifeYears: isAsset ? parseFloat(r.useful_life_years || 0) : undefined,
-          description: '', // no description column in schema — local-only field, blank on reload from DB
+          description: '',
           qty: parseFloat(r.quantity ?? 1),
           unit: isAsset ? 'unit' : (catObj && catObj.unit ? catObj.unit : (isExpense ? 'ls' : 'kg')),
           unitPrice: parseFloat(r.unit_price || 0),
-          procCost: parseFloat(r.processing_cost || 0),
-          deliv: parseFloat(r.delivery_in || 0),
           channel: r.payment_channel === 'mobile' ? 'Mobile Money' : r.payment_channel === 'bank' ? 'Bank' : r.payment_channel === 'cash' ? 'Cash' : 'Bank',
           status: fromDbApprovalStatus(r.approval_status),
           rejectionReason: r.rejection_reason || '',
           createdAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
           vatRatePct: parseFloat(r.vat_rate_pct || 0),
-          vatAmount: parseFloat(r.vat_amount || 0), // DB-computed (GENERATED-equivalent trigger), read-only
+          vatAmount: parseFloat(r.vat_amount || 0),
           originalCurrency: r.original_currency || 'ETB',
           originalAmount: r.original_amount != null ? parseFloat(r.original_amount) : null,
           exchangeRate: r.exchange_rate != null ? parseFloat(r.exchange_rate) : null
@@ -2595,7 +2372,6 @@ async function loadFromSupabase(){
   } catch(err){
     console.log('Supabase unavailable, using local data:', err.message);
   }
-  // Always render regardless of whether Supabase loaded or not
   populateMonthSelector();
   refreshSupplierDropdowns();
   buildFilterCategoryDropdown();
@@ -2604,14 +2380,10 @@ async function loadFromSupabase(){
   renderSummaryCards();
   runKpiAnimations();
   updateFilterChips();
-  // These read EXPENSE_APPROVAL_THRESHOLD / vatSettings, which loadBusinessSettingsFromSupabase()
-  // (awaited above) may have just updated from the DB — must run after that resolves, not before.
   initApprovalThreshold();
   initVatSettings();
   handleDeepLinkParams();
 }
-// Lets dashboard.html link straight into an action here instead of just landing
-// on the page: ?approvals=1 opens the Approval Queue, ?new=1 opens the New Purchase form.
 function handleDeepLinkParams(){
   const params = new URLSearchParams(window.location.search);
   if(params.get('approvals') === '1'){
@@ -2629,8 +2401,6 @@ async function saveToSupabase(p){
     const isAsset = p.type === 'Asset Purchase';
     const row = {
       date: p.date,
-      // Asset Purchase: supplier_id may legitimately be NULL — see
-      // supplier_optional_for_assets.sql (purchase_expense_requires_supplier constraint).
       supplier_id: (supObj && supObj._dbId) || p.supplierId || null,
       type: isAsset ? 'asset' : (isExpense ? 'expense' : 'purchase'),
       item_id: (isExpense || isAsset) ? null : p.categoryId,
@@ -2640,10 +2410,6 @@ async function saveToSupabase(p){
       useful_life_years: isAsset ? p.usefulLifeYears : null,
       quantity: p.qty,
       unit_price: p.unitPrice,
-      processing_cost: p.procCost,
-      delivery_in: p.deliv,
-      // total_cost, vat_amount, period, expiry_date are all trigger-computed server-side
-      // (purchases_computed() in injera_bms_COMPLETE.sql) — never sent from the client.
       payment_channel: channelMap[p.channel] || 'bank',
       approval_status: toDbApprovalStatus(p),
       rejection_reason: p.status === 'Rejected' ? (p.rejectionReason || null) : null,
@@ -2651,8 +2417,6 @@ async function saveToSupabase(p){
       original_currency: p.originalCurrency || 'ETB',
       original_amount: p.originalAmount ?? null,
       exchange_rate: p.exchangeRate ?? null,
-      // location_id: NULLABLE FK → locations. Business is single-location today, so this
-      // is always NULL per spec ("No existing data is affected" until a 2nd kitchen exists).
       location_id: null
     };
     if(p._dbId){
@@ -2670,20 +2434,13 @@ async function saveToSupabase(p){
   }
 }
 
-// After insert/update, the purchases_computed() trigger may have recalculated
-// approval_status (threshold check), total_cost, vat_amount, and period server-side.
-// Pull those back so the UI reflects what's actually persisted, not just our guess.
 function syncTriggerComputedFields(local, dbRow){
   local.status = fromDbApprovalStatus(dbRow.approval_status);
   local.vatAmount = parseFloat(dbRow.vat_amount || 0);
   if(dbRow.approval_status === 'pending' && local.type === 'Expense'){
-    // Trigger left it pending — genuinely awaiting Owner approval, re-render will show it.
   }
 }
 
-// Soft delete per schema's is_deleted pattern — every reporting view filters on
-// is_deleted=false, so a hard DELETE would work too, but soft-delete preserves the
-// audit trail (audit_purchases trigger already logs the row either way).
 async function deleteFromSupabase(p){
   try {
     if(!p._dbId) return;
@@ -2702,23 +2459,13 @@ renderHeader({
   onExportPdf: exportPdf,
   onExportXlsx: exportExcel,
   onMonthChange: onMonthChange,
-  // Hardcoded notifications removed (2026-07-08) — they referenced the mock May 2026 seed
-  // data (fake supplier names, fake budget/approval alerts) and had no connection to reality.
-  // Empty until there's a real notifications system to back this.
   notifications: []
 });
-// The shared header's month picker is a plain string list — this page needs real
-// month keys (rolling 24-back/6-forward range, extendable past the end), so build
-// the #msel options ourselves right after renderHeader() creates the element, then
-// rebind the prev/next arrows to this page's own chgM() instead of the shared
-// generic _headerMonthStep() (which doesn't know how to extend the range).
 populateMonthSelector();
 document.querySelectorAll('.tb-mid .arr').forEach((el, i) => {
   el.onclick = () => chgM(i === 0 ? -1 : 1);
 });
 loadFromSupabase();
-// bankFeeConfig no longer needs a separate init call — it's populated straight from
-// business_settings.bank_charge_default_pct inside loadBusinessSettingsFromSupabase().
 </script>
 
 </body>
