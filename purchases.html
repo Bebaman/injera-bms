@@ -1322,6 +1322,17 @@ function statusPillClass(s){
   return 'pill-rej';
 }
 
+function getRowHeight(tbody){
+  const probe = document.createElement('tr');
+  probe.className = 'row-blank';
+  probe.innerHTML = '<td colspan="14">&nbsp;</td>';
+  probe.style.visibility = 'hidden';
+  tbody.appendChild(probe);
+  const h = probe.getBoundingClientRect().height;
+  tbody.removeChild(probe);
+  return h;
+}
+
 function renderTable(){
   buildFilterCategoryDropdown();
   state.page = state.page || 1;
@@ -1348,7 +1359,8 @@ function renderTable(){
     const subtext = hasActiveFilters
       ? 'No purchases match your filters. Try adjusting or clearing them.'
       : 'Add your first purchase or expense to get started.';
-    const emptyStateHeight = perPage * 29 + 24; // approximates perPage data rows + header row
+    const measuredRowHeight = getRowHeight(tbody);
+    const emptyStateHeight = measuredRowHeight * perPage; // exact match to a full perPage-row tbody, measured not guessed
     const messageRowHtml = `<tr><td colspan="14" style="padding:0;border-bottom:none;height:${emptyStateHeight}px;vertical-align:middle">
       <div class="empty-state">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
