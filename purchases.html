@@ -113,7 +113,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .tbl-pl th{padding:7px 5px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
 .tbl-pl td{padding:7px 5px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl-pl tr:hover td{background:#f7fbf9}
-.tbl-pl .row-blank td{border-bottom:1px solid #f0f5f2;pointer-events:none}
+.tbl-pl .row-blank td{border-bottom:none;pointer-events:none}
 .tbl-pl .row-blank:hover td{background:transparent}
 
 /* Compact sidebar table (fits 330px cards, e.g. Top Suppliers) */
@@ -1359,7 +1359,7 @@ function renderTable(){
         </button>
       </div>
     </td></tr>`;
-    tbody.innerHTML = messageRowHtml;
+    tbody.innerHTML = messageRowHtml + blankRowHtml.repeat(Math.max(0, perPage - 1));
   } else {
     const dataRowsHtml = pageRows.map(p=>{
       try {
@@ -1384,9 +1384,11 @@ function renderTable(){
         return `<tr><td colspan="14" style="color:#b3261e;font-style:italic">Row failed to render (id: ${p?.id ?? 'unknown'}) — see console</td></tr>`;
       }
     }).join('');
-    // Table height now simply reflects however many rows are actually on this page —
-    // no blank filler rows padding it out to a fixed count.
-    tbody.innerHTML = dataRowsHtml;
+    // Pad this page out to a constant `perPage` rows so the table height stays consistent
+    // as purchases are added/filtered. Filler rows have no border, so they show as blank
+    // space rather than visible empty row lines.
+    const blankCount = Math.max(0, perPage - pageRows.length);
+    tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
   }
 
   document.getElementById('pgInfo').textContent =
