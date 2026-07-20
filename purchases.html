@@ -196,6 +196,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .bar-list::-webkit-scrollbar{width:5px}
 .bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
 
+/* Purchase Trend / Spend by Category / Monthly Purchased Quantity row — restored to the
+   v15 sizing: Trend keeps the original 1.4fr:1fr ratio against the right column (instead
+   of being squeezed by a 3rd 1fr track), and Monthly Purchased Quantity sits stacked under
+   Spend by Category, matching its width and height exactly rather than competing for
+   horizontal space with Trend. */
+.trend-row{display:grid;grid-template-columns:1.4fr .5fr .5fr;gap:14px}
+.trend-row .trend-card{grid-column:1;grid-row:1}
+.trend-row .cat-card{grid-column:2;grid-row:1}
+.trend-row .qty-card{grid-column:3;grid-row:1}
+
 /* ══ ACTIONS DOTS ═══════════════════════════════════ */
 .act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px}
 .act-dots:hover{background:var(--bg);color:var(--tm)}
@@ -304,13 +314,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 @media (max-width:1220px) and (min-width:901px){
   .bot2{grid-template-columns:1fr}
   /* Purchase Trend + Spend by Category + Monthly Purchased Quantity: at laptop widths
-     there isn't room for 3 side-by-side cards without squeezing the trend chart, so
+     there isn't room for the 1.4fr:1fr layout without squeezing the trend chart, so
      Trend takes the full top row and the two equal-size bar-list cards share the row
      beneath it. */
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"]{grid-template-columns:1fr 1fr;grid-template-areas:"trend trend" "cat qty"}
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(1){grid-area:trend}
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(2){grid-area:cat}
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr 1fr"] > div:nth-child(3){grid-area:qty}
+  .trend-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-template-areas:"trend trend" "cat qty"}
+  .trend-row .trend-card{grid-area:trend}
+  .trend-row .cat-card{grid-area:cat}
+  .trend-row .qty-card{grid-area:qty}
 }
 @media (max-width:900px){
   /* Sidebar/topbar responsive behavior now lives in shared-shell.css.
@@ -327,6 +337,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .bot2{display:flex;flex-direction:column}
   .donut-row{grid-template-columns:1fr}
   .bot2 > div[style*="grid-template-columns"]{display:flex !important;flex-direction:column}
+  .trend-row{display:flex !important;flex-direction:column}
 
   /* Modals: full-width sheet with less outer padding so form fields have real room */
   .modal-overlay{padding:0}
@@ -420,6 +431,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .bot2{ display:block !important; }
   .bot2 > div{ width:100% !important; }
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{ display:block !important; }
+  .trend-row{ display:block !important; }
   .donut-row{ grid-template-columns:1fr 1fr !important; gap:8px !important; }
 
   /* Table: show every filtered row (pagination is bypassed by exportPdf before printing),
@@ -609,12 +621,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
 
       <!-- Purchase Trend + Spend by Category + Monthly Purchased Quantity (left column,
-           full width). Trend is wider (1.4fr) than the two equal-size bar-list cards
-           (1fr each) — Category and Quantity share the same .bar-list fixed height so
-           they always match, regardless of which one has more rows in a given month. -->
-      <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px">
+           full width). Trend keeps the v15 1.4fr:1fr ratio against the right column —
+           Monthly Purchased Quantity is stacked directly under Spend by Category instead
+           of taking a 3rd column, so both bar-list cards match each other in width and
+           height (via the shared .bar-list fixed-height rule) without squeezing Trend. -->
+      <div class="trend-row">
         <!-- Purchase Trend -->
-        <div class="card" style="display:flex;flex-direction:column">
+        <div class="card trend-card" style="display:flex;flex-direction:column">
           <div class="card-hd">
             <div class="card-ttl">Purchase Trend (ETB)</div>
             <!-- BUG FIX (2026-07-11): this select had no id and no onchange handler at all —
@@ -638,7 +651,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
 
         <!-- Spend by Category -->
-        <div class="card">
+        <div class="card cat-card">
           <div class="card-hd">
             <div class="card-ttl">Spend by Category <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
             <span style="font-size:11px;font-weight:600;color:var(--tl);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block"></span>ETB</span>
@@ -648,11 +661,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
 
         <!-- Monthly Purchased Quantity — sized to match Spend by Category via the shared
-             .bar-list fixed-height rule. Shows quantity per raw-material/packaging
-             category, kept unit-aware (kg vs pcs shown per row) rather than summed into
-             one meaningless combined number, since Purchase rows span multiple units.
-             Expense rows have no real quantity so they're excluded. -->
-        <div class="card">
+             .bar-list fixed-height rule, and stacked directly beneath it via .qty-card so
+             the two cards line up as one matching column. Shows quantity per raw-material/
+             packaging category, kept unit-aware (kg vs pcs shown per row) rather than
+             summed into one meaningless combined number, since Purchase rows span multiple
+             units. Expense rows have no real quantity so they're excluded. -->
+        <div class="card qty-card">
           <div class="card-hd">
             <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
           </div>
