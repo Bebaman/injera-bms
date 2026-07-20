@@ -115,6 +115,9 @@
 .al-sec-hd.crit{color:var(--status-bad-fg)}
 .al-sec-hd.notice{color:#0d9b7a}
 .al-mod-tag{font-size:9px;font-weight:700;color:var(--tl);background:#eef3f0;border-radius:6px;padding:1.5px 6px;margin-left:6px;text-transform:uppercase;letter-spacing:.3px}
+.al-dismiss{font-size:15px;line-height:1;color:var(--tl);background:transparent;border:none;cursor:pointer;padding:2px 7px;border-radius:6px;flex-shrink:0;opacity:0;transition:opacity .15s,background .15s,color .15s}
+.al:hover .al-dismiss{opacity:1}
+.al-dismiss:hover{background:#eef3f0;color:var(--status-bad-fg)}
 #alertsList{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 #alertsList::-webkit-scrollbar{width:6px}
 #alertsList::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -477,6 +480,7 @@
         <div class="card-hd">
           <div class="card-ttl"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts &amp; Notifications</div>
           <a class="vall" id="alertsViewAll" onclick="openAlertsModal()">View All</a>
+          <a class="vall" onclick="openDeliveryLogModal()" style="margin-left:10px">Delivery Log</a>
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto" id="alertsList">
           <div class="al"><div class="al-ic ai-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="al-bd"><h5>Loading alerts…</h5><p>Fetching live data</p></div><div class="al-t"></div></div>
@@ -668,6 +672,17 @@
   </div>
 </div>
 
+<div class="al-modal-ovl" id="deliveryLogModalOvl" onclick="if(event.target===this) closeDeliveryLogModal()">
+  <div class="al-modal">
+    <div class="al-modal-hd">
+      <h4><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--td);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>Notification Delivery Log</h4>
+      <button type="button" class="al-modal-close" onclick="closeDeliveryLogModal()" aria-label="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div style="padding:8px 20px;font-size:11px;color:var(--tl);border-bottom:1px solid var(--border)">Every notification that has reached the bell on this device (most recent first), for auditing what was actually delivered. <a onclick="clearDeliveryLog()" style="color:var(--status-bad-fg);cursor:pointer;font-weight:700">Clear log</a></div>
+    <div class="al-modal-body" id="deliveryLogBody"></div>
+  </div>
+</div>
+
 <!-- Confirm modal now injected lazily by app-state.js's ensureConfirmModal() -->
 
 <script src="/js/app-state.js"></script>
@@ -826,6 +841,7 @@ let LAST = null; // cache of last computed dashboard payload, used by export + s
 // ══════════════════════════════════════════════════════════
 async function refreshDashboard(){
   const msel = document.getElementById('msel');
+  if(!msel){ console.error('refreshDashboard: #msel element not found on page — check header.js/sidebar.js render it before this runs.'); return; }
   const period = labelToPeriod(msel.value);
   const prevP = shiftPeriod(period, -1);
   prevPeriodGlobal = prevP;
@@ -1063,11 +1079,18 @@ async function refreshDashboard(){
     // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.
     const derkoshPeriodProduced = derkoshRows.reduce((s,d)=>s+num(d.produced_kg),0);
     const derkoshLowThreshold = Math.max(10, derkoshPeriodProduced * 0.15);
-    const derkoshStatus = derkoshStockCur < derkoshLowThreshold ? 'low' : 'ok';
+    // No production this period and no stock on hand means there's nothing to base the
+    // 15%-buffer threshold on — that's an unknown/no-data state, not an actual low-stock
+    // alert, so it needs to be distinguished before the low/ok comparison below.
+    const derkoshStatus = (derkoshPeriodProduced===0 && derkoshStockCur===0)
+      ? 'unknown'
+      : (derkoshStockCur < derkoshLowThreshold ? 'low' : 'ok');
     const derkoshPct = derkoshLowThreshold>0 ? clamp((derkoshStockCur/(derkoshLowThreshold*2))*100, 2, 100) : 100;
-    const derkoshRecommendation = derkoshStatus==='low'
-      ? `Order/produce soon — below ${derkoshLowThreshold.toFixed(1)}kg buffer`
-      : `${(derkoshStockCur-derkoshLowThreshold).toFixed(1)}kg above buffer`;
+    const derkoshRecommendation = derkoshStatus==='unknown'
+      ? 'No production data recorded yet'
+      : derkoshStatus==='low'
+        ? `Order/produce soon — below ${derkoshLowThreshold.toFixed(1)}kg buffer`
+        : `${(derkoshStockCur-derkoshLowThreshold).toFixed(1)}kg above buffer`;
     inventoryLevels.push({name:'Derkosh Stock', qty:derkoshStockCur, unit:'kg', status: derkoshStatus, pct: derkoshPct, id:'derkosh', reorder: derkoshLowThreshold, avgDailyUsage:0, daysRemaining:null, recommendation: derkoshRecommendation});
 
     // ── Manufacturing (current period) ────────────────────
@@ -1470,6 +1493,8 @@ async function refreshDashboard(){
     };
     renderKpis();
     renderAlerts();
+    recordShown([...alerts, ...notices].map(alertTypeKey));
+    await loadEngagementCache(); // needed synchronously by isIgnoredType() in pushFilter below
     // Feed the same live alerts into the header bell (was hardcoded demo data before 2026-07).
     // alerts[].icon is 'ai-r'/'ai-o'/'ai-p'/'ai-b'/'ai-g' — header.js expects the bare letter.
     // Each icon maps to a Settings > Notification Settings alert-type slug so its "Push" toggle
@@ -1480,13 +1505,42 @@ async function refreshDashboard(){
       const slug = ALERT_ICON_TO_SLUG[a.icon];
       if(!slug) return true; // no matching preference (e.g. ai-g) — always show
       const pref = NOTIF_PREFS[slug];
-      return !pref || pref.push !== false; // default to shown if preferences haven't been saved yet
+      if(pref && pref.push === false) return false;
+      return !isIgnoredType(alertTypeKey(a)); // learned-ignored types are quieted from the bell only
     };
+    // ── Digest/batching for the bell feed only ───────────────────────────
+    // The dashboard card and "View All" modal stay exhaustive (every alert, ungrouped) —
+    // that's the detail view. The bell is the noisy surface: a single module can produce
+    // many rows in one refresh (e.g. block 10/21 push one price-spike alert per item, block
+    // 12 pushes one overdue-payment alert per customer). Past a small cap per module+kind,
+    // collapse the overflow into one "+N more" summary row so the bell doesn't flood.
+    const BELL_MAX_PER_MODULE = 2;
+    const PRIORITY_RANK = { critical:0, high:1, medium:2, low:3, success:0, info:1 };
+    function digestByModuleKind(list){
+      const groups = {};
+      list.forEach(item => { const key = `${item.module||'General'}|${item.kind}`; (groups[key] ||= []).push(item); });
+      const out = [];
+      Object.values(groups).forEach(items => {
+        const sorted = [...items].sort((a,b)=>(PRIORITY_RANK[a.priority]??9)-(PRIORITY_RANK[b.priority]??9));
+        if(sorted.length <= BELL_MAX_PER_MODULE){ out.push(...sorted); return; }
+        const shown = sorted.slice(0, BELL_MAX_PER_MODULE);
+        const rest = sorted.slice(BELL_MAX_PER_MODULE);
+        out.push(...shown);
+        out.push({
+          icon: shown[0].icon, svg: 'clock',
+          title: `+${rest.length} more ${shown[0].module} ${rest[0].kind==='alert'?'alert':'notification'}${rest.length===1?'':'s'}`,
+          sub: rest.slice(0,3).map(r=>r.title).join(' · ') + (rest.length>3 ? ' …' : ''),
+          module: shown[0].module, priority: rest[0].priority, kind: rest[0].kind, isDigest: true
+        });
+      });
+      return out;
+    }
     // Alerts first (need action), then notices (fyi) — mirrors the on-card ordering.
-    const bellFeed = [...alerts.filter(pushFilter), ...notices.filter(pushFilter)];
+    const bellFeed = digestByModuleKind([...alerts.filter(pushFilter), ...notices.filter(pushFilter)]);
     if (typeof refreshNotifications === 'function') {
       refreshNotifications(bellFeed.map(a => ({ type: (a.icon||'ai-g').replace('ai-',''), title: a.title, sub: a.sub, time: '', module: a.module, kind: a.kind })));
     }
+    logDelivery(bellFeed);
     renderExpenseDonut();
     renderTopCustomers();
     await renderRevenueChart(period);
@@ -1532,13 +1586,115 @@ const AL_ICONS = {
   users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
   check: '<polyline points="20 6 9 17 4 12"/>'
 };
+// ── Relevance learning (client-side heuristic) ────────────────────────────
+// Not a trained model — just per-browser counting of what the user actually
+// opens vs. dismisses, grouped by alert "type" (module + title with the
+// variable numbers/amounts stripped out, so recurring alerts of the same
+// kind group together even though the exact figures differ each refresh).
+// Used to quiet down the bell for a category the user has consistently
+// ignored, without ever hiding anything from the dashboard card or the
+// "View All" modal — those stay a complete, honest record.
+// ── Supabase wiring ─────────────────────────────────────────────────────
+// Talks directly to the project's REST (PostgREST) endpoint. This dashboard
+// doesn't have access to whatever Supabase client/session helper the rest of
+// the app uses (that lives in /js/app-state.js), so these calls are business-
+// wide (no per-user split) and unauthenticated beyond the publishable key.
+const SB_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
+const SB_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
+async function sbFetch(path, opts={}){
+  try{
+    const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+      ...opts,
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
+    });
+    if(!res.ok) throw new Error(`Supabase ${res.status}`);
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }catch(e){ console.warn('Supabase call failed:', path, e); return null; }
+}
+const ENGAGEMENT_CACHE = {}; // type_key -> {shown, opened, dismissed}, populated once per refresh
+async function loadEngagementCache(){
+  const rows = await sbFetch('notification_engagement?select=type_key,shown,opened,dismissed');
+  Object.keys(ENGAGEMENT_CACHE).forEach(k=>delete ENGAGEMENT_CACHE[k]);
+  (rows||[]).forEach(r=>{ ENGAGEMENT_CACHE[r.type_key] = r; });
+}
+function alertTypeKey(a){
+  return `${a.module||'General'}:${(a.title||'').replace(/[\d.,]+/g,'#')}`;
+}
+// Called once per render with every live alert/notice key — the RPC itself
+// caps at once/day per type so re-renders in the same session don't inflate
+// the "shown" count. Fire-and-forget: never blocks rendering.
+function recordShown(keys){
+  const unique = [...new Set(keys)];
+  unique.forEach(k=> sbFetch('rpc/record_alert_shown', { method:'POST', body: JSON.stringify({ p_type_key: k }) }));
+}
+function recordInteraction(key, kind){ // kind: 'opened' | 'dismissed'
+  sbFetch('rpc/record_alert_interaction', { method:'POST', body: JSON.stringify({ p_type_key: key, p_kind: kind }) });
+  // Reflect the change in the local cache immediately so isIgnoredType doesn't
+  // need a round trip mid-session.
+  const rec = ENGAGEMENT_CACHE[key] || {shown:0, opened:0, dismissed:0};
+  rec[kind] = (rec[kind]||0) + 1;
+  ENGAGEMENT_CACHE[key] = rec;
+}
+// A type only gets quieted once it has a real track record (seen 5+ times)
+// AND has been dismissed repeatedly with zero opens — a low bar deliberately,
+// so one bad day of dismissing doesn't silence something that actually matters.
+function isIgnoredType(key){
+  const rec = ENGAGEMENT_CACHE[key];
+  if(!rec || rec.shown < 5) return false;
+  return rec.dismissed >= 3 && rec.opened === 0;
+}
+function escAttr(s){ return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+// Escapes text pulled from the database (customer/supplier/item names, etc.)
+// before it goes into innerHTML. Without this, a name containing '<' or '"'
+// would render as live HTML in every user's browser on that alert.
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function handleAlertOpen(key, link){ recordInteraction(key, 'opened'); window.location.href = link; }
+function handleAlertDismiss(btn, key){
+  recordInteraction(key, 'dismissed');
+  const row = btn.closest('.al');
+  if(row) row.remove();
+}
+// ── Delivery log / observability ──────────────────────────────────────────
+// Inserts one row per notification that actually reached the bell (post-
+// settings, post-relevance-filter, post-digest) into notification_delivery_log,
+// so "why didn't this alert reach me" has an answer instead of a shrug.
+function logDelivery(bellFeed){
+  if(!bellFeed.length) return;
+  const rows = bellFeed.map(a=>({ module: a.module||'General', kind: a.kind, title: a.title, is_digest: !!a.isDigest }));
+  sbFetch('notification_delivery_log', { method:'POST', body: JSON.stringify(rows) });
+}
+async function renderDeliveryLog(){
+  const body = document.getElementById('deliveryLogBody');
+  if(!body) return;
+  body.innerHTML = '<div class="al" style="border-bottom:none"><div class="al-bd"><h5>Loading…</h5></div></div>';
+  const log = await sbFetch('notification_delivery_log?select=*&order=occurred_at.desc&limit=200');
+  if(!log || !log.length){ body.innerHTML = '<div class="al" style="border-bottom:none"><div class="al-bd"><h5>No deliveries logged yet</h5><p>Entries appear here each time the dashboard refreshes and something reaches the bell</p></div></div>'; return; }
+  body.innerHTML = log.map(e=>`
+    <div class="al">
+      <div class="al-bd"><h5>${escHtml(e.title)}${e.module?`<span class="al-mod-tag">${escHtml(e.module)}</span>`:''}${e.is_digest?' <span class="al-mod-tag" style="background:#fff3e0">digest</span>':''}</h5>
+      <p>${new Date(e.occurred_at).toLocaleString()} · ${escHtml(e.kind)}</p></div>
+    </div>`).join('');
+}
+function openDeliveryLogModal(){
+  renderDeliveryLog();
+  document.getElementById('deliveryLogModalOvl').classList.add('show');
+}
+function closeDeliveryLogModal(){
+  document.getElementById('deliveryLogModalOvl').classList.remove('show');
+}
+async function clearDeliveryLog(){
+  await sbFetch('notification_delivery_log?id=neq.00000000-0000-0000-0000-000000000000', { method:'DELETE' });
+  renderDeliveryLog();
+}
 function alertRowHtml(a){
+  const key = alertTypeKey(a);
   const styles = a.link ? ' style="cursor:pointer"' : '';
-  const clickAttr = a.link ? ` onclick="window.location.href='${a.link}'"` : '';
-  return `<div class="al"${styles}${clickAttr}>
+  const clickAttr = a.link ? ` onclick="handleAlertOpen('${escAttr(key)}','${escAttr(a.link)}')"` : '';
+  return `<div class="al"${styles}${clickAttr} data-alert-key="${escAttr(key)}">
       <div class="al-ic ${a.icon}"><svg viewBox="0 0 24 24">${AL_ICONS[a.svg]||AL_ICONS.check}</svg></div>
-      <div class="al-bd"><h5>${a.title}${a.module?`<span class="al-mod-tag">${a.module}</span>`:''}</h5><p>${a.sub}</p></div>
-      <div class="al-t"></div>
+      <div class="al-bd"><h5>${escHtml(a.title)}${a.module?`<span class="al-mod-tag">${escHtml(a.module)}</span>`:''}</h5><p>${escHtml(a.sub)}</p></div>
+      <button type="button" class="al-dismiss" title="Dismiss" onclick="event.stopPropagation(); handleAlertDismiss(this, '${escAttr(key)}')">&times;</button>
     </div>`;
 }
 function renderAlerts(){
@@ -2459,4 +2615,3 @@ function exportExcel(){
 </script>
 </body>
 </html>
-                                                   
