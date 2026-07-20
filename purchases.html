@@ -1359,7 +1359,7 @@ function renderTable(){
         </button>
       </div>
     </td></tr>`;
-    tbody.innerHTML = messageRowHtml + blankRowHtml.repeat(Math.max(0, perPage - 1));
+    tbody.innerHTML = messageRowHtml;
   } else {
     const dataRowsHtml = pageRows.map(p=>{
       try {
@@ -1384,12 +1384,9 @@ function renderTable(){
         return `<tr><td colspan="14" style="color:#b3261e;font-style:italic">Row failed to render (id: ${p?.id ?? 'unknown'}) — see console</td></tr>`;
       }
     }).join('');
-    // Pad this page out to a constant `perPage` rows so the table (and everything below it,
-    // like the Purchase Trend / Spend by Category row) doesn't keep growing taller and
-    // shrinking shorter as purchases are added or filtered — height stays fixed at perPage
-    // rows on every page except a legitimately partial last page under 10/25/50.
-    const blankCount = Math.max(0, perPage - pageRows.length);
-    tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
+    // Table height now simply reflects however many rows are actually on this page —
+    // no blank filler rows padding it out to a fixed count.
+    tbody.innerHTML = dataRowsHtml;
   }
 
   document.getElementById('pgInfo').textContent =
