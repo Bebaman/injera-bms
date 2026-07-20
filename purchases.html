@@ -113,8 +113,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .tbl-pl th{padding:7px 5px;text-align:left;font-size:8.5px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
 .tbl-pl td{padding:7px 5px;border-bottom:1px solid #f0f5f2;color:var(--td);white-space:nowrap}
 .tbl-pl tr:hover td{background:#f7fbf9}
-.tbl-pl .row-blank td{border-bottom:none;pointer-events:none}
-.tbl-pl .row-blank:hover td{background:transparent}
 
 /* Compact sidebar table (fits 330px cards, e.g. Top Suppliers) */
 .tbl-sb{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
@@ -183,29 +181,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    170px so on wide cards the row stays compact instead of sprawling into mostly-empty pastel. */
 .bar-row{display:flex;align-items:center;gap:8px;padding:6px 15px;min-width:0}
 .bar-row .bn{font-size:12px;font-weight:600;color:var(--td);flex:0 1 88px;min-width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-track{flex:1 1 auto;min-width:24px;height:8px;background:#e6efe9;border:1px solid #d7e5dd;border-radius:4px;overflow:hidden}
+.bar-track{flex:1 1 auto;max-width:170px;min-width:24px;height:8px;background:#e6efe9;border:1px solid #d7e5dd;border-radius:4px;overflow:hidden}
 .bar-fill{height:100%;border-radius:4px}
 .bar-row .bp{font-size:11.5px;font-weight:700;color:var(--tm);width:34px;text-align:right;flex-shrink:0}
 .bar-row .bv{font-size:11.5px;font-weight:700;color:var(--td);text-align:right;flex-shrink:0;margin-left:2px;white-space:nowrap}
-
-/* Shared fixed height for Spend by Category + Monthly Purchased Quantity bar lists, so
-   both cards always match each other regardless of how many distinct categories either
-   one has in a given month — content beyond the visible area scrolls instead of the two
-   cards silently drifting to different heights. ~7 rows visible before scrolling. */
-.bar-list{min-height:266px;max-height:266px;overflow-y:auto}
-.bar-list::-webkit-scrollbar{width:5px}
-.bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
-
-/* Purchase Trend / Spend by Category / Monthly Purchased Quantity row — all three side
-   by side in one row. Trend is pinned to a stable width (it doesn't need to grow, and
-   must not shrink just because the other two cards get more room) — Spend by Category
-   and Monthly Purchased Quantity then split whatever width is actually left over in the
-   row, evenly, instead of being capped at a fixed 0.5fr, which is what caused their
-   headers to wrap onto extra lines. */
-.trend-row{display:grid;grid-template-columns:minmax(360px,700px) 1fr 1fr;gap:14px}
-.trend-row .trend-card{grid-column:1;grid-row:1}
-.trend-row .cat-card{grid-column:2;grid-row:1}
-.trend-row .qty-card{grid-column:3;grid-row:1}
 
 /* ══ ACTIONS DOTS ═══════════════════════════════════ */
 .act-dots{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tl);border-radius:6px}
@@ -233,7 +212,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .kc{animation:fadeUp .45s ease both}
 .kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
 .kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
@@ -294,18 +272,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 /* Empty state */
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
 
-/* ══ EMPTY STATE PANEL (table has zero rows) ═══════════
-   Sits inside a single <tr>, sized to its own content — the remaining rows up to
-   `perPage` are filled by ordinary blank <tr> rows (see renderTable), so the total table
-   height is exactly `perPage` rows whether it's showing full data, partial data, or none. */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px 20px}
-.empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
-.empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
-.empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:18px}
-.empty-state-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#1d5c38;color:#fff;font-size:15px;font-weight:700;padding:0 34px;height:58px;min-width:200px;border-radius:12px;border:none;cursor:pointer;transition:background .12s}
-.empty-state-btn:hover{background:#164a2d}
-.empty-state-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;margin:0}
-
 /* ══ LAPTOP RANGE (901px–1220px) ════════════════════
    Between the full desktop layout and the mobile drawer breakpoint, a fixed 220px sidebar
    + 330px right column + a wide data table has no room left and used to force the whole
@@ -314,14 +280,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
    right-column cards (Top Suppliers, donuts, approval summary) sit below at full width. */
 @media (max-width:1220px) and (min-width:901px){
   .bot2{grid-template-columns:1fr}
-  /* Purchase Trend + Spend by Category + Monthly Purchased Quantity: at laptop widths
-     there isn't room for the 1.4fr:1fr layout without squeezing the trend chart, so
-     Trend takes the full top row and the two equal-size bar-list cards share the row
-     beneath it. */
-  .trend-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-template-areas:"trend trend" "cat qty"}
-  .trend-row .trend-card{grid-area:trend}
-  .trend-row .cat-card{grid-area:cat}
-  .trend-row .qty-card{grid-area:qty}
+  .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{grid-template-columns:1fr 1fr}
 }
 @media (max-width:900px){
   /* Sidebar/topbar responsive behavior now lives in shared-shell.css.
@@ -338,7 +297,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .bot2{display:flex;flex-direction:column}
   .donut-row{grid-template-columns:1fr}
   .bot2 > div[style*="grid-template-columns"]{display:flex !important;flex-direction:column}
-  .trend-row{display:flex !important;flex-direction:column}
 
   /* Modals: full-width sheet with less outer padding so form fields have real room */
   .modal-overlay{padding:0}
@@ -432,7 +390,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .bot2{ display:block !important; }
   .bot2 > div{ width:100% !important; }
   .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{ display:block !important; }
-  .trend-row{ display:block !important; }
   .donut-row{ grid-template-columns:1fr 1fr !important; gap:8px !important; }
 
   /* Table: show every filtered row (pagination is bypassed by exportPdf before printing),
@@ -605,7 +562,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <thead>
             <tr>
               <th>Date</th><th>Supplier</th><th class="col-type">Type</th><th>Category</th><th>Description</th>
-              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th>
+              <th>Qty</th><th class="col-unit">Unit</th><th class="col-unit-price">Unit Price (ETB)</th><th class="col-proc">Proc. Cost</th><th class="col-deliv">Deliv. IN</th>
               <th>Total Cost (ETB)</th><th class="col-channel">Channel</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
@@ -621,14 +578,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
       </div>
 
-      <!-- Purchase Trend + Spend by Category + Monthly Purchased Quantity (left column,
-           full width). Trend keeps the v15 1.4fr:1fr ratio against the right column —
-           Monthly Purchased Quantity is stacked directly under Spend by Category instead
-           of taking a 3rd column, so both bar-list cards match each other in width and
-           height (via the shared .bar-list fixed-height rule) without squeezing Trend. -->
-      <div class="trend-row">
+      <!-- Purchase Trend + Spend by Category (left column, full width) -->
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px">
         <!-- Purchase Trend -->
-        <div class="card trend-card" style="display:flex;flex-direction:column">
+        <div class="card" style="display:flex;flex-direction:column">
           <div class="card-hd">
             <div class="card-ttl">Purchase Trend (ETB)</div>
             <!-- BUG FIX (2026-07-11): this select had no id and no onchange handler at all —
@@ -652,26 +605,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
 
         <!-- Spend by Category -->
-        <div class="card cat-card">
+        <div class="card">
           <div class="card-hd">
             <div class="card-ttl">Spend by Category <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
             <span style="font-size:11px;font-weight:600;color:var(--tl);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:#27ae60;display:inline-block"></span>ETB</span>
           </div>
-          <div class="bar-list" style="padding-bottom:10px" id="catBars">
-          </div>
-        </div>
-
-        <!-- Monthly Purchased Quantity — sized to match Spend by Category via the shared
-             .bar-list fixed-height rule, and stacked directly beneath it via .qty-card so
-             the two cards line up as one matching column. Shows quantity per raw-material/
-             packaging category, kept unit-aware (kg vs pcs shown per row) rather than
-             summed into one meaningless combined number, since Purchase rows span multiple
-             units. Expense rows have no real quantity so they're excluded. -->
-        <div class="card qty-card">
-          <div class="card-hd">
-            <div class="card-ttl">Monthly Purchased Quantity <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
-          </div>
-          <div class="bar-list" style="padding-bottom:10px" id="qtyBars">
+          <div style="padding-bottom:10px" id="catBars">
           </div>
         </div>
       </div>
@@ -875,6 +814,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <label>Unit Price (ETB)</label>
           <input type="number" id="pUnitPrice" value="0" step="0.01" oninput="recalcTotal()">
         </div>
+        <div class="f-grp" id="procCostRow">
+          <label>Processing Cost</label>
+          <input type="number" id="pProcCost" value="0" step="0.01" oninput="recalcTotal()">
+        </div>
       </div>
       <!-- Foreign Currency (reference only) — spec: "The ETB amount is always what gets
            recorded for accounting. The original currency is stored for reference." -->
@@ -905,12 +848,20 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div id="pFxHint" style="font-size:11.5px;color:var(--tm);background:#f7f9f8;border:1px solid #e5e9e7;border-radius:8px;padding:8px 10px">Reference only — enter the ETB Unit Price above; it's the authoritative amount for all calculations.</div>
         </div>
       </div>
-      <!-- Delivery In / Processing Cost were Injera-Blend-only fields per the original spec
-           (Col H/I) — retired now that the Milling/Conversion module owns that cost, folding
-           Teff+Rice+Sifting+Grinding+Transport into Injera Blend's real cost per kg instead of
-           a single guessed supplier line. Payment Channel now always takes the full row width. -->
+      <!-- Delivery In is Injera-Blend-only (toggled by updateProcDelivVisibility). Payment
+           Channel must ALWAYS be visible/selectable regardless of category — it used to live
+           in the same row as Delivery In and got hidden along with it for every non-Injera-
+           Blend purchase, Expense, and Asset Purchase, silently defaulting every one of those
+           rows to "Bank" with no way to change it. Now only Delivery In's own cell toggles;
+           Payment Channel's cell (and its grid-column span) is adjusted in JS instead so it
+           still sits side-by-side with Delivery In when both apply, and takes the full row
+           width when Delivery In is hidden. -->
       <div class="f-row" id="delivRow">
-        <div class="f-grp" id="pChannelGrp" style="grid-column:1 / -1">
+        <div class="f-grp" id="delivInGrp">
+          <label>Delivery In (ETB)</label>
+          <input type="number" id="pDeliv" value="0" step="0.01" oninput="recalcTotal()">
+        </div>
+        <div class="f-grp" id="pChannelGrp">
           <label>Payment Channel</label>
           <select id="pChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
         </div>
@@ -932,6 +883,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <div style="text-align:right;font-size:11.5px;color:var(--tm)">
           <div>Qty × Price: <strong id="pCalcLine">0 × 0 = 0.00</strong></div>
+          <div style="margin-top:3px">+ Proc: <strong id="pCalcProc">0.00</strong> + Deliv: <strong id="pCalcDeliv">0.00</strong></div>
         </div>
       </div>
       <!-- Input VAT — only shown when business is VAT-registered (spec "VAT Framework") -->
@@ -1019,7 +971,7 @@ function fmtDate(iso){
   const d = new Date(iso+'T00:00:00');
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
-function rowTotal(p){ return p.qty*p.unitPrice; }
+function rowTotal(p){ return (p.qty*p.unitPrice)+Number(p.procCost)+Number(p.deliv); }
 
 /* ════════════════ MONTH PICKER ════════════════ */
 function chgM(d){const s=document.getElementById('msel');const i=s.selectedIndex+d;if(i>=0&&i<s.options.length){s.selectedIndex=i;onMonthChange();} else if(i>=s.options.length){ extendMonthOptions(1); s.selectedIndex=s.options.length-1; onMonthChange(); }}
@@ -1130,17 +1082,17 @@ function doExport(){
   csv += csvRow(['Rows', rows.length]);
   csv += '\r\n';
 
-  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']);
+  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']);
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     csv += csvRow([fmtDate(p.date), p.supplier, p.type, p.category, p.description, p.qty, p.unit,
-      Number(p.unitPrice).toFixed(2),
+      Number(p.unitPrice).toFixed(2), Number(p.procCost).toFixed(2), Number(p.deliv).toFixed(2),
       total.toFixed(2), p.channel, p.status]);
   });
   csv += '\r\n';
-  csv += csvRow(['', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
+  csv += csvRow(['', '', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
 
   // UTF-8 BOM so Excel (Windows) detects encoding correctly instead of mangling ETB
   // symbols or non-ASCII supplier names into garbled characters.
@@ -1190,18 +1142,18 @@ function exportExcel(){
   ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:1}},{s:{r:1,c:0},e:{r:1,c:1}}];
 
   // Sheet 2: Transactions — the same filtered rows as the CSV export, one column per field.
-  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']];
+  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Proc. Cost (ETB)','Deliv. In (ETB)','Total Cost (ETB)','Channel','Status']];
   let grandTotal = 0;
   rows.forEach(p=>{
     const total = rowTotal(p);
     grandTotal += total;
     txData.push([fmtDate(p.date), p.supplier, p.type, p.category, p.description, Number(p.qty), p.unit,
-      Number(p.unitPrice), total, p.channel, p.status]);
+      Number(p.unitPrice), Number(p.procCost), Number(p.deliv), total, p.channel, p.status]);
   });
   txData.push([]);
-  txData.push(['','','','','','','','TOTAL', grandTotal,'','']);
+  txData.push(['','','','','','','','','','TOTAL', grandTotal,'','']);
   const ws2 = XLSX.utils.aoa_to_sheet(txData);
-  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:13},{wch:12},{wch:11}];
+  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:12},{wch:11},{wch:13},{wch:12},{wch:11}];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
@@ -1337,17 +1289,6 @@ function statusPillClass(s){
   return 'pill-rej';
 }
 
-function getRowHeight(tbody){
-  const probe = document.createElement('tr');
-  probe.className = 'row-blank';
-  probe.innerHTML = '<td colspan="14">&nbsp;</td>';
-  probe.style.visibility = 'hidden';
-  tbody.appendChild(probe);
-  const h = probe.getBoundingClientRect().height;
-  tbody.removeChild(probe);
-  return h;
-}
-
 function renderTable(){
   buildFilterCategoryDropdown();
   state.page = state.page || 1;
@@ -1360,41 +1301,13 @@ function renderTable(){
   const pageRows = filtered.slice(startIdx, startIdx+perPage);
 
   const tbody = document.getElementById('tblBody');
-  const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
-
-  if(total===0){
-    // Zero data (no purchases at all, or none matching the current filters) now uses the
-    // exact same structure as the "some data" branch below: one real <tr> holding the
-    // empty-state message, then blank <tr> padding for the rest of `perPage` rows — so the
-    // table is always exactly `perPage` <tr> elements regardless of how much data exists,
-    // instead of swapping in a separately-sized block just for the zero-data case.
-    const hasActiveFilters = document.getElementById('fSupplier')?.value !== 'All Suppliers'
-      || document.getElementById('fStatus')?.value !== 'All Statuses'
-      || (document.getElementById('searchInput')?.value || '').trim() !== '';
-    const subtext = hasActiveFilters
-      ? 'No purchases match your filters. Try adjusting or clearing them.'
-      : 'Add your first purchase or expense to get started.';
-    const measuredRowHeight = getRowHeight(tbody);
-    const emptyStateHeight = measuredRowHeight * perPage; // exact match to a full perPage-row tbody, measured not guessed
-    const messageRowHtml = `<tr><td colspan="14" style="padding:0;border-bottom:none;height:${emptyStateHeight}px;vertical-align:middle">
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <div class="empty-state-title">No purchases found</div>
-        <div class="empty-state-sub">${subtext}</div>
-        <button class="empty-state-btn" onclick="openPurchaseModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Purchase
-        </button>
-      </div>
-    </td></tr>`;
-    tbody.innerHTML = messageRowHtml;
+  if(pageRows.length===0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="14">No purchases match your filters.</td></tr>`;
   } else {
-    const dataRowsHtml = pageRows.map(p=>{
-      try {
-        return `
+    tbody.innerHTML = pageRows.map(p=>`
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
-        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
+        <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td><td class="col-proc">${fmt(p.procCost)}</td><td class="col-deliv">${fmt(p.deliv)}</td>
         <td>${fmt(rowTotal(p))}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
         <td style="position:relative">
           <div class="act-dots" onclick="toggleRowMenu(event,'${p.id}')">
@@ -1402,21 +1315,7 @@ function renderTable(){
           </div>
         </td>
       </tr>
-    `;
-      } catch(err){
-        // A single malformed row (bad date, missing field, etc.) used to throw inside
-        // .map() and silently abort the WHOLE render — every row after it (and the
-        // padding logic below) never ran, leaving the table blank despite pgInfo/
-        // pagination showing real counts, since those run in a separate statement.
-        console.error('renderTable: failed to render row', p, err);
-        return `<tr><td colspan="14" style="color:#b3261e;font-style:italic">Row failed to render (id: ${p?.id ?? 'unknown'}) — see console</td></tr>`;
-      }
-    }).join('');
-    // Pad this page out to a constant `perPage` rows so the table height stays consistent
-    // as purchases are added/filtered. Filler rows have no border, so they show as blank
-    // space rather than visible empty row lines.
-    const blankCount = Math.max(0, perPage - pageRows.length);
-    tbody.innerHTML = dataRowsHtml + blankRowHtml.repeat(blankCount);
+    `).join('');
   }
 
   document.getElementById('pgInfo').textContent =
@@ -1591,6 +1490,8 @@ function openPurchaseModal(){
   document.getElementById('pQty').value = 1;
   document.getElementById('pUnit').value = 'kg';
   document.getElementById('pUnitPrice').value = 0;
+  document.getElementById('pProcCost').value = 0;
+  document.getElementById('pDeliv').value = 0;
   document.getElementById('pTotal').value = '0';
   document.getElementById('pChannel').value = 'Bank';
   document.getElementById('pStatus').value = 'Completed';
@@ -1602,6 +1503,7 @@ function openPurchaseModal(){
   document.getElementById('pAssetCategory').value = 'equipment';
   document.getElementById('pUsefulLife').value = 5;
   updateAssetFieldsVisibility(false);
+  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1642,6 +1544,8 @@ function editPurchase(id){
   document.getElementById('pQty').value = p.qty;
   document.getElementById('pUnit').value = p.unit;
   document.getElementById('pUnitPrice').value = p.unitPrice;
+  document.getElementById('pProcCost').value = p.procCost;
+  document.getElementById('pDeliv').value = p.deliv;
   document.getElementById('pTotal').value = rowTotal(p).toFixed(2);
   document.getElementById('pChannel').value = p.channel;
   document.getElementById('pStatus').value = p.status;
@@ -1651,6 +1555,7 @@ function editPurchase(id){
   document.getElementById('pFxAmount').value = hasFx ? p.originalAmount : 0;
   document.getElementById('pFxRate').value = hasFx ? (p.exchangeRate||0) : 0;
   toggleFxFields();
+  updateProcDelivVisibility();
   recalcTotal();
   document.getElementById('purchaseModalOverlay').classList.add('show');
 }
@@ -1660,10 +1565,14 @@ function closePurchaseModal(){
 function recalcTotal(){
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const price = parseFloat(document.getElementById('pUnitPrice').value)||0;
-  const total = qty*price;
+  const proc = parseFloat(document.getElementById('pProcCost').value)||0;
+  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
+  const total = qty*price+proc+deliv;
   document.getElementById('pTotal').value = total.toFixed(2);
   document.getElementById('pTotalDisplay').textContent = fmt(total);
   document.getElementById('pCalcLine').textContent = qty+' × '+fmt(price)+' = '+fmt(qty*price);
+  document.getElementById('pCalcProc').textContent = fmt(proc);
+  document.getElementById('pCalcDeliv').textContent = fmt(deliv);
   // Input VAT is informational display only — total_cost (and WAC/COGS) never include it,
   // per spec: "Foreign currency fields are reference only" / VAT is reported, not costed in.
   if(vatSettings.isRegistered){
@@ -1709,6 +1618,7 @@ function updateApprovalReadout(total){
 // purchases[type=expense].total_cost as separate P&L lines, so keeping both in
 // sync here would double-count them). Don't re-add them to this fallback.
 let inventoryItems = [
+  { id:'local-inj', name:'Injera Blend', unit:'kg', group:'Raw Materials' },
   { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
   { id:'local-gomen', name:'Gomen Zere', unit:'kg', group:'Raw Materials' },
   { id:'local-sbag', name:'Small Bags', unit:'pcs', group:'Packaging' },
@@ -1725,6 +1635,9 @@ function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
 function expCatByName(name){ return expenseCategories.find(c=>c.name===name); }
 
+// Only Injera Blend carries Processing Cost / Delivery In per spec (Col H/I)
+const PROC_DELIV_ITEMS = new Set(['Injera Blend']);
+
 function buildCategoryDropdown(type, selectedId=''){
   const el = document.getElementById('pCategory');
   const source = type === 'Expense' ? expenseCategories : inventoryItems;
@@ -1736,6 +1649,27 @@ function buildCategoryDropdown(type, selectedId=''){
     ).join('');
 }
 
+// Proc Cost / Delivery In are Injera Blend only (spec Col H/I). All other
+// Purchase categories and all Expense rows keep those fields hidden and zeroed.
+function updateProcDelivVisibility(){
+  const type = document.getElementById('pType').value;
+  const itemId = document.getElementById('pCategory').value;
+  const item = type === 'Purchase' ? itemById(itemId) : null;
+  const showProcDeliv = !!item && PROC_DELIV_ITEMS.has(item.name);
+  const procRow = document.getElementById('procCostRow');
+  const delivInGrp = document.getElementById('delivInGrp');
+  const channelGrp = document.getElementById('pChannelGrp');
+  if(procRow) procRow.style.display = showProcDeliv ? '' : 'none';
+  // Only Delivery In toggles — Payment Channel (channelGrp) always stays visible so every
+  // Purchase/Expense/Asset row can pick Bank/Cash/Mobile Money, not just Injera Blend rows.
+  if(delivInGrp) delivInGrp.style.display = showProcDeliv ? '' : 'none';
+  if(channelGrp) channelGrp.style.gridColumn = showProcDeliv ? '' : '1 / -1';
+  if(!showProcDeliv){
+    document.getElementById('pProcCost').value = 0;
+    document.getElementById('pDeliv').value = 0;
+  }
+}
+
 function onCategoryChange(){
   const type = document.getElementById('pType').value;
   const catId = document.getElementById('pCategory').value;
@@ -1745,6 +1679,7 @@ function onCategoryChange(){
     const item = itemById(catId);
     if(item) document.getElementById('pUnit').value = item.unit;
   }
+  updateProcDelivVisibility();
   recalcTotal();
 }
 
@@ -1758,6 +1693,7 @@ function onTypeChange(){
     // Asset Name/Category/Useful Life above replace it.
     document.getElementById('pQty').value = 1;
     document.getElementById('pUnit').value = 'unit';
+    updateProcDelivVisibility();
     recalcTotal();
     return;
   }
@@ -1969,6 +1905,8 @@ async function savePurchase(){
   const date = document.getElementById('pDate').value;
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const unitPrice = parseFloat(document.getElementById('pUnitPrice').value)||0;
+  const procCost = parseFloat(document.getElementById('pProcCost').value)||0;
+  const deliv = parseFloat(document.getElementById('pDeliv').value)||0;
 
   // Asset Purchase: supplier is optional (schema allows NULL supplier_id for type='asset'),
   // and Category is replaced by Asset Name/Category/Useful Life — validate those instead.
@@ -1988,7 +1926,7 @@ async function savePurchase(){
 
   // --- Data Integrity Guards (spec §9, also enforced server-side by CHECK constraints) ---
   if(qty === 0){ showToast('Quantity cannot be zero.'); return; }
-  if(qty < 0 || unitPrice < 0){
+  if(qty < 0 || unitPrice < 0 || procCost < 0 || deliv < 0){
     showToast('Value cannot be negative.');
     return;
   }
@@ -2001,7 +1939,7 @@ async function savePurchase(){
     }
   }
 
-  const total = qty*unitPrice;
+  const total = qty*unitPrice+procCost+deliv;
 
   // Duplicate detection per spec: same supplier_id + total_cost + date, entered within
   // 5 minutes of an existing row's creation. Uses a real createdAt timestamp on each
@@ -2032,6 +1970,8 @@ async function savePurchase(){
     qty,
     unit: document.getElementById('pUnit').value, // local-only display — real unit lives on inventory_items
     unitPrice,
+    procCost,
+    deliv,
     channel: document.getElementById('pChannel').value,
     status: resolveApprovalStatus(type, total, existing),
     createdAt: existing ? (existing.createdAt || now) : now,
@@ -2302,7 +2242,6 @@ function renderCharts(){
   countChgEl.innerHTML = `vs ${priorLabel}: <span style="margin-left:2px">${countDelta>=0?'+ ':'- '}${Math.abs(countDelta)}</span>`;
 
   renderCategoryBars(grandTotal, monthRows);
-  renderQuantityBars(monthRows);
 
   // Expense Approval Summary (derived from row statuses), this month only
   const pendingN = monthRows.filter(p=>p.status==='Pending').length;
@@ -2423,41 +2362,6 @@ function renderTrendChart(mk){
   });
 }
 
-/* ════════════════ MONTHLY PURCHASED QUANTITY (unit-aware bars) ════════════════
-   Mirrors renderCategoryBars' visual style (same card size/row layout as Spend by
-   Category) but for quantity instead of ETB. Purchases span multiple units (kg for
-   Teff/Rice/Corn/Gomen Zere, pcs for bags/cleaning material/etc.), so summing raw
-   quantity across categories would mix units into a meaningless number. Each bar is
-   scoped to its own category (and therefore its own unit), with the unit shown next
-   to the value instead of being combined. Expense rows have no meaningful quantity
-   (unit falls back to 'ls' / lump sum) and are excluded — this chart is Purchases only. */
-function renderQuantityBars(rows){
-  const purchaseRows = (rows || purchases).filter(p=>p.type==='Purchase');
-  const byCat = {};
-  purchaseRows.forEach(p=>{
-    const key = p.category;
-    if(!byCat[key]) byCat[key] = { qty:0, unit:p.unit };
-    byCat[key].qty += Number(p.qty)||0;
-  });
-  const ranked = Object.entries(byCat).sort((a,b)=>b[1].qty-a[1].qty);
-  const maxVal = ranked.length ? ranked[0][1].qty : 1;
-  const wrap = document.getElementById('qtyBars');
-  if(!wrap) return;
-  if(ranked.length===0){
-    wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
-    return;
-  }
-  wrap.innerHTML = ranked.map(([cat,d],i)=>{
-    const widthPct = (d.qty/maxVal*100).toFixed(1);
-    const color = catColors[i % catColors.length];
-    const qtyDisplay = d.qty.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
-    return `<div class="bar-row"><span class="bn" title="${cat}">${cat}</span><div class="bar-track"><div class="bar-fill" data-w="${widthPct}" style="width:0%;background:${color}"></div></div><span class="bv">${qtyDisplay} ${d.unit}</span></div>`;
-  }).join('');
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    wrap.querySelectorAll('.bar-fill').forEach(b=>{ b.style.width = b.getAttribute('data-w')+'%'; });
-  }));
-}
-
 /* ════════════════ SPEND BY CATEGORY (data-driven bars) ════════════════ */
 const catColors = ['#27ae60','#f59e0b','#8b5cf6','#06b6d4','#0d9b7a','#e53935','#2563eb','#94a3b8','#c084fc','#fb923c'];
 function renderCategoryBars(grandTotal, rows){
@@ -2466,13 +2370,6 @@ function renderCategoryBars(grandTotal, rows){
   const ranked = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const maxVal = ranked.length ? ranked[0][1] : 1;
   const wrap = document.getElementById('catBars');
-  if(ranked.length===0){
-    // Without this, an empty month collapses #catBars to 0px (just its padding), while
-    // #qtyBars shows a real "No purchases this month" message — the two cards' heights
-    // would silently diverge any month with zero purchases. Match renderQuantityBars here.
-    wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
-    return;
-  }
   wrap.innerHTML = ranked.map(([cat,val],i)=>{
     const pctOfTotal = grandTotal>0 ? (val/grandTotal*100) : 0;
     const widthPct = (val/maxVal*100).toFixed(1);
@@ -2671,7 +2568,7 @@ async function loadFromSupabase(){
           supplier: sup ? sup.name : (isAsset ? '' : 'Unknown'),
           type: isAsset ? 'Asset Purchase' : (isExpense ? 'Expense' : 'Purchase'),
           categoryId: isAsset ? null : (isExpense ? r.expense_category_id : r.item_id),
-          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Unknown Item')),
+          category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Injera Blend')),
           assetName: isAsset ? r.asset_name : undefined,
           assetCategory: isAsset ? r.asset_category : undefined,
           usefulLifeYears: isAsset ? parseFloat(r.useful_life_years || 0) : undefined,
@@ -2679,6 +2576,8 @@ async function loadFromSupabase(){
           qty: parseFloat(r.quantity ?? 1),
           unit: isAsset ? 'unit' : (catObj && catObj.unit ? catObj.unit : (isExpense ? 'ls' : 'kg')),
           unitPrice: parseFloat(r.unit_price || 0),
+          procCost: parseFloat(r.processing_cost || 0),
+          deliv: parseFloat(r.delivery_in || 0),
           channel: r.payment_channel === 'mobile' ? 'Mobile Money' : r.payment_channel === 'bank' ? 'Bank' : r.payment_channel === 'cash' ? 'Cash' : 'Bank',
           status: fromDbApprovalStatus(r.approval_status),
           rejectionReason: r.rejection_reason || '',
@@ -2741,11 +2640,10 @@ async function saveToSupabase(p){
       useful_life_years: isAsset ? p.usefulLifeYears : null,
       quantity: p.qty,
       unit_price: p.unitPrice,
+      processing_cost: p.procCost,
+      delivery_in: p.deliv,
       // total_cost, vat_amount, period, expiry_date are all trigger-computed server-side
       // (purchases_computed() in injera_bms_COMPLETE.sql) — never sent from the client.
-      // NOTE: processing_cost/delivery_in columns were dropped from this table — that cost
-      // is now captured properly via the Milling/Conversion module (Teff+Rice+Sifting+
-      // Grinding+Transport rolled into Injera Blend's real cost), not guessed on one row.
       payment_channel: channelMap[p.channel] || 'bank',
       approval_status: toDbApprovalStatus(p),
       rejection_reason: p.status === 'Rejected' ? (p.rejectionReason || null) : null,
