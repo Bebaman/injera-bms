@@ -208,9 +208,11 @@
 .inv-bar-fill{height:100%;border-radius:3px;transition:width 1.1s cubic-bezier(.22,.61,.36,1)}
 .inv-ok .inv-bar-fill{background:linear-gradient(90deg,#1e8a4f,var(--green))}
 .inv-low .inv-bar-fill{background:linear-gradient(90deg,var(--status-bad-fg),var(--red))}
+.inv-unknown .inv-bar-fill{background:linear-gradient(90deg,#92600a,var(--amber))}
 .inv-tag{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:9px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
 .inv-tag.ok{background:var(--status-ok-bg);color:var(--status-ok-fg)}
 .inv-tag.low{background:var(--status-bad-bg);color:var(--status-bad-fg)}
+.inv-tag.unknown{background:var(--status-warn-bg);color:var(--status-warn-fg)}
 
 /* Cash Position */
 .cf-list{padding:2px 14px 4px}
@@ -673,8 +675,8 @@ renderHeader({
   title: 'Dashboard',
   subtitle: 'Overview of your business',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
+  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
+  selectedMonth: 'Jul 2026',
   onMonthChange: () => { refreshDashboard(); },
   showExport: true,
   onExportPdf: () => exportPDF(),
@@ -741,6 +743,13 @@ function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, ope
     const avgDailyUsage = spanDays > 0 ? recentTotal / spanDays : 0;
 
     const reorder = num(item.reorder_level);
+    // Has this item ever had a real ledger entry (opening balance, purchase, or usage)?
+    // If not, currentStock is just 0-0-0 — an absence of data, not an observed zero — so
+    // it must not be flagged 'low'. This mirrors the stock_alerts DB view, which also
+    // requires real ledger data before judging an item as low/critical.
+    const hasAnyLedgerData = openingBalances.some(o=>o.item_id===item.id)
+      || allPurchasesByItem.some(p=>p.item_id===item.id)
+      || allUsageByItem.some(u=>u.item_id===item.id);
     let status, recommendation, daysRemaining = null;
 
     if (avgDailyUsage > 0){
@@ -755,6 +764,8 @@ function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, ope
       } else {
         status = 'ok'; recommendation = `~${Math.round(daysRemaining)} days of stock remaining`;
       }
+    } else if (!hasAnyLedgerData){
+      status = 'unknown'; recommendation = 'No stock data recorded yet';
     } else {
       status = currentStock <= reorder ? 'low' : 'ok';
       recommendation = 'No usage history yet to estimate days remaining';
@@ -1092,8 +1103,9 @@ async function refreshDashboard(){
     const monthlyOpexApprox = curD.overhead + curD.opex + curD.petty + curD.bank;
     const profitScore = curD.revenue>0 ? clamp(((curD.netProfit/curD.revenue)*100)/25*100, 0, 100) : 0;
     const cashFlowScore = monthlyOpexApprox>0 ? clamp((cashTotalCur/monthlyOpexApprox)/2*100, 0, 100) : (cashTotalCur>0?100:0);
-    const okItems = inventoryLevels.filter(i=>i.status==='ok').length;
-    const inventoryScore = inventoryLevels.length ? (okItems/inventoryLevels.length*100) : 100;
+    const trackedInventoryItems = inventoryLevels.filter(i=>i.status!=='unknown');
+    const okItems = trackedInventoryItems.filter(i=>i.status==='ok').length;
+    const inventoryScore = trackedInventoryItems.length ? (okItems/trackedInventoryItems.length*100) : 100;
     // Debt Load — compared against a full year of revenue (standard debt-to-revenue benchmark)
     // rather than just 3 months, which was unrealistically harsh for a normal business loan.
     // A loan with no revenue behind it to service it is genuinely risky, so that case scores low
@@ -1715,9 +1727,9 @@ function renderSecondaryPanels(){
 
   // Inventory
   document.getElementById('invList').innerHTML = d.inventoryLevels.map(i=>`
-    <div class="inv-item" title="${(i.recommendation||'').replace(/"/g,'&quot;')}"><div class="inv-item-ico ${i.status==='low'?'ic-r':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
-    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${i.name}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><span class="inv-recommendation" style="display:none">${i.recommendation}</span></div>
-    <span class="inv-tag ${i.status}">${i.status==='low'?'Low':'OK'}</span></div>`).join('');
+    <div class="inv-item" title="${(i.recommendation||'').replace(/"/g,'&quot;')}"><div class="inv-item-ico ${i.status==='low'?'ic-r':i.status==='unknown'?'ic-o':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':i.status==='unknown'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="17" x2="12.01" y2="17"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
+    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${i.name}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':i.status==='unknown'?'inv-unknown':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><span class="inv-recommendation" style="display:none">${i.recommendation}</span></div>
+    <span class="inv-tag ${i.status}">${i.status==='low'?'Low':i.status==='unknown'?'No data':'OK'}</span></div>`).join('');
 
 
   // Cash position
@@ -1888,7 +1900,13 @@ function buildAIInsights(){
     insights.push({type:'critical', emoji:'📦', html:`<strong>${i.name}: ${i.recommendation}</strong> Currently ${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit}${i.avgDailyUsage>0 ? ` · using ~${i.avgDailyUsage.toFixed(2)} ${i.unit}/day` : ''}.`});
   });
   if(d.inventoryLevels.length && !d.inventoryLevels.some(i=>i.status==='low')){
-    insights.push({type:'positive', emoji:'📦', html:`<strong>All ${d.inventoryLevels.length} tracked inventory items have healthy stock levels.</strong> No stock action needed right now.`});
+    const unknownItems = d.inventoryLevels.filter(i=>i.status==='unknown');
+    const trackedCount = d.inventoryLevels.length - unknownItems.length;
+    if(trackedCount>0){
+      insights.push({type:'positive', emoji:'📦', html:`<strong>All ${trackedCount} tracked inventory items have healthy stock levels.</strong>${unknownItems.length ? ` ${unknownItems.length} item${unknownItems.length===1?'':'s'} (${unknownItems.map(i=>i.name).join(', ')}) still ${unknownItems.length===1?'has':'have'} no stock data recorded.` : ' No stock action needed right now.'}`});
+    } else if(unknownItems.length){
+      insights.push({type:'neutral', emoji:'📦', html:`<strong>No stock data recorded yet for ${unknownItems.length} inventory item${unknownItems.length===1?'':'s'}.</strong> Log an opening balance or purchase to start tracking.`});
+    }
   }
 
   // Budget over/near limit
