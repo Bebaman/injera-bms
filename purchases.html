@@ -284,10 +284,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .empty-row td{text-align:center;padding:30px 10px;color:var(--tl);font-size:12.5px}
 
 /* ══ EMPTY STATE PANEL (table has zero rows) ═══════════
-   Height is set inline by renderTable() to match perPage rows exactly (10/25/50), so the
-   table frame stays a fixed height whether it's showing full data, blank-padded rows, or
-   zero rows — matches the Petty Cash Transactions pattern. This is just a sane fallback. */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:306px}
+   Sits inside a single <tr>, sized to its own content — the remaining rows up to
+   `perPage` are filled by ordinary blank <tr> rows (see renderTable), so the total table
+   height is exactly `perPage` rows whether it's showing full data, partial data, or none. */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px 20px}
 .empty-state svg{width:48px;height:48px;stroke:#c3d3ca;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-bottom:6px}
 .empty-state-title{font-size:15px;font-weight:700;color:var(--td)}
 .empty-state-sub{font-size:12.5px;color:var(--tl);margin-bottom:18px}
@@ -1335,23 +1335,21 @@ function renderTable(){
 
   const tbody = document.getElementById('tblBody');
   const blankRowHtml = `<tr class="row-blank"><td colspan="14">&nbsp;</td></tr>`;
-  // Row height is ~34px (7px+7px padding + ~20px line height for .tbl-pl td text). The
-  // empty-state panel replaces what would otherwise be `perPage` data/blank rows, so it's
-  // sized to that same total height — keeps the table frame a fixed height for whatever
-  // page size is selected (10/25/50), instead of shrinking to a generic message row.
-  const emptyStateHeight = perPage * 34;
+
   if(total===0){
-    // Matches the empty-state pattern used elsewhere in the app (e.g. Petty Cash
-    // Transactions): icon + title + helper text + CTA, centered as one block filling the
-    // table's usual height — not a single skinny message row padded out with blank rows.
+    // Zero data (no purchases at all, or none matching the current filters) now uses the
+    // exact same structure as the "some data" branch below: one real <tr> holding the
+    // empty-state message, then blank <tr> padding for the rest of `perPage` rows — so the
+    // table is always exactly `perPage` <tr> elements regardless of how much data exists,
+    // instead of swapping in a separately-sized block just for the zero-data case.
     const hasActiveFilters = document.getElementById('fSupplier')?.value !== 'All Suppliers'
       || document.getElementById('fStatus')?.value !== 'All Statuses'
       || (document.getElementById('searchInput')?.value || '').trim() !== '';
     const subtext = hasActiveFilters
       ? 'No purchases match your filters. Try adjusting or clearing them.'
       : 'Add your first purchase or expense to get started.';
-    tbody.innerHTML = `<tr><td colspan="14" style="padding:0;border-bottom:none">
-      <div class="empty-state" style="height:${emptyStateHeight}px">
+    const messageRowHtml = `<tr><td colspan="14" style="padding:0;border-bottom:none">
+      <div class="empty-state">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <div class="empty-state-title">No purchases found</div>
         <div class="empty-state-sub">${subtext}</div>
@@ -1361,6 +1359,7 @@ function renderTable(){
         </button>
       </div>
     </td></tr>`;
+    tbody.innerHTML = messageRowHtml + blankRowHtml.repeat(Math.max(0, perPage - 1));
   } else {
     const dataRowsHtml = pageRows.map(p=>{
       try {
@@ -2419,6 +2418,9 @@ function renderQuantityBars(rows){
   if(!wrap) return;
   if(ranked.length===0){
     wrap.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tl);font-size:12.5px">No purchases this month.</div>`;
+    return;
+  }
+  wrap.innerHTML = ranked.map(([cat,d],i)=>{
     const widthPct = (d.qty/maxVal*100).toFixed(1);
     const color = catColors[i % catColors.length];
     const qtyDisplay = d.qty.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
