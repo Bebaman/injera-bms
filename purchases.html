@@ -1359,7 +1359,7 @@ function renderTable(){
         </button>
       </div>
     </td></tr>`;
-    tbody.innerHTML = messageRowHtml + blankRowHtml.repeat(Math.max(0, perPage - 1));
+    tbody.innerHTML = messageRowHtml;
   } else {
     const dataRowsHtml = pageRows.map(p=>{
       try {
