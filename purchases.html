@@ -196,12 +196,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .bar-list::-webkit-scrollbar{width:5px}
 .bar-list::-webkit-scrollbar-thumb{background:#d7e5dd;border-radius:3px}
 
-/* Purchase Trend / Spend by Category / Monthly Purchased Quantity row — restored to the
-   v15 sizing: Trend keeps the original 1.4fr:1fr ratio against the right column (instead
-   of being squeezed by a 3rd 1fr track), and Monthly Purchased Quantity sits stacked under
-   Spend by Category, matching its width and height exactly rather than competing for
-   horizontal space with Trend. */
-.trend-row{display:grid;grid-template-columns:1.4fr .5fr .5fr;gap:14px}
+/* Purchase Trend / Spend by Category / Monthly Purchased Quantity row — all three side
+   by side in one row. Trend is pinned to a stable width (it doesn't need to grow, and
+   must not shrink just because the other two cards get more room) — Spend by Category
+   and Monthly Purchased Quantity then split whatever width is actually left over in the
+   row, evenly, instead of being capped at a fixed 0.5fr, which is what caused their
+   headers to wrap onto extra lines. */
+.trend-row{display:grid;grid-template-columns:minmax(360px,700px) 1fr 1fr;gap:14px}
 .trend-row .trend-card{grid-column:1;grid-row:1}
 .trend-row .cat-card{grid-column:2;grid-row:1}
 .trend-row .qty-card{grid-column:3;grid-row:1}
