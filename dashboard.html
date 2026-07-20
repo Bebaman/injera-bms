@@ -115,6 +115,9 @@
 .al-sec-hd.crit{color:var(--status-bad-fg)}
 .al-sec-hd.notice{color:#0d9b7a}
 .al-mod-tag{font-size:9px;font-weight:700;color:var(--tl);background:#eef3f0;border-radius:6px;padding:1.5px 6px;margin-left:6px;text-transform:uppercase;letter-spacing:.3px}
+#alertsList{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#alertsList::-webkit-scrollbar{width:6px}
+#alertsList::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 /* ══ ALERTS MODAL ═══════════════════════════════════════ */
 .al-modal-ovl{position:fixed;inset:0;background:rgba(16,38,28,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
 .al-modal-ovl.show{display:flex}
@@ -465,7 +468,7 @@
             <span><span class="leg-ln" style="background:#27ae60"></span>Revenue (ETB)</span>
             <span><span class="leg-ln" style="background:#f59e0b"></span>Net Profit (ETB)</span>
           </div>
-          <div style="position:relative;flex:1;min-height:240px">
+          <div style="position:relative;flex:1;min-height:320px">
             <canvas id="revChart"></canvas>
           </div>
         </div>
@@ -475,7 +478,7 @@
           <div class="card-ttl"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Alerts &amp; Notifications</div>
           <a class="vall" id="alertsViewAll" onclick="openAlertsModal()">View All</a>
         </div>
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between" id="alertsList">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto" id="alertsList">
           <div class="al"><div class="al-ic ai-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="al-bd"><h5>Loading alerts…</h5><p>Fetching live data</p></div><div class="al-t"></div></div>
         </div>
       </div>
@@ -2456,3 +2459,4 @@ function exportExcel(){
 </script>
 </body>
 </html>
+                                                   
