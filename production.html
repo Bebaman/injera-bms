@@ -1545,6 +1545,57 @@ async function loadLocationIds(){
   return LOCATION_IDS;
 }
 
+// Running on-hand stock for one item, as of (and including) a given period —
+// summed from the inventory_balance view, which nets purchases in vs.
+// production/usage/adjustments out, period by period.
+// NOTE: inventory_balance's production-usage leg only nets out for periods
+// that already have an approved purchase in that *same* period (it joins
+// monthly_wac on exact period match, not "on or before"). So if a month has
+// zero purchases for an item, that month's production usage won't reduce
+// the running balance — this number can be optimistic in that case. Good
+// enough for a warning; not relied on to block anything.
+async function getAvailableStock(itemId, uptoPeriod){
+  if(!db || !itemId) return null;
+  const { data, error } = await db.from('inventory_balance')
+    .select('period,closing_qty')
+    .eq('item_id', itemId)
+    .lte('period', uptoPeriod);
+  if(error){ console.warn('getAvailableStock error', error); return null; }
+  return data.reduce((s,r)=>s+Number(r.closing_qty||0), 0);
+}
+
+// Warn-only stock check (per business decision, see chat: never blocks the
+// save — production is recorded as source of truth even if the matching
+// purchase/milling entry hasn't been logged yet). Returns an array of
+// human-readable warning lines, empty if nothing to flag.
+async function checkMaterialStock({blend, corn, gomen}, date, editingBatchId){
+  const ids = await loadItemIds();
+  const period = monthLabelToPeriod(monthLabelFromDate(date));
+  const checks = [
+    { id: ids.blend, name: 'Injera Blend', need: blend },
+    { id: ids.corn,  name: 'Corn',         need: corn },
+    { id: ids.gomen, name: 'Gomen Zere',   need: gomen || 0 },
+  ];
+  const warnings = [];
+  for(const c of checks){
+    if(!c.id || !c.need || c.need <= 0) continue;
+    let available = await getAvailableStock(c.id, period);
+    if(available === null) continue; // couldn't check (offline/error) — don't block on that
+    if(editingBatchId){
+      // This batch's own prior usage was already subtracted into the running
+      // balance above — add it back before comparing, so re-saving an
+      // unchanged edit doesn't falsely trigger a warning every time.
+      const { data: prior } = await db.from('production_batch_materials')
+        .select('quantity_used').eq('batch_id', editingBatchId).eq('item_id', c.id);
+      if(prior && prior.length) available += prior.reduce((s,r)=>s+Number(r.quantity_used), 0);
+    }
+    if(c.need > available){
+      warnings.push(`${c.name}: this batch needs ${fmt2(c.need)} kg but only ${fmt2(Math.max(available,0))} kg is on hand.`);
+    }
+  }
+  return warnings;
+}
+
 async function saveBatch(editId){
   // ── Validation per spec §12.1 and §9 business rules ──
   const type = document.getElementById('f_type')?.value;
@@ -1612,6 +1663,22 @@ async function saveBatch(editId){
       document.getElementById('f_gomen').focus();
       return;
     }
+  }
+
+  // Available-stock warning — non-blocking (per business decision, see chat).
+  // Checks entered material quantities against the inventory_balance view;
+  // if a material's on-hand stock looks insufficient, ask for confirmation
+  // but still allow the save either way — production is recorded as fact,
+  // inventory is just a heads-up.
+  try {
+    const isEditForStock = editId && editId !== 'null' && editId !== '';
+    const stockWarnings = await checkMaterialStock({blend, corn, gomen}, date, isEditForStock ? editId : null);
+    if(stockWarnings.length){
+      const proceed = confirm('Stock warning:\n\n' + stockWarnings.join('\n') + '\n\nSave this batch anyway?');
+      if(!proceed) return;
+    }
+  } catch(e){
+    console.warn('Stock check failed (non-blocking):', e.message);
   }
 
   // Batch number uniqueness per day — enforced by the real DB constraint
@@ -1735,6 +1802,7 @@ function refreshDashboard(){
   renderAlertCard();
   renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
   updateTrendChart(); // rebuilds daily series from getBatches() for the selected month
+  updateKpiComparisons().catch(e=>console.warn('KPI vs-last-month comparison could not load.', e.message));
 }
 
 // Invalidates the cached month and re-fetches it from Supabase, then
@@ -2703,6 +2771,84 @@ function computeKPIs(){
     peChg.className = `kc-chg ${cls}`;
     peChg.textContent = `${sign}${fmt1(Math.abs(diff))}% vs avg baseline`;
   }
+}
+
+/* ════════════════════════════════════════════════════════
+   KPI vs-LAST-MONTH COMPARISONS — matches the "▲ 0.0% vs Jun 2026"
+   style already used on the Derkosh page. Kept separate from
+   computeKPIs() because it needs one extra Supabase read (the previous
+   month's totals) and shouldn't block or slow down the synchronous
+   render computeKPIs() does from cached data.
+   ════════════════════════════════════════════════════════ */
+// Lightweight cache of {batches, qty, cost} totals per period, used only
+// for this comparison line — never needs materials or per-batch detail,
+// so it stays out of the heavier MONTH_DATA/loadMonth() cache.
+const PREV_SUMMARY_CACHE = {};
+
+function prevPeriodOf(period){
+  const [y,m] = period.split('-').map(Number);
+  const d = new Date(y, m-2, 1); // JS months are 0-based; m-2 steps back one month
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function periodLabel(period){
+  const [y,m] = period.split('-').map(Number);
+  return `${MONTH_NAMES[m-1]} ${y}`;
+}
+
+// Sums production_batch_costs (same view loadMonth() uses for cost/qty)
+// for one period — is_deleted rows are already excluded by the view itself.
+async function loadPeriodSummary(period){
+  if(PREV_SUMMARY_CACHE[period]) return PREV_SUMMARY_CACHE[period];
+  if(!db) return null;
+  const { data, error } = await db.from('production_batch_costs')
+    .select('injera_qty,total_cost').eq('period', period);
+  if(error){ console.warn('loadPeriodSummary error', error); return null; }
+  const summary = {
+    batches: data.length,
+    qty: data.reduce((s,r)=>s+Number(r.injera_qty||0), 0),
+    cost: data.reduce((s,r)=>s+Number(r.total_cost||0), 0),
+  };
+  PREV_SUMMARY_CACHE[period] = summary;
+  return summary;
+}
+
+// Renders one "▲ 6.2% vs Jun 2026" line into a .kc-chg element, reusing the
+// .up/.dn colour classes already defined for this page's other comparisons.
+function renderKpiChg(elId, curr, prev, prevLabel){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(prev === 0){
+    el.className = 'kc-chg';
+    el.style.color = 'var(--tl)';
+    el.textContent = curr === 0 ? `no activity vs ${prevLabel}` : `new activity vs ${prevLabel}`;
+    return;
+  }
+  const diff = ((curr - prev) / prev) * 100;
+  const cls = diff >= 0 ? 'up' : 'dn';
+  const arrow = diff >= 0 ? '▲' : '▼';
+  el.className = `kc-chg ${cls}`;
+  el.style.color = '';
+  el.textContent = `${arrow} ${fmt1(Math.abs(diff))}% vs ${prevLabel}`;
+}
+
+async function updateKpiComparisons(){
+  const period = monthLabelToPeriod(currentMonth());
+  const prevP = prevPeriodOf(period);
+  const prevLabel = periodLabel(prevP);
+  const summary = await loadPeriodSummary(prevP);
+  if(!summary) return; // offline/error — leave the static captions in place rather than show a wrong number
+
+  const rows = getBatches();
+  const curBatches = rows.length;
+  const curQty  = rows.reduce((s,r)=>s+r.qty, 0);
+  const curCost = rows.reduce((s,r)=>s+r.total, 0);
+  const curCpi  = curQty > 0 ? curCost / curQty : 0;
+  const prevCpi = summary.qty > 0 ? summary.cost / summary.qty : 0;
+
+  renderKpiChg('kpiBatchesChg', curBatches, summary.batches, prevLabel);
+  renderKpiChg('kpiQtyChg',     curQty,     summary.qty,     prevLabel);
+  renderKpiChg('kpiCostChg',    curCost,    summary.cost,    prevLabel);
+  renderKpiChg('kpiCpiChg',     curCpi,     prevCpi,          prevLabel);
 }
 
 /* ════════════════════════════════════════════════════════
