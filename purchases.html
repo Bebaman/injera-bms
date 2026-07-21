@@ -201,8 +201,47 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .act-dots svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ══ BOTTOM ROW ═════════════════════════════════════ */
-.bot2{display:grid;grid-template-columns:1fr minmax(260px,330px);gap:14px;margin-bottom:16px;align-items:start;min-width:0}
+.bot2{display:grid;grid-template-columns:1fr minmax(260px,330px);gap:14px;margin-bottom:16px;min-width:0}
 .bot2 > div{min-width:0}
+.bot2-right{display:flex;flex-direction:column;gap:14px}
+/* Insight card grows to absorb whatever height the left column has beyond the
+   Top Suppliers + Approval Summary cards, instead of leaving dead space below them. */
+.bot2-right .insight-card{flex:1;display:flex;flex-direction:column}
+.bot2-right .insight-card .insight-grid{flex:1}
+
+/* ══ PURCHASE INSIGHTS (tap-to-reveal boxes) ═════════════════════════
+   2x2 grid of colored, tappable summary boxes — each shows one headline number
+   for the current month and opens a detail modal with the breakdown on click.
+   Grid stretches to fill the card (flex:1 above) so on tall screens the boxes
+   grow slightly rather than leaving blank space beneath them. */
+.insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 17px 16px}
+.insight-box{border-radius:10px;padding:13px 14px;cursor:pointer;border:1px solid transparent;transition:transform .12s ease,box-shadow .12s ease;display:flex;flex-direction:column;justify-content:center;min-height:84px}
+.insight-box:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.insight-box:active{transform:translateY(0)}
+.insight-box .ib-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.insight-box .ib-ico svg{width:14px;height:14px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.insight-box .ib-lbl{font-size:10.5px;font-weight:700;color:var(--tm);margin-bottom:2px}
+.insight-box .ib-val{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:800;color:var(--td);line-height:1.15}
+.insight-box .ib-sub{font-size:9.5px;font-weight:600;color:#27ae60;margin-top:4px}
+.ib-qty{background:#eafaf1;border-color:#c8ecd7}
+.ib-qty .ib-ico{background:#d3f2e0}.ib-qty .ib-ico svg{stroke:#1a6b3c}
+.ib-freq{background:#eaf3fe;border-color:#c9dffb}
+.ib-freq .ib-ico{background:#d6e8fc}.ib-freq .ib-ico svg{stroke:#2563eb}
+.ib-spend{background:#fdecea;border-color:#f6cdc9}
+.ib-spend .ib-ico{background:#fbdedb}.ib-spend .ib-ico svg{stroke:#c0392b}
+.ib-price{background:#f3e8fd;border-color:#e2cdfa}
+.ib-price .ib-ico{background:#e9d9fb}.ib-price .ib-ico svg{stroke:#7c3aed}
+
+/* Detail modal list rows shared by all 4 insight boxes */
+.insight-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f0f5f2}
+.insight-row:last-child{border-bottom:none}
+.insight-row .ir-main{min-width:0}
+.insight-row .ir-name{font-size:13px;font-weight:700;color:var(--td)}
+.insight-row .ir-sub{font-size:11px;color:var(--tl);margin-top:2px}
+.insight-row .ir-val{text-align:right;flex-shrink:0;font-size:13px;font-weight:800;color:var(--td)}
+.insight-row .ir-val-sub{font-size:10.5px;font-weight:600;margin-top:2px}
+.insight-empty{text-align:center;padding:30px 12px;color:var(--tl);font-size:12.5px}
+
 
 /* Bank Fee / Approval Threshold / VAT — full-width 3-column row below the two-column
    area instead of stacked in the cramped 330px right sidebar. */
@@ -630,8 +669,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 
       </div><!-- /left column -->
 
-      <!-- RIGHT: Top Suppliers + Approval Summary -->
-      <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- RIGHT: Top Suppliers + Approval Summary + Purchase Insights -->
+      <div class="bot2-right">
 
         <!-- Top Suppliers -->
         <div class="card">
@@ -672,6 +711,39 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </div>
           </div>
           <a class="view-exp" onclick="openApprovalModal()" style="cursor:pointer">View Approval Queue</a>
+        </div>
+
+        <!-- Purchase Insights — tap any box for the detailed breakdown -->
+        <div class="card insight-card">
+          <div class="card-hd">
+            <div class="card-ttl">Purchase Insights <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(This Month)</span></div>
+          </div>
+          <div class="insight-grid">
+            <div class="insight-box ib-qty" onclick="openInsightModal('qty')">
+              <div class="ib-ico"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+              <div class="ib-lbl">Quantity Purchased</div>
+              <div class="ib-val" id="ibQtyVal">0 kg</div>
+              <div class="ib-sub" id="ibQtySub">View breakdown</div>
+            </div>
+            <div class="insight-box ib-freq" onclick="openInsightModal('freq')">
+              <div class="ib-ico"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg></div>
+              <div class="ib-lbl">Purchase Frequency</div>
+              <div class="ib-val" id="ibFreqVal">0 orders</div>
+              <div class="ib-sub" id="ibFreqSub">View by supplier</div>
+            </div>
+            <div class="insight-box ib-spend" onclick="openInsightModal('spend')">
+              <div class="ib-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
+              <div class="ib-lbl">Biggest Spend</div>
+              <div class="ib-val" id="ibSpendVal">0.00 ETB</div>
+              <div class="ib-sub" id="ibSpendSub">View top purchases</div>
+            </div>
+            <div class="insight-box ib-price" onclick="openInsightModal('price')">
+              <div class="ib-ico"><svg viewBox="0 0 24 24"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg></div>
+              <div class="ib-lbl">Price Changes</div>
+              <div class="ib-val" id="ibPriceVal">0 items</div>
+              <div class="ib-sub" id="ibPriceSub">View changes</div>
+            </div>
+          </div>
         </div>
 
       </div><!-- /right column -->
@@ -912,6 +984,26 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
     </div>
     <div class="modal-ft">
       <button class="btn-sec" onclick="closeApprovalModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ INSIGHT DETAIL MODAL ════
+     Shared shell for all 4 Purchase Insights boxes — openInsightModal(kind) fills in
+     the title and body per kind ('qty' | 'freq' | 'spend' | 'price'). -->
+<div class="modal-overlay" id="insightModalOverlay" onclick="if(event.target===this)closeInsightModal()">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <h3 id="insightModalTitle">Insight</h3>
+      <div class="modal-x" onclick="closeInsightModal()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="modal-bd">
+      <div id="insightModalBody"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeInsightModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1992,6 +2084,152 @@ function renderSummaryCards(){
       <tr><td>${name}</td><td>${fmt(spend)}</td><td>${grandTotal>0?((spend/grandTotal)*100).toFixed(1):'0.0'}%</td></tr>
     `).join('');
   }
+  renderInsightBoxes();
+}
+
+/* ════════════════ PURCHASE INSIGHTS (tap-to-reveal boxes) ════════════════
+   4 boxes, each scoped to the currently selected month (getMonthKey()):
+   qty   — total quantity purchased (kg), broken down by category on tap
+   freq  — number of orders placed, broken down by supplier on tap
+   spend — the single biggest purchase, with the top 5 biggest on tap
+   price — items whose unit price moved vs. their last purchase of that same
+           item from that same supplier, with the full list + %-change on tap
+   Price-change comparison looks at ALL purchase history (not just this month)
+   to find each item's most recent prior purchase, but only flags/counts a
+   change if the changed purchase itself falls in the selected month. */
+const PRICE_CHANGE_THRESHOLD_PCT = 5; // minimum % move to count as a real price change
+
+function getPriceChanges(mk){
+  // For each Purchase-type row in the target month, find its most recent EARLIER
+  // purchase of the same item from the same supplier (by date, tie-broken by id)
+  // anywhere in history, and compare unit prices.
+  const monthRows = getMonthPurchases(mk).filter(p=>p.type==='Purchase');
+  const changes = [];
+  monthRows.forEach(p=>{
+    const priorCandidates = purchases.filter(o=>
+      o.id !== p.id && o.type==='Purchase' &&
+      o.categoryId === p.categoryId && o.supplierId === p.supplierId &&
+      o.date < p.date
+    ).sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const prior = priorCandidates[0];
+    if(!prior || !prior.unitPrice) return;
+    const pctChange = ((p.unitPrice - prior.unitPrice) / prior.unitPrice) * 100;
+    if(Math.abs(pctChange) >= PRICE_CHANGE_THRESHOLD_PCT){
+      changes.push({ p, prior, pctChange });
+    }
+  });
+  return changes.sort((a,b)=> Math.abs(b.pctChange) - Math.abs(a.pctChange));
+}
+
+function renderInsightBoxes(){
+  const mk = getMonthKey();
+  const monthRows = getMonthPurchases(mk);
+  const purchaseRows = monthRows.filter(p=>p.type==='Purchase');
+
+  // Box 1: Quantity Purchased — total kg across Purchase rows this month
+  // (kg is the dominant unit for this business; other units are shown in the
+  // breakdown modal per-category so nothing is lost, just not in the headline).
+  const kgRows = purchaseRows.filter(p=>p.unit==='kg');
+  const totalKg = kgRows.reduce((s,p)=>s+Number(p.qty||0),0);
+  document.getElementById('ibQtyVal').textContent = totalKg.toLocaleString('en-US',{maximumFractionDigits:0}) + ' kg';
+  const distinctCats = new Set(purchaseRows.map(p=>p.category)).size;
+  document.getElementById('ibQtySub').textContent = distinctCats>0 ? `across ${distinctCats} categor${distinctCats===1?'y':'ies'}` : 'View breakdown';
+
+  // Box 2: Purchase Frequency — order count this month
+  document.getElementById('ibFreqVal').textContent = monthRows.length + (monthRows.length===1?' order':' orders');
+  const bySupCount = {};
+  monthRows.forEach(p=>{ bySupCount[p.supplier] = (bySupCount[p.supplier]||0)+1; });
+  const topSupEntry = Object.entries(bySupCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('ibFreqSub').textContent = topSupEntry ? `top: ${topSupEntry[0]}` : 'View by supplier';
+
+  // Box 3: Biggest Spend — the single largest transaction this month
+  const biggest = [...monthRows].sort((a,b)=> rowTotal(b)-rowTotal(a))[0];
+  document.getElementById('ibSpendVal').textContent = biggest ? fmt(rowTotal(biggest))+' ETB' : '0.00 ETB';
+  document.getElementById('ibSpendSub').textContent = biggest ? biggest.supplier : 'View top purchases';
+
+  // Box 4: Price Changes — items that moved ≥ threshold vs their last purchase
+  const changes = getPriceChanges(mk);
+  document.getElementById('ibPriceVal').textContent = changes.length + (changes.length===1?' item':' items');
+  const upCount = changes.filter(c=>c.pctChange>0).length;
+  document.getElementById('ibPriceSub').textContent = changes.length ? `${upCount} up, ${changes.length-upCount} down` : 'View changes';
+}
+
+function openInsightModal(kind){
+  const mk = getMonthKey();
+  const monthRows = getMonthPurchases(mk);
+  const purchaseRows = monthRows.filter(p=>p.type==='Purchase');
+  const title = document.getElementById('insightModalTitle');
+  const body = document.getElementById('insightModalBody');
+
+  if(kind === 'qty'){
+    title.textContent = 'Quantity Purchased — ' + monthLabel(mk);
+    const byCat = {};
+    purchaseRows.forEach(p=>{
+      const key = p.category;
+      if(!byCat[key]) byCat[key] = { qty:0, unit:p.unit };
+      byCat[key].qty += Number(p.qty)||0;
+    });
+    const ranked = Object.entries(byCat).sort((a,b)=>b[1].qty-a[1].qty);
+    body.innerHTML = ranked.length===0
+      ? `<div class="insight-empty">No purchases this month.</div>`
+      : ranked.map(([cat,d])=>`
+          <div class="insight-row">
+            <div class="ir-main"><div class="ir-name">${cat}</div></div>
+            <div class="ir-val">${d.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${d.unit}</div>
+          </div>
+        `).join('');
+
+  } else if(kind === 'freq'){
+    title.textContent = 'Purchase Frequency — ' + monthLabel(mk);
+    const bySupCount = {};
+    monthRows.forEach(p=>{ bySupCount[p.supplier] = (bySupCount[p.supplier]||0)+1; });
+    const ranked = Object.entries(bySupCount).sort((a,b)=>b[1]-a[1]);
+    body.innerHTML = ranked.length===0
+      ? `<div class="insight-empty">No purchases this month.</div>`
+      : ranked.map(([sup,count])=>`
+          <div class="insight-row">
+            <div class="ir-main"><div class="ir-name">${sup}</div></div>
+            <div class="ir-val">${count} ${count===1?'order':'orders'}</div>
+          </div>
+        `).join('');
+
+  } else if(kind === 'spend'){
+    title.textContent = 'Biggest Purchases — ' + monthLabel(mk);
+    const top5 = [...monthRows].sort((a,b)=>rowTotal(b)-rowTotal(a)).slice(0,5);
+    body.innerHTML = top5.length===0
+      ? `<div class="insight-empty">No purchases this month.</div>`
+      : top5.map(p=>`
+          <div class="insight-row">
+            <div class="ir-main">
+              <div class="ir-name">${p.category}</div>
+              <div class="ir-sub">${p.supplier} · ${fmtDate(p.date)}</div>
+            </div>
+            <div class="ir-val">${fmt(rowTotal(p))} ETB</div>
+          </div>
+        `).join('');
+
+  } else if(kind === 'price'){
+    title.textContent = 'Price Changes — ' + monthLabel(mk);
+    const changes = getPriceChanges(mk);
+    body.innerHTML = changes.length===0
+      ? `<div class="insight-empty">No price changes ≥ ${PRICE_CHANGE_THRESHOLD_PCT}% this month.</div>`
+      : changes.map(c=>`
+          <div class="insight-row">
+            <div class="ir-main">
+              <div class="ir-name">${c.p.category}</div>
+              <div class="ir-sub">${c.p.supplier} · ${fmt(c.prior.unitPrice)} → ${fmt(c.p.unitPrice)} ETB</div>
+            </div>
+            <div class="ir-val" style="color:${c.pctChange>0?'#c0392b':'#1a6b3c'}">
+              ${c.pctChange>0?'▲':'▼'} ${Math.abs(c.pctChange).toFixed(1)}%
+            </div>
+          </div>
+        `).join('');
+  }
+
+  document.getElementById('insightModalOverlay').classList.add('show');
+}
+function closeInsightModal(){
+  document.getElementById('insightModalOverlay').classList.remove('show');
 }
 
 /* ════════════════ CHARTS ════════════════ */
@@ -2208,6 +2446,7 @@ document.addEventListener('keydown', e=>{
     window._userPanelOpen = false;
     closeExportMenu();
     closeRowMenu();
+    closeInsightModal();
   }
 });
 
