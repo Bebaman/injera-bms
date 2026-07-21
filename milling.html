@@ -123,6 +123,7 @@
 .mc-calc-total{display:flex;justify-content:space-between;font-size:13px;font-weight:800;color:var(--green);padding:3px 0}
 .mc-calc-perkg{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--td);padding-top:4px}
 .mc-calc-warn{font-size:10.5px;color:#b8860b;margin-top:9px;line-height:1.5;background:#fff8e8;border-radius:7px;padding:7px 9px}
+.mc-calc-info{font-size:10.5px;color:#1d4ed8;margin-top:9px;line-height:1.5;background:#eef4ff;border-radius:7px;padding:7px 9px}
 .mc-calc-err{font-size:10.5px;color:var(--red);margin-top:9px;line-height:1.5;background:#fdeaea;border-radius:7px;padding:7px 9px}
 
 .mc-inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:12px 14px 14px}
@@ -266,12 +267,8 @@
   <div id="header-root"></div>
   <div class="content">
 
-    <!-- TOOLBAR: demo badge (conditional) + Export Excel / Export PDF / Info -->
+    <!-- TOOLBAR: Export Excel / Export PDF / Info -->
     <div class="mc-toolbar">
-      <div class="mc-demo-badge" id="mcDemoBadge" style="display:none">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span id="mcDemoBadgeTxt">Demo Data — no conversions logged yet</span>
-      </div>
       <button class="mc-btn mc-btn-green" id="btnExportExcel" title="Export this month's conversions to Excel">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
         Export Excel
@@ -681,61 +678,23 @@ const STOCK = { teff:0, rice:0, blend:0 };
 let MILLING_ALL = [];
 async function computeStock(){
   const ids = `${ITEM.teffId},${ITEM.riceId},${ITEM.blendId}`;
-  const [purch, prodUse, millAll, openBal] = await Promise.all([
-    sbGet(`purchases?select=item_id,quantity&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=in.(${ids})`),
-    sbGet(`production_batch_materials?select=item_id,quantity_used,production_batches!inner(is_deleted)&production_batches.is_deleted=eq.false&item_id=in.(${ids})`),
-    sbGet(`milling_conversions?select=id,date,period,teff_qty,rice_qty,sifting_cost,grinding_cost,transport_cost,blend_qty_produced,total_cost,generated_purchase_id,created_at&order=date.desc,created_at.desc`),
-    sbGet(`inventory_opening_balances?select=item_id,opening_qty&item_id=in.(${ids})`)
+  // Read current stock straight from inventory_balance — the same
+  // authoritative, cumulative-running-balance view stock_alerts uses.
+  // This already accounts for opening balances, purchases, production
+  // usage, milling consumption, manual usage-log entries, and manual
+  // adjustments, so it can't drift out of sync with the rest of the app
+  // the way a page-local recalculation could.
+  const [balRows, millAll] = await Promise.all([
+    sbGet(`inventory_balance?select=item_id,period,closing_qty&item_id=in.(${ids})&order=period.desc`),
+    sbGet(`milling_conversions?select=id,date,period,teff_qty,rice_qty,teff_cost,rice_cost,sifting_cost,grinding_cost,transport_cost,blend_qty_produced,total_cost,generated_purchase_id,created_at&order=date.desc,created_at.desc`)
   ]);
   MILLING_ALL = millAll || [];
-  const inflow={}, outflow={}, opening={};
-  (purch||[]).forEach(p=>{ inflow[p.item_id]=(inflow[p.item_id]||0)+num(p.quantity); });
-  (prodUse||[]).forEach(p=>{ outflow[p.item_id]=(outflow[p.item_id]||0)+num(p.quantity_used); });
-  (openBal||[]).forEach(o=>{ opening[o.item_id]=(opening[o.item_id]||0)+num(o.opening_qty); });
-  const teffMillOut = MILLING_ALL.reduce((s,r)=>s+num(r.teff_qty),0);
-  const riceMillOut = MILLING_ALL.reduce((s,r)=>s+num(r.rice_qty),0);
-  STOCK.teff = (opening[ITEM.teffId]||0) + (inflow[ITEM.teffId]||0) - (outflow[ITEM.teffId]||0) - teffMillOut;
-  STOCK.rice = (opening[ITEM.riceId]||0) + (inflow[ITEM.riceId]||0) - (outflow[ITEM.riceId]||0) - riceMillOut;
-  STOCK.blend = (opening[ITEM.blendId]||0) + (inflow[ITEM.blendId]||0) - (outflow[ITEM.blendId]||0);
+  const latest = {};
+  (balRows||[]).forEach(r=>{ if(!(r.item_id in latest)) latest[r.item_id]=num(r.closing_qty); }); // first hit per item = most recent period, since ordered period.desc
+  STOCK.teff = latest[ITEM.teffId] || 0;
+  STOCK.rice = latest[ITEM.riceId] || 0;
+  STOCK.blend = latest[ITEM.blendId] || 0;
 }
-
-/* ── Demo dataset (shown only until the first real conversion is logged) ──
-   All figures below are derived from one internally-consistent set of 8
-   example runs (WAC ≈ 83.40 ETB/kg Teff, 76.00 ETB/kg Rice) so every panel
-   — KPIs, history, donut, trend, summary — agrees with every other. */
-const DEMO_WAC = { teff:83.40, rice:76.00 };
-const DEMO_STOCK_BEFORE = { teff:8250.00, rice:2600.00, blend:3200.00 };
-function buildDemoRows(){
-  const raw = [
-    ['2026-05-26',1500,500,4000,6000,2000,1900],
-    ['2026-05-20',1200,400,3500,5500,1500,1520],
-    ['2026-05-15',1100,350,3200,5000,1300,1400],
-    ['2026-05-10', 900,300,2800,4200,1100,1170],
-    ['2026-05-05', 800,250,2500,3800, 900,1030],
-    ['2026-05-04', 300,100,1200,1800, 500, 360],
-    ['2026-05-02', 250, 90,1000,1600, 400, 310],
-    ['2026-05-01', 180, 70, 900,1400, 350, 230]
-  ];
-  return raw.map((r,i)=>{
-    const [date,teff,rice,sift,grind,transport,blend]=r;
-    const teffCost=teff*DEMO_WAC.teff, riceCost=rice*DEMO_WAC.rice;
-    const total=teffCost+riceCost+sift+grind+transport;
-    const ddmmyy=dateToDDMMYY(date);
-    return {
-      id:'demo-'+i, date, period:'2026-05',
-      teff_qty:teff, rice_qty:rice, sifting_cost:sift, grinding_cost:grind, transport_cost:transport,
-      blend_qty_produced:blend, total_cost:total,
-      generated_purchase_id:'demo-pur-'+i,
-      batch_label:`MC-${ddmmyy}-001`, purchase_label:`PUR-MC-${ddmmyy}-001`,
-      teff_cost:teffCost, rice_cost:riceCost, is_demo:true
-    };
-  });
-}
-const DEMO_ROWS = buildDemoRows();
-const DEMO_TREND = [ // trailing 5 illustrative months before the demo month, then the demo month itself
-  {blend:4200, cpk:88.45}, {blend:4800, cpk:89.10}, {blend:4600, cpk:87.25},
-  {blend:5300, cpk:89.78}, {blend:5200, cpk:90.28}
-];
 
 function annotateBatchLabels(rows){
   const seq={};
@@ -753,7 +712,6 @@ function annotateBatchLabels(rows){
 
 /* ── Global state ────────────────────────────────────────────────────── */
 let selectedPeriod = null;          // 'YYYY-MM' — drives KPIs / history / summary
-let usingDemo = false;
 let histPage = 1;
 const HIST_PAGE_SIZE = 5;
 let histSearchTerm = '';
@@ -763,19 +721,28 @@ let trendChartInst = null;
 let wacDebounce = null;
 let lastWac = { teff:null, rice:null, period:null };
 
-function activeRows(){ return usingDemo ? DEMO_ROWS : MILLING_ALL; }
+function activeRows(){ return MILLING_ALL; }
 function rowsForPeriod(period){ return activeRows().filter(r=>r.period===period); }
 
 /* ═══════════════════ CALCULATED COSTS (live preview) ═══════════════════ */
 async function fetchWac(period){
   if(lastWac.period===period && lastWac.teff!==null) return lastWac;
   try{
-    const rows = await sbGet(`monthly_wac?select=item_id,wac_per_unit&period=eq.${period}&item_id=in.(${ITEM.teffId},${ITEM.riceId})`);
+    // Carry-forward lookup: most recent period at or before the target that
+    // actually has approved purchases — matches handle_milling_conversion()
+    // in the database, instead of requiring a purchase in this exact month.
+    const rows = await sbGet(`monthly_wac?select=item_id,period,wac_per_unit&period=lte.${period}&item_id=in.(${ITEM.teffId},${ITEM.riceId})&order=period.desc`);
     const teffRow=(rows||[]).find(r=>r.item_id===ITEM.teffId);
     const riceRow=(rows||[]).find(r=>r.item_id===ITEM.riceId);
-    lastWac = { teff: teffRow?num(teffRow.wac_per_unit):null, rice: riceRow?num(riceRow.wac_per_unit):null, period };
+    lastWac = {
+      teff: teffRow?num(teffRow.wac_per_unit):null,
+      rice: riceRow?num(riceRow.wac_per_unit):null,
+      teffPeriod: teffRow?teffRow.period:null,
+      ricePeriod: riceRow?riceRow.period:null,
+      period
+    };
   }catch(e){
-    lastWac = { teff:null, rice:null, period };
+    lastWac = { teff:null, rice:null, teffPeriod:null, ricePeriod:null, period };
   }
   return lastWac;
 }
@@ -791,12 +758,13 @@ async function recalcPreview(){
   const blendQty=num(document.getElementById('fBlend').value);
 
   const wac = await fetchWac(period);
-  let teffWac=wac.teff, riceWac=wac.rice, estimated=false;
-  if(teffWac===null || riceWac===null){
-    teffWac = teffWac===null ? DEMO_WAC.teff : teffWac;
-    riceWac = riceWac===null ? DEMO_WAC.rice : riceWac;
-    estimated=true;
-  }
+  let teffWac=wac.teff, riceWac=wac.rice;
+  const teffMissing = teffWac===null, riceMissing = riceWac===null;
+  const teffCarried = !teffMissing && wac.teffPeriod!==period;
+  const riceCarried = !riceMissing && wac.ricePeriod!==period;
+  const blocked = teffMissing || riceMissing;
+  teffWac = teffMissing ? 0 : teffWac;
+  riceWac = riceMissing ? 0 : riceWac;
   const teffCost=teffQty*teffWac, riceCost=riceQty*riceWac;
   const total=teffCost+riceCost+sift+grind+transport;
   const perKg = blendQty>0 ? total/blendQty : 0;
@@ -811,15 +779,22 @@ async function recalcPreview(){
 
   const noteEl=document.getElementById('ccNote');
   const runBtn=document.getElementById('btnRun');
-  if(estimated){
+  if(blocked){
     noteEl.className='mc-calc-warn';
     noteEl.style.display='block';
-    noteEl.textContent=`No approved Teff/Rice purchases logged for ${periodToLabel(period)} yet — costs above use an estimated WAC. Log purchases first, or saving will be blocked.`;
+    noteEl.textContent=`No Teff/Rice purchases have ever been logged — Teff/Rice cost can't be calculated. Log a purchase first, or saving will be blocked.`;
+  } else if(teffCarried || riceCarried){
+    const parts=[];
+    if(teffCarried) parts.push(`Teff @ ${periodToLabel(wac.teffPeriod)} rate`);
+    if(riceCarried) parts.push(`Rice @ ${periodToLabel(wac.ricePeriod)} rate`);
+    noteEl.className='mc-calc-info';
+    noteEl.style.display='block';
+    noteEl.textContent=`No new Teff/Rice purchases logged for ${periodToLabel(period)} — using the last known rate (${parts.join(', ')}).`;
   } else {
     noteEl.style.display='none';
   }
   updateInventoryPreview(teffQty, riceQty, blendQty);
-  return { date, period, teffQty, riceQty, sift, grind, transport, blendQty, teffCost, riceCost, total, perKg, wacMissing: estimated };
+  return { date, period, teffQty, riceQty, sift, grind, transport, blendQty, teffCost, riceCost, total, perKg, wacMissing: blocked };
 }
 function scheduleRecalc(){
   clearTimeout(wacDebounce);
@@ -828,7 +803,7 @@ function scheduleRecalc(){
 
 /* ═══════════════════ INVENTORY IMPACT ═══════════════════ */
 function baselineStock(){
-  return usingDemo ? DEMO_STOCK_BEFORE : { teff:STOCK.teff, rice:STOCK.rice, blend:STOCK.blend };
+  return { teff:STOCK.teff, rice:STOCK.rice, blend:STOCK.blend };
 }
 function updateInventoryPreview(teffUsed, riceUsed, blendProduced){
   const base=baselineStock();
@@ -852,8 +827,8 @@ function renderDonut(row){
     if(costDonutChart){ costDonutChart.destroy(); costDonutChart=null; }
     return;
   }
-  const teffCost = row.teff_cost!==undefined ? row.teff_cost : row.teff_qty*(lastWac.teff||DEMO_WAC.teff);
-  const riceCost = row.rice_cost!==undefined ? row.rice_cost : row.rice_qty*(lastWac.rice||DEMO_WAC.rice);
+  const teffCost = row.teff_cost!=null ? row.teff_cost : row.teff_qty*(lastWac.teff||0);
+  const riceCost = row.rice_cost!=null ? row.rice_cost : row.rice_qty*(lastWac.rice||0);
   const parts=[
     {n:'Teff', v:teffCost, c:'#2D6A4F'},
     {n:'Rice', v:riceCost, c:'#2563eb'},
@@ -881,7 +856,7 @@ function renderDonut(row){
 
 /* ═══════════════════ KPI ROW ═══════════════════ */
 function renderKPIs(period){
-  const rows = usingDemo ? DEMO_ROWS : rowsForPeriod(period);
+  const rows = rowsForPeriod(period);
   const totalBlend = rows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
   const totalCost = rows.reduce((s,r)=>s+num(r.total_cost),0);
   const avgCost = totalBlend>0 ? totalCost/totalBlend : 0;
@@ -895,30 +870,22 @@ function renderKPIs(period){
   setKPI('kpiInvValue', invValue, 2);
 
   const prevLabel = periodToLabel(shiftPeriod(period,-1));
-  if(usingDemo){
-    document.getElementById('kpiBlendChg').innerHTML = chgHtml(12.35, prevLabel);
-    document.getElementById('kpiCostChg').innerHTML = chgHtml(8.21, prevLabel);
-    document.getElementById('kpiAvgCostChg').innerHTML = chgHtml(-2.14, prevLabel);
-    document.getElementById('kpiRunsChg').innerHTML = chgHtml(14.29, prevLabel);
-    document.getElementById('kpiInvValueChg').innerHTML = chgHtml(8.21, prevLabel);
-  } else {
-    const prevRows = rowsForPeriod(shiftPeriod(period,-1));
-    const prevBlend = prevRows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
-    const prevCost = prevRows.reduce((s,r)=>s+num(r.total_cost),0);
-    const prevAvg = prevBlend>0 ? prevCost/prevBlend : 0;
-    const prevRuns = prevRows.length;
-    const pct=(cur,prev)=> prev>0 ? ((cur-prev)/prev)*100 : (cur>0?100:null);
-    document.getElementById('kpiBlendChg').innerHTML = chgHtml(pct(totalBlend,prevBlend), prevLabel);
-    document.getElementById('kpiCostChg').innerHTML = chgHtml(pct(totalCost,prevCost), prevLabel);
-    document.getElementById('kpiAvgCostChg').innerHTML = chgHtml(pct(avgCost,prevAvg), prevLabel);
-    document.getElementById('kpiRunsChg').innerHTML = chgHtml(pct(runs,prevRuns), prevLabel);
-    document.getElementById('kpiInvValueChg').innerHTML = chgHtml(pct(invValue,prevCost), prevLabel);
-  }
+  const prevRows = rowsForPeriod(shiftPeriod(period,-1));
+  const prevBlend = prevRows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
+  const prevCost = prevRows.reduce((s,r)=>s+num(r.total_cost),0);
+  const prevAvg = prevBlend>0 ? prevCost/prevBlend : 0;
+  const prevRuns = prevRows.length;
+  const pct=(cur,prev)=> prev>0 ? ((cur-prev)/prev)*100 : (cur>0?100:null);
+  document.getElementById('kpiBlendChg').innerHTML = chgHtml(pct(totalBlend,prevBlend), prevLabel);
+  document.getElementById('kpiCostChg').innerHTML = chgHtml(pct(totalCost,prevCost), prevLabel);
+  document.getElementById('kpiAvgCostChg').innerHTML = chgHtml(pct(avgCost,prevAvg), prevLabel);
+  document.getElementById('kpiRunsChg').innerHTML = chgHtml(pct(runs,prevRuns), prevLabel);
+  document.getElementById('kpiInvValueChg').innerHTML = chgHtml(pct(invValue,prevCost), prevLabel);
 }
 
 /* ═══════════════════ CONVERSION SUMMARY ═══════════════════ */
 function renderSummary(period){
-  const rows = usingDemo ? DEMO_ROWS : rowsForPeriod(period);
+  const rows = rowsForPeriod(period);
   const teff=rows.reduce((s,r)=>s+num(r.teff_qty),0);
   const rice=rows.reduce((s,r)=>s+num(r.rice_qty),0);
   const blend=rows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
@@ -928,7 +895,7 @@ function renderSummary(period){
   const avgCost=blend>0?cost/blend:0;
   const yieldPct=(teff+rice)>0 ? (blend/(teff+rice))*100 : 0;
 
-  document.getElementById('sumPeriodLbl').textContent = usingDemo ? '(Demo — May 2026)' : `(${periodToLabel(period)})`;
+  document.getElementById('sumPeriodLbl').textContent = `(${periodToLabel(period)})`;
   document.getElementById('sumTeff').textContent=fmtETB(teff)+' kg';
   document.getElementById('sumRice').textContent=fmtETB(rice)+' kg';
   document.getElementById('sumBlend').textContent=fmtETB(blend)+' kg';
@@ -944,8 +911,8 @@ function statusPill(row){
   return `<span class="mc-pill mc-pill-green">Completed</span>`;
 }
 function renderHistoryTable(){
-  let rows = usingDemo ? DEMO_ROWS.slice() : MILLING_ALL.slice();
-  if(!usingDemo) annotateBatchLabels(rows);
+  let rows = MILLING_ALL.slice();
+  annotateBatchLabels(rows);
   rows.sort((a,b)=> a.date===b.date ? 0 : (a.date<b.date?1:-1));
   if(histSearchTerm){
     const q=histSearchTerm.toLowerCase();
@@ -1036,28 +1003,13 @@ function renderGeneratedPurchase(row){
 function renderTrendChart(period, monthsBack){
   const labels=[], blendData=[], cpkData=[];
   const periods=[]; for(let i=monthsBack-1;i>=0;i--) periods.push(shiftPeriod(period,-i));
-  if(usingDemo){
-    const illustrative = DEMO_TREND.slice(-(monthsBack-1));
-    const pad = monthsBack-1-illustrative.length;
-    const filler = Array(Math.max(0,pad)).fill({blend:DEMO_TREND[0].blend*0.9, cpk:DEMO_TREND[0].cpk});
-    const seq = filler.concat(illustrative);
-    const demoTotalBlend = DEMO_ROWS.reduce((s,r)=>s+r.blend_qty_produced,0);
-    const demoTotalCost = DEMO_ROWS.reduce((s,r)=>s+r.total_cost,0);
-    const demoCpk = demoTotalBlend>0 ? demoTotalCost/demoTotalBlend : 0;
-    periods.forEach((p,i)=>{
-      labels.push(periodToLabel(p));
-      if(i<periods.length-1){ const s=seq[i]||seq[seq.length-1]; blendData.push(s.blend); cpkData.push(s.cpk); }
-      else { blendData.push(demoTotalBlend); cpkData.push(demoCpk); }
-    });
-  } else {
-    periods.forEach(p=>{
-      labels.push(periodToLabel(p));
-      const rows=rowsForPeriod(p);
-      const b=rows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
-      const c=rows.reduce((s,r)=>s+num(r.total_cost),0);
-      blendData.push(b); cpkData.push(b>0?c/b:0);
-    });
-  }
+  periods.forEach(p=>{
+    labels.push(periodToLabel(p));
+    const rows=rowsForPeriod(p);
+    const b=rows.reduce((s,r)=>s+num(r.blend_qty_produced),0);
+    const c=rows.reduce((s,r)=>s+num(r.total_cost),0);
+    blendData.push(b); cpkData.push(b>0?c/b:0);
+  });
   if(typeof Chart==='undefined') return;
   const ctx=document.getElementById('trendChart');
   if(trendChartInst) trendChartInst.destroy();
@@ -1092,8 +1044,8 @@ async function runConversion(){
   const btnTxt=document.getElementById('btnRunTxt');
   const preview = await recalcPreview();
 
-  if(!preview.date || preview.teffQty<=0 || preview.riceQty<=0 || preview.sift<0 || preview.grind<0 || preview.blendQty<=0){
-    mcToast('Fill in Date, Teff Qty, Rice Qty, Sifting Cost, Grinding Cost and Blend Qty Produced first.', 'err');
+  if(!preview.date || preview.teffQty<=0 || preview.riceQty<=0 || preview.sift<0 || preview.grind<0 || preview.transport<0 || preview.blendQty<=0){
+    mcToast('Fill in Date, Teff Qty, Rice Qty, Sifting Cost, Grinding Cost, Transport Cost and Blend Qty Produced first.', 'err');
     return;
   }
   if(preview.wacMissing){
@@ -1132,8 +1084,6 @@ async function runConversion(){
     lastWac.period=null;
 
     await computeStock();
-    usingDemo = MILLING_ALL.length===0;
-    if(usingDemo===false) document.getElementById('mcDemoBadge').style.display='none';
     selectedPeriod = preview.period;
     refreshAll(selectedPeriod);
   }catch(e){
@@ -1144,7 +1094,7 @@ async function runConversion(){
 }
 
 /* ═══════════════════ EXPORTS ═══════════════════ */
-function currentReportRows(){ return usingDemo ? DEMO_ROWS : rowsForPeriod(selectedPeriod); }
+function currentReportRows(){ return rowsForPeriod(selectedPeriod); }
 async function exportExcel(){
   const loading=document.getElementById('exportLoading'); loading.style.display='flex';
   try{
@@ -1160,7 +1110,7 @@ async function exportExcel(){
     ws['!cols']=[{wch:4},{wch:13},{wch:16},{wch:14},{wch:14},{wch:18},{wch:16},{wch:12},{wch:20},{wch:11}];
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Milling Conversion');
-    XLSX.writeFile(wb, `Milling_Conversion_${usingDemo?'Demo':selectedPeriod}.xlsx`);
+    XLSX.writeFile(wb, `Milling_Conversion_${selectedPeriod}.xlsx`);
     mcToast('Excel export ready.');
   }catch(e){ mcToast('Export failed: '+e.message,'err'); }
   finally{ loading.style.display='none'; }
@@ -1173,7 +1123,7 @@ async function exportPDF(){
     doc.setFont('helvetica','bold'); doc.setFontSize(14);
     doc.text('Mena Injera & Derkosh — Milling / Conversion Report', 14, 15);
     doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text(`Period: ${usingDemo?'Demo Data (May 2026)':periodToLabel(selectedPeriod)}   |   Generated: ${new Date().toLocaleString('en-US')}`, 14, 21);
+    doc.text(`Period: ${periodToLabel(selectedPeriod)}   |   Generated: ${new Date().toLocaleString('en-US')}`, 14, 21);
     const rows=currentReportRows();
     doc.autoTable({
       startY:27,
@@ -1188,7 +1138,7 @@ async function exportPDF(){
     const y=(doc.lastAutoTable?.finalY||30)+8;
     doc.setFont('helvetica','bold'); doc.setFontSize(10);
     doc.text(`Total Teff Used: ${fmtETB(teff)} kg     Total Rice Used: ${fmtETB(rice)} kg     Total Blend Produced: ${fmtETB(blend)} kg     Total Conversion Cost: ${fmtETB(cost)} ETB`, 14, y);
-    doc.save(`Milling_Conversion_${usingDemo?'Demo':selectedPeriod}.pdf`);
+    doc.save(`Milling_Conversion_${selectedPeriod}.pdf`);
     mcToast('PDF export ready.');
   }catch(e){ mcToast('Export failed: '+e.message,'err'); }
   finally{ loading.style.display='none'; }
@@ -1197,10 +1147,6 @@ async function exportPDF(){
 /* ═══════════════════ ORCHESTRATION ═══════════════════ */
 function refreshAll(period){
   selectedPeriod = period;
-  document.getElementById('mcDemoBadge').style.display = usingDemo ? 'inline-flex' : 'none';
-  document.getElementById('mcDemoBadgeTxt').textContent = usingDemo
-    ? 'Demo Data — showing example conversions until you log your first run'
-    : '';
   renderKPIs(period);
   renderSummary(period);
   histPage=1;
@@ -1241,7 +1187,6 @@ async function init(){
   }catch(e){
     mcToast(e.message, 'err');
   }
-  usingDemo = MILLING_ALL.length===0;
 
   const months = monthOptionsEndingAt(curPeriod, 6);
   const selectedMonth = periodToLabel(curPeriod);
