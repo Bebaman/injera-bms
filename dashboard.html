@@ -865,7 +865,8 @@ async function refreshDashboard(){
       payrollDetailRows, periodCloseRows, vatSummaryRows, recentLoginFailures,
       priceHistoryRows, anyPeriodCloseEver,
       salesYesterday, prodBatchRowsPrev, salesWeek, purchasesWeek,
-      purchasesForPriceCompare, allInjeraProductionAllTime
+      purchasesForPriceCompare, allInjeraProductionAllTime,
+      purchasesPrevPeriodTotal, allSuccessLogins
     ] = await Promise.all([
       sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -876,12 +877,12 @@ async function refreshDashboard(){
       sbGet(`derkosh_batches?select=*&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`inventory_items?select=*&is_active=eq.true`),
       sbGet(`derkosh_batches?select=pkg_item_id,bags_used,produced_kg,date&is_deleted=eq.false`),
-      sbGet(`sales?select=product_type,quantity,revenue,payment_method,customer_id,date&is_deleted=eq.false`),
-      sbGet(`credit_payments?select=amount_paid,payment_date`),
+      sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date&is_deleted=eq.false`),
+      sbGet(`credit_payments?select=sale_id,amount_paid,payment_date`),
       sbGet(`monthly_cash_flow?select=*&period=in.(${period},${prevP})`),
       sbGet(`stock_alerts?select=*`),
       sbGet(`loan_summary?select=*&status=eq.active`),
-      sbGet(`customers?select=id,name,type,credit_limit,created_at&is_active=eq.true`),
+      sbGet(`customers?select=id,name,type,credit_limit,payment_terms_days,created_at&is_active=eq.true`),
       sbGet(`budget_lines?select=*&period=eq.${period}`),
       sbGet(`batch_standards?select=*`),
       sbGet(`sales?select=revenue&date=eq.${today}&is_deleted=eq.false`),
@@ -903,9 +904,9 @@ async function refreshDashboard(){
       // ── New alert-module data (added 2026-07) ──
       sbGet(`suppliers?select=id,name,is_active,created_at`),
       sbGet(`purchases?select=supplier_id,date&type=eq.purchase&is_deleted=eq.false&supplier_id=not.is.null&order=date.desc`),
-      sbGet(`fixed_assets?select=id,asset_name,created_at,status,disposed_date`),
+      sbGet(`fixed_assets?select=id,asset_name,created_at,status,disposed_date,cost,accumulated_depreciation`),
       sbGet(`workers?select=id,name,is_active`),
-      sbGet(`payroll_detail?select=worker_id,payment_date&period=eq.${period}`),
+      sbGet(`payroll_detail?select=worker_id,payment_date,gross_pay,days_present,days_in_month&period=eq.${period}`),
       sbGet(`period_closes?select=period&period=eq.${prevP}`),
       sbGet(`vat_summary?select=*&period=eq.${period}`),
       sbGet(`login_log?select=email,outcome,created_at&outcome=neq.success&created_at=gte.${new Date(Date.now()-86400000).toISOString()}`),
@@ -918,7 +919,12 @@ async function refreshDashboard(){
       sbGet(`sales?select=revenue,date&date=gte.${weekAgo}&is_deleted=eq.false`),
       sbGet(`purchases?select=total_cost,date&type=eq.purchase&date=gte.${weekAgo}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
       sbGet(`purchases?select=item_id,quantity,total_cost,date,supplier_id&type=eq.purchase&is_deleted=eq.false&supplier_id=not.is.null&item_id=not.is.null&approval_status=in.(auto_approved,approved)&order=date.desc&limit=500`),
-      sbGet(`production_batches?select=injera_qty,date&is_deleted=eq.false`)
+      sbGet(`production_batches?select=injera_qty,date&is_deleted=eq.false`),
+      // ── New insight-module data (added 2026-07, round 2) ──
+      sbGet(`purchases?select=total_cost&type=eq.purchase&period=eq.${prevP}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
+      // All-time successful logins, oldest first — used to detect a login from an IP never
+      // seen before for that user. Small-business login volume, so unlimited is fine.
+      sbGet(`login_log?select=email,user_id,ip_address,created_at&outcome=eq.success&order=created_at.asc`)
     ]);
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -1173,8 +1179,23 @@ async function refreshDashboard(){
       if(sa.next_expiry_date){
         const daysToExpiry = Math.round((new Date(sa.next_expiry_date)-new Date())/86400000);
         if(daysToExpiry>=0 && daysToExpiry<=EXPIRY_WARNING_DAYS){
-          alerts.push({icon:'ai-o', svg:'clock', title:`${sa.name} expiring soon`, sub:`Expires ${sa.next_expiry_date} (${daysToExpiry} day${daysToExpiry===1?'':'s'})`, module:'Inventory', priority: daysToExpiry<=2?'critical':'high', kind:'alert'});
+          const isUrgent = daysToExpiry<=2;
+          alerts.push({icon:'ai-o', svg:'clock', title: isUrgent ? `${sa.name} is ${daysToExpiry} day${daysToExpiry===1?'':'s'} from expiring — consider a priority sale` : `${sa.name} expiring soon`, sub:`Expires ${sa.next_expiry_date} (${daysToExpiry} day${daysToExpiry===1?'':'s'})`, module:'Inventory', priority: isUrgent?'critical':'high', kind:'alert'});
         }
+      }
+    });
+
+    // ── 27. Inventory — slow-moving stock (no purchase/usage in 30+ days) ──
+    const SLOW_MOVING_DAYS = 30;
+    inventoryLevels.filter(i=>i.qty>0 && i.status!=='unknown').forEach(i=>{
+      const purchDates = allPurchasesByItem.filter(p=>p.item_id===i.id).map(p=>new Date(p.date));
+      const usageDates = allUsageByItem.filter(u=>u.item_id===i.id && u.production_batches?.date).map(u=>new Date(u.production_batches.date));
+      const allDates = [...purchDates, ...usageDates];
+      if(!allDates.length) return; // no history at all — already the 'unknown' status case, not slow-moving
+      const lastActivity = new Date(Math.max(...allDates));
+      const daysSince = Math.round((new Date()-lastActivity)/86400000);
+      if(daysSince>=SLOW_MOVING_DAYS){
+        notices.push({icon:'ai-b', svg:'clock', title:`${i.name} hasn't moved in ${daysSince} days`, sub:`${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit} on hand — slow-moving stock`, module:'Inventory', priority:'info', kind:'notice'});
       }
     });
 
@@ -1182,6 +1203,20 @@ async function refreshDashboard(){
     pendingApprovals.slice(0,3).forEach(p=>{
       alerts.push({icon:'ai-o', svg:'clock', title:'Purchase approval pending', sub:`${p.expense_categories?.name || 'Expense'} — ${fmtETB(p.total_cost)} ETB`, link:'purchases.html?approvals=1', module:'Purchase', priority:'high', kind:'alert'});
     });
+
+    // ── 28. Purchase — month-over-month total spend ─────────
+    {
+      const purchasesCurTotal = purchasesRows.reduce((s,p)=>s+num(p.total_cost),0);
+      const purchasesPrevTotal = (purchasesPrevPeriodTotal||[]).reduce((s,p)=>s+num(p.total_cost),0);
+      if(purchasesPrevTotal>0){
+        const pctChange = Math.round(((purchasesCurTotal-purchasesPrevTotal)/purchasesPrevTotal)*100);
+        if(pctChange>=20){
+          alerts.push({icon:'ai-o', svg:'warn', title:`You've spent ${pctChange}% more on purchases this month than last month`, sub:`${fmtETB(purchasesCurTotal)} ETB vs ${fmtETB(purchasesPrevTotal)} ETB last period`, module:'Purchase', priority:'medium', kind:'alert'});
+        } else if(pctChange<=-20){
+          notices.push({icon:'ai-g', svg:'check', title:`Purchases are down ${Math.abs(pctChange)}% vs last month`, sub:`${fmtETB(purchasesCurTotal)} ETB vs ${fmtETB(purchasesPrevTotal)} ETB last period`, module:'Purchase', priority:'info', kind:'notice'});
+        }
+      }
+    }
 
     // ── 3. Sales — unusually low/high daily sales, target ──
     {
@@ -1214,6 +1249,18 @@ async function refreshDashboard(){
       notices.push({icon:'ai-g', svg:'check', title:'Cash position improved', sub:`Up ${fmtETB(cashTotalCur-cashTotalPrev)} ETB vs last month — now ${fmtETB(cashTotalCur)} ETB`, module:'Cash', priority:'success', kind:'notice'});
     }
 
+    // ── 30. Cash — burn-rate runway (distinct from the threshold alert above:
+    // that one fires on a fixed % of overhead; this one estimates actual days
+    // left at the current spending pace, and only speaks up when cash isn't
+    // already flagged critical above, to avoid piling on).
+    if(monthlyOpexApprox>0 && !(cashTotalCur < monthlyOpexApprox*CASH_LOW_PCT)){
+      const dailyBurn = monthlyOpexApprox/30;
+      const runwayDays = dailyBurn>0 ? Math.round(cashTotalCur/dailyBurn) : Infinity;
+      if(isFinite(runwayDays) && runwayDays<=20){
+        alerts.push({icon:'ai-o', svg:'warn', title:`At this month's spending pace, your cash covers about ${runwayDays} more day${runwayDays===1?'':'s'}`, sub:`${fmtETB(cashTotalCur)} ETB on hand ÷ ~${fmtETB(dailyBurn)} ETB/day average spend`, module:'Cash', priority:'medium', kind:'alert'});
+      }
+    }
+
     // ── 6. Loans — payment due soon ─────────────────────────
     loanSummaryRows.forEach(l=>{
       if(l.next_payment_due){
@@ -1222,9 +1269,37 @@ async function refreshDashboard(){
       }
     });
 
+    // ── 25. Loans — pay-off progress and maturity ───────────
+    loanSummaryRows.filter(l=>l.status==='active').forEach(l=>{
+      if(num(l.principal_amount)>0){
+        const pctPaid = Math.round((1 - num(l.outstanding_balance)/num(l.principal_amount))*100);
+        if(pctPaid>=50 && pctPaid<100){
+          notices.push({icon:'ai-g', svg:'check', title:`Loan from ${l.lender_name} is now ${pctPaid}% paid off`, sub:`${fmtETB(l.outstanding_balance)} ETB remaining of ${fmtETB(l.principal_amount)} ETB`, module:'Cash', priority:'success', kind:'notice'});
+        }
+      }
+      if(l.disbursement_date && l.term_months){
+        const maturityDate = new Date(l.disbursement_date); maturityDate.setMonth(maturityDate.getMonth()+l.term_months);
+        const monthsToMaturity = Math.round((maturityDate-new Date())/(30*86400000));
+        if(monthsToMaturity>=0 && monthsToMaturity<=3){
+          notices.push({icon:'ai-b', svg:'calendar', title:`${l.lender_name} loan matures in ${monthsToMaturity===0?'less than a month':monthsToMaturity+' month'+(monthsToMaturity===1?'':'s')}`, sub:`Final payment due ${maturityDate.toISOString().slice(0,10)}`, module:'Cash', priority:'info', kind:'notice'});
+        }
+      }
+    });
+
     // ── 7. Customers — credit limit approaching ─────────────
     customerProfitability.filter(c=>num(c.credit_limit)>0 && (num(c.outstanding_ar)/num(c.credit_limit))*100>=CREDIT_WARNING_PCT).slice(0,2).forEach(c=>{
       alerts.push({icon:'ai-b', svg:'users', title:'Credit limit approaching', sub:`${c.name} — ${Math.round(num(c.outstanding_ar)/num(c.credit_limit)*100)}% of limit used`, module:'Customers', priority:'high', kind:'alert'});
+    });
+
+    // ── 26. Customers — dormant (no order in 60+ days) ──────
+    const DORMANT_CUSTOMER_DAYS = 60;
+    customerProfitability.filter(c=>{
+      if(!c.last_purchase_date) return false;
+      const daysSince = Math.round((new Date()-new Date(c.last_purchase_date))/86400000);
+      return daysSince>=DORMANT_CUSTOMER_DAYS;
+    }).slice(0,3).forEach(c=>{
+      const daysSince = Math.round((new Date()-new Date(c.last_purchase_date))/86400000);
+      notices.push({icon:'ai-b', svg:'users', title:`${c.name} hasn't ordered in ${daysSince} days`, sub:`Might be worth a check-in — last order ${c.last_purchase_date}`, module:'Customers', priority:'info', kind:'notice'});
     });
 
     // ── 8. Expense / Budget — over-budget line items ────────
@@ -1268,7 +1343,14 @@ async function refreshDashboard(){
       const bs = (businessSettingsRows && businessSettingsRows[0]) || {};
       [bs.teff_item_id, bs.rice_item_id].filter(Boolean).forEach(itemId=>{
         const lvl = inventoryLevels.find(i=>i.id===itemId);
-        if(lvl && lvl.status==='low') alerts.push({icon:'ai-r', svg:'warn', title:`${lvl.name} running low for milling`, sub:`Current: ${lvl.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${lvl.unit}`, module:'Milling', priority:'critical', kind:'alert'});
+        if(!lvl || lvl.status!=='low') return;
+        const hasRunway = lvl.daysRemaining!=null && isFinite(lvl.daysRemaining) && lvl.daysRemaining>=0;
+        const days = hasRunway ? Math.round(lvl.daysRemaining) : null;
+        const title = hasRunway
+          ? `You have enough ${lvl.name} for only ${days} more production day${days===1?'':'s'}`
+          : `${lvl.name} running low for milling`;
+        const sub = `Current: ${lvl.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${lvl.unit}${hasRunway?` · Reorder level: ${lvl.reorder.toLocaleString('en-US',{maximumFractionDigits:2})} ${lvl.unit}`:''}`;
+        alerts.push({icon:'ai-r', svg:'warn', title, sub, module:'Milling', priority:'critical', kind:'alert'});
       });
       const millingThisPeriod = (millingConversionsAll||[]).filter(m=>m.date>=period+'-01' && m.date<=cutoffCur);
       if(millingThisPeriod.length){
@@ -1308,6 +1390,11 @@ async function refreshDashboard(){
       } else if(activeWorkers.length && paidWorkerIds.size>=activeWorkers.length && activeWorkers.length>0){
         notices.push({icon:'ai-g', svg:'check', title:'Salary processed', sub:`All ${activeWorkers.length} active workers paid for ${period}`, module:'HR', priority:'success', kind:'notice'});
       }
+      // ── 31. HR — pay reduced by low attendance this period ──
+      const workerNameById = {}; activeWorkers.forEach(w=>{ workerNameById[w.id]=w.name; });
+      (payrollDetailRows||[]).filter(p=>p.days_in_month>0 && (p.days_present/p.days_in_month)<0.85).forEach(p=>{
+        alerts.push({icon:'ai-o', svg:'warn', title:`${workerNameById[p.worker_id]||'A worker'}'s pay this period is lower than usual`, sub:`Only ${p.days_present} of ${p.days_in_month} days present — ${fmtETB(p.gross_pay)} ETB gross pay`, module:'HR', priority:'medium', kind:'alert'});
+      });
     }
 
     // ── 14. Assets — newly registered, disposed ──────────────
@@ -1317,6 +1404,10 @@ async function refreshDashboard(){
       }
       if(a.status==='disposed' && a.disposed_date && (new Date(today)-new Date(a.disposed_date))/86400000 <= 7){
         notices.push({icon:'ai-b', svg:'check', title:'Asset disposed', sub:a.asset_name, module:'Assets', priority:'info', kind:'notice'});
+      }
+      // ── 32. Assets — fully depreciated ──
+      if(a.status!=='disposed' && num(a.cost)>0 && num(a.accumulated_depreciation) >= num(a.cost)){
+        notices.push({icon:'ai-b', svg:'check', title:`${a.asset_name} is now fully depreciated`, sub:`Accumulated depreciation has reached its original cost of ${fmtETB(a.cost)} ETB`, module:'Assets', priority:'info', kind:'notice'});
       }
     });
 
@@ -1331,6 +1422,14 @@ async function refreshDashboard(){
       if(IS_VAT_REGISTERED && (vatSummaryRows||[]).length && num(vatSummaryRows[0].vat_payable)>0){
         alerts.push({icon:'ai-o', svg:'warn', title:'VAT payable this period', sub:`${fmtETB(vatSummaryRows[0].vat_payable)} ETB due`, module:'Accounting', priority:'medium', kind:'alert'});
       }
+      // ── 33. Accounting — period-over-period expense comparison ──
+      const opexCur = num(pnlCur.total_opex), opexPrev = num(pnlPrev.total_opex);
+      if(opexPrev>0){
+        const pctChange = Math.round(((opexCur-opexPrev)/opexPrev)*100);
+        if(pctChange>=15){
+          alerts.push({icon:'ai-o', svg:'warn', title:`This period's total expenses are ${pctChange}% higher than last period`, sub:`${fmtETB(opexCur)} ETB vs ${fmtETB(opexPrev)} ETB`, module:'Accounting', priority:'medium', kind:'alert'});
+        }
+      }
     }
 
     // ── 16. Security — repeated failed logins ─────────────────
@@ -1339,6 +1438,30 @@ async function refreshDashboard(){
       (recentLoginFailures||[]).forEach(l=>{ byEmail[l.email] = (byEmail[l.email]||0)+1; });
       Object.entries(byEmail).filter(([,n])=>n>=FAILED_LOGIN_THRESHOLD).forEach(([email,n])=>{
         alerts.push({icon:'ai-r', svg:'warn', title:'Repeated failed login attempts', sub:`${email} — ${n} failed attempts in the last 24 hours`, module:'Security', priority:'critical', kind:'alert'});
+      });
+    }
+
+    // ── 34. Security — login from a previously unseen IP address ──
+    // Only flags a user who already has an established history of IPs (2+
+    // login days on record) — otherwise every account's very first login ever
+    // would trivially count as "new", which isn't a useful signal.
+    {
+      const seenIpsByUser = {};
+      const todayLogins = [];
+      (allSuccessLogins||[]).forEach(l=>{
+        const uid = l.user_id || l.email;
+        if(!uid || !l.ip_address) return;
+        if(l.created_at && l.created_at.slice(0,10)===today){ todayLogins.push(l); }
+        else { (seenIpsByUser[uid] ||= new Set()).add(l.ip_address); }
+      });
+      const flaggedUsers = new Set();
+      todayLogins.forEach(l=>{
+        const uid = l.user_id || l.email;
+        const known = seenIpsByUser[uid];
+        if(known && known.size>0 && !known.has(l.ip_address) && !flaggedUsers.has(uid)){
+          flaggedUsers.add(uid);
+          alerts.push({icon:'ai-o', svg:'warn', title:`Login attempt from a new IP address for ${l.email}`, sub:`${l.ip_address} — not seen before for this account`, module:'Security', priority:'medium', kind:'alert'});
+        }
       });
     }
 
@@ -1355,6 +1478,28 @@ async function refreshDashboard(){
           notices.push({icon:'ai-g', svg:'check', title:`Sales increased ${chg.toFixed(0)}% compared to yesterday`, sub:`${fmtETB(salesTodayTotal)} ETB today vs ${fmtETB(yesterdayTotal)} ETB yesterday`, module:'Sales', priority:'success', kind:'notice'});
         } else if(chg<=-15){
           alerts.push({icon:'ai-o', svg:'warn', title:`Sales dropped ${Math.abs(chg).toFixed(0)}% compared to yesterday`, sub:`${fmtETB(salesTodayTotal)} ETB today vs ${fmtETB(yesterdayTotal)} ETB yesterday`, module:'Sales', priority:'medium', kind:'alert'});
+        }
+      }
+    }
+
+    // ── 35. Sales — weekend vs. weekday average (rolling 30 days) ──
+    {
+      const windowStart = new Date(); windowStart.setDate(windowStart.getDate()-30);
+      const weekendTotals = {}, weekdayTotals = {};
+      (allSalesAllTime||[]).filter(s=>s.date && new Date(s.date)>=windowStart).forEach(s=>{
+        const d = new Date(s.date);
+        const bucket = (d.getDay()===0 || d.getDay()===6) ? weekendTotals : weekdayTotals;
+        bucket[s.date] = (bucket[s.date]||0) + num(s.revenue);
+      });
+      const weekendDays = Object.keys(weekendTotals).length, weekdayDays = Object.keys(weekdayTotals).length;
+      if(weekendDays>=2 && weekdayDays>=2){
+        const weekendAvg = Object.values(weekendTotals).reduce((a,b)=>a+b,0)/weekendDays;
+        const weekdayAvg = Object.values(weekdayTotals).reduce((a,b)=>a+b,0)/weekdayDays;
+        if(weekdayAvg>0){
+          const pct = Math.round(((weekendAvg-weekdayAvg)/weekdayAvg)*100);
+          if(Math.abs(pct)>=15){
+            notices.push({icon:'ai-b', svg:'check', title:`Weekend sales are running ${Math.abs(pct)}% ${pct>0?'higher':'lower'} than weekdays`, sub:`${fmtETB(weekendAvg)} ETB/day weekends vs ${fmtETB(weekdayAvg)} ETB/day weekdays — last 30 days`, module:'Sales', priority:'info', kind:'notice'});
+          }
         }
       }
     }
@@ -1430,6 +1575,21 @@ async function refreshDashboard(){
           alerts.push({icon:'ai-o', svg:'warn', title:`${supName} increased ${itemName} price ${pct}%`, sub:`${fmtETB(latestUnit)} ETB/unit now vs ${fmtETB(priorUnit)} ETB/unit last purchase`, module:'Purchase', priority:'medium', kind:'alert'});
         }
       });
+
+      // ── 29. Purchase — supplier raised price 3 purchases in a row ──
+      Object.values(bySupplierItem).forEach(rows=>{
+        if(rows.length<3) return;
+        const units = rows.slice(0,3).filter(p=>num(p.quantity)>0).map(p=>num(p.total_cost)/num(p.quantity));
+        if(units.length<3) return;
+        // rows arrive date-desc, so units[0] is the most recent — strictly rising
+        // each step back means 3 consecutive purchases with an increasing price.
+        if(units[0]>units[1] && units[1]>units[2]){
+          const supName = supplierNameById[rows[0].supplier_id] || 'Supplier';
+          const itemName = itemNameById[rows[0].item_id] || 'Item';
+          const totalPct = Math.round((units[0]/units[2]-1)*100);
+          alerts.push({icon:'ai-o', svg:'warn', title:`${supName} has raised ${itemName} prices for 3 purchases in a row`, sub:`Up ${totalPct}% over that span — ${fmtETB(units[2])} → ${fmtETB(units[1])} → ${fmtETB(units[0])} ETB/unit`, module:'Purchase', priority:'medium', kind:'alert'});
+        }
+      });
     }
 
     // ── 22. Customers — single top customer concentration ────────
@@ -1445,20 +1605,31 @@ async function refreshDashboard(){
       }
     }
 
-    // ── 23. Customers — balances due within the next 7 days ──────
-    // Note: there's no separate invoices table in this schema — this tracks
-    // customer_profitability balances against payment_terms_days, the same
-    // fields already used for the overdue-payment alert above.
+    // ── 23. Customers — individual invoices due within the next 7 days ────
+    // True per-invoice tracking: each unpaid credit sale, matched against its own
+    // credit_payments by sale_id, with a due date computed from that customer's
+    // payment_terms_days — not the per-customer balance approximation this used
+    // to be (there's still no invoice number/table in the schema; each credit
+    // `sales` row is the closest thing to one).
     {
-      const dueSoonCustomers = customerProfitability.filter(c=>{
-        if(!(num(c.outstanding_ar)>0 && c.last_purchase_date && c.payment_terms_days>0)) return false;
-        const dueDate = new Date(c.last_purchase_date); dueDate.setDate(dueDate.getDate()+c.payment_terms_days);
+      const customersById = {};
+      (customersRows||[]).forEach(c=>{ customersById[c.id] = c; });
+      const paidBySale = {};
+      (allCreditPayments||[]).forEach(p=>{ if(p.sale_id) paidBySale[p.sale_id] = (paidBySale[p.sale_id]||0) + num(p.amount_paid); });
+      const dueSoonInvoices = (allSalesAllTime||[]).filter(s=>s.payment_method==='credit' && s.id).map(s=>{
+        const cust = customersById[s.customer_id];
+        if(!cust || !cust.payment_terms_days) return null;
+        const outstanding = num(s.revenue) - (paidBySale[s.id]||0);
+        if(outstanding<=0.009) return null;
+        const dueDate = new Date(s.date); dueDate.setDate(dueDate.getDate()+cust.payment_terms_days);
         const daysUntilDue = Math.round((dueDate-new Date(today))/86400000);
-        return daysUntilDue>=0 && daysUntilDue<=7;
-      });
-      if(dueSoonCustomers.length){
-        const totalDueSoon = dueSoonCustomers.reduce((s,c)=>s+num(c.outstanding_ar),0);
-        alerts.push({icon:'ai-p', svg:'calendar', title:`${dueSoonCustomers.length} customer balance${dueSoonCustomers.length===1?'':'s'} due within 7 days`, sub:`${fmtETB(totalDueSoon)} ETB total — ${dueSoonCustomers.map(c=>c.name).slice(0,3).join(', ')}${dueSoonCustomers.length>3?'…':''}`, module:'Customers', priority:'high', kind:'alert'});
+        if(daysUntilDue<0 || daysUntilDue>7) return null;
+        return { customerName: cust.name, outstanding, daysUntilDue };
+      }).filter(Boolean);
+      if(dueSoonInvoices.length){
+        const totalDueSoon = dueSoonInvoices.reduce((s,inv)=>s+inv.outstanding,0);
+        const names = [...new Set(dueSoonInvoices.map(inv=>inv.customerName))];
+        alerts.push({icon:'ai-p', svg:'calendar', title:`${dueSoonInvoices.length} invoice${dueSoonInvoices.length===1?'':'s'} become overdue within the next 7 days`, sub:`${fmtETB(totalDueSoon)} ETB total — ${names.slice(0,3).join(', ')}${names.length>3?'…':''}`, module:'Customers', priority:'high', kind:'alert'});
       }
     }
 
