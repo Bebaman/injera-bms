@@ -567,7 +567,7 @@ async function getCurrentUserLabel(){
   }
   return _currentUserLabelCache;
 }
-let currentPeriod = '2026-05';
+let currentPeriod = null; // set below, once MONTHS is built from the real data range
 let allSales    = [];
 let allCustomers= [];
 let customerBalances = []; // rows from the customer_profitability view — true running AR balance per customer
@@ -593,15 +593,46 @@ const CTYPE_FROM_DB = { hotel:'Hotel', restaurant:'Restaurant', wholesale:'Whole
 //  option's value and its visible label, so we key off the friendly
 //  label (e.g. "May 2026") and translate to the ISO period key
 //  (e.g. "2026-05") ourselves wherever Supabase queries need it.
+//
+//  Built dynamically from the real data range (earliest sale's month
+//  through the actual current month) instead of a hardcoded list —
+//  the old list was a fixed Jan–Jun 2026 array that silently couldn't
+//  show any month after June, and needed a manual edit every month.
 // ═══════════════════════════════════════════════════
-const MONTHS = [
-  { key:'2026-01', label:'Jan 2026' },
-  { key:'2026-02', label:'Feb 2026' },
-  { key:'2026-03', label:'Mar 2026' },
-  { key:'2026-04', label:'Apr 2026' },
-  { key:'2026-05', label:'May 2026' },
-  { key:'2026-06', label:'Jun 2026' },
-];
+let MONTHS = [];
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function periodKey(y, m){ return `${y}-${String(m+1).padStart(2,'0')}`; } // m is 0-indexed
+function periodLabel(y, m){ return `${MONTH_ABBR[m]} ${y}`; }
+// Correct end-of-month date for a "YYYY-MM" period — replaces the old
+// hardcoded `${currentPeriod}-31`, which PostgREST hard-rejects as an
+// invalid date for any month that doesn't have 31 days (Feb/Apr/Jun/Sep/Nov),
+// so sales data silently failed to load for 5 months of every year.
+function periodEndDate(period){
+  const [y, m] = period.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate(); // day 0 of next month = last day of this month
+  return `${period}-${String(lastDay).padStart(2,'0')}`;
+}
+async function buildMonthList(){
+  const today = new Date();
+  let startY = today.getFullYear(), startMo = today.getMonth();
+  try {
+    const rows = await sbGet('sales?select=date&is_deleted=eq.false&order=date.asc&limit=1');
+    if (rows && rows[0] && rows[0].date){
+      const [y, m] = rows[0].date.split('-').map(Number);
+      startY = y; startMo = m - 1;
+    }
+  } catch (err) {
+    console.error('Could not load earliest sale date — defaulting month picker to current month only:', err);
+  }
+  const months = [];
+  let y = startY, m = startMo;
+  const endY = today.getFullYear(), endMo = today.getMonth();
+  while (y < endY || (y === endY && m <= endMo)){
+    months.push({ key: periodKey(y, m), label: periodLabel(y, m) });
+    m++; if (m > 11){ m = 0; y++; }
+  }
+  return months.length ? months : [{ key: periodKey(endY, endMo), label: periodLabel(endY, endMo) }];
+}
 function periodFromLabel(label){ const m = MONTHS.find(x => x.label === label); return m ? m.key : currentPeriod; }
 
 // ═══════════════════════════════════════════════════
@@ -619,26 +650,33 @@ const SALES_NOTIFICATIONS = [
   { type:'g', title:'Payment collected',                   sub:'Yeka Retail Shop settled 1,800.00 ETB via Mobile Money', time:'4d ago' },
 ];
 
-renderHeader({
-  title: 'Sales Overview',
-  subtitle: 'Track sales performance, revenue, and customer profitability',
-  showMonthPicker: true,
-  months: MONTHS.map(m => m.label),
-  selectedMonth: (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label,
-  onMonthChange: (label) => {
-    currentPeriod = periodFromLabel(label);
-    document.getElementById('txnPeriodLabel').textContent = `(${label})`;
-    salesPage = 1;
-    loadAll();
-  },
-  notifications: SALES_NOTIFICATIONS
-});
+async function initHeaderAndData(){
+  MONTHS = await buildMonthList();
+  currentPeriod = MONTHS[MONTHS.length - 1].key; // real current month, not a hardcoded stale default
+  renderHeader({
+    title: 'Sales Overview',
+    subtitle: 'Track sales performance, revenue, and customer profitability',
+    showMonthPicker: true,
+    months: MONTHS.map(m => m.label),
+    selectedMonth: (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label,
+    onMonthChange: (label) => {
+      currentPeriod = periodFromLabel(label);
+      document.getElementById('txnPeriodLabel').textContent = `(${label})`;
+      salesPage = 1;
+      loadAll();
+    },
+    notifications: SALES_NOTIFICATIONS
+  });
+  loadAll();
+}
+initHeaderAndData();
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeSidebar();
+    // Sidebar open/pinned state, notif/user/export panels are now handled
+    // centrally by bindGlobalChromeHandlers() in app-state.js — this only
+    // needs to own what's actually specific to this page (its own modals).
     closeAllDrops();
-    // Close any open modal
     document.querySelectorAll('.modal-bg.open').forEach(m => {
       m.classList.remove('open');
       document.body.style.overflow = '';
@@ -768,7 +806,7 @@ async function loadCustomerBalances() {
 async function loadSales() {
   try {
     const qs = `select=id,date,product_type,customer_id,quantity,payment_method,unit_price,revenue,settled_date,customers(name,type,credit_limit)` +
-               `&date=gte.${currentPeriod}-01&date=lte.${currentPeriod}-31&is_deleted=eq.false&order=date.desc`;
+               `&date=gte.${currentPeriod}-01&date=lte.${periodEndDate(currentPeriod)}&is_deleted=eq.false&order=date.desc`;
     const data = await sbGet(`sales?${qs}`);
     allSales = (data || []).map(r => ({
       ...r,
@@ -790,7 +828,7 @@ async function buildCollections() {
   // Recent payments against credit sales
   const qs = `select=settled_date,customers(name),revenue,payment_method` +
              `&payment_method=eq.credit&settled_date=not.is.null&is_deleted=eq.false` +
-             `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${currentPeriod}-31` +
+             `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${periodEndDate(currentPeriod)}` +
              `&order=settled_date.desc&limit=6`;
   let data = [];
   try { data = await sbGet(`sales?${qs}`) || []; } catch (err) { console.error(err); }
@@ -1122,7 +1160,7 @@ async function buildTrendCharts() {
     months.push(`${y}-${String(m).padStart(2,'0')}`);
   }
   const startDate = months[0] + '-01';
-  const endDate   = currentPeriod + '-31';
+  const endDate   = periodEndDate(currentPeriod);
 
   let data = [];
   try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}&is_deleted=eq.false`) || []; } catch (err) { console.error(err); return; }
@@ -2102,10 +2140,13 @@ function pmTag(m)   {
 
 // ═══════════════════════════════════════════════════
 //  BOOT
+//  Data loading is kicked off by initHeaderAndData() above, once the
+//  month list (and therefore currentPeriod) is actually known — a
+//  separate DOMContentLoaded → loadAll() here would either race that
+//  (calling loadAll() while currentPeriod is still null) or just
+//  duplicate the load a second time. Removed; nothing else needs to
+//  happen at DOMContentLoaded for booting data.
 // ═══════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  loadAll();
-});
 </script>
 </body>
 </html>
