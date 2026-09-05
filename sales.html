@@ -874,7 +874,15 @@ async function loadCustomers() {
 async function loadCustomerBalances() {
   try {
     customerBalances = await sbGet('customer_profitability?select=id,name,credit_limit,total_credit_sales,total_collected,outstanding_ar,last_purchase_date') || [];
-  } catch (err) { console.error(err); customerBalances = []; }
+  } catch (err) {
+    // Was silently falling back to [] — that made a genuine fetch failure
+    // look identical to "no customers have any AR," including on the
+    // Outstanding A/R KPI (would silently show 0.00 instead of failing
+    // visibly). Now it surfaces.
+    console.error(err);
+    customerBalances = [];
+    showToast('Could not load customer balances — Outstanding A/R may be incomplete', 'err');
+  }
 }
 
 async function loadSales() {
@@ -906,7 +914,10 @@ async function buildCollections() {
              `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${periodEndDate(currentPeriod)}` +
              `&order=settled_date.desc&limit=6`;
   let data = [];
-  try { data = await sbGet(`sales?${qs}`) || []; } catch (err) { console.error(err); }
+  try { data = await sbGet(`sales?${qs}`) || []; } catch (err) {
+    console.error(err);
+    showToast('Could not load recent collections', 'err');
+  }
 
   const tbody = document.getElementById('collectBody');
   collectionsFull = data.map(r => ({settled_date:r.settled_date, name:r.customers?.name || 'Unknown', revenue:parseFloat(r.revenue||0), method:PM_FROM_DB[r.payment_method]||r.payment_method}));
@@ -920,7 +931,7 @@ async function buildCollections() {
     const pm = pmTag(r.payment_method);
     return `<tr>
       <td>${fmtDate(r.settled_date)}</td>
-      <td>${r.customers?.name || '—'}</td>
+      <td>${esc(r.customers?.name || '—')}</td>
       <td>${fmt(r.revenue)}</td>
       <td>${pm}</td>
     </tr>`;
@@ -1049,8 +1060,8 @@ function renderSalesTable(sales, opts) {
   const pageData = opts.all ? sales : sales.slice((salesPage-1)*SALES_PER_PAGE, salesPage*SALES_PER_PAGE);
 
   let rows = pageData.map((r) => {
-    const cust = r.customers?.name || '—';
-    const type = r.customers?.customer_type || '—';
+    const cust = esc(r.customers?.name || '—'); // escaped once here — customer names are free-entry text, and this value is reused below both as a quoted HTML attribute and as cell text
+    const type = r.customers?.customer_type || '—'; // fixed enum (Hotel/Restaurant/Wholesale/Retail via CTYPE_FROM_DB) — not user free-text, safe as-is
     const rev  = parseFloat(r.revenue || 0);
     const isProd = r.product === 'Injera';
     const dc = isProd ? '#27ae60' : '#f59e0b';
@@ -1197,7 +1208,7 @@ function buildProfitability(sales) {
   tbody.innerHTML = sorted.map(([id,d]) => {
     const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
     return `<tr>
-      <td>${d.name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td>
+      <td>${esc(d.name)}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td>
       <td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td>
       <td>${fmt(d.outstanding)}</td><td>${avg_days}</td>
     </tr>`;
@@ -1234,7 +1245,7 @@ function buildAR(sales) {
     total += d.outstanding;
     const days = d.date ? daysSinceLocal(d.date) : '—';
     const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
-    return `<tr><td>${d.name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+    return `<tr><td>${esc(d.name)}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
   }).join('');
   html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
   tbody.innerHTML = html;
@@ -1301,7 +1312,11 @@ async function buildTrendCharts() {
   const endDate   = periodEndDate(currentPeriod);
 
   let data = [];
-  try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}&is_deleted=eq.false`) || []; } catch (err) { console.error(err); return; }
+  try { data = await sbGet(`sales?select=date,product_type,revenue&date=gte.${startDate}&date=lte.${endDate}&is_deleted=eq.false`) || []; } catch (err) {
+    console.error(err);
+    showToast('Could not load trend chart data', 'err');
+    return;
+  }
 
   const revByMonth = {}, injByMonth = {}, drkByMonth = {};
   months.forEach(m => { revByMonth[m]=0; injByMonth[m]=0; drkByMonth[m]=0; });
@@ -1447,12 +1462,12 @@ async function rowDelete(e, id) {
 //  CUSTOMERS DROPDOWN
 // ═══════════════════════════════════════════════════
 function populateCustomerDropdowns() {
-  const opts = allCustomers.map(c => `<option value="${c.id}" data-type="${c.customer_type||''}" data-limit="${c.credit_limit||0}">${c.name}</option>`).join('');
+  const opts = allCustomers.map(c => `<option value="${c.id}" data-type="${c.customer_type||''}" data-limit="${c.credit_limit||0}">${esc(c.name)}</option>`).join('');
   document.getElementById('f-customer').innerHTML = opts;
-  document.getElementById('c-customer').innerHTML = allCustomers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('c-customer').innerHTML = allCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
   const fltCust = document.getElementById('flt-customer');
-  fltCust.innerHTML = '<option value="">All Customers</option>' + allCustomers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  fltCust.innerHTML = '<option value="">All Customers</option>' + allCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
   onCustomerChange();
 }
@@ -1702,14 +1717,14 @@ function viewAll(e, section) {
     if (!profitFullSorted.length) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--tl)">No data</td></tr>`; }
     else tbody.innerHTML = profitFullSorted.map(([id,d]) => {
       const avg_days = d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
-      return `<tr><td>${d.name}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td><td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td><td>${fmt(d.outstanding)}</td><td>${avg_days}</td></tr>`;
+      return `<tr><td>${esc(d.name)}</td><td>${fmt(d.rev)}</td><td>${d.orders}</td><td>${fmt(d.rev/d.orders)}</td><td>${pmTag(d.pm)}</td><td>${fmt(d.outstanding)}</td><td>${avg_days}</td></tr>`;
     }).join('');
   } else if (section === 'Credit Collections') {
     thead.innerHTML = `<tr><th>Date</th><th>Customer</th><th>Amount (ETB)</th><th>Payment Method</th></tr>`;
     if (!collectionsFull.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No collections this period</td></tr>`; }
     else {
       let total = 0;
-      let html = collectionsFull.map(r => { total += parseFloat(r.revenue||0); return `<tr><td>${fmtDate(r.settled_date)}</td><td>${r.name}</td><td>${fmt(r.revenue)}</td><td>${pmTag(r.method)}</td></tr>`; }).join('');
+      let html = collectionsFull.map(r => { total += parseFloat(r.revenue||0); return `<tr><td>${fmtDate(r.settled_date)}</td><td>${esc(r.name)}</td><td>${fmt(r.revenue)}</td><td>${pmTag(r.method)}</td></tr>`; }).join('');
       html += `<tr class="tot"><td>TOTAL</td><td></td><td>${fmt(total)}</td><td></td></tr>`;
       tbody.innerHTML = html;
     }
@@ -1722,7 +1737,7 @@ function viewAll(e, section) {
         total += d.outstanding;
         const days = d.date ? daysSinceLocal(d.date) : '—';
         const cls  = (typeof days === 'number' && days > 7) ? 'row-overdue' : '';
-        return `<tr><td>${d.name}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
+        return `<tr><td>${esc(d.name)}</td><td>${fmt(d.outstanding)}</td><td class="${cls}">${days}</td><td>${fmt(d.limit)}</td></tr>`;
       }).join('');
       html += `<tr class="tot"><td>TOTAL</td><td>${fmt(total)}</td><td class="dim">—</td><td class="dim">—</td></tr>`;
       tbody.innerHTML = html;
@@ -1752,7 +1767,7 @@ function exportPDF(e) {
     <tr>
       <td>${fmtDate(r.date)}</td>
       <td>${r.product}</td>
-      <td>${r.customers?.name||'—'}</td>
+      <td>${esc(r.customers?.name||'—')}</td>
       <td>${r.customers?.customer_type||'—'}</td>
       <td>${(r.quantity||0).toLocaleString()}</td>
       <td>${r.product==='Injera'?'pcs':'kg'}</td>
@@ -2257,6 +2272,10 @@ document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click'
 
 // Helpers
 function fmt(v)     { return (parseFloat(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// esc() (HTML-escaping for untrusted text before innerHTML interpolation)
+// now lives in the shared app-state.js, loaded before this script — see
+// that file's copy for the full rationale. Used below wherever a customer
+// name (free-entry, staff-typed) gets interpolated into a table/notification.
 function avg(arr)   { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 function fmtDate(d) { if(!d)return'—'; const dt=new Date(d); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 /* Days between a DB date-only value (parsed as UTC midnight) and the
