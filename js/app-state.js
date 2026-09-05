@@ -83,6 +83,14 @@ function _releaseRefreshLock(){
   try{ localStorage.removeItem(REFRESH_LOCK_KEY); }catch(e){}
 }
 let _refreshTimer = null;
+/* Refresh attempts get 3 tries with short backoff before giving up. This
+   closes the "woke the laptop, first request after sleep hit a network
+   blip, refresh failed once, stale token went out anyway" gap — that
+   transient case was what surfaced as a raw "JWT expired" error at random
+   times (6hrs one day, 8hrs the next) despite a 7-day "remember me". A
+   400/401 from Supabase itself (refresh_token invalid/reused/revoked) is
+   NOT retried — that's a real, final rejection, not a network hiccup. */
+const REFRESH_RETRY_DELAYS_MS = [500, 1500]; // between attempt 1→2 and 2→3
 async function refreshAccessToken(){
   const session = loadSession();
   if (!session || !session.refresh_token) return false;
@@ -94,28 +102,45 @@ async function refreshAccessToken(){
   }
   try{
     const authBase = window.SB_URL.replace(/\/rest\/v1\/?$/, '');
-    const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { 'apikey': window.SB_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: session.refresh_token })
-    });
-    if (!res.ok) throw new Error(`Refresh failed (${res.status})`);
-    const data = await res.json();
-    if (!data.access_token) throw new Error('Refresh response had no access_token');
-    // hard_expiry (the "Remember Me" ceiling) is intentionally left untouched —
-    // a refreshed access_token must not extend that separate hard cutoff.
-    const updated = Object.assign({}, session, {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token || session.refresh_token
-    });
-    const usedLocal = !!localStorage.getItem('injera_session');
-    (usedLocal ? localStorage : sessionStorage).setItem('injera_session', JSON.stringify(updated));
-    scheduleTokenRefresh();
-    return true;
-  }catch(e){
-    console.error('[app-state] token refresh failed', e);
+    const maxAttempts = REFRESH_RETRY_DELAYS_MS.length + 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt++){
+      try{
+        const res = await fetch(`${authBase}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { 'apikey': window.SB_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: session.refresh_token })
+        });
+        if (!res.ok){
+          if (res.status === 400 || res.status === 401){
+            // Definitive rejection (bad/reused/revoked refresh token) — retrying
+            // won't help, this genuinely needs a full re-login.
+            throw Object.assign(new Error(`Refresh rejected (${res.status})`), { fatal: true });
+          }
+          throw new Error(`Refresh failed (${res.status})`);
+        }
+        const data = await res.json();
+        if (!data.access_token) throw new Error('Refresh response had no access_token');
+        // hard_expiry (the "Remember Me" ceiling) is intentionally left untouched —
+        // a refreshed access_token must not extend that separate hard cutoff.
+        const updated = Object.assign({}, session, {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token || session.refresh_token
+        });
+        const usedLocal = !!localStorage.getItem('injera_session');
+        (usedLocal ? localStorage : sessionStorage).setItem('injera_session', JSON.stringify(updated));
+        scheduleTokenRefresh();
+        return true;
+      }catch(e){
+        const isLastAttempt = attempt === maxAttempts - 1;
+        if (e.fatal || isLastAttempt){
+          console.error('[app-state] token refresh failed', e);
+          return false;
+        }
+        await new Promise(r => setTimeout(r, REFRESH_RETRY_DELAYS_MS[attempt]));
+      }
+    }
     return false;
-  }finally{
+  } finally{
     _releaseRefreshLock();
   }
 }
@@ -218,48 +243,75 @@ async function authHeadersAsync(extra){
     'Content-Type': 'application/json'
   }, extra || {});
 }
-async function sbGet(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, { headers: await authHeadersAsync() });
-  if(!res.ok){
-    let detail=''; try{ detail=(await res.json()).message||''; }catch{}
-    throw new Error(`Supabase ${res.status} on ${path.split('?')[0]}${detail?': '+detail:''}`);
+/* Shared request core for sbGet/sbPost/sbPatch/sbDelete.
+   authHeadersAsync() already refreshes proactively when the token is
+   expiring within 30s, but a token can still go stale between that check
+   and the request landing (slow network, a throttled background tab). If
+   Supabase/PostgREST still rejects with an auth error, this forces one
+   real refresh and retries the request ONCE before giving up — that's
+   what used to surface as a raw "JWT expired" string with no recovery.
+   Only if the retry also fails (refresh_token itself is dead) do we clear
+   the session and send the user back to login, instead of leaving a raw
+   error on screen.
+
+   Also drives the shared "Connecting…/Data is up to date/Connection lost"
+   status pill (header.js's setSyncStatus) — every module gets a truthful,
+   live connection status for free since every module's data calls already
+   go through here; no page-specific wiring needed. */
+async function _sbRequest(method, path, body, extraHeaders, fallbackMsg){
+  const doFetch = async () => {
+    const opts = { method, headers: await authHeadersAsync(extraHeaders) };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(`${window.SB_URL}/${path}`, opts);
+  };
+
+  let res;
+  try{
+    res = await doFetch();
+  }catch(networkErr){
+    // fetch() itself rejected — offline, DNS failure, request blocked, etc.
+    // (as opposed to a completed-but-non-2xx response, handled below).
+    window.setSyncStatus?.('error', { message: 'Connection lost — retrying…' });
+    throw new Error('Could not reach the server. Check your internet connection.');
   }
+
+  if (res.status === 401 || res.status === 403){
+    const refreshed = await refreshAccessToken();
+    if (refreshed) res = await doFetch();
+  }
+
+  if (!res.ok){
+    let detail=''; try{ detail=(await res.json()).message||''; }catch{}
+    if (res.status === 401 || res.status === 403){
+      // Genuinely dead session — refresh (and the retry above) couldn't
+      // save it. Clear it and bounce to login instead of surfacing a raw
+      // "JWT expired" error the user can't do anything about.
+      clearSession();
+      if (typeof toast === 'function') toast('Your session has expired. Please sign in again.', 'error');
+      setTimeout(() => { window.location.href = 'login'; }, 1200);
+    } else {
+      window.setSyncStatus?.('error', { message: 'Some data failed to load' });
+    }
+    throw new Error(detail || fallbackMsg(res.status));
+  }
+  window.setSyncStatus?.('live');
   return res.json();
+}
+async function sbGet(path){
+  return _sbRequest('GET', path, undefined, undefined,
+    (status) => `Supabase ${status} on ${path.split('?')[0]}`);
 }
 async function sbPost(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'POST',
-    headers: await authHeadersAsync({ 'Prefer':'return=representation' }),
-    body: JSON.stringify(body)
-  });
-  if(!res.ok){
-    let detail=''; try{ detail=(await res.json()).message||''; }catch{}
-    throw new Error(detail || `Save failed (${res.status})`);
-  }
-  return res.json();
+  return _sbRequest('POST', path, body, { 'Prefer':'return=representation' },
+    (status) => `Save failed (${status})`);
 }
 async function sbPatch(path, body){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'PATCH',
-    headers: await authHeadersAsync({ 'Prefer':'return=representation' }),
-    body: JSON.stringify(body)
-  });
-  if(!res.ok){
-    let detail=''; try{ detail=(await res.json()).message||''; }catch{}
-    throw new Error(detail || `Update failed (${res.status})`);
-  }
-  return res.json();
+  return _sbRequest('PATCH', path, body, { 'Prefer':'return=representation' },
+    (status) => `Update failed (${status})`);
 }
 async function sbDelete(path){
-  const res = await fetch(`${window.SB_URL}/${path}`, {
-    method:'DELETE',
-    headers: await authHeadersAsync({ 'Prefer':'return=representation' })
-  });
-  if(!res.ok){
-    let detail=''; try{ detail=(await res.json()).message||''; }catch{}
-    throw new Error(detail || `Delete failed (${res.status})`);
-  }
-  return res.json();
+  return _sbRequest('DELETE', path, undefined, { 'Prefer':'return=representation' },
+    (status) => `Delete failed (${status})`);
 }
 
 /* ── Company settings (name / currency) ─────────────────
@@ -371,8 +423,15 @@ function signOut(){
   });
 }
 
-/* ── Global outside-click handling for notif/user/export panels ──
-   sidebar.js/header.js call this once after they render. */
+/* ── Global outside-click / Escape handling ──────────────────────
+   sidebar.js/header.js call this once after they render.
+   Escape-to-close used to be copy-pasted per page (and only closed the
+   sidebar, never the pinned-desktop state, never notif/user/export
+   panels or open modals) — centralized here so every page gets full,
+   consistent keyboard behavior for free, and pages don't each need their
+   own duplicate listener. Page-specific Escape behavior (e.g. closing a
+   page's own modal) still belongs in that page's own listener; this only
+   owns the shared chrome (sidebar, notif/user/export panels). */
 let _globalChromeHandlersBound = false;
 function bindGlobalChromeHandlers(){
   if (_globalChromeHandlersBound) return;
@@ -388,5 +447,18 @@ function bindGlobalChromeHandlers(){
     }
     const expMenu = document.getElementById('exportMenu');
     if (expMenu && expMenu.classList.contains('show')) expMenu.classList.remove('show');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (typeof window._notifOpen !== 'undefined' && window._notifOpen) closeNotif();
+    if (typeof window._userPanelOpen !== 'undefined' && window._userPanelOpen){
+      document.getElementById('userPanel')?.classList.remove('open');
+      document.getElementById('userChip')?.classList.remove('open');
+      window._userPanelOpen = false;
+    }
+    document.getElementById('exportMenu')?.classList.remove('show');
+    const sb = document.getElementById('sidebar');
+    if (sb?.classList.contains('open') && typeof closeSidebar === 'function') closeSidebar();
+    if (sb?.classList.contains('pinned-open') && typeof unpinSidebar === 'function') unpinSidebar();
   });
 }

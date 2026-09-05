@@ -64,6 +64,7 @@ let _headerConfig = {};
 function renderHeader(config){
   _headerConfig = config || {};
   ensureHeaderResponsiveCSS();
+  ensureSyncStatusCSS();
   let root = document.getElementById('header-root');
   if (!root){
     root = document.createElement('div');
@@ -92,6 +93,68 @@ function renderHeader(config){
 
   if (typeof populateUserChrome === 'function') populateUserChrome();
   if (typeof bindGlobalChromeHandlers === 'function') bindGlobalChromeHandlers();
+
+  // Every page starts in "Connecting…" until its first successful Supabase
+  // request lands (app-state.js's request layer calls setSyncStatus('live')
+  // on every success, automatically, with no per-page wiring needed) or
+  // until the browser reports it's offline.
+  setSyncStatus(navigator.onLine === false ? 'offline' : 'connecting');
+}
+
+/* ── Real connectivity / sync status ──────────────────────────
+   Replaces the old static "Data is up to date" text, which never
+   changed regardless of whether requests were actually succeeding.
+   app-state.js's shared request layer (_sbRequest) calls this on every
+   Supabase call's success/failure, so every module gets a truthful
+   status with zero page-specific code. */
+let _syncState = 'connecting';
+let _lastSyncedAt = null;
+let _syncRelativeTimer = null;
+function setSyncStatus(state, opts){
+  _syncState = state;
+  if (state === 'live') _lastSyncedAt = Date.now();
+  const dot = document.getElementById('statDot');
+  const text = document.getElementById('statText');
+  if (!dot || !text) return; // header not rendered on this page yet
+  dot.classList.remove('stat-dot-live','stat-dot-connecting','stat-dot-error');
+  clearInterval(_syncRelativeTimer);
+  if (state === 'connecting'){
+    dot.classList.add('stat-dot-connecting');
+    text.textContent = 'Connecting…';
+  } else if (state === 'offline'){
+    dot.classList.add('stat-dot-error');
+    text.textContent = 'You appear to be offline';
+  } else if (state === 'error'){
+    dot.classList.add('stat-dot-error');
+    text.textContent = opts?.message || 'Connection lost — retrying…';
+  } else { // 'live'
+    dot.classList.add('stat-dot-live');
+    text.textContent = 'Data is up to date';
+    // After a minute of no further requests, switch to a relative
+    // "synced Xm ago" so a long-idle tab doesn't silently claim to be
+    // current when it hasn't actually talked to the server in a while.
+    _syncRelativeTimer = setInterval(() => {
+      if (!_lastSyncedAt) return;
+      const mins = Math.floor((Date.now() - _lastSyncedAt) / 60000);
+      if (mins >= 1) text.textContent = `Synced ${mins}m ago`;
+    }, 15000);
+  }
+}
+window.setSyncStatus = setSyncStatus;
+window.addEventListener('online', () => setSyncStatus('connecting'));
+window.addEventListener('offline', () => setSyncStatus('offline'));
+
+function ensureSyncStatusCSS(){
+  if (document.getElementById('sync-status-css')) return;
+  const style = document.createElement('style');
+  style.id = 'sync-status-css';
+  style.textContent = `
+    .stat-dot-live{ background:#52B788; }
+    .stat-dot-connecting{ background:#E9B949; animation:statPulse 1s ease-in-out infinite; }
+    .stat-dot-error{ background:#E05555; }
+    @keyframes statPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  `;
+  document.head.appendChild(style);
 }
 
 /* ── Responsive (tablet / mobile) ─────────────────────────────
@@ -158,7 +221,7 @@ function topbarInnerHTML(cfg){
     </div>` : '';
 
   return `
-    <div class="tb-ham" onclick="toggleSidebar()" title="Toggle sidebar">
+    <div class="tb-ham" onclick="toggleSidebar()" title="Toggle sidebar" role="button" tabindex="0" aria-label="Toggle sidebar" aria-expanded="false" aria-controls="sidebar" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSidebar();}">
       <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </div>
     <div class="tb-ttl">
@@ -182,7 +245,7 @@ function topbarInnerHTML(cfg){
         <div id="notifList"></div>
       </div>
 
-      <div class="stat-pill"><div class="stat-dot"></div>Data is up to date</div>
+      <div class="stat-pill" id="statPill"><div class="stat-dot" id="statDot"></div><span id="statText">Connecting…</span></div>
 
       ${exportBlock}
 

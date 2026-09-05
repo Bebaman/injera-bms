@@ -70,10 +70,13 @@ function isActiveNavItem(item){
 
 function sidebarHTML(){
   const groups = NAV_ITEMS.map(g => {
-    const links = g.items.map(item => `
-      <a class="sb-a${isActiveNavItem(item) ? ' active' : ''}" href="${item.href}" title="${item.label.replace(/&amp;/,'&')}">
+    const links = g.items.map(item => {
+      const active = isActiveNavItem(item);
+      return `
+      <a class="sb-a${active ? ' active' : ''}" href="${item.href}" title="${item.label.replace(/&amp;/,'&')}"${active ? ' aria-current="page"' : ''}>
         <svg viewBox="0 0 24 24">${item.icon}</svg><span>${item.label}</span>
-      </a>`).join('');
+      </a>`;
+    }).join('');
     return `<div class="sb-grp"><div class="sb-lbl">${g.group}</div>${links}</div>`;
   }).join('');
 
@@ -88,7 +91,7 @@ function sidebarHTML(){
     <div class="sb-foot">
       <div class="av">--</div>
       <div class="sb-foot-txt"><h4>Loading…</h4><span></span></div>
-      <div class="sb-logout" title="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+      <div class="sb-logout" title="Sign out" role="button" tabindex="0" aria-label="Sign out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
     </div>`;
 }
 
@@ -102,6 +105,8 @@ function renderSidebar(){
   const aside = document.createElement('aside');
   aside.className = 'sb collapsed';
   aside.id = 'sidebar';
+  aside.setAttribute('role', 'navigation');
+  aside.setAttribute('aria-label', 'Main navigation');
   aside.innerHTML = sidebarHTML();
   root.replaceWith(aside);
 
@@ -121,7 +126,13 @@ function renderSidebar(){
   // 220px width until JS narrowed it, which only happened under 1100px).
   if (main) main.classList.add('sb-collapsed');
 
-  document.querySelector('.sb-logout')?.addEventListener('click', signOut);
+  const logoutEl = document.querySelector('.sb-logout');
+  logoutEl?.addEventListener('click', signOut);
+  // role="button" elements aren't natively keyboard-activatable like a
+  // real <button> — Enter/Space need to be wired manually.
+  logoutEl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); signOut(); }
+  });
 
   if (typeof populateUserChrome === 'function') populateUserChrome();
   if (typeof bindGlobalChromeHandlers === 'function') bindGlobalChromeHandlers();
@@ -138,28 +149,35 @@ function toggleSidebar(){
   const sb = document.getElementById('sidebar');
   const main = document.getElementById('mainContent') || document.querySelector('.main');
   const overlay = document.getElementById('sbOverlay');
+  const ham = document.querySelector('.tb-ham');
+  let expanded;
   if (window.innerWidth > 900){
     const pinned = sb.classList.toggle('pinned-open');
     if (main){
       main.classList.toggle('sb-pinned', pinned);
       main.classList.toggle('sb-collapsed', !pinned); // pinned open needs the full-width margin, not the collapsed one
     }
+    expanded = pinned;
   } else {
-    sb.classList.toggle('open');
+    const open = sb.classList.toggle('open');
     if (overlay) overlay.classList.toggle('show');
+    expanded = open;
   }
+  ham?.setAttribute('aria-expanded', String(expanded));
 }
 function closeSidebar(){
   const sb = document.getElementById('sidebar');
   const overlay = document.getElementById('sbOverlay');
   if (sb) sb.classList.remove('open');
   if (overlay) overlay.classList.remove('show');
+  document.querySelector('.tb-ham')?.setAttribute('aria-expanded', 'false');
 }
 function unpinSidebar(){
   const sb = document.getElementById('sidebar');
   const main = document.getElementById('mainContent') || document.querySelector('.main');
   if (sb) sb.classList.remove('pinned-open');
   if (main){ main.classList.remove('sb-pinned'); main.classList.add('sb-collapsed'); }
+  document.querySelector('.tb-ham')?.setAttribute('aria-expanded', 'false');
 }
 function autoSidebarForWidth(){
   const sb = document.getElementById('sidebar');
@@ -170,7 +188,13 @@ function autoSidebarForWidth(){
     if (main) main.classList.add('sb-collapsed');
   }
 }
-window.addEventListener('resize', autoSidebarForWidth);
+// Debounced — a raw per-pixel resize listener was firing this on every
+// single resize event during a drag/rotation instead of once at the end.
+let _resizeDebounceTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeDebounceTimer);
+  _resizeDebounceTimer = setTimeout(autoSidebarForWidth, 120);
+});
 
 // Clicking outside a pinned-open sidebar un-pins it (desktop safety net)
 document.addEventListener('click', (e) => {
