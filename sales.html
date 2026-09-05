@@ -148,7 +148,14 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.modal-hd h3{font
 .filter-inner .fgrp{min-width:130px;flex:1}
 
 /* ══ LAYOUT ROWS ════════════════════════════════════ */
-.row-2{display:grid;grid-template-columns:2.5fr 1fr;gap:14px;margin-bottom:14px;align-items:stretch}
+.row-2{display:grid;grid-template-columns:2.5fr 1fr;gap:14px;margin-bottom:14px;align-items:start}
+/* was align-items:stretch — that force-stretched the transactions card to
+   match the (taller) donut-chart column beside it. With real content both
+   columns look fine either way, but with an empty/short table (e.g. zero
+   sales that period) it left a huge dead gap below the scrollbar, making
+   it look like it was floating in the middle of the card instead of
+   sitting snug under the table. align-items:start lets each column size
+   to its own content instead of forcing a match. */
 .row-2 .card,.row-2 .side-stack>.card{display:flex;flex-direction:column}
 .side-stack{display:flex;flex-direction:column;gap:14px;height:100%}
 .side-stack>.card{flex:1}
@@ -278,19 +285,19 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
 
     <!-- KPI ROW -->
     <div class="kpi-row" id="kpiRow">
-      <div class="kc reveal" style="--d:0"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><span class="kc-lbl">Total Revenue<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-rev" data-target="109711" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up" id="k-rev-chg">&#9650; 12.5%<span class="vs">vs Apr 2026</span></div></div>
-      <div class="kc reveal" style="--d:1"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><span class="kc-lbl">Cash Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-cash" data-target="63214" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 9.4%<span class="vs">vs Apr 2026</span></div></div>
-      <div class="kc reveal" style="--d:2"><div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Credit Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-credit" data-target="46497" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 17.8%<span class="vs">vs Apr 2026</span></div></div>
-      <div class="kc reveal" style="--d:3"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Injera (per piece)</span></span><div class="kc-val"><span class="cnt" id="k-inj-price" data-target="6.82" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg dn">&#9660; 1.3%<span class="vs">vs Apr 2026</span></div></div>
-      <div class="kc reveal" style="--d:4"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Derkosh (per kg)</span></span><div class="kc-val"><span class="cnt" id="k-derk-price" data-target="75.33" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg up">&#9650; 3.2%<span class="vs">vs Apr 2026</span></div></div>
-      <div class="kc reveal" style="--d:5"><div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Outstanding A/R<span class="sub">(All Customers)</span></span><div class="kc-val"><span class="cnt" id="k-ar" data-target="19712" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg dn">&#9660; 8.2%<span class="vs">vs Apr 2026</span></div></div>
+      <div class="kc reveal" style="--d:0"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><span class="kc-lbl">Total Revenue<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-rev" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-rev-chg"></div></div>
+      <div class="kc reveal" style="--d:1"><div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><span class="kc-lbl">Cash Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-cash" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-cash-chg"></div></div>
+      <div class="kc reveal" style="--d:2"><div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Credit Sales<span class="sub">(This Month)</span></span><div class="kc-val"><span class="cnt" id="k-credit" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-credit-chg"></div></div>
+      <div class="kc reveal" style="--d:3"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Injera (per piece)</span></span><div class="kc-val"><span class="cnt" id="k-inj-price" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-injprice-chg"></div></div>
+      <div class="kc reveal" style="--d:4"><div class="kc-ico ic-pu"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><span class="kc-lbl">Avg Selling Price<span class="sub">Derkosh (per kg)</span></span><div class="kc-val"><span class="cnt" id="k-derk-price" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-derkprice-chg"></div></div>
+      <div class="kc reveal" style="--d:5"><div class="kc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><span class="kc-lbl">Outstanding A/R<span class="sub">(All Customers)</span></span><div class="kc-val"><span class="cnt" id="k-ar" data-target="0" data-dec="2">0.00</span><span class="u">ETB</span></div><div class="kc-chg" id="k-ar-chg"></div></div>
     </div>
 
     <!-- TRANSACTIONS + DONUTS -->
     <div class="row-2">
       <div class="card reveal">
         <div class="card-hd">
-          <div class="card-ttl">Sales Transactions <span class="tag" id="txnPeriodLabel">(May 2026)</span></div>
+          <div class="card-ttl">Sales Transactions <span class="tag" id="txnPeriodLabel"></span></div>
           <div class="btn-row">
             <button class="btn-prim" onclick="openSaleModal(event)"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Sale</button>
             <button class="btn-sec" onclick="exportExcel(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export Excel</button>
@@ -614,19 +621,35 @@ function periodEndDate(period){
 }
 async function buildMonthList(){
   const today = new Date();
-  let startY = today.getFullYear(), startMo = today.getMonth();
+  // Floor: always show at least the last 6 months, even with zero sales
+  // recorded yet — otherwise a brand-new/empty month range collapses to a
+  // single unusable month (which is exactly what happened: an empty
+  // sales table gave a 1-option list with nowhere for the › arrow to go).
+  const FLOOR_MONTHS_BACK = 5; // + current month = 6 total minimum
+  let floorY = today.getFullYear(), floorMo = today.getMonth() - FLOOR_MONTHS_BACK;
+  while (floorMo < 0){ floorMo += 12; floorY--; }
+  let startY = floorY, startMo = floorMo;
   try {
     const rows = await sbGet('sales?select=date&is_deleted=eq.false&order=date.asc&limit=1');
     if (rows && rows[0] && rows[0].date){
       const [y, m] = rows[0].date.split('-').map(Number);
-      startY = y; startMo = m - 1;
+      // Use whichever is earlier — the real first sale, or the 6-month
+      // floor — so the range only ever grows, never shrinks below it.
+      if (y < floorY || (y === floorY && (m - 1) < floorMo)){ startY = y; startMo = m - 1; }
     }
   } catch (err) {
-    console.error('Could not load earliest sale date — defaulting month picker to current month only:', err);
+    console.error('Could not load earliest sale date — using the 6-month floor only:', err);
   }
   const months = [];
   let y = startY, m = startMo;
   const endY = today.getFullYear(), endMo = today.getMonth();
+  // Crossing a year boundary (Dec → Jan) is handled automatically here —
+  // m wraps to 0 and y increments — so this keeps working into 2027, 2028,
+  // etc. with no manual edits ever needed again. Reaching back into past
+  // years works the same way in reverse (startY/startMo just being an
+  // earlier year), and once there, you can always get back: the dropdown
+  // lists every month in the full range, and the ‹ › arrows step one
+  // month at a time through it.
   while (y < endY || (y === endY && m <= endMo)){
     months.push({ key: periodKey(y, m), label: periodLabel(y, m) });
     m++; if (m > 11){ m = 0; y++; }
@@ -636,36 +659,87 @@ async function buildMonthList(){
 function periodFromLabel(label){ const m = MONTHS.find(x => x.label === label); return m ? m.key : currentPeriod; }
 
 // ═══════════════════════════════════════════════════
-//  NOTIFICATIONS — fed into header.js's shared notification panel.
-//  NOTE: still placeholder data, same as before retrofit — wiring
-//  these to real overdue/credit/payment events is a good follow-up.
+//  NOTIFICATIONS — derived live from real data already loaded on this
+//  page (allSales, customerBalances, collectionsFull). Replaces the old
+//  SALES_NOTIFICATIONS placeholder array. There's no separate persisted
+//  "sales alerts" feed in the database yet (the notifications table is
+//  real but empty, and notification_delivery_log only carries Cash-module
+//  entries so far) — so this computes the same three categories the old
+//  placeholder data was illustrating, but from actual rows instead of
+//  fabricated examples.
 // ═══════════════════════════════════════════════════
-const SALES_NOTIFICATIONS = [
-  { type:'o', title:'Bole Restaurant payment overdue',    sub:'5,600.00 ETB outstanding — 7 days overdue',            time:'2h ago' },
-  { type:'r', title:'New credit sale recorded',            sub:'Yeka Retail Shop — Derkosh, 3,750.00 ETB',             time:'5h ago' },
-  { type:'g', title:'Payment collected',                   sub:'Addis Hotel settled 4,950.00 ETB via Bank Transfer',   time:'1d ago' },
-  { type:'o', title:'Addis Hotel payment overdue',         sub:'12,450.00 ETB outstanding — 14 days overdue',          time:'1d ago' },
-  { type:'p', title:'Monthly revenue milestone',           sub:'Total revenue passed 100,000 ETB for May 2026',        time:'2d ago' },
-  { type:'r', title:'New credit sale recorded',            sub:'Bole Restaurant — Derkosh, 7,600.00 ETB',              time:'3d ago' },
-  { type:'g', title:'Payment collected',                   sub:'Yeka Retail Shop settled 1,800.00 ETB via Mobile Money', time:'4d ago' },
-];
+function relTime(dateStr){
+  if (!dateStr) return '';
+  const then = new Date(dateStr + (dateStr.length <= 10 ? 'T00:00:00' : ''));
+  const days = Math.round((new Date().setHours(0,0,0,0) - then.setHours(0,0,0,0)) / 86400000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days}d ago`;
+}
+const OVERDUE_DAYS = 14; // flag a credit customer once this many days have passed since their last purchase with a balance still owed
+function buildSalesNotifications(){
+  const items = [];
+
+  customerBalances
+    .filter(c => parseFloat(c.outstanding_ar || 0) > 0 && c.last_purchase_date)
+    .forEach(c => {
+      const then = new Date(c.last_purchase_date);
+      const days = Math.round((new Date().setHours(0,0,0,0) - then.setHours(0,0,0,0)) / 86400000);
+      if (days >= OVERDUE_DAYS){
+        items.push({
+          type: 'o',
+          title: `${c.name} payment overdue`,
+          sub: `${fmt(c.outstanding_ar)} ETB outstanding — ${days} days since last purchase`,
+          time: relTime(c.last_purchase_date),
+          _ts: then.getTime()
+        });
+      }
+    });
+
+  allSales
+    .filter(r => r.payment_method === 'Credit')
+    .forEach(r => {
+      items.push({
+        type: 'r',
+        title: 'New credit sale recorded',
+        sub: `${r.customers?.name || 'Unknown customer'} — ${r.product}, ${fmt(r.revenue)} ETB`,
+        time: relTime(r.date),
+        _ts: new Date(r.date).getTime()
+      });
+    });
+
+  (collectionsFull || []).forEach(c => {
+    items.push({
+      type: 'g',
+      title: 'Payment collected',
+      sub: `${c.name} settled ${fmt(c.revenue)} ETB via ${c.method}`,
+      time: relTime(c.settled_date),
+      _ts: new Date(c.settled_date).getTime()
+    });
+  });
+
+  items.sort((a,b) => b._ts - a._ts);
+  refreshNotifications(items.slice(0, 12).map(({_ts, ...rest}) => rest));
+}
 
 async function initHeaderAndData(){
   MONTHS = await buildMonthList();
   currentPeriod = MONTHS[MONTHS.length - 1].key; // real current month, not a hardcoded stale default
+  const selectedLabel = (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label;
+  document.getElementById('txnPeriodLabel').textContent = `(${selectedLabel})`; // was left at its hardcoded "(May 2026)" HTML default until the first onMonthChange fired — now matches the real selected month from the start
   renderHeader({
     title: 'Sales Overview',
     subtitle: 'Track sales performance, revenue, and customer profitability',
     showMonthPicker: true,
     months: MONTHS.map(m => m.label),
-    selectedMonth: (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label,
+    selectedMonth: selectedLabel,
     onMonthChange: (label) => {
       currentPeriod = periodFromLabel(label);
       document.getElementById('txnPeriodLabel').textContent = `(${label})`;
       salesPage = 1;
       loadAll();
     },
-    notifications: SALES_NOTIFICATIONS
+    notifications: [] // populated live by buildSalesNotifications() once real data loads — see below
   });
   loadAll();
 }
@@ -817,11 +891,12 @@ async function loadSales() {
   } catch (err) { console.error(err); showToast('Could not load sales data', 'err'); return; }
   await loadCustomerBalances();
   renderSalesTable(allSales);
-  updateKPIs(allSales);
+  updateKPIs(allSales); // async internally (fetches previous-period totals) — fire-and-forget is fine, it only touches its own DOM elements
   buildTop5(allSales);
   buildProfitability(allSales);
   buildAR(allSales);
-  buildCollections();
+  await buildCollections(); // awaited (was fire-and-forget) so collectionsFull is populated before buildSalesNotifications() reads it below
+  buildSalesNotifications();
 }
 
 async function buildCollections() {
@@ -862,20 +937,83 @@ function currentTotalAR() {
   // balance netting ALL credit_payments against ALL of a customer's credit sales.
   return customerBalances.reduce((s,c) => s + Math.max(0, parseFloat(c.outstanding_ar||0)), 0);
 }
-function updateKPIs(sales) {
+function computeTotals(sales){
   const total   = sales.reduce((s,r) => s + parseFloat(r.revenue||0), 0);
   const cash    = sales.filter(r => r.payment_method === 'Cash').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
   const credit  = sales.filter(r => r.payment_method === 'Credit').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
   const injPrc  = avg(sales.filter(r => r.product === 'Injera').map(r => parseFloat(r.unit_price||0)));
   const drkPrc  = avg(sales.filter(r => r.product === 'Derkosh').map(r => parseFloat(r.unit_price||0)));
-  const ar      = currentTotalAR();
+  return { total, cash, credit, injPrc, drkPrc };
+}
+function prevPeriodParts(period){
+  let [y, m] = period.split('-').map(Number); // m is 1-indexed here
+  m -= 1; if (m < 1){ m = 12; y -= 1; }
+  return { y, m0: m - 1, key: `${y}-${String(m).padStart(2,'0')}` };
+}
+async function loadPreviousPeriodTotals(){
+  const prev = prevPeriodParts(currentPeriod);
+  try{
+    const qs = `select=product_type,payment_method,unit_price,revenue&date=gte.${prev.key}-01&date=lte.${periodEndDate(prev.key)}&is_deleted=eq.false`;
+    const data = await sbGet(`sales?${qs}`) || [];
+    const mapped = data.map(r => ({
+      ...r,
+      product: PROD_FROM_DB[r.product_type] || r.product_type,
+      payment_method: PM_FROM_DB[r.payment_method] || r.payment_method
+    }));
+    return { totals: computeTotals(mapped), label: periodLabel(prev.y, prev.m0) };
+  }catch(err){
+    console.error('Could not load previous-period sales for KPI comparison:', err);
+    return { totals: null, label: periodLabel(prev.y, prev.m0) }; // null totals = "couldn't load", distinct from "genuinely zero"
+  }
+}
+// Real month-over-month % change — replaces badges that used to be
+// hardcoded HTML (always "▲ 12.5% vs Apr 2026", regardless of the actual
+// month selected or what really happened) and never updated.
+function setChg(id, curVal, prevTotals, key, prevLabel){
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!prevTotals){
+    el.className = 'kc-chg';
+    el.innerHTML = `<span class="vs">vs ${prevLabel} — unavailable</span>`;
+    return;
+  }
+  const prevVal = prevTotals[key];
+  if (!prevVal){ // 0, null, or undefined — no meaningful denominator to divide by
+    el.className = curVal > 0 ? 'kc-chg up' : 'kc-chg';
+    el.innerHTML = curVal > 0
+      ? `&#9650; New<span class="vs">vs ${prevLabel} (none)</span>`
+      : `<span class="vs">No activity vs ${prevLabel}</span>`;
+    return;
+  }
+  const pct = ((curVal - prevVal) / prevVal) * 100;
+  const up = pct >= 0;
+  el.className = 'kc-chg ' + (up ? 'up' : 'dn');
+  el.innerHTML = `${up ? '&#9650;' : '&#9660;'} ${Math.abs(pct).toFixed(1)}%<span class="vs">vs ${prevLabel}</span>`;
+}
+async function updateKPIs(sales) {
+  const cur = computeTotals(sales);
+  const ar  = currentTotalAR();
 
-  setKPI('k-rev',       total);
-  setKPI('k-cash',      cash);
-  setKPI('k-credit',    credit);
-  setKPI('k-inj-price', injPrc);
-  setKPI('k-derk-price',drkPrc);
+  setKPI('k-rev',       cur.total);
+  setKPI('k-cash',      cur.cash);
+  setKPI('k-credit',    cur.credit);
+  setKPI('k-inj-price', cur.injPrc);
+  setKPI('k-derk-price',cur.drkPrc);
   setKPI('k-ar',        ar);
+
+  // Outstanding A/R is a point-in-time running balance, not a period flow —
+  // there's no stored historical AR snapshot to diff against, so a "vs last
+  // month" percentage here would have to be fabricated. Label it honestly
+  // instead of faking a number.
+  const arChg = document.getElementById('k-ar-chg');
+  if (arChg){ arChg.className = 'kc-chg'; arChg.innerHTML = `<span class="vs">Live running balance</span>`; }
+
+  const { totals: prevTotals, label: prevLabel } = await loadPreviousPeriodTotals();
+  setChg('k-rev-chg',       cur.total,  prevTotals, 'total',  prevLabel);
+  setChg('k-cash-chg',      cur.cash,   prevTotals, 'cash',   prevLabel);
+  setChg('k-credit-chg',    cur.credit, prevTotals, 'credit', prevLabel);
+  setChg('k-injprice-chg',  cur.injPrc, prevTotals, 'injPrc', prevLabel);
+  setChg('k-derkprice-chg', cur.drkPrc, prevTotals, 'drkPrc', prevLabel);
 }
 function setKPI(id, val) {
   const el = document.getElementById(id);
