@@ -250,6 +250,11 @@
   .ring canvas{position:absolute;inset:0}
   .ring .num{font-family:'Quicksand',sans-serif;font-weight:800;font-size:17px;color:var(--td);position:relative;z-index:1}
 
+  .progress-track{width:100%;max-width:220px;height:4px;border-radius:2px;background:rgba(0,0,0,.08);margin:0 auto clamp(10px,1.6vh,16px);overflow:hidden}
+  .progress-fill{height:100%;width:0%;border-radius:2px;background:var(--green,#2D6A4F)}
+  .continue-now-btn{display:block;margin:0 auto clamp(10px,1.6vh,16px);background:none;border:none;color:var(--green,#2D6A4F);font-weight:700;font-size:12.5px;cursor:pointer;text-decoration:underline;padding:4px 8px}
+  .continue-now-btn:hover{opacity:.8}
+
   .warn-txt{font-size:10.5px;color:var(--tl)}
   .warn-txt a{color:var(--green);font-weight:700}
 
@@ -425,6 +430,12 @@
             <div class="num" id="ringNum">3</div>
           </div>
         </div>
+
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="successProgressFill"></div>
+        </div>
+
+        <button type="button" class="continue-now-btn" id="continueNowBtn">Continue now</button>
 
         <p class="warn-txt">If you are not <span id="warnName">this user</span>, please <a href="#" id="logoutLink">log out</a> and try again.</p>
       </div>
@@ -874,22 +885,55 @@
     brandBlock.classList.add('state-success');
     badgesBlock.classList.add('state-success');
 
+    // Prefetch dashboard's page assets (HTML/CSS/JS) in the background so the
+    // browser has them cached by the time the redirect fires below — a
+    // resource swap the countdown can genuinely afford, unlike real dashboard
+    // data (which would need dashboard.html's own boot logic changed to
+    // consume a handoff, and isn't wired here).
+    prefetchDashboardAssets();
+
     document.getElementById('ringNum').textContent = 3;
     drawRing(0);
+    const progressFill = document.getElementById('successProgressFill');
     const total = 3000;
     const start = Date.now();
+    let redirected = false;
+    const goToDashboard = () => {
+      if (redirected) return;
+      redirected = true;
+      clearInterval(iv);
+      window.location.href = 'dashboard.html';
+    };
+    // Fill rate is purely elapsed/total — never tied to prefetch completion —
+    // so it always moves at a constant rate and never stalls waiting on the
+    // network. Prefetching above runs alongside it as pure best-effort.
     const iv = setInterval(() => {
       const elapsed = Date.now() - start;
       const pct = Math.min(elapsed/total, 1);
       drawRing(pct);
+      if (progressFill) progressFill.style.width = (pct * 100) + '%';
       const remaining = Math.max(0, Math.ceil(3 - elapsed/1000));
       document.getElementById('ringNum').textContent = remaining;
-      if (pct >= 1){
-        clearInterval(iv);
-        window.location.href = 'dashboard.html';
-      }
+      if (pct >= 1) goToDashboard();
     }, 50);
+    document.getElementById('continueNowBtn').addEventListener('click', goToDashboard);
   });
+
+  // Warms the browser cache for dashboard.html and the shared shell files
+  // so navigating there after the countdown is near-instant. Silently does
+  // nothing if a resource fails to prefetch (best-effort only, never blocks
+  // the redirect above).
+  function prefetchDashboardAssets(){
+    const urls = ['dashboard.html', 'css/shared-shell.css', 'js/app-state.js', 'js/sidebar.js', 'js/header.js'];
+    urls.forEach(href => {
+      try{
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = href;
+        document.head.appendChild(link);
+      }catch(e){ /* prefetch is a nice-to-have — never let it break login */ }
+    });
+  }
 
   // ---- Forgot Password / Reset Password wiring ----
   document.getElementById('forgotLink').addEventListener('click', function(e){
