@@ -382,6 +382,15 @@ function showConfirm({title, message, confirmLabel = 'Confirm', onConfirm}){
    toast(msg, type) — type is 'success' | 'error' | omitted (info).
    showToast(msg) is kept as an alias since some existing pages
    (e.g. purchases.html) already call that name. */
+// Escapes untrusted text before it's interpolated into an innerHTML
+// template string — customer names, notification text, and other
+// free-entry fields have no format restriction, so without this a name
+// containing e.g. "<img src=x onerror=...>" runs as real script for
+// anyone who views a page rendering it. Shared here (not per-module) so
+// every page's toast()/notifications/tables get the same protection.
+function esc(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 function toast(msg, type){
   let stack = document.getElementById('toastStack');
   if (!stack){
@@ -397,7 +406,7 @@ function toast(msg, type){
     error: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
   };
-  el.innerHTML = `<svg class="toast-ic" viewBox="0 0 24 24">${icons[type] || icons.info}</svg><span>${msg}</span>`;
+  el.innerHTML = `<svg class="toast-ic" viewBox="0 0 24 24">${icons[type] || icons.info}</svg><span>${esc(msg)}</span>`;
   stack.appendChild(el);
   setTimeout(() => {
     el.classList.add('out');
