@@ -310,8 +310,8 @@ function renderNotifications(list){
   container.innerHTML = list.map(n => `
     <div class="notif-item">
       <div class="notif-item-ico ni-${n.type || 'g'}"><svg viewBox="0 0 24 24">${NOTIF_ICONS[n.type] || NOTIF_ICONS.g}</svg></div>
-      <div class="notif-item-bd"><h5>${n.title}</h5><p>${n.sub || ''}</p></div>
-      <div class="notif-item-time">${n.time || ''}</div>
+      <div class="notif-item-bd"><h5>${esc(n.title)}</h5><p>${esc(n.sub || '')}</p></div>
+      <div class="notif-item-time">${esc(n.time || '')}</div>
     </div>`).join('') || `<div class="notif-item"><div class="notif-item-bd"><p>No notifications right now.</p></div></div>`;
   if (badge){
     if (list.length > 0){ badge.textContent = list.length; badge.style.display = ''; }
