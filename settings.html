@@ -286,8 +286,18 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 
         <!-- Opening Balances -->
         <div class="card">
-          <div class="card-hd"><div class="card-ttl">Opening Balances <span id="obPeriodLbl" style="font-size:10.5px;color:var(--tl);font-weight:600"></span></div></div>
+          <div class="card-hd">
+            <div class="card-ttl">Opening Balances</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10.5px;color:var(--tl);font-weight:600">Start month</span>
+              <input type="month" id="obPeriodInput" onchange="onOpeningPeriodChange()" style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:11.5px;font-family:'Nunito',sans-serif;color:var(--td);outline:none">
+            </div>
+          </div>
           <div class="card-bd">
+            <div class="info-box" style="margin-bottom:12px">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Pick whichever month you want real bookkeeping to start from — today, or an earlier month if you have real records to backdate. Enter your actual cash, bank, and mobile balances as of the 1st of that month. You only need to do this once; every month after it carries forward automatically.
+            </div>
             <div class="bal-row">
               <div class="bal-ic" style="background:#e5f5ed"><svg viewBox="0 0 24 24" style="stroke:#27ae60"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
               <div class="bal-lbl">Cash on Hand</div>
@@ -1344,6 +1354,46 @@ function recalcOpeningTotal(){
   document.getElementById('obTotal').textContent = fmt(cash+bank+mobile);
 }
 
+/* ════════════════ OPENING BALANCE PERIOD SELECTION ════════════════
+   Loads/reloads whichever period is currently selected in the "Start month" picker.
+   Both the Cash/Bank/Mobile fields and the Inventory Opening Balances table below
+   follow this same selection — there's one shared start month per business, not a
+   silently-guessed one. */
+async function loadOpeningBalancesForPeriod(period){
+  if(!db || !period) return;
+  const { data: rows, error } = await db.from(OPENING_BAL_TABLE).select('*').eq('period', period);
+  if(error){ toast('⚠ Could not load opening balances for ' + period + ' — ' + error.message, 'error'); return; }
+  const cash = (rows||[]).find(r=>r.channel==='cash');
+  const bank = (rows||[]).find(r=>r.channel==='bank');
+  const mobile = (rows||[]).find(r=>r.channel==='mobile');
+  setVal('obCash', cash ? fmt2(cash.opening_balance) : '0.00');
+  setVal('obBank', bank ? fmt2(bank.opening_balance) : '0.00');
+  setVal('obMobile', mobile ? fmt2(mobile.opening_balance) : '0.00');
+  recalcOpeningTotal();
+}
+
+async function loadInventoryOpeningBalancesForPeriod(period){
+  if(!db || !period) return;
+  const { data: rows, error } = await db.from(INVENTORY_OPENING_TABLE).select('*').eq('period', period);
+  if(!error && rows){ inventoryOpeningRows = rows; }
+  const lbl = document.getElementById('invObPeriodLbl');
+  if(lbl) lbl.textContent = '(' + period + ')';
+  renderInventoryOpeningBalances();
+}
+
+// Fires when the person picks a different "Start month". Every subsequent read, and
+// the eventual Save, both follow this selection — editing one month never silently
+// writes to a different one (previously this always resolved to whichever period was
+// earliest in the table, regardless of what the person was trying to edit).
+async function onOpeningPeriodChange(){
+  const input = document.getElementById('obPeriodInput');
+  const period = input.value;
+  if(!period) return;
+  openingPeriod = period;
+  await loadOpeningBalancesForPeriod(period);
+  await loadInventoryOpeningBalancesForPeriod(period);
+}
+
 /* ════════════════ INVENTORY OPENING BALANCES ════════════════ */
 const INVENTORY_ITEMS_TABLE = 'inventory_items';
 const INVENTORY_OPENING_TABLE = 'inventory_opening_balances';
@@ -1643,32 +1693,31 @@ async function loadFromSupabase(){
     }
     renderNotifMatrix();
 
-    const { data: obRows, error: obErr } = await db.from(OPENING_BAL_TABLE).select('*').order('period', { ascending:true });
+    // Opening balances are meant to be a one-time seed for whichever month the person
+    // actually starts using this system — that could be any month, chosen by whoever
+    // is running the business, not necessarily the earliest row that happens to exist
+    // (an older test/demo period could otherwise get silently picked and edited forever).
+    // Default to the MOST RECENT period on file so an active user editing "now" edits
+    // "now"; fall back to the current calendar month if no opening-balance rows exist
+    // at all yet. The month picker lets them explicitly pick a different month at any
+    // time — including one with no rows yet — and every read/write below follows
+    // whatever period is currently selected in that picker, not a hardcoded guess.
+    const { data: obRows, error: obErr } = await db.from(OPENING_BAL_TABLE).select('*').order('period', { ascending:false });
     if(obErr) throw obErr;
     if(obRows && obRows.length){
       openingPeriod = obRows[0].period;
-      const rowsForPeriod = obRows.filter(r=>r.period===openingPeriod);
-      const cash = rowsForPeriod.find(r=>r.channel==='cash');
-      const bank = rowsForPeriod.find(r=>r.channel==='bank');
-      const mobile = rowsForPeriod.find(r=>r.channel==='mobile');
-      setVal('obCash', cash ? fmt2(cash.opening_balance) : '0.00');
-      setVal('obBank', bank ? fmt2(bank.opening_balance) : '0.00');
-      setVal('obMobile', mobile ? fmt2(mobile.opening_balance) : '0.00');
     } else {
       const now = new Date();
       openingPeriod = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
     }
-    document.getElementById('obPeriodLbl').textContent = '(' + openingPeriod + ')';
-    recalcOpeningTotal();
+    document.getElementById('obPeriodInput').value = openingPeriod;
+    await loadOpeningBalancesForPeriod(openingPeriod);
 
     const { data: invItemRows, error: invItemErr } = await db.from(INVENTORY_ITEMS_TABLE).select('*').eq('is_active', true).order('name', { ascending:true });
     if(!invItemErr && invItemRows){ inventoryItemsList = invItemRows; }
     const { data: supRowsForMill, error: supMillErr } = await db.from('suppliers').select('id,name').order('name', { ascending:true });
     populateMillConfigDropdowns(supMillErr ? [] : (supRowsForMill||[]));
-    const { data: invObRows, error: invObErr } = await db.from(INVENTORY_OPENING_TABLE).select('*').eq('period', openingPeriod);
-    if(!invObErr && invObRows){ inventoryOpeningRows = invObRows; }
-    document.getElementById('invObPeriodLbl').textContent = '(' + openingPeriod + ')';
-    renderInventoryOpeningBalances();
+    await loadInventoryOpeningBalancesForPeriod(openingPeriod);
 
     const { data: shRows, error: shErr } = await db.from(SHAREHOLDERS_TABLE).select('*').order('ownership_pct', { ascending:false });
     if(shErr) throw shErr;
@@ -1720,6 +1769,15 @@ async function loadFromSupabase(){
 async function saveBusinessSettings(btn){
   if(!initialLoadComplete){
     toast('Still loading current settings — please wait a moment and try again', 'error');
+    return;
+  }
+  // Always save to whichever month is currently showing in the Start month picker —
+  // never a stale in-memory value from initial page load. Without this, switching the
+  // picker and clicking Save could still write to whatever period was loaded first.
+  const obPeriodInputEl = document.getElementById('obPeriodInput');
+  if(obPeriodInputEl && obPeriodInputEl.value) openingPeriod = obPeriodInputEl.value;
+  else if(!openingPeriod){
+    toast('⚠ Pick a start month for Opening Balances before saving', 'error');
     return;
   }
   const original = btn.textContent;
