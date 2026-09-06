@@ -94,6 +94,49 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .skel{background:linear-gradient(90deg,#eef2f0 25%,#f6f9f7 37%,#eef2f0 63%);background-size:400% 100%;animation:sk 1.4s ease infinite;border-radius:6px;color:transparent !important}
 @keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
 
+/* ══ CASH FLOW ENTRIES MODAL (in-page popup — no redirect) ══════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,30,25,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:16px;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:fadeUp .18s ease}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-ttl{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td)}
+.modal-x{background:none;border:none;font-size:20px;line-height:1;color:var(--tl);cursor:pointer;padding:4px 8px;border-radius:6px}
+.modal-x:hover{background:#f2f5f3;color:var(--td)}
+.modal-body{padding:16px 18px 18px;overflow-y:auto}
+
+.ent-tabs{display:flex;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.ent-tab{background:none;border:none;padding:8px 4px 10px;font-size:12.5px;font-weight:700;color:var(--tl);cursor:pointer;border-bottom:2px solid transparent;margin-right:18px}
+.ent-tab.active{color:#1a6b3c;border-bottom-color:#1a6b3c}
+
+.ent-type-toggle{display:flex;gap:8px;margin-bottom:16px;background:#f4f7f5;padding:4px;border-radius:10px}
+.ent-type-btn{flex:1;border:none;background:none;padding:9px 6px;border-radius:8px;font-size:12px;font-weight:700;color:var(--tm);cursor:pointer}
+.ent-type-btn.active{background:#fff;color:#1a6b3c;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+.ent-field{margin-bottom:12px}
+.ent-field label{display:block;font-size:11px;font-weight:700;color:var(--tm);margin-bottom:5px}
+.ent-field input,.ent-field select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);background:#fff}
+.ent-field input:focus,.ent-field select:focus{outline:none;border-color:#52B788}
+.ent-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ent-hint{font-size:10.5px;color:var(--tl);margin-top:-4px;margin-bottom:12px;line-height:1.4}
+
+.ent-submit-btn{width:100%;padding:11px;border:none;border-radius:9px;background:#1a6b3c;color:#fff;font-size:13px;font-weight:700;font-family:'Quicksand',sans-serif;cursor:pointer;margin-top:4px}
+.ent-submit-btn:hover{background:#154f2d}
+.ent-submit-btn:disabled{background:#a7c9b6;cursor:not-allowed}
+
+.ent-list-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.ent-list-tbl th{text-align:left;padding:7px 8px;font-size:10px;color:var(--tl);font-weight:700;border-bottom:1px solid var(--border)}
+.ent-list-tbl td{padding:8px;border-bottom:1px solid #f0f5f2;color:var(--td);vertical-align:top}
+.ent-list-tbl td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ent-del-btn{background:none;border:none;color:#e5484d;cursor:pointer;font-size:11px;font-weight:700;padding:2px 6px}
+.ent-empty{padding:24px 8px;text-align:center;color:var(--tl);font-size:12.5px}
+.ent-tag{display:inline-block;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:700;margin-left:5px}
+.ent-tag.in{background:#e3f6ec;color:#1a6b3c}
+.ent-tag.out{background:#fdecea;color:#c0392b}
+
+@media (max-width:480px){
+  .ent-row2{grid-template-columns:1fr}
+}
+
 /* ══ PRINT HEADER (hidden on screen) ══ */
 .print-header{display:none}
 
@@ -243,15 +286,102 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="qa-ico" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></div>
               <span>Print Statement</span>
             </div>
-            <div class="qa-btn" onclick="window.location.href='cashflow_entries.html'">
+            <div class="qa-btn" onclick="openEntriesModal()">
               <div class="qa-ico" style="background:#e0f2ee"><svg viewBox="0 0 24 24" style="stroke:#0d9b7a"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-              <span>View Cash Flow Entries</span>
+              <span>Cash Flow Entries</span>
             </div>
           </div>
         </div>
 
       </div>
     </div>
+
+    <!-- CASH FLOW ENTRIES MODAL (popup — add regular entries or a transfer, no page redirect) -->
+    <div class="modal-overlay no-print" id="entModalOverlay" onclick="if(event.target===this) closeEntriesModal()">
+      <div class="modal-box">
+        <div class="modal-hd">
+          <div class="modal-ttl">Cash Flow Entries</div>
+          <button class="modal-x" onclick="closeEntriesModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="ent-tabs">
+            <button class="ent-tab active" id="entTabBtnAdd" onclick="switchEntryTab('add')">Add Entry</button>
+            <button class="ent-tab" id="entTabBtnList" onclick="switchEntryTab('list')">This Month (<span id="entCount">0</span>)</button>
+          </div>
+
+          <!-- ADD -->
+          <div id="entPaneAdd">
+            <div class="ent-type-toggle">
+              <button class="ent-type-btn active" id="entModeBtnRegular" onclick="setEntryMode('regular')">Regular Entry</button>
+              <button class="ent-type-btn" id="entModeBtnTransfer" onclick="setEntryMode('transfer')">Transfer Between Accounts</button>
+            </div>
+
+            <!-- Regular entry -->
+            <div id="entFormRegular">
+              <div class="ent-row2">
+                <div class="ent-field"><label>Date</label><input type="date" id="entDate"></div>
+                <div class="ent-field"><label>Amount (ETB)</label><input type="number" id="entAmount" min="0" step="0.01" placeholder="0.00"></div>
+              </div>
+              <div class="ent-row2">
+                <div class="ent-field"><label>Account</label>
+                  <select id="entChannel"><option value="cash">Cash on Hand</option><option value="bank">Bank Account</option><option value="mobile">Mobile Money</option></select>
+                </div>
+                <div class="ent-field"><label>Direction</label>
+                  <select id="entDirection"><option value="in">Money In</option><option value="out">Money Out</option></select>
+                </div>
+              </div>
+              <div class="ent-row2">
+                <div class="ent-field"><label>Category</label>
+                  <select id="entCategory" onchange="onCategoryChange()">
+                    <option value="operating">Operating</option>
+                    <option value="investing">Investing</option>
+                    <option value="financing">Financing</option>
+                  </select>
+                </div>
+                <div class="ent-field" id="entTypeWrap" style="display:none">
+                  <label>Financing Type</label>
+                  <select id="entType">
+                    <option value="">Other financing</option>
+                    <option value="capital_injection">Owner capital injection</option>
+                    <option value="capital_withdrawal">Owner capital withdrawal</option>
+                    <option value="loan_disbursement">Loan received</option>
+                    <option value="profit_distribution">Profit distribution</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ent-field"><label>Description</label><input type="text" id="entDescription" placeholder="What is this for?"></div>
+            </div>
+
+            <!-- Transfer -->
+            <div id="entFormTransfer" style="display:none">
+              <div class="ent-field"><label>Date</label><input type="date" id="trDate"></div>
+              <div class="ent-row2">
+                <div class="ent-field"><label>From</label>
+                  <select id="trFrom" onchange="syncTransferChannels()"><option value="cash">Cash on Hand</option><option value="bank">Bank Account</option><option value="mobile">Mobile Money</option></select>
+                </div>
+                <div class="ent-field"><label>To</label>
+                  <select id="trTo" onchange="syncTransferChannels()"><option value="bank">Bank Account</option><option value="cash">Cash on Hand</option><option value="mobile">Mobile Money</option></select>
+                </div>
+              </div>
+              <div class="ent-field"><label>Amount (ETB)</label><input type="number" id="trAmount" min="0" step="0.01" placeholder="0.00"></div>
+              <div class="ent-field"><label>Description (optional)</label><input type="text" id="trDescription" placeholder="e.g. Weekly bank deposit"></div>
+              <div class="ent-hint">Recorded as two linked entries so the balance moves between accounts without counting as income or an expense on the statement.</div>
+            </div>
+
+            <button class="ent-submit-btn" id="entSubmitBtn" onclick="submitEntry()">Save Entry</button>
+          </div>
+
+          <!-- LIST -->
+          <div id="entPaneList" style="display:none">
+            <table class="ent-list-tbl">
+              <thead><tr><th>Date</th><th>Description</th><th>Account</th><th class="num">Amount</th><th></th></tr></thead>
+              <tbody id="entListTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -482,7 +612,11 @@ function computeCashFlow(data){
 
   const otherCashIncome = zero(); // cash_flow_entries: operating / in / entry_type other than sales
   data.cfEntries.forEach(e=>{
-    if(e.category === 'operating' && e.direction === 'in' && CHANNELS.includes(e.channel)){
+    // entry_type='transfer' rows (money moved between our own cash/bank/mobile pools) are
+    // excluded here and handled separately below — see TRANSFERS BETWEEN ACCOUNTS. Counting
+    // them as Operating income would inflate Total Operating Receipts for cash that was never
+    // actually earned.
+    if(e.category === 'operating' && e.direction === 'in' && e.entry_type !== 'transfer' && CHANNELS.includes(e.channel)){
       otherCashIncome[e.channel] += parseFloat(e.amount||0);
     }
   });
@@ -525,7 +659,9 @@ function computeCashFlow(data){
 
   const otherCashOut = zero();
   data.cfEntries.forEach(e=>{
-    if(e.category === 'operating' && e.direction === 'out' && CHANNELS.includes(e.channel)){
+    // Same exclusion as otherCashIncome above — a transfer's "out" leg isn't a real
+    // operating expense, it's the same money reappearing on the other account.
+    if(e.category === 'operating' && e.direction === 'out' && e.entry_type !== 'transfer' && CHANNELS.includes(e.channel)){
       otherCashOut[e.channel] += parseFloat(e.amount||0);
     }
   });
@@ -606,8 +742,26 @@ function computeCashFlow(data){
     netFinancing[c] = capitalInjection[c] - capitalWithdrawal[c] + loanReceived[c] - loanPrincipal[c] - loanInterest[c] - distOut + otherFinancing[c];
   });
 
+  // ---- TRANSFERS BETWEEN ACCOUNTS ----
+  // Cash moved between our own cash/bank/mobile pools (e.g. depositing cash into the bank).
+  // Per IAS 7, transfers between components of cash & cash equivalents sit outside Operating/
+  // Investing/Financing entirely — it's cash management, not real business activity. Rows are
+  // tagged entry_type='transfer' (see submitTransfer()) so they land here instead of inflating
+  // Operating Receipts/Payments above. Each transfer nets to 0 across channels in total — it
+  // only ever reshuffles which account the balance sits in.
+  const transferIn = zero(), transferOut = zero();
+  data.cfEntries.forEach(e=>{
+    if(e.entry_type === 'transfer' && CHANNELS.includes(e.channel)){
+      const amt = parseFloat(e.amount||0);
+      if(e.direction === 'in') transferIn[e.channel] += amt;
+      else if(e.direction === 'out') transferOut[e.channel] += amt;
+    }
+  });
+  const netTransfers = zero();
+  CHANNELS.forEach(c=> netTransfers[c] = transferIn[c] - transferOut[c]);
+
   const netMovement = zero();
-  CHANNELS.forEach(c=> netMovement[c] = netOperating[c] + netInvesting[c] + netFinancing[c]);
+  CHANNELS.forEach(c=> netMovement[c] = netOperating[c] + netInvesting[c] + netFinancing[c] + netTransfers[c]);
 
   const closing = zero();
   CHANNELS.forEach(c=> closing[c] = opening[c] + netMovement[c]);
@@ -618,6 +772,7 @@ function computeCashFlow(data){
     otherOverhead, bankCharges, pettyCashOut, otherCashOut, totalOperatingPayments, netOperating,
     equipPurchases, equipSales, netInvesting,
     capitalInjection, capitalWithdrawal, loanReceived, loanPrincipal, loanInterest, otherFinancing, distributions, netFinancing,
+    transferIn, transferOut, netTransfers,
     netMovement, closing
   };
 }
@@ -654,8 +809,8 @@ function renderCashFlowTable(cf){
 
   h += sectionRow('B. OPERATING ACTIVITIES');
   h += `<tr class="cf-line"><td style="font-weight:700;color:var(--td);padding-left:14px !important">Cash Receipts</td><td colspan="4"></td></tr>`;
-  h += tblRow('Cash Sales — Injera', cf.cashSalesInjera, { cls:'cf-line' });
-  h += tblRow('Cash Sales — Derkosh', cf.cashSalesDerkosh, { cls:'cf-line' });
+  h += tblRow('Cash Sales — Injera', { cash: cf.cashSalesInjera.cash }, { cls:'cf-line' });
+  h += tblRow('Cash Sales — Derkosh', { cash: cf.cashSalesDerkosh.cash }, { cls:'cf-line' });
   h += tblRow('Bank Sales & Collections', { bank: cf.salesByChannel.bank }, { cls:'cf-line' });
   h += tblRow('Mobile Money Sales & Collections', { mobile: cf.salesByChannel.mobile }, { cls:'cf-line' });
   h += tblRow('Collections from Credit Customers', cf.creditCollected, { cls:'cf-line' });
@@ -673,7 +828,8 @@ function renderCashFlowTable(cf){
   h += tblRow('Delivery Out & Transport', negate(cf.deliveryOut), { cls:'cf-line' });
   h += tblRow('Marketing', negate(cf.marketing), { cls:'cf-line' });
   h += tblRow('Bank Charges', negate(cf.bankCharges), { cls:'cf-line' });
-  h += tblRow('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.pettyCashOut, cf.otherCashOut)), { cls:'cf-line' });
+  h += tblRow('Petty Cash Expenses', { cash: -cf.pettyCashOut.cash }, { cls:'cf-line' });
+  h += tblRow('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.otherCashOut)), { cls:'cf-line' });
   h += tblRow('Total Operating Payments', negate(cf.totalOperatingPayments), { cls:'cf-sub' });
   h += tblRow('Net Cash from Operating Activities', cf.netOperating, { cls:'cf-total' });
 
@@ -697,8 +853,16 @@ function renderCashFlowTable(cf){
   }
   h += tblRow('Net Cash from Financing Activities', cf.netFinancing, { cls:'cf-total' });
 
+  h += sectionRow('E. TRANSFERS BETWEEN ACCOUNTS');
+  if(rowTotal(cf.transferIn) !== 0 || rowTotal(cf.transferOut) !== 0){
+    h += tblRow('Transfers Between Accounts', cf.netTransfers, { cls:'cf-line' });
+  } else {
+    h += `<tr class="cf-line"><td colspan="5" style="color:var(--tl);font-style:italic">No transfers this month</td></tr>`;
+  }
+  h += tblRow('Net Transfers Between Accounts', cf.netTransfers, { cls:'cf-total' });
+
   h += `<tr><td colspan="5" style="height:6px;border:none"></td></tr>`;
-  h += tblRow('NET CASH MOVEMENT (B + C + D)', cf.netMovement, { cls:'cf-total' });
+  h += tblRow('NET CASH MOVEMENT (B + C + D + E)', cf.netMovement, { cls:'cf-total' });
   h += tblRow('CLOSING CASH BALANCE (A + Net Movement)', cf.closing, { cls:'cf-grand' });
 
   document.getElementById('cfTbody').innerHTML = h;
@@ -901,8 +1065,8 @@ function flattenForExport(cf){
   push('Mobile Money', {mobile:cf.opening.mobile});
   push('Total Opening Balance', cf.opening);
   rows.push(['B. OPERATING ACTIVITIES — RECEIPTS','','','','']);
-  push('Cash Sales — Injera', cf.cashSalesInjera);
-  push('Cash Sales — Derkosh', cf.cashSalesDerkosh);
+  push('Cash Sales — Injera', {cash:cf.cashSalesInjera.cash});
+  push('Cash Sales — Derkosh', {cash:cf.cashSalesDerkosh.cash});
   push('Bank Sales & Collections', {bank:cf.salesByChannel.bank});
   push('Mobile Money Sales & Collections', {mobile:cf.salesByChannel.mobile});
   push('Collections from Credit Customers', cf.creditCollected);
@@ -919,7 +1083,8 @@ function flattenForExport(cf){
   push('Delivery Out & Transport', negate(cf.deliveryOut));
   push('Marketing', negate(cf.marketing));
   push('Bank Charges', negate(cf.bankCharges));
-  push('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.pettyCashOut, cf.otherCashOut)));
+  push('Petty Cash Expenses', {cash: -cf.pettyCashOut.cash});
+  push('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.otherCashOut)));
   push('Total Operating Payments', negate(cf.totalOperatingPayments));
   push('Net Cash from Operating Activities', cf.netOperating);
   rows.push(['C. INVESTING ACTIVITIES','','','','']);
@@ -935,7 +1100,9 @@ function flattenForExport(cf){
   Object.entries(cf.distributions).forEach(([label,o])=>{ if(rowTotal(o)!==0) push(label, negate(o)); });
   if(rowTotal(cf.otherFinancing)!==0) push('Other Financing Activity', cf.otherFinancing);
   push('Net Cash from Financing Activities', cf.netFinancing);
-  rows.push(['NET CASH MOVEMENT (B + C + D)', Number(cf.netMovement.cash).toFixed(2), Number(cf.netMovement.bank).toFixed(2), Number(cf.netMovement.mobile).toFixed(2), Number(rowTotal(cf.netMovement)).toFixed(2)]);
+  rows.push(['E. TRANSFERS BETWEEN ACCOUNTS','','','','']);
+  if(rowTotal(cf.transferIn)!==0 || rowTotal(cf.transferOut)!==0) push('Transfers Between Accounts', cf.netTransfers);
+  rows.push(['NET CASH MOVEMENT (B + C + D + E)', Number(cf.netMovement.cash).toFixed(2), Number(cf.netMovement.bank).toFixed(2), Number(cf.netMovement.mobile).toFixed(2), Number(rowTotal(cf.netMovement)).toFixed(2)]);
   push('CLOSING CASH BALANCE (A + Net Movement)', cf.closing);
   return rows;
 }
@@ -973,6 +1140,165 @@ function exportPdf(){
     'Generated ' + now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) +
     ' ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   setTimeout(()=>{ window.print(); }, 60);
+}
+
+/* ════════════════ CASH FLOW ENTRIES MODAL (popup, no redirect) ════════════════
+   Replaces the old "View Cash Flow Entries" link to cashflow_entries.html (which
+   doesn't exist / 404s). Lets you add a regular manual entry or a transfer between
+   accounts, and lists this month's entries with delete, all in a popup on this page. */
+let entryMode = 'regular';
+
+function openEntriesModal(){
+  document.getElementById('entModalOverlay').classList.add('open');
+  switchEntryTab('add');
+  setEntryMode('regular');
+  const todayStr = new Date().toISOString().slice(0,10);
+  document.getElementById('entDate').value = todayStr;
+  document.getElementById('trDate').value = todayStr;
+  document.getElementById('entAmount').value = '';
+  document.getElementById('trAmount').value = '';
+  document.getElementById('entDescription').value = '';
+  document.getElementById('trDescription').value = '';
+  document.getElementById('entCategory').value = 'operating';
+  onCategoryChange();
+  refreshEntriesList();
+}
+function closeEntriesModal(){
+  document.getElementById('entModalOverlay').classList.remove('open');
+}
+function switchEntryTab(tab){
+  document.getElementById('entPaneAdd').style.display = tab==='add' ? '' : 'none';
+  document.getElementById('entPaneList').style.display = tab==='list' ? '' : 'none';
+  document.getElementById('entTabBtnAdd').classList.toggle('active', tab==='add');
+  document.getElementById('entTabBtnList').classList.toggle('active', tab==='list');
+  if(tab==='list') refreshEntriesList();
+}
+function setEntryMode(mode){
+  entryMode = mode;
+  document.getElementById('entFormRegular').style.display = mode==='regular' ? '' : 'none';
+  document.getElementById('entFormTransfer').style.display = mode==='transfer' ? '' : 'none';
+  document.getElementById('entModeBtnRegular').classList.toggle('active', mode==='regular');
+  document.getElementById('entModeBtnTransfer').classList.toggle('active', mode==='transfer');
+}
+function onCategoryChange(){
+  const cat = document.getElementById('entCategory').value;
+  document.getElementById('entTypeWrap').style.display = cat==='financing' ? '' : 'none';
+}
+function syncTransferChannels(){
+  const from = document.getElementById('trFrom');
+  const to = document.getElementById('trTo');
+  if(from.value === to.value){
+    const alt = CHANNELS.find(c=>c!==from.value);
+    to.value = alt;
+  }
+}
+
+async function submitEntry(){
+  const btn = document.getElementById('entSubmitBtn');
+  btn.disabled = true;
+  try{
+    if(entryMode === 'transfer') await submitTransfer();
+    else await submitRegularEntry();
+    closeEntriesModal();
+    notify('Entry saved');
+    await loadAndRender(); // refresh the statement so the new entry shows immediately
+  } catch(err){
+    notify(err.message || 'Could not save entry', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function submitRegularEntry(){
+  const date = document.getElementById('entDate').value;
+  const amount = parseFloat(document.getElementById('entAmount').value);
+  const channel = document.getElementById('entChannel').value;
+  const direction = document.getElementById('entDirection').value;
+  const category = document.getElementById('entCategory').value;
+  const entry_type = category === 'financing' ? (document.getElementById('entType').value || null) : null;
+  const description = document.getElementById('entDescription').value.trim();
+
+  if(!date) throw new Error('Pick a date');
+  if(!amount || amount <= 0) throw new Error('Enter an amount greater than 0');
+  if(!description) throw new Error('Add a short description');
+
+  await sbPost('cash_flow_entries', {
+    date, channel, direction, category, entry_type, description,
+    amount, period: date.slice(0,7)
+  });
+}
+
+async function submitTransfer(){
+  const date = document.getElementById('trDate').value;
+  const from = document.getElementById('trFrom').value;
+  const to = document.getElementById('trTo').value;
+  const amount = parseFloat(document.getElementById('trAmount').value);
+  const desc = document.getElementById('trDescription').value.trim();
+
+  if(!date) throw new Error('Pick a date');
+  if(!amount || amount <= 0) throw new Error('Enter an amount greater than 0');
+  if(from === to) throw new Error('Pick two different accounts');
+
+  const period = date.slice(0,7);
+  const outDesc = desc ? `Transfer to ${CH_LABEL[to]}: ${desc}` : `Transfer to ${CH_LABEL[to]}`;
+  const inDesc  = desc ? `Transfer from ${CH_LABEL[from]}: ${desc}` : `Transfer from ${CH_LABEL[from]}`;
+
+  // Two linked rows, tagged entry_type='transfer' so computeCashFlow() excludes them from
+  // Operating Receipts/Payments — they're cash management, not income or expense (see the
+  // TRANSFERS BETWEEN ACCOUNTS section). Inserted out-leg then in-leg; if the in-leg fails,
+  // the out-leg is rolled back so a transfer never posts as only half-done.
+  let outRow;
+  try{
+    const outResult = await sbPost('cash_flow_entries', {
+      date, channel: from, direction: 'out', category: 'operating',
+      entry_type: 'transfer', description: outDesc, amount, period
+    });
+    outRow = Array.isArray(outResult) ? outResult[0] : outResult;
+    await sbPost('cash_flow_entries', {
+      date, channel: to, direction: 'in', category: 'operating',
+      entry_type: 'transfer', description: inDesc, amount, period
+    });
+  } catch(err){
+    if(outRow && outRow.id){
+      try{ await sbDelete(`cash_flow_entries?id=eq.${outRow.id}`); } catch(_){ /* best-effort rollback */ }
+    }
+    throw new Error('Transfer failed partway — nothing was saved. ' + (err.message||''));
+  }
+}
+
+async function refreshEntriesList(){
+  const tbody = document.getElementById('entListTbody');
+  tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">Loading…</td></tr>`;
+  try{
+    const rows = await sbGet(`cash_flow_entries?select=*&period=eq.${RAW.period}&order=date.desc`);
+    document.getElementById('entCount').textContent = rows.length;
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">No manual entries for ${monthLabel(RAW.period)} yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.description||''}${r.entry_type==='transfer' ? '<span class="ent-tag in">transfer</span>' : ''}</td>
+        <td>${CH_LABEL[r.channel]||r.channel}</td>
+        <td class="num"><span class="ent-tag ${r.direction}">${r.direction==='in'?'+':'−'}</span> ${fmt(r.amount)}</td>
+        <td><button class="ent-del-btn" onclick="deleteEntryRow('${r.id}')">Delete</button></td>
+      </tr>`).join('');
+  } catch(err){
+    tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">Could not load entries</td></tr>`;
+  }
+}
+
+async function deleteEntryRow(id){
+  if(!confirm('Delete this entry?')) return;
+  try{
+    await sbDelete(`cash_flow_entries?id=eq.${id}`);
+    notify('Entry deleted');
+    await refreshEntriesList();
+    await loadAndRender();
+  } catch(err){
+    notify('Could not delete entry', 'error');
+  }
 }
 
 /* ════════════════ HEADER / MONTH PICKER WIRING ════════════════
