@@ -65,6 +65,17 @@ function renderHeader(config){
   _headerConfig = config || {};
   ensureHeaderResponsiveCSS();
   ensureSyncStatusCSS();
+  // Bug fix: root.replaceWith(header) below swaps the #header-root div out
+  // for a plain <header class="topbar"> with no id. That's fine the first
+  // time renderHeader() runs, but any SECOND call on the same page (e.g. an
+  // error-fallback re-render, or a page that refreshes its header on data
+  // reload — see loans.html's refreshHeaderNotifications()) could no longer
+  // find '#header-root' at all, so it fell into the branch below, created a
+  // brand-new div, and inserted it at the top of #mainContent — leaving the
+  // ORIGINAL header from the first call still sitting in the DOM. Topbars
+  // silently stacked up on every re-render. Giving the replacement <header>
+  // the same id keeps every subsequent call finding (and replacing) the
+  // same single node.
   let root = document.getElementById('header-root');
   if (!root){
     root = document.createElement('div');
@@ -73,6 +84,7 @@ function renderHeader(config){
     main.insertBefore(root, main.firstChild);
   }
   const header = document.createElement('header');
+  header.id = 'header-root';
   header.className = 'topbar';
   header.innerHTML = topbarInnerHTML(_headerConfig);
   root.replaceWith(header);
