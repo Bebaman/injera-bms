@@ -766,15 +766,19 @@ try{
 const CATS   = ['Transport','Communication','Packaging','Refreshments','Maintenance','Office Supplies','Other'];
 const COLORS = ['#27ae60','#3b82f6','#f59e0b','#8b5cf6','#e5484d','#06b6d4','#94a3b8'];
 const CPILLS = {Transport:'cat-tran',Communication:'cat-comm',Packaging:'cat-pack',Refreshments:'cat-refr',Maintenance:'cat-main','Office Supplies':'cat-off',Other:'cat-oth'};
-const DAILY_LIMIT = 500;      // single-entry limit before it should be flagged for review (Settings-configurable)
 const LOW_BALANCE_PCT = 0.20; // alert when remaining balance falls below 20% of opening balance
 const LARGE_TXN_MULT = 2;     // flag entries that are 2x+ the category's usual size
 
 // ══ STATE ─────────────────────────────────────────────────
 let allData=[], filtered=[], page=1, PER=8, sortCol='date', sortDir=-1;
 function currentPeriod(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+// Local-calendar-date string (YYYY-MM-DD), same pattern as currentPeriod() above.
+// NOT new Date().toISOString().split('T')[0] — that reads the date in UTC, and for
+// a business running on Africa/Addis_Ababa time (UTC+3), any use between local
+// midnight and 3am would resolve to yesterday's date instead of today's.
+function todayLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 let curMonth=currentPeriod(), editId=null, delId=null, repTotal=0;
-let PREV_SPENT=0, OPENING_BAL=0; // pulled live from Supabase in loadAll() — no demo data
+let PREV_SPENT=0, OPENING_BAL=0, PREV_TXN_COUNT=0; // pulled live from Supabase in loadAll() — no demo data
 let PETTY_CASH_DAILY_LIMIT=0; // from business_settings.petty_cash_daily_limit — 0 means "no limit set"
 let tChart=null, dChart=null;
 
@@ -833,8 +837,9 @@ async function getOpeningBalance(period){
 async function getPrevMonthSpent(period){
   try{
     const data=await sbGet(`petty_cash?select=amount&period=eq.${prevMonth(period)}`);
+    PREV_TXN_COUNT=(data||[]).length; // was hardcoded to 29 in the Transactions KPI card — now the real previous-month count from this same query
     return sum(data,'amount');
-  }catch(e){return 0;}
+  }catch(e){PREV_TXN_COUNT=0;return 0;}
 }
 
 // ══ OFFLINE ───────────────────────────────────────────────
@@ -847,7 +852,14 @@ function syncStatus(){
   const on=navigator.onLine;
   document.body.classList.toggle('offline',!on);
   document.getElementById('offlineBar').style.display=on?'none':'flex';
-  if(typeof setSyncStatus==='function') setSyncStatus(on?'connecting':'offline');
+  // Only assert the OFFLINE case here. header.js's setSyncStatus() is already
+  // driven automatically by every real sbGet/sbInsert/etc. call in app-state.js
+  // (connecting while a request is in flight, "up to date" once it succeeds).
+  // This used to also force setSyncStatus('connecting') whenever the browser
+  // was online — including right after loadAll() finished successfully — which
+  // stomped that real "up to date" state back to "Connecting…" every single
+  // time, so the pill never got to show anything else.
+  if(!on && typeof setSyncStatus==='function') setSyncStatus('offline');
 }
 window.addEventListener('online',()=>{syncStatus();loadAll();});
 window.addEventListener('offline',()=>syncStatus());
@@ -891,7 +903,7 @@ async function loadAll(){
 }
 
 function mapRow(r){return{id:r.id,date:r.date,description:r.description||'',category:(r.expense_categories&&r.expense_categories.name)||categoryNamesById[r.category_id]||'Other',amount:num(r.amount),receipt_ref:r.receipt_reference||autoRef(r.date),created_by:(r.users&&r.users.name)||'—',created_by_id:r.created_by||null};}
-function monthEnd(ym){const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).toISOString().split('T')[0];}
+function monthEnd(ym){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m,0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function autoRef(d){const s=d?d.replace(/-/g,'').slice(2):'000000';return 'PC-'+s+'-01';}
 function showLoading(){document.getElementById('pcBody').innerHTML='<tr><td colspan="8" class="loading-cell"><span class="spin-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></span> Loading…</td></tr>';}
 
@@ -947,6 +959,12 @@ function sortTable(col){
 // ══ RENDER TABLE ──────────────────────────────────────────
 function renderTable(){
   const tbody=document.getElementById('pcBody');
+  // Independent of the filtered/empty branches below — renderRecent() reads
+  // allData directly, not filtered. Previously this only ran at the tail end
+  // of the non-empty branch, so on a fresh site (filtered.length always 0)
+  // it never ran at all and the Recent table sat on its baked-in static
+  // "Loading…" markup forever.
+  renderRecent();
   if(!filtered.length){
     tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h4>No entries found</h4><p>Add your first petty cash entry or adjust your filters.</p><button class="btn btn-primary" onclick="openAddModal()" style="margin:0 auto"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Entry</button></div></td></tr>`;
     renderPagination(0);return;
@@ -966,7 +984,7 @@ function renderTable(){
       <div class="row-act del" onclick="openDel('${e.id}','${x(e.description)}')" title="Delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>
     </div></td>
   </tr>`).join('')+`<tr class="tot"><td colspan="3">TOTAL (${total} entries)</td><td class="green">${fmt(grand)}</td><td colspan="4"></td></tr>`;
-  renderPagination(total);renderRecent();
+  renderPagination(total);
 }
 
 function renderPagination(total){
@@ -1010,7 +1028,7 @@ function renderKPIs(){
   document.getElementById('k-bal-note').textContent=bal>=0?'Available for use':'Depleted';
   setChg('k-spent-c',diff,`${diff>=0?'▲ +':'▼ -'}${pct}%`,'vs prev month');
   setChg('k-avg-c',diff,`${diff>=0?'▲':'▼'} ${pct}%`,'vs prev month');
-  setChg('k-txn-c',txn-29,`${txn>=29?'+':''}${txn-29} entries`,'vs prev month');
+  setChg('k-txn-c',txn-PREV_TXN_COUNT,`${txn>=PREV_TXN_COUNT?'+':''}${txn-PREV_TXN_COUNT} entries`,'vs prev month');
   setChg('k-vs-c',diff,diff>=0?`▲ Higher by ${pct}%`:`▼ Lower by ${pct}%`,'');
   document.getElementById('k-vs-wrap').style.color=diff>=0?'#27ae60':'#e5484d';
 }
@@ -1121,7 +1139,7 @@ function openAddModal(){
   document.getElementById('modalTitle').textContent='New Petty Cash Entry';
   document.getElementById('saveBtn').innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Entry';
   clearForm();
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value=todayLocal();
   document.getElementById('f-by-display').value=SESSION?.name||'—';
   openModal('entryModal');
 }
@@ -1217,7 +1235,7 @@ async function confirmDelete(){
 
 // ══ REPLENISH ─────────────────────────────────────────────
 function openReplenishModal(){
-  document.getElementById('r-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('r-date').value=todayLocal();
   ['r-amt','r-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('repPrev').textContent='0.00 ETB';
   document.getElementById('r-src').value='bank';
@@ -1561,10 +1579,18 @@ function computeAlerts(){
     alerts.push({sev:'warn',title:'Petty cash balance is low',msg:`Only ${fmt(bal)} ETB remaining (below ${(LOW_BALANCE_PCT*100).toFixed(0)}% of opening balance). Consider replenishing.`,action:()=>{if(typeof closeNotif==='function')closeNotif();openReplenishModal();}});
   }
 
-  const overLimit=allData.filter(e=>e.amount>DAILY_LIMIT);
-  if(overLimit.length){
-    const top=overLimit.sort((a,b)=>b.amount-a.amount)[0];
-    alerts.push({sev:'warn',title:`${overLimit.length} entr${overLimit.length>1?'ies':'y'} above the ${fmt(DAILY_LIMIT,0)} ETB limit`,msg:`Largest: "${top.description}" — ${fmt(top.amount)} ETB. These may need owner approval per policy.`,action:null});
+  // Was checking against a hardcoded 500 ETB constant that never matched
+  // PETTY_CASH_DAILY_LIMIT (the real value from Settings, already used by
+  // saveEntry()'s own over-limit confirmation) — so changing the limit in
+  // Settings silently had no effect on this alert. PETTY_CASH_DAILY_LIMIT===0
+  // means "no limit configured" (no business_settings row / null value), in
+  // which case this check is skipped rather than flagging every entry.
+  if(PETTY_CASH_DAILY_LIMIT>0){
+    const overLimit=allData.filter(e=>e.amount>PETTY_CASH_DAILY_LIMIT);
+    if(overLimit.length){
+      const top=overLimit.sort((a,b)=>b.amount-a.amount)[0];
+      alerts.push({sev:'warn',title:`${overLimit.length} entr${overLimit.length>1?'ies':'y'} above the ${fmt(PETTY_CASH_DAILY_LIMIT,0)} ETB limit`,msg:`Largest: "${top.description}" — ${fmt(top.amount)} ETB. These may need owner approval per policy.`,action:null});
+    }
   }
 
   const dupMap={};
@@ -1574,7 +1600,7 @@ function computeAlerts(){
     alerts.push({sev:'info',title:'Possible duplicate entry',msg:`More than one entry on ${fDate(dupKey.split('|')[0])} for ${fmt(parseFloat(dupKey.split('|')[1]))} ETB. Worth a quick check.`,action:null});
   }
 
-  const today=new Date().toISOString().split('T')[0];
+  const today=todayLocal();
   if(curMonth===today.slice(0,7)){
     const daysElapsed=new Date().getDate();
     const projected=daysElapsed>0?(spent/daysElapsed)*new Date(+curMonth.split('-')[0],+curMonth.split('-')[1],0).getDate():0;
