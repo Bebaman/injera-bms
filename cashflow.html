@@ -293,6 +293,16 @@ let RAW = {
 
 let netFlowChart = null;
 
+// Calls whichever toast function the shared shell actually exposes — this page previously
+// mixed calls to toast(...) and showToast(...), and only one of those names is ever defined
+// by header.js/app-state.js, so the other one threw a silent ReferenceError. Route every
+// call through here instead of guessing the name at each call site.
+function notify(msg, type){
+  if(typeof showToast === 'function') showToast(msg, type);
+  else if(typeof toast === 'function') toast(msg, type);
+  else console.warn('[cashflow] no toast function available:', msg);
+}
+
 function fmt(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtSigned(n){
   const v = Number(n||0);
@@ -554,7 +564,7 @@ function computeCashFlow(data){
   CHANNELS.forEach(c=> netInvesting[c] = equipSales[c] - equipPurchases[c]);
 
   // ---- FINANCING ----
-  const capitalInjection = zero(), loanReceived = zero(), loanPrincipal = zero(), loanInterest = zero();
+  const capitalInjection = zero(), capitalWithdrawal = zero(), loanReceived = zero(), loanPrincipal = zero(), loanInterest = zero(), otherFinancing = zero();
   const distributions = {}; // shareholder-ish label -> {cash,bank,mobile}
   // Principal/interest split comes straight from loan_repayment_schedule (which has both
   // columns) rather than cash_flow_entries, whose loan_repayment rows store only the
@@ -569,6 +579,7 @@ function computeCashFlow(data){
     const amt = parseFloat(e.amount||0);
     if(e.category !== 'financing') return;
     if(e.entry_type === 'capital_injection') capitalInjection[e.channel] += (e.direction==='in'? amt : -amt);
+    else if(e.entry_type === 'capital_withdrawal') capitalWithdrawal[e.channel] += (e.direction==='out'? amt : -amt);
     else if(e.entry_type === 'loan_disbursement') loanReceived[e.channel] += (e.direction==='in'? amt : -amt);
     else if(e.entry_type === 'loan_repayment'){
       // Skip here — handled above via loan_repayment_schedule's principal/interest split,
@@ -579,13 +590,20 @@ function computeCashFlow(data){
       distributions[label] = distributions[label] || zero();
       distributions[label][e.channel] += (e.direction==='out'? amt : -amt);
     }
+    else {
+      // Any financing entry_type not explicitly handled above (unknown/future entry_type)
+      // used to be silently dropped from both the table and the closing-balance math —
+      // real cash would move but the statement wouldn't reflect it. Catch it here instead
+      // so nothing under category='financing' can ever vanish unaccounted for.
+      otherFinancing[e.channel] += (e.direction==='in'? amt : -amt);
+    }
   });
 
   const netFinancing = zero();
   CHANNELS.forEach(c=>{
     let distOut = 0;
     Object.values(distributions).forEach(d=> distOut += d[c]);
-    netFinancing[c] = capitalInjection[c] + loanReceived[c] - loanPrincipal[c] - loanInterest[c] - distOut;
+    netFinancing[c] = capitalInjection[c] - capitalWithdrawal[c] + loanReceived[c] - loanPrincipal[c] - loanInterest[c] - distOut + otherFinancing[c];
   });
 
   const netMovement = zero();
@@ -599,7 +617,7 @@ function computeCashFlow(data){
     rawMaterials, packaging, laborWages, rent, electricity, water, maintenance, deliveryOut, marketing,
     otherOverhead, bankCharges, pettyCashOut, otherCashOut, totalOperatingPayments, netOperating,
     equipPurchases, equipSales, netInvesting,
-    capitalInjection, loanReceived, loanPrincipal, loanInterest, distributions, netFinancing,
+    capitalInjection, capitalWithdrawal, loanReceived, loanPrincipal, loanInterest, otherFinancing, distributions, netFinancing,
     netMovement, closing
   };
 }
@@ -666,13 +684,15 @@ function renderCashFlowTable(cf){
 
   h += sectionRow('D. FINANCING ACTIVITIES');
   if(rowTotal(cf.capitalInjection) !== 0) h += tblRow('Owner Capital Injection', cf.capitalInjection, { cls:'cf-line' });
+  if(rowTotal(cf.capitalWithdrawal) !== 0) h += tblRow('Owner Capital Withdrawal', negate(cf.capitalWithdrawal), { cls:'cf-line' });
   if(rowTotal(cf.loanReceived) !== 0) h += tblRow('Loan Received', cf.loanReceived, { cls:'cf-line' });
   if(rowTotal(cf.loanPrincipal) !== 0) h += tblRow('Loan Repayment — Principal', negate(cf.loanPrincipal), { cls:'cf-line' });
   if(rowTotal(cf.loanInterest) !== 0) h += tblRow('Loan Repayment — Interest', negate(cf.loanInterest), { cls:'cf-line' });
   Object.entries(cf.distributions).forEach(([label, o])=>{
     if(rowTotal(o) !== 0) h += tblRow(label, negate(o), { cls:'cf-line' });
   });
-  if(Object.keys(cf.distributions).length === 0 && rowTotal(cf.capitalInjection)===0 && rowTotal(cf.loanReceived)===0 && rowTotal(cf.loanPrincipal)===0 && rowTotal(cf.loanInterest)===0){
+  if(rowTotal(cf.otherFinancing) !== 0) h += tblRow('Other Financing Activity', cf.otherFinancing, { cls:'cf-line' });
+  if(Object.keys(cf.distributions).length === 0 && rowTotal(cf.capitalInjection)===0 && rowTotal(cf.capitalWithdrawal)===0 && rowTotal(cf.loanReceived)===0 && rowTotal(cf.loanPrincipal)===0 && rowTotal(cf.loanInterest)===0 && rowTotal(cf.otherFinancing)===0){
     h += `<tr class="cf-line"><td colspan="5" style="color:var(--tl);font-style:italic">No financing activity this month</td></tr>`;
   }
   h += tblRow('Net Cash from Financing Activities', cf.netFinancing, { cls:'cf-total' });
@@ -859,7 +879,7 @@ async function loadAndRender(){
   if (typeof refreshNotifications === 'function') {
     refreshNotifications(buildHeaderNotifications(cf, recon));
   }
-  if(!ok) toast('Some data for this period could not be loaded', 'error');
+  if(!ok) notify('Some data for this period could not be loaded', 'error');
   window._lastCF = cf;
 }
 
@@ -908,10 +928,12 @@ function flattenForExport(cf){
   push('Net Cash from Investing Activities', cf.netInvesting);
   rows.push(['D. FINANCING ACTIVITIES','','','','']);
   if(rowTotal(cf.capitalInjection)!==0) push('Owner Capital Injection', cf.capitalInjection);
+  if(rowTotal(cf.capitalWithdrawal)!==0) push('Owner Capital Withdrawal', negate(cf.capitalWithdrawal));
   if(rowTotal(cf.loanReceived)!==0) push('Loan Received', cf.loanReceived);
   if(rowTotal(cf.loanPrincipal)!==0) push('Loan Repayment — Principal', negate(cf.loanPrincipal));
   if(rowTotal(cf.loanInterest)!==0) push('Loan Repayment — Interest', negate(cf.loanInterest));
   Object.entries(cf.distributions).forEach(([label,o])=>{ if(rowTotal(o)!==0) push(label, negate(o)); });
+  if(rowTotal(cf.otherFinancing)!==0) push('Other Financing Activity', cf.otherFinancing);
   push('Net Cash from Financing Activities', cf.netFinancing);
   rows.push(['NET CASH MOVEMENT (B + C + D)', Number(cf.netMovement.cash).toFixed(2), Number(cf.netMovement.bank).toFixed(2), Number(cf.netMovement.mobile).toFixed(2), Number(rowTotal(cf.netMovement)).toFixed(2)]);
   push('CLOSING CASH BALANCE (A + Net Movement)', cf.closing);
@@ -929,11 +951,11 @@ function doExportCsv(){
   a.href = url; a.download = `cashflow_${RAW.period}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Exported Cash Flow Statement to CSV');
+  notify('Exported Cash Flow Statement to CSV');
 }
 
 function exportExcel(){
-  if(typeof XLSX==='undefined'){ showToast('Excel library did not load — check your connection and try again'); return; }
+  if(typeof XLSX==='undefined'){ notify('Excel library did not load — check your connection and try again', 'error'); return; }
   const cf = window._lastCF || computeCashFlow();
   const rows = flattenForExport(cf);
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -942,7 +964,7 @@ function exportExcel(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Cash Flow');
   XLSX.writeFile(wb, `cashflow_${RAW.period}.xlsx`);
-  showToast('Exported Cash Flow Statement to Excel');
+  notify('Exported Cash Flow Statement to Excel');
 }
 
 function exportPdf(){
