@@ -26,49 +26,6 @@
 .pl-side{display:flex;flex-direction:column;gap:16px}
 @media(max-width:1100px){.pl-layout{grid-template-columns:1fr}}
 
-/* ══ TABLET (≤900px) ═══════════════════════════════════ */
-@media(max-width:900px){
-  .pl-card-hd{padding:16px 18px 14px;flex-wrap:wrap;gap:10px}
-  .pl-card-hd h2{font-size:15px}
-  .pl-table th,.pl-table td{padding:9px 16px}
-  .qa-g{grid-template-columns:repeat(3,1fr);gap:7px}
-}
-
-/* ══ PHONE (≤600px) ════════════════════════════════════ */
-@media(max-width:600px){
-  .content{padding:10px!important}
-  .pl-layout{gap:12px}
-  .pl-card-hd{padding:14px 14px 12px;align-items:flex-start}
-  .pl-card-hd h2{font-size:14.5px}
-  .pl-card-hd p{font-size:11px}
-  .pl-currency{font-size:10.5px}
-  .pl-table{min-width:560px;font-size:13px}
-  .pl-table th{padding:9px 14px;font-size:10px}
-  .pl-th-sub{font-size:8.5px}
-  .pl-table td{padding:7px 14px}
-  .pl-section td{padding:12px 14px 5px;font-size:11px}
-  .pl-net td{font-size:13.5px;padding-top:12px;padding-bottom:12px}
-  .card-hd{padding:11px 14px 7px}
-  .card-ttl{font-size:13.5px}
-  .card-ttl-sub{font-size:10px}
-  .ps-item{padding:9px 14px;gap:9px}
-  .ps-ico{width:32px;height:32px}
-  .ps-ico svg{width:15px;height:15px}
-  .ps-lbl{font-size:10.5px}
-  .ps-val{font-size:13.5px}
-  .ps-chg{font-size:9px}
-  .ytd-row{padding:8px 14px;font-size:12.5px}
-  .qa-g{grid-template-columns:repeat(3,1fr);gap:6px;padding:9px 10px 11px}
-  .qa-b{padding:11px 4px;font-size:10px;gap:4px}
-  .qa-b svg{width:17px;height:17px}
-}
-
-/* ══ SMALL PHONE (≤380px) ══════════════════════════════ */
-@media(max-width:380px){
-  .qa-g{grid-template-columns:1fr;gap:6px}
-  .qa-b{flex-direction:row;justify-content:flex-start;padding:10px 12px}
-}
-
 .pl-card-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:18px 22px 16px;border-bottom:1px solid var(--border)}
 .pl-card-hd h2{font-size:16px;font-weight:700;color:var(--td)}
 .pl-card-hd p{font-size:var(--fs-xs);color:var(--tl);margin-top:3px}
@@ -125,6 +82,56 @@
 .qa-b:active{transform:translateY(0) scale(.96)}
 .qa-b svg{width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .qa-b:hover svg{transform:scale(1.15)}
+
+/* ══ TABLET (≤900px) ═══════════════════════════════════ */
+/* Placed after every unconditional/base rule above (not before, as it was
+   originally) so these overrides actually win the cascade at this width —
+   previously the base .pl-card-hd / .pl-table th,td / .qa-g rules further
+   up the file were re-declared unconditionally further down, silently
+   cancelling this block out on real devices. Desktop is untouched: none
+   of these conditions are ever true above 900px, so nothing here can
+   affect the >1100px layout. */
+@media(max-width:900px){
+  .pl-card-hd{padding:16px 18px 14px;flex-wrap:wrap;gap:10px}
+  .pl-card-hd h2{font-size:15px}
+  .pl-table th,.pl-table td{padding:9px 16px}
+  .qa-g{grid-template-columns:repeat(3,1fr);gap:7px}
+}
+
+/* ══ PHONE (≤600px) ════════════════════════════════════ */
+@media(max-width:600px){
+  .content{padding:10px!important}
+  .pl-layout{gap:12px}
+  .pl-card-hd{padding:14px 14px 12px;align-items:flex-start}
+  .pl-card-hd h2{font-size:14.5px}
+  .pl-card-hd p{font-size:11px}
+  .pl-currency{font-size:10.5px}
+  .pl-table{min-width:560px;font-size:13px}
+  .pl-table th{padding:9px 14px;font-size:10px}
+  .pl-th-sub{font-size:8.5px}
+  .pl-table td{padding:7px 14px}
+  .pl-section td{padding:12px 14px 5px;font-size:11px}
+  .pl-net td{font-size:13.5px;padding-top:12px;padding-bottom:12px}
+  .card-hd{padding:11px 14px 7px}
+  .card-ttl{font-size:13.5px}
+  .card-ttl-sub{font-size:10px}
+  .ps-item{padding:9px 14px;gap:9px}
+  .ps-ico{width:32px;height:32px}
+  .ps-ico svg{width:15px;height:15px}
+  .ps-lbl{font-size:10.5px}
+  .ps-val{font-size:13.5px}
+  .ps-chg{font-size:9px}
+  .ytd-row{padding:8px 14px;font-size:12.5px}
+  .qa-g{grid-template-columns:repeat(3,1fr);gap:6px;padding:9px 10px 11px}
+  .qa-b{padding:11px 4px;font-size:10px;gap:4px}
+  .qa-b svg{width:17px;height:17px}
+}
+
+/* ══ SMALL PHONE (≤380px) ══════════════════════════════ */
+@media(max-width:380px){
+  .qa-g{grid-template-columns:1fr;gap:6px}
+  .qa-b{flex-direction:row;justify-content:flex-start;padding:10px 12px}
+}
 
 /* ══ PRINT ═════════════════════════════════════════════ */
 @media print{
@@ -429,8 +436,9 @@ async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
 // ── Core P&L aggregation (IAS 2 basis: overhead lives in COGS, never OpEx) ──
 // Shared derivation: turns raw category totals (revenue lines, COGS lines,
 // opex lines, interest) into the full figure set used everywhere on this
-// page. Both live Supabase data and the demo dataset below flow through
-// this same function, so the two paths can never disagree on formulas.
+// page. This is the single source of truth for the P&L formulas — the
+// table render, the profit summary, YTD summary, and both exports all
+// derive from figures produced here, so none of them can disagree.
 function deriveTotals(cat){
   const totalRevenue = cat.injeraRevenue + cat.derkoshRevenue;
   const totalCOGS = cat.injeraBlend+cat.corn+cat.gomenZere+cat.packaging+cat.labor+cat.electricity+cat.water+cat.rent+cat.maintenance+cat.otherOverhead;
@@ -757,10 +765,13 @@ async function exportPDF(retryCount){
     const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
     const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
 
+    // No fake fallback name: if there's no logged-in session, we simply
+    // don't print a "Prepared by" line rather than attributing the export
+    // to a fabricated person.
     const session = loadSession();
     const preparedBy = (session && session.name)
       ? `${session.name}${session.role ? ` (${session.role.charAt(0).toUpperCase()+session.role.slice(1)})` : ''}`
-      : 'Eyasu Mesfin (Owner)';
+      : '';
 
     function drawHeader(){
       doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
@@ -775,7 +786,7 @@ async function exportPDF(retryCount){
       doc.setFontSize(9); doc.setTextColor(220,235,227);
       doc.text('Period: '+monthLbl, pageW-marginX, 30, {align:'right'});
       doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-      doc.text('Prepared by: '+preparedBy, pageW-marginX, 56, {align:'right'});
+      if(preparedBy) doc.text('Prepared by: '+preparedBy, pageW-marginX, 56, {align:'right'});
     }
 
     function drawKpiStrip(y){
@@ -875,6 +886,41 @@ function printStatement(){
   setTimeout(()=>window.print(), 300);
 }
 
+// ── Header notifications: built from real data, never fabricated ────────
+// One card for pending expense/purchase approvals (aggregated if there's
+// more than one), one for the prior month's statement once it has actual
+// figures. Each query is independently resilient — a failure here should
+// never block the header or the P&L data from rendering.
+async function buildNotifications(period){
+  const notifications = [];
+
+  try{
+    const pending = await sbGet(`purchases?select=total_cost,date,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false&order=date.desc`);
+    if(pending && pending.length){
+      const totalPending = pending.reduce((s,p)=>s+num(p.total_cost),0);
+      const mostRecent = pending[0];
+      const catName = mostRecent.expense_categories?.name || 'Expense';
+      const sub = pending.length === 1
+        ? `${catName} — ${fmtETB(mostRecent.total_cost)} ETB`
+        : `${pending.length} items — ${fmtETB(totalPending)} ETB total`;
+      notifications.push({ type:'o', title:'Expense approval pending', sub, time: fmtDateLong(mostRecent.date) });
+    }
+  }catch(e){ console.error('buildNotifications: pending approvals query failed', e); }
+
+  try{
+    const prevPeriod = shiftPeriod(period, -1);
+    const prevSet = await fetchPeriodSet(`period=eq.${prevPeriod}`, prevPeriod, periodToDueDateRange(prevPeriod, prevPeriod));
+    if(prevSet.ok){
+      const prevFigures = calcFigures(prevSet);
+      if(prevFigures.totalRevenue !== 0 || prevFigures.totalCOGS !== 0){
+        notifications.push({ type:'g', title:`${periodToLabel(prevPeriod)} statement ready`, sub:`Net Profit: ${fmtETB(prevFigures.netProfit)} ETB`, time: periodToLabel(prevPeriod) });
+      }
+    }
+  }catch(e){ console.error('buildNotifications: prior period figures failed', e); }
+
+  return notifications;
+}
+
 function nextPeriodKey(mk){ return shiftPeriod(mk, 1); }
 
 // Rolling month window, same as the Cash Flow page: 23 months back, 6 forward
@@ -897,6 +943,22 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const { keys, todayKey } = monthOptionKeys();
   const initialKey = keys.includes(todayKey) ? todayKey : keys[keys.length-1];
 
+  // Notifications are fetched from Supabase (pending approvals, prior month's
+  // real net profit) — never hardcoded. loadInvItems() runs first since the
+  // notification/COGS queries below key material names off INV_ITEMS_MAP.
+  try{
+    await loadInvItems();
+  }catch(e){
+    console.error('Failed to load inventory items — continuing anyway.', e);
+  }
+
+  let notifications = [];
+  try{
+    notifications = await buildNotifications(initialKey);
+  }catch(e){
+    console.error('Failed to build notifications — continuing without them.', e);
+  }
+
   try{
     if(typeof renderHeader === 'function'){
       renderHeader({
@@ -906,10 +968,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         months: keys.map(k => periodToLabel(k)),
         selectedMonth: periodToLabel(initialKey),
         onMonthChange: () => refreshPL(),
-        notifications: [
-          { type:'o', title:'Expense approval pending', sub:'Rent — 5,000.00 ETB', time:'25 min ago' },
-          { type:'g', title:'May statement ready', sub:'Net Profit: 29,669.00 ETB', time:'3 hrs ago' }
-        ]
+        notifications
       });
     } else {
       console.error('renderHeader() is not available — /js/header.js did not load. Header/nav will be missing but the P&L data will still load below.');
@@ -919,12 +978,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   }
 
   document.getElementById('userPanelProfile')?.addEventListener('click', () => window.location.href = 'settings.html');
-
-  try{
-    await loadInvItems();
-  }catch(e){
-    console.error('Failed to load inventory items — continuing anyway.', e);
-  }
 
   // Always attempt the P&L load, no matter what happened above — this is
   // the fix for the page getting stuck on "Loading…" forever: previously,
