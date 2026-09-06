@@ -1588,11 +1588,28 @@ function computeAlerts(){
 // sev -> header.js notification "type" (r/o/p/b/g icon set)
 const SEV_TO_NOTIF_TYPE={danger:'o',warn:'o',info:'p'};
 window.__notifAlerts=[];
+// GUARD: header.js's refreshNotifications() (line ~335) calls back into this
+// page's renderNotifications(), which calls refreshNotifications() again —
+// an infinite mutual-recursion loop that throws "Maximum call stack size
+// exceeded" and crashes before the page ever finishes rendering (console
+// trace: computeAlerts -> renderNotifications -> refreshNotifications ->
+// renderNotifications -> ... ). This flag makes any re-entrant call a no-op
+// so the stack unwinds normally instead of looping forever. Root cause is in
+// header.js and may affect other modules that define their own
+// renderNotifications() the same way — worth checking header.js:335 directly
+// when there's time, but this stops the crash here regardless.
+let __renderingNotifications=false;
 function renderNotifications(){
-  const alerts=computeAlerts();
-  window.__notifAlerts=alerts;
-  if(typeof refreshNotifications==='function'){
-    refreshNotifications(alerts.map(a=>({type:SEV_TO_NOTIF_TYPE[a.sev]||'g',title:a.title,sub:a.msg,time:''})));
+  if(__renderingNotifications)return;
+  __renderingNotifications=true;
+  try{
+    const alerts=computeAlerts();
+    window.__notifAlerts=alerts;
+    if(typeof refreshNotifications==='function'){
+      refreshNotifications(alerts.map(a=>({type:SEV_TO_NOTIF_TYPE[a.sev]||'g',title:a.title,sub:a.msg,time:''})));
+    }
+  }finally{
+    __renderingNotifications=false;
   }
 }
 // Sign-out, the notification bell/panel, and the user menu are now all
@@ -1619,30 +1636,56 @@ function populateMonthSelector(){
   }).join('');
   if(![...sel.options].some(o=>o.value===curMonth) && sel.options.length) curMonth=sel.options[sel.selectedIndex].value;
 }
-renderHeader({
-  title: 'Petty Cash',
-  subtitle: 'Track small daily expenses and petty cash management',
-  showMonthPicker: true,
-  onMonthChange: onMonthChange,
-  // The bell's per-item click actions (e.g. jump straight to Replenish) went away
-  // with the old custom notif panel; "View All" now fires the single most urgent
-  // alert's action, so overdrawn/low-balance is still one click from the bell.
-  onViewAllNotifications: () => {
-    const a = (window.__notifAlerts||[]).find(a=>a.action);
-    if(a) a.action();
-  },
-  notifications: []
-});
-populateMonthSelector();
+// renderHeader() previously ran unguarded here. If /js/header.js hadn't finished
+// loading (or renderHeader() threw for any other reason — e.g. no session yet on
+// a brand-new install), the uncaught exception killed the rest of THIS <script>
+// block, so populateMonthSelector() and the DOMContentLoaded->loadAll() listener
+// below it never ran. Result: the "Loading…" cells baked into the static HTML
+// (pcBody/recentBody) just sat there forever — the page looked permanently stuck
+// loading, worst on a fresh install with no data/session yet. Wrapping this call
+// (and giving loadAll() its own start path) means a header failure can no longer
+// block the page's actual data from loading.
+try{
+  renderHeader({
+    title: 'Petty Cash',
+    subtitle: 'Track small daily expenses and petty cash management',
+    showMonthPicker: true,
+    onMonthChange: onMonthChange,
+    // The bell's per-item click actions (e.g. jump straight to Replenish) went away
+    // with the old custom notif panel; "View All" now fires the single most urgent
+    // alert's action, so overdrawn/low-balance is still one click from the bell.
+    onViewAllNotifications: () => {
+      const a = (window.__notifAlerts||[]).find(a=>a.action);
+      if(a) a.action();
+    },
+    notifications: []
+  });
+}catch(e){
+  console.error('[pettycash] renderHeader failed — continuing so the table can still load',e);
+  setTimeout(()=>toast('Header Failed to Load: ' + (e.message+' — some header controls may be missing.'), 'error'),300);
+}
+try{
+  populateMonthSelector();
+}catch(e){
+  console.error('[pettycash] populateMonthSelector failed',e);
+}
 
-document.addEventListener('DOMContentLoaded',()=>{
+function initPettyCashPage(){
   const sel=document.getElementById('msel');
   if(sel && sel.selectedIndex>=0){
     const lbl=sel.options[sel.selectedIndex].text;
     ['tbl-period','bal-period','trend-period'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='('+lbl+')';});
   }
   loadAll();
-});
+}
+// Belt-and-braces: normally DOMContentLoaded hasn't fired yet since this inline
+// script is still part of the initial parse, but if anything upstream ever
+// defers this script, don't miss the event.
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', initPettyCashPage);
+}else{
+  initPettyCashPage();
+}
 </script>
 </body>
 </html>
