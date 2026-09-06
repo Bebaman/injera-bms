@@ -629,6 +629,7 @@ function scheduleRows(loan){
 
 /* ════════════════ LOAD EVERYTHING FROM SUPABASE ════════════════ */
 async function loadAll(){
+  let loadError = null;
   try{
     const [loansRes, schedRes] = await Promise.all([
       db.from('loans').select('*').order('disbursement_date', { ascending:false }),
@@ -642,19 +643,11 @@ async function loadAll(){
     (schedRes.data||[]).forEach(r=>{
       (scheduleByLoan[r.loan_id] = scheduleByLoan[r.loan_id]||[]).push(r);
     });
-    // This page talks to Supabase via the supabase-js client directly (db.from(...))
-    // rather than app-state.js's sbGet/sbPost helpers, so app-state.js's shared
-    // _sbRequest layer — which is what normally calls window.setSyncStatus('live')
-    // on every successful call — never runs for this page's own queries. Without
-    // this, header.js's status pill is left on its initial "Connecting…" state
-    // forever, even though the data loaded fine. Called here explicitly so the
-    // header reflects the real state without any change to the shared files.
-    window.setSyncStatus?.('live');
   } catch(err){
     console.error('Failed to load loans from Supabase:', err);
     showToast('Could not load loan data: '+(err.message||'unknown error'));
-    window.setSyncStatus?.('error', { message: 'Could not load loan data' });
     loans = []; scheduleByLoan = {};
+    loadError = err;
   }
   populateLoanSelects();
   const schedSel = document.getElementById('scheduleLoanSel');
@@ -662,6 +655,16 @@ async function loadAll(){
   renderRegister();
   renderSchedule();
   refreshHeaderNotifications();
+  // This page talks to Supabase via the supabase-js client directly (db.from(...))
+  // rather than app-state.js's sbGet/sbPost helpers, so app-state.js's shared
+  // _sbRequest layer — which is what normally calls window.setSyncStatus('live')
+  // on every successful call — never runs for this page's own queries. Must be
+  // called AFTER refreshHeaderNotifications() above: that calls renderHeader(),
+  // and renderHeader() unconditionally resets the pill back to "Connecting…" on
+  // every single render (see header.js) — including this one, which loadAll()
+  // itself just triggered. Setting it earlier gets immediately overwritten by
+  // that reset, which is why the pill looked stuck even after the first fix.
+  window.setSyncStatus?.(loadError ? 'error' : 'live', loadError ? { message: 'Could not load loan data' } : undefined);
 }
 
 /* ════════════════ STATUS PILLS ════════════════ */
