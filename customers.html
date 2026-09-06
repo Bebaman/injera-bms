@@ -179,7 +179,7 @@ html{scroll-behavior:smooth}
 .amt-red{color:#e5484d;font-weight:700}
 .status-pill{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;display:inline-block}
 .status-active{background:#e3f6ec;color:#19733f}
-.status-inactive{background:#f0f2f1;color:#7c8a83}
+.status-inactive{background:#fdeaea;color:#c1272d}
 .status-unsettled{background:#fdeaea;color:#c1272d}
 .status-settled{background:#e3f6ec;color:#19733f}
 
@@ -313,6 +313,14 @@ html{scroll-behavior:smooth}
   .kpi-row{grid-template-columns:1fr 1fr}
   .kc-val{font-size:17px}
 }
+@media(max-width:480px){
+  .aging-wrap{flex-direction:column;align-items:stretch}
+  .aging-chart-box{margin:0 auto}
+  .modal-footer{flex-wrap:wrap;row-gap:8px}
+  .modal-footer button{flex:1 1 auto}
+  .qa-grid{grid-template-columns:1fr 1fr}
+  .det-grid{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
@@ -345,7 +353,7 @@ html{scroll-behavior:smooth}
       </div>
       <div class="kc kc-anim" style="--d:1">
         <div class="kc-ico ic-g spin-ready" style="--d:1"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-        <span class="kc-lbl">Total Revenue <span id="kpiRevMonthLbl" style="font-weight:500">(May 2026)</span></span>
+        <span class="kc-lbl">Total Revenue <span id="kpiRevMonthLbl" style="font-weight:500"></span></span>
         <div class="kc-val"><span class="cnt" id="cntRevenue" data-t="0" data-d="2">0.00</span><span class="u">ETB</span></div>
         <div class="kc-chg" id="kpiRevChg"></div>
       </div>
@@ -363,7 +371,7 @@ html{scroll-behavior:smooth}
       </div>
       <div class="kc kc-anim" style="--d:4">
         <div class="kc-ico ic-b spin-ready" style="--d:4"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-        <span class="kc-lbl">Credit Sales <span id="kpiCreditMonthLbl" style="font-weight:500">(May 2026)</span></span>
+        <span class="kc-lbl">Credit Sales <span id="kpiCreditMonthLbl" style="font-weight:500"></span></span>
         <div class="kc-val"><span class="cnt" id="cntCreditSales" data-t="0" data-d="2">0.00</span><span class="u">ETB</span></div>
         <div class="kc-chg" id="kpiCreditChg"></div>
       </div>
@@ -415,7 +423,7 @@ html{scroll-behavior:smooth}
           </table>
         </div>
         <div class="pg-row">
-          <div class="pg-info" id="pgInfo">Showing 1 to 5 of 28 customers</div>
+          <div class="pg-info" id="pgInfo">Loading customers…</div>
           <div class="pg-btns" id="pgBtns"></div>
         </div>
       </div>
@@ -430,7 +438,7 @@ html{scroll-behavior:smooth}
     <div class="cst-bottom">
       <div class="card">
         <div class="card-hd">
-          <div class="card-ttl">Customer Profitability <span class="sub">(May 2026)</span></div>
+          <div class="card-ttl">Customer Profitability <span class="sub">(All-Time)</span></div>
           <div class="hd-actions"><button class="btn-tool" onclick="openFullProfitabilityReport()">View Full Report</button></div>
         </div>
         <div class="tbl-wrap">
@@ -465,7 +473,7 @@ html{scroll-behavior:smooth}
     <div class="cst-row3">
       <div class="card">
         <div class="card-hd">
-          <div class="card-ttl">Recent Transactions <span class="sub" id="txnSub">- Addis Hotel</span></div>
+          <div class="card-ttl">Recent Transactions <span class="sub" id="txnSub"></span></div>
           <div class="hd-actions"><button class="btn-tool" onclick="openCustomerLedger()">View All Transactions</button></div>
         </div>
         <div class="tbl-wrap">
@@ -520,6 +528,7 @@ html{scroll-behavior:smooth}
         </div>
         <div class="form-section">
           <div class="form-section-ttl"><div class="fs-num">2</div><span class="fs-lbl">Contact Details</span></div>
+          <div class="fg" style="margin-bottom:12px"><label>Contact Person</label><input type="text" id="ncContactName" placeholder="e.g. Manager or contact name"></div>
           <div class="form-grid g2">
             <div class="fg"><label>Phone</label><input type="text" id="ncPhone" placeholder="+251 9X XXX XXXX" required></div>
             <div class="fg"><label>Email</label><input type="email" id="ncEmail" placeholder="contact@business.com"></div>
@@ -842,11 +851,12 @@ function setKpi(elId, value){
    See customers_migration.sql for the schema this depends on. */
 async function loadCustomers(){
   try{
-    const rows = await sbGet('customer_profitability?select=id,name,type,phone,email,address,credit_limit,payment_terms_days,status,created_at,total_revenue,total_credit_sales,total_collected,outstanding_ar,last_purchase_date,last_payment_date,avg_days_to_pay&order=name.asc') || [];
+    const rows = await sbGet('customer_profitability?select=id,name,type,contact_person,phone,email,address,credit_limit,payment_terms_days,status,created_at,total_revenue,total_credit_sales,total_collected,outstanding_ar,last_purchase_date,last_payment_date,avg_days_to_pay&order=name.asc') || [];
     customers = rows.map(r=>({
       id:r.id,
       name:r.name,
       type:CTYPE_FROM_DB[r.type]||r.type,
+      contactName:r.contact_person||'',
       phone:r.phone||'',
       email:r.email||'',
       address:r.address||'',
@@ -1007,6 +1017,12 @@ function toggleRowMenu(e,id){
   closeRowMenu();
   const btn=e.currentTarget;
   const rect=btn.getBoundingClientRect();
+  const c=customers.find(x=>x.id===id);
+  // Customers churn and come back, so the status action has to go both ways —
+  // Activate for anyone currently Inactive, Deactivate for anyone currently Active.
+  const statusBtn = (c && c.status==='Inactive')
+    ? `<button onclick="activateCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="16 8 10 16 8 12"/></svg>Activate</button>`
+    : `<button class="danger" onclick="deactivateCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</button>`;
   const menu=document.createElement('div');
   menu.className='row-menu show';
   menu.style.top=(rect.bottom+6)+'px';
@@ -1015,7 +1031,7 @@ function toggleRowMenu(e,id){
     <button onclick="selectCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View Details</button>
     <button onclick="openPaymentModal('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Record Payment</button>
     <button onclick="openEditCustomerModal('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit Customer</button>
-    <button class="danger" onclick="deactivateCustomer('${id}');closeRowMenu()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</button>
+    ${statusBtn}
   `;
   document.body.appendChild(menu);
   rowMenuEl=menu;
@@ -1048,6 +1064,7 @@ function renderDetail(){
         <button class="det-edit" onclick="openEditCustomerModal('${c.id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit</button>
       </div>
       <div class="det-contact">
+        ${c.contactName ? `<div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${c.contactName}</div>` : ''}
         <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.81.3 1.6.54 2.36a2 2 0 01-.45 2.11L8.09 9.31a16 16 0 006.6 6.6l1.12-1.11a2 2 0 012.11-.45c.76.24 1.55.42 2.36.54A2 2 0 0122 16.92z"/></svg>${c.phone}</div>
         <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${c.email||'—'}</div>
         <div class="det-contact-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>${c.address||'—'}</div>
@@ -1060,7 +1077,7 @@ function renderDetail(){
         <div class="det-item"><h5>Credit Utilization</h5><div class="v ${creditUtilClass(util)}">${util}%</div></div>
         <div class="det-item"><h5>Customer Since</h5><div class="v">${c.since}</div></div>
         <div class="det-item"><h5>Avg Days to Pay</h5><div class="v">${c.avgDays} Days</div></div>
-        <div class="det-item"><h5>Status</h5><div class="v ${c.status==='Active'?'green':''}">${c.status}</div></div>
+        <div class="det-item"><h5>Status</h5><div class="v ${c.status==='Active'?'green':'red'}">${c.status}</div></div>
         <div class="det-item"><h5>Last Payment</h5><div class="v">${c.lastPayment}</div></div>
       </div>
     </div>
@@ -1253,6 +1270,7 @@ function openEditCustomerModal(id){
   editingCustomerId=id;
   document.getElementById('ncName').value=c.name;
   document.getElementById('ncType').value=c.type;
+  document.getElementById('ncContactName').value=c.contactName||'';
   document.getElementById('ncPhone').value=c.phone;
   document.getElementById('ncEmail').value=c.email;
   document.getElementById('ncAddress').value=c.address;
@@ -1277,6 +1295,7 @@ async function saveNewCustomer(e){
   btn.classList.add('loading');
   const name=document.getElementById('ncName').value.trim();
   const type=document.getElementById('ncType').value;
+  const contactName=document.getElementById('ncContactName').value.trim();
   const phone=document.getElementById('ncPhone').value.trim();
   const email=document.getElementById('ncEmail').value.trim();
   const address=document.getElementById('ncAddress').value.trim();
@@ -1287,13 +1306,13 @@ async function saveNewCustomer(e){
     if(editingCustomerId){
       await sbPatch(`customers?id=eq.${editingCustomerId}`,{
         name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
-        contact_phone:phone, contact_email:email, address,
+        contact_person:contactName, contact_phone:phone, contact_email:email, address,
         credit_limit:limit, payment_terms_days:terms
       });
     } else {
       await sbPost('customers',[{
         name, type:CTYPE_TO_DB[type]||type.toLowerCase(),
-        contact_phone:phone, contact_email:email, address,
+        contact_person:contactName, contact_phone:phone, contact_email:email, address,
         credit_limit:limit, payment_terms_days:terms,
         is_active:true
       }]);
@@ -1309,6 +1328,18 @@ async function saveNewCustomer(e){
   toast(editingCustomerId ? name+' updated' : name+' added as a new customer','success');
   editingCustomerId=null;
   await loadCustomers();
+}
+async function activateCustomer(id){
+  const c=customers.find(x=>x.id===id);
+  if(!c) return;
+  try{
+    await sbPatch(`customers?id=eq.${id}`,{is_active:true});
+    toast(c.name+' reactivated','success');
+    await loadCustomers();
+  }catch(err){
+    console.error('Activate customer failed:', err);
+    toast('Could not reactivate: '+err.message,'error');
+  }
 }
 async function deactivateCustomer(id){
   const c=customers.find(x=>x.id===id);
