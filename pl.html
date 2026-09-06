@@ -82,6 +82,34 @@
 .qa-b:active{transform:translateY(0) scale(.96)}
 .qa-b svg{width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .qa-b:hover svg{transform:scale(1.15)}
+.qa-b-wide{grid-column:1/-1;flex-direction:row;justify-content:center}
+
+/* Month Comparison modal */
+.cmp-overlay{display:none;position:fixed;inset:0;background:rgba(15,35,25,.45);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.cmp-overlay.open{display:flex}
+.cmp-modal{background:#fff;border-radius:14px;width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.cmp-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.cmp-hd h3{font-size:16px;font-weight:700;color:var(--td)}
+.cmp-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--tl);padding:2px 6px;border-radius:6px}
+.cmp-close:hover{background:#f0f5f2;color:var(--td)}
+.cmp-controls{display:flex;align-items:flex-end;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.cmp-field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}
+.cmp-field label{font-size:var(--fs-xs);font-weight:600;color:var(--tl)}
+.cmp-field select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:var(--fs-sm);color:var(--td);background:#fff}
+.cmp-run-btn{padding:9px 20px;border-radius:8px;border:none;background:var(--green);color:#fff;font-weight:700;font-size:var(--fs-sm);cursor:pointer;white-space:nowrap;transition:filter .15s}
+.cmp-run-btn:hover{filter:brightness(1.08)}
+.cmp-body{overflow-y:auto;padding:4px 0 16px}
+.cmp-hint{padding:24px 20px;text-align:center;color:var(--tl);font-size:var(--fs-sm)}
+.cmp-table-wrap{overflow-x:auto;padding:0 20px}
+.cmp-table{width:100%;border-collapse:collapse;font-size:var(--fs-base);min-width:520px}
+.cmp-table th{padding:10px 14px;text-align:right;font-size:var(--fs-xs);font-weight:700;color:var(--tl);border-bottom:1px solid var(--border);white-space:nowrap}
+.cmp-table th:first-child{text-align:left}
+.cmp-table td{padding:8px 14px;text-align:right;color:var(--td);white-space:nowrap}
+.cmp-table td:first-child{text-align:left;color:var(--tm);white-space:normal}
+.cmp-section td{padding:14px 14px 5px;font-weight:700;color:#1e8a4f;font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.4px}
+.cmp-total td{font-weight:700;background:#eaf8f0;color:var(--td)}
+.cmp-pct{display:block;font-size:9.5px;font-weight:600;color:var(--tl)}
+.cmp-table td.up .cmp-pct,.cmp-table td.dn .cmp-pct{color:inherit;opacity:.75}
 
 /* ══ TABLET (≤900px) ═══════════════════════════════════ */
 /* Placed after every unconditional/base rule above (not before, as it was
@@ -125,6 +153,13 @@
   .qa-g{grid-template-columns:repeat(3,1fr);gap:6px;padding:9px 10px 11px}
   .qa-b{padding:11px 4px;font-size:10px;gap:4px}
   .qa-b svg{width:17px;height:17px}
+  .cmp-modal{max-height:94vh;border-radius:12px}
+  .cmp-hd{padding:13px 16px}
+  .cmp-controls{padding:13px 16px;gap:10px}
+  .cmp-run-btn{flex:1 0 100%}
+  .cmp-table-wrap{padding:0 16px}
+  .cmp-table{min-width:480px;font-size:12.5px}
+  .cmp-table th,.cmp-table td{padding:7px 10px}
 }
 
 /* ══ SMALL PHONE (≤380px) ══════════════════════════════ */
@@ -206,6 +241,7 @@
             <div class="qa-b" onclick="exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Export P&amp;L<br>(Excel)</div>
             <div class="qa-b" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export P&amp;L<br>(PDF)</div>
             <div class="qa-b" onclick="printStatement()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print<br>Statement</div>
+            <div class="qa-b qa-b-wide" onclick="openMonthCompare()"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Compare Months</div>
           </div>
         </div>
       </div>
@@ -214,6 +250,30 @@
   </div>
 
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- Month Comparison modal -->
+<div class="cmp-overlay" id="cmpOverlay" onclick="if(event.target===this) closeMonthCompare()">
+  <div class="cmp-modal">
+    <div class="cmp-hd">
+      <h3>Compare Months</h3>
+      <button class="cmp-close" onclick="closeMonthCompare()" aria-label="Close">&times;</button>
+    </div>
+    <div class="cmp-controls">
+      <div class="cmp-field">
+        <label for="cmpMonthA">Month A</label>
+        <select id="cmpMonthA"></select>
+      </div>
+      <div class="cmp-field">
+        <label for="cmpMonthB">Month B</label>
+        <select id="cmpMonthB"></select>
+      </div>
+      <button class="cmp-run-btn" onclick="runMonthCompare()">Compare</button>
+    </div>
+    <div class="cmp-body" id="cmpBody">
+      <p class="cmp-hint">Pick two months and press Compare.</p>
+    </div>
+  </div>
 </div>
 
 <!-- Export loading overlay -->
@@ -884,6 +944,118 @@ async function exportPDF(retryCount){
 function printStatement(){
   toast('Preparing print view…','info');
   setTimeout(()=>window.print(), 300);
+}
+
+// ── Month Comparison (Quick Action) ───────────────────────
+// Deliberately reuses fetchPeriodSet()/calcFigures() — the exact same
+// functions refreshPL() calls for the main table and Profit Summary — so
+// this view can never disagree with the numbers shown elsewhere on the
+// page. Every figure here comes from a live query against the real
+// Supabase tables for whichever two periods are picked; nothing is
+// precomputed or cached beyond the current modal session.
+const CMP_ROW_DEFS = [
+  {type:'section', label:'Revenue'},
+  {type:'row', label:'Injera Sales', key:'injeraRevenue'},
+  {type:'row', label:'Derkosh Sales', key:'derkoshRevenue'},
+  {type:'total', label:'Total Revenue', key:'totalRevenue'},
+  {type:'section', label:'Cost of Goods Sold'},
+  {type:'row', label:'Injera Blend', key:'injeraBlend'},
+  {type:'row', label:'Corn', key:'corn'},
+  {type:'row', label:'Gomen Zere', key:'gomenZere'},
+  {type:'row', label:'Packaging (Small & Large Bags)', key:'packaging'},
+  {type:'row', label:'Labor / Wages', key:'labor'},
+  {type:'row', label:'Electricity', key:'electricity'},
+  {type:'row', label:'Water', key:'water'},
+  {type:'row', label:'Rent', key:'rent'},
+  {type:'row', label:'Maintenance', key:'maintenance'},
+  {type:'row', label:'Other Overhead', key:'otherOverhead'},
+  {type:'total', label:'Total COGS', key:'totalCOGS'},
+  {type:'total', label:'Gross Profit', key:'grossProfit'},
+  {type:'section', label:'Operating Expenses'},
+  {type:'row', label:'Delivery Out & Transport', key:'deliveryOut'},
+  {type:'row', label:'Marketing', key:'marketing'},
+  {type:'row', label:'Other Operating Expenses', key:'otherOperatingExpenses'},
+  {type:'total', label:'Total Operating Expenses', key:'totalOpex'},
+  {type:'row', label:'Interest Expense (Loan)', key:'interestExpense'},
+  {type:'total', label:'NET PROFIT', key:'netProfit'}
+];
+
+function openMonthCompare(){
+  const overlay = document.getElementById('cmpOverlay');
+  const selA = document.getElementById('cmpMonthA');
+  const selB = document.getElementById('cmpMonthB');
+  if(!overlay || !selA || !selB){
+    console.error('openMonthCompare: modal elements missing from the DOM');
+    return;
+  }
+
+  const { keys } = monthOptionKeys();
+  const optionsHtml = keys.map(k => `<option value="${k}">${periodToLabel(k)}</option>`).join('');
+  selA.innerHTML = optionsHtml;
+  selB.innerHTML = optionsHtml;
+
+  // Default to comparing whatever month is currently on screen against the
+  // month right before it — the same pairing the Profit Summary card uses —
+  // so opening the modal shows something immediately relevant.
+  const curKey = (typeof LAST !== 'undefined' && LAST?.period) ? LAST.period : keys[keys.length-1];
+  const idx = keys.indexOf(curKey);
+  selB.value = curKey;
+  selA.value = idx > 0 ? keys[idx-1] : keys[0];
+
+  document.getElementById('cmpBody').innerHTML = '<p class="cmp-hint">Pick two months and press Compare.</p>';
+  overlay.classList.add('open');
+}
+
+function closeMonthCompare(){
+  document.getElementById('cmpOverlay')?.classList.remove('open');
+}
+
+async function runMonthCompare(){
+  const selA = document.getElementById('cmpMonthA');
+  const selB = document.getElementById('cmpMonthB');
+  const body = document.getElementById('cmpBody');
+  if(!selA?.value || !selB?.value || !body) return;
+
+  const periodA = selA.value;
+  const periodB = selB.value;
+  body.innerHTML = '<p class="cmp-hint">Loading live figures for both months…</p>';
+
+  try{
+    const [dataA, dataB] = await Promise.all([
+      fetchPeriodSet(`period=eq.${periodA}`, periodA, periodToDueDateRange(periodA, periodA)),
+      fetchPeriodSet(`period=eq.${periodB}`, periodB, periodToDueDateRange(periodB, periodB))
+    ]);
+    const figA = calcFigures(dataA);
+    const figB = calcFigures(dataB);
+
+    if(!dataA.ok || !dataB.ok){
+      toast('Some data for one of the selected months could not be loaded','error');
+    }
+
+    const rowsHtml = CMP_ROW_DEFS.map(r=>{
+      if(r.type === 'section') return `<tr class="cmp-section"><td colspan="4">${r.label}</td></tr>`;
+      const a = num(figA[r.key]);
+      const b = num(figB[r.key]);
+      const diff = b - a;
+      const diffPct = a !== 0 ? (diff/Math.abs(a)*100) : (b !== 0 ? 100 : 0);
+      const diffCls = diff > 0 ? 'up' : (diff < 0 ? 'dn' : '');
+      const sign = diff > 0 ? '+' : '';
+      return `<tr class="${r.type==='total' ? 'cmp-total' : ''}">
+        <td>${r.label}</td>
+        <td>${fmtETB(a)}</td>
+        <td>${fmtETB(b)}</td>
+        <td class="${diffCls}">${sign}${fmtETB(diff)}<span class="cmp-pct">${sign}${diffPct.toFixed(1)}%</span></td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `<div class="cmp-table-wrap"><table class="cmp-table">
+      <thead><tr><th></th><th>${periodToLabel(periodA)}</th><th>${periodToLabel(periodB)}</th><th>Change</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>`;
+  }catch(e){
+    console.error('runMonthCompare failed', e);
+    body.innerHTML = '<p class="cmp-hint">Could not load comparison data — please try again.</p>';
+  }
 }
 
 // ── Header notifications: built from real data, never fabricated ────────
