@@ -262,32 +262,31 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
         </div>
         <span class="kc-lbl">Total Monthly Overhead</span>
-        <div class="kc-val"><span id="kpiTotal" data-target="10400">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-chg dn" id="kpiTotalChg">▼ 4.35%<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-val"><span id="kpiTotal" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiTotalChg"><span class="vs">Loading…</span></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-g">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
         <span class="kc-lbl">Daily Overhead Rate</span>
-        <div class="kc-val"><span id="kpiDaily" data-target="335.48">0.00</span> <span class="u">ETB / day</span></div>
-        <div class="kc-chg dn">▼ 4.35%<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-val"><span id="kpiDaily" data-target="0">0.00</span> <span class="u">ETB / day</span></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-p">
           <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
         <span class="kc-lbl">Labor (Wages) Cost</span>
-        <div class="kc-val"><span id="kpiLabor" data-target="5150">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-sub">% of Total Overhead <strong id="kpiLaborPct" style="color:var(--td)">49.52%</strong></div>
+        <div class="kc-val"><span id="kpiLabor" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-sub">% of Total Overhead <strong id="kpiLaborPct" style="color:var(--td)">0.00%</strong></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-b">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
         <span class="kc-lbl">Production Days</span>
-        <div class="kc-val"><span id="kpiDays" data-target="31" data-decimals="0">0</span> <span class="u">Days</span></div>
-        <div class="kc-sub" id="kpiDaysSub">In May 2026</div>
+        <div class="kc-val"><span id="kpiDays" data-target="0" data-decimals="0">0</span> <span class="u">Days</span></div>
+        <div class="kc-sub" id="kpiDaysSub">&nbsp;</div>
       </div>
     </div>
 
@@ -304,7 +303,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="card-ttl-ic">
                 <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
               </div>
-              <div class="card-ttl">Monthly Overhead Details <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="ohMonthLbl">- May 2026</span></div>
+              <div class="card-ttl">Monthly Overhead Details <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="ohMonthLbl"></span></div>
             </div>
             <button class="btn-new" onclick="openOverheadModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -323,8 +322,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <tfoot>
               <tr class="tot">
                 <td colspan="3">Total Overhead</td>
-                <td class="num" id="ohTotAmt">10,400.00</td>
-                <td class="num" id="ohTotDaily">335.48</td>
+                <td class="num" id="ohTotAmt">0.00</td>
+                <td class="num" id="ohTotDaily">0.00</td>
                 <td class="num">100.00%</td>
                 <td></td>
               </tr>
@@ -336,7 +335,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <!-- Daily Overhead Rate Gauge -->
         <div class="card" style="display:flex;flex-direction:column;flex:1">
           <div class="card-hd">
-            <div class="card-ttl">Daily Overhead Rate <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="gaugeMonthLbl">- May 2026</span></div>
+            <div class="card-ttl">Daily Overhead Rate <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="gaugeMonthLbl"></span></div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:6px 17px 4px">
             <div style="position:relative;width:220px;max-width:100%">
@@ -348,8 +347,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </div>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:0 17px 16px;font-size:12px;flex-wrap:wrap;gap:6px">
-            <span style="color:var(--tl);font-weight:600">Target <strong id="gaugeTargetLbl" style="color:var(--td)">0.00 ETB/day</strong></span>
-            <span id="gaugeStatus" class="kc-chg dn">▼ 0.00% under target</span>
+            <span style="color:var(--tl);font-weight:600">Target <strong id="gaugeTargetLbl" style="color:var(--td)">—</strong></span>
+            <span id="gaugeStatus" class="kc-chg">&nbsp;</span>
           </div>
         </div>
 
@@ -361,14 +360,14 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <!-- Overhead Breakdown -->
         <div class="card">
           <div class="card-hd">
-            <div class="card-ttl">Overhead Breakdown <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="dnutMonthLbl">- May 2026</span></div>
+            <div class="card-ttl">Overhead Breakdown <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="dnutMonthLbl"></span></div>
           </div>
           <div class="exp-bd">
             <div class="dnut">
               <canvas id="ohDonut" width="130" height="130"></canvas>
               <div class="dnut-lbl">
                 <span>Total</span>
-                <strong id="dnutTotalLbl">10,400.00<br>ETB</strong>
+                <strong id="dnutTotalLbl">0.00<br>ETB</strong>
               </div>
             </div>
             <div class="exp-leg" id="dnutLegend"></div>
@@ -395,18 +394,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <!-- Summary -->
         <div class="card">
           <div class="card-hd">
-            <div class="card-ttl">Summary <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="sumMonthLbl">- May 2026</span></div>
+            <div class="card-ttl">Summary <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="sumMonthLbl"></span></div>
             <div class="info-ic" onclick="toast('Summary figures are computed live from the Overhead Details and Payroll Detail tables above')">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             </div>
           </div>
           <div class="sum-grid">
-            <div class="sum-row"><span class="sum-lbl">Total Overhead</span><span class="sum-val" id="sumTotal">10,400.00 ETB</span></div>
-            <div class="sum-row"><span class="sum-lbl">Production Days</span><span class="sum-val" id="sumDays">31 Days</span></div>
-            <div class="sum-row"><span class="sum-lbl">Daily Overhead Rate</span><span class="sum-val" id="sumDaily">335.48 ETB/day</span></div>
-            <div class="sum-row"><span class="sum-lbl">Cost per Injera (Est.)</span><span class="sum-val" id="sumCpi">0.24 ETB</span></div>
-            <div class="sum-row"><span class="sum-lbl">Labor Cost %</span><span class="sum-val" id="sumLaborPct">49.52%</span></div>
-            <div class="sum-row"><span class="sum-lbl">vs Apr 2026</span><span class="sum-val dn">▼ 4.35%</span></div>
+            <div class="sum-row"><span class="sum-lbl">Total Overhead</span><span class="sum-val" id="sumTotal">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Production Days</span><span class="sum-val" id="sumDays">0 Days</span></div>
+            <div class="sum-row"><span class="sum-lbl">Daily Overhead Rate</span><span class="sum-val" id="sumDaily">0.00 ETB/day</span></div>
+            <div class="sum-row"><span class="sum-lbl">Cost per Injera (Est.)</span><span class="sum-val" id="sumCpi">0.00 ETB</span></div>
+            <div class="sum-row"><span class="sum-lbl">Labor Cost %</span><span class="sum-val" id="sumLaborPct">0.00%</span></div>
           </div>
         </div>
 
@@ -418,7 +416,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="card-ttl-ic" style="background:#f3e8fd">
         <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
-      <h2 class="sec-ttl">Payroll <span style="font-weight:600;color:var(--tl);font-size:13px;margin-left:2px" id="prSecMonthLbl">- May 2026</span></h2>
+      <h2 class="sec-ttl">Payroll <span style="font-weight:600;color:var(--tl);font-size:13px;margin-left:2px" id="prSecMonthLbl"></span></h2>
     </div>
 
     <!-- PAYROLL KPI ROW -->
@@ -429,7 +427,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <span class="kc-lbl">Total Gross Pay</span>
         <div class="kc-val"><span id="kpiPrGross" data-target="0">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-sub">Employees Paid <strong id="kpiPrCountSub" style="color:var(--td)">5</strong></div>
+        <div class="kc-sub">Employees Paid <strong id="kpiPrCountSub" style="color:var(--td)">0</strong></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-r">
@@ -437,7 +435,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <span class="kc-lbl">Total Deductions</span>
         <div class="kc-val"><span id="kpiPrDed" data-target="0">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-sub">Advances + Other <strong id="kpiPrDedPct" style="color:var(--td)">0%</strong></div>
+        <div class="kc-sub">Advances + Other <strong id="kpiPrDedPct" style="color:var(--td)">0.0%</strong></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-g">
@@ -445,7 +443,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <span class="kc-lbl">Total Net Paid</span>
         <div class="kc-val"><span id="kpiPrNet" data-target="0">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-sub">of Total Overhead <strong id="kpiPrNetPct" style="color:var(--td)">0%</strong></div>
+        <div class="kc-sub">of Total Overhead <strong id="kpiPrNetPct" style="color:var(--td)">0.0%</strong></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-p">
@@ -453,7 +451,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
         <span class="kc-lbl">Avg Net Pay / Employee</span>
         <div class="kc-val"><span id="kpiPrAvgNet" data-target="0">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-sub" id="kpiPrDaysSub">Avg 31 days present</div>
+        <div class="kc-sub" id="kpiPrDaysSub">Avg 0.0 days present</div>
       </div>
     </div>
 
@@ -468,7 +466,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="card-ttl-ic" style="background:#f3e8fd">
                 <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
-              <div class="card-ttl">Payroll Detail <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="prMonthLbl">- May 2026</span></div>
+              <div class="card-ttl">Payroll Detail <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="prMonthLbl"></span></div>
             </div>
             <button class="btn-new" onclick="openPayrollModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -499,7 +497,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           </table>
           </div>
           <div class="tbl-ft">
-            <span class="tbl-ft-lbl">Total Employees: <strong id="prEmpCount">5</strong></span>
+            <span class="tbl-ft-lbl">Total Employees: <strong id="prEmpCount">0</strong></span>
             <a class="vall" onclick="toast('Full payroll report view coming soon')" style="cursor:pointer">View full payroll report
               <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
             </a>
@@ -513,7 +511,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <!-- Payroll by Channel -->
         <div class="card">
           <div class="card-hd">
-            <div class="card-ttl">Payroll by Channel <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prDnutMonthLbl">- May 2026</span></div>
+            <div class="card-ttl">Payroll by Channel <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prDnutMonthLbl"></span></div>
           </div>
           <div class="exp-bd">
             <div class="dnut">
@@ -530,7 +528,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <!-- Payroll Summary -->
         <div class="card">
           <div class="card-hd">
-            <div class="card-ttl">Payroll Summary <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prSumMonthLbl">- May 2026</span></div>
+            <div class="card-ttl">Payroll Summary <span style="font-weight:600;color:var(--tl);font-size:11.5px;margin-left:2px" id="prSumMonthLbl"></span></div>
           </div>
           <div class="sum-grid">
             <div class="sum-row"><span class="sum-lbl">Total Gross Pay</span><span class="sum-val" id="prSumGross">0.00 ETB</span></div>
@@ -587,7 +585,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row">
         <div class="f-grp">
           <label>Month</label>
-          <input type="month" id="ohMonth" value="2026-05" onchange="recalcOhPreview()">
+          <input type="month" id="ohMonth" onchange="recalcOhPreview()">
+          <span id="ohMonthLockNote" style="display:none;font-size:10.5px;color:var(--tl)">Locked while editing — delete and re-add to move this entry to a different month.</span>
         </div>
         <div class="f-grp">
           <label>Overhead Category</label>
@@ -603,12 +602,15 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row">
         <div class="f-grp">
           <label>Amount (ETB)</label>
-          <input type="number" id="ohAmount" value="0" step="0.01" oninput="recalcOhPreview()">
+          <input type="number" id="ohAmount" value="0" step="0.01" min="0" oninput="recalcOhPreview()">
         </div>
         <div class="f-grp">
           <label style="color:var(--tl)">Daily Rate (auto)</label>
           <input type="text" id="ohDailyPreview" value="0.00 ETB / day" disabled>
         </div>
+      </div>
+      <div id="ohLaborSyncNote" style="display:none;background:#fef3e2;border:1px solid #fbd9a3;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#8a5a00;line-height:1.5;margin-bottom:12px">
+        ⚠ Labor/Wages is auto-calculated as the sum of Net Pay from Payroll Detail below. Any amount you enter here will be overwritten the next time a payroll entry is added, edited, or deleted this month.
       </div>
       <div style="background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--tm);line-height:1.5">
         Daily Rate = Amount ÷ days in the selected month. Every production batch that month is charged this amount as overhead.
@@ -651,7 +653,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row">
         <div class="f-grp">
           <label>Base Salary (ETB)</label>
-          <input type="number" id="prBaseSalary" value="0" step="0.01" oninput="recalcPrPreview()">
+          <input type="number" id="prBaseSalary" value="0" step="0.01" min="0" oninput="recalcPrPreview()">
         </div>
         <div class="f-grp">
           <label>Days Present</label>
@@ -671,17 +673,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row">
         <div class="f-grp">
           <label>Advance Taken (ETB)</label>
-          <input type="number" id="prAdvance" value="0" step="0.01" oninput="recalcPrPreview()">
+          <input type="number" id="prAdvance" value="0" step="0.01" min="0" oninput="recalcPrPreview()">
         </div>
         <div class="f-grp">
           <label>Other Deductions (ETB)</label>
-          <input type="number" id="prOther" value="0" step="0.01" oninput="recalcPrPreview()">
+          <input type="number" id="prOther" value="0" step="0.01" min="0" oninput="recalcPrPreview()">
         </div>
       </div>
       <div class="f-row">
         <div class="f-grp">
           <label>Payment Date</label>
-          <input type="date" id="prPayDate" value="2026-05-31">
+          <input type="date" id="prPayDate">
         </div>
         <div class="f-grp">
           <label>Payment Channel</label>
@@ -709,19 +711,29 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* Supabase client + session wiring (page-specific: this page currently runs
-   entirely on in-memory mock arrays below and doesn't read/write Supabase yet,
-   but the client + session are wired up the same way as the other pages so
-   it's ready whenever the data layer is connected). */
+/* Supabase client + session wiring. This page reads and writes Supabase live
+   (monthly_overhead, payroll_detail, overhead_categories, workers — see loaders
+   below). window.SB_URL / window.SB_KEY are normally set by /js/app-state.js,
+   which is loaded just above this block; the fallbacks here just make sure this
+   page still connects even if that script hasn't run yet or doesn't define them,
+   instead of throwing and taking down the whole page before init. */
+const SB_REST_URL = (window.SB_URL || 'https://mfxkkaavgzyttasgqnmw.supabase.co/rest/v1');
+const SB_REST_KEY = (window.SB_KEY || 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH');
+const SB_BASE_URL = SB_REST_URL.replace(/\/rest\/v1\/?$/, '');
+
 const { createClient } = supabase;
-const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
+const db = createClient(SB_BASE_URL, SB_REST_KEY);
 (function wireSession(){
-  const session = loadSession();
-  if(session && session.access_token){
-    db.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token
-    }).catch(()=>{});
+  try{
+    const session = typeof loadSession === 'function' ? loadSession() : null;
+    if(session && session.access_token){
+      db.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      }).catch(err=>console.error('Supabase session restore failed:', err));
+    }
+  } catch(err){
+    console.error('wireSession failed:', err);
   }
 })();
 
@@ -729,8 +741,6 @@ const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
    Per module spec: talk to PostgREST directly with the publishable key in the
    apikey + Authorization headers. Used for all monthly_overhead / payroll_detail /
    overhead_categories / workers reads & writes on this page. */
-const SB_REST_URL = window.SB_URL || 'https://mfxkkaavgzyttasgqnmw.supabase.co/rest/v1';
-const SB_REST_KEY = window.SB_KEY || 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
 const sbHeaders = {
   'apikey': SB_REST_KEY,
   'Authorization': 'Bearer '+SB_REST_KEY,
@@ -785,6 +795,13 @@ async function sbDelete(table, id){
 function daysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
 function fmt(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+// Escapes user-supplied text (category names, descriptions, worker names/roles, etc.)
+// before it goes into innerHTML. Without this, a category or worker name containing
+// characters like < > " could break the table layout or, since RLS is disabled on
+// these tables, be used to inject markup/scripts that run in every viewer's browser.
+function esc(v){
+  return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 // Real current month ('YYYY-MM'), not a hardcoded '2026-05' default that
 // left the page permanently stuck on a stale month until the user manually
@@ -834,14 +851,21 @@ function trailingPeriods(ym, count){
   return out;
 }
 
+let currentMonthInjeraQty = 0; // SUM(production_batches.injera_qty) for currentMonth, real data (0 = none logged yet)
+
 async function loadMonthData(){
-  const periods = trailingPeriods(currentMonth, 6);
+  // Fetch a 12-month trailing window (not just 6) so the trend chart's "This Year"
+  // option — which can need anywhere from 1 to 12 months of data depending on which
+  // calendar month we're in — always has real numbers instead of falling back to
+  // whatever a fixed 6-month fetch happened to cover.
+  const periods = trailingPeriods(currentMonth, 12);
   const periodList = periods.map(p=>`"${p}"`).join(',');
 
-  const [ohRows, prRows, trendRows] = await Promise.all([
+  const [ohRows, prRows, trendRows, batchRows] = await Promise.all([
     sbGet('monthly_overhead', `?select=id,period,category_id,amount,description,overhead_categories(name)&period=eq.${currentMonth}&order=created_at`),
     sbGet('payroll_detail', `?select=id,period,worker_id,base_salary,days_present,days_in_month,advance_taken,other_deductions,payment_date,payment_channel,gross_pay,net_pay,workers(name,role)&period=eq.${currentMonth}&order=created_at`),
-    sbGet('monthly_overhead', `?select=period,amount&period=in.(${periodList})`)
+    sbGet('monthly_overhead', `?select=period,amount&period=in.(${periodList})`),
+    sbGet('production_batches', `?select=injera_qty&period=eq.${currentMonth}&is_deleted=eq.false`)
   ]);
 
   overheadRows = ohRows.map(r=>({
@@ -862,6 +886,8 @@ async function loadMonthData(){
   trendTotals = {};
   periods.forEach(p=>trendTotals[p]=0);
   trendRows.forEach(r=>{ trendTotals[r.period] = (trendTotals[r.period]||0) + Number(r.amount); });
+
+  currentMonthInjeraQty = batchRows.reduce((s,r)=>s+Number(r.injera_qty||0),0);
 }
 
 /* ════════════════ COMPUTED GETTERS ════════════════ */
@@ -893,8 +919,8 @@ function renderOverheadTable(){
     tbody.innerHTML = rows.map((r,i)=>`
       <tr class="row-anim" data-id="${r.id}">
         <td>${i+1}</td>
-        <td>${r.category}</td>
-        <td>${r.description||'—'}</td>
+        <td>${esc(r.category)}</td>
+        <td>${esc(r.description)||'—'}</td>
         <td class="num">${fmt(r.amount)}</td>
         <td class="num">${fmt(dailyRate(r.amount))}</td>
         <td class="num">${total>0 ? (r.amount/total*100).toFixed(2) : '0.00'}%</td>
@@ -923,8 +949,8 @@ function renderPayrollTable(){
     tbody.innerHTML = rows.map((r,i)=>`
       <tr class="row-anim" data-id="${r.id}">
         <td>${i+1}</td>
-        <td>${r.name}</td>
-        <td>${r.role}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.role)}</td>
         <td class="num">${r.daysPresent}</td>
         <td class="num">${fmt(grossPay(r))}</td>
         <td class="num">${fmt(r.advance)}</td>
@@ -1006,7 +1032,7 @@ function renderPayrollDonut(){
     const pct = total>0 ? (byChannel[c]/total*100).toFixed(1) : '0.0';
     const color = CHANNEL_COLORS[c] || '#9aada5';
     return `<div class="exp-r">
-      <div class="exp-r-l"><div class="exp-d" style="background:${color}"></div><span class="exp-n">${c}</span></div>
+      <div class="exp-r-l"><div class="exp-d" style="background:${color}"></div><span class="exp-n">${esc(c)}</span></div>
       <span class="exp-v">${fmt(byChannel[c])} <span class="exp-p">(${pct}%)</span></span>
     </div>`;
   }).join('');
@@ -1051,8 +1077,14 @@ function renderKpisAndSummary(){
   document.getElementById('sumDays').textContent = days+' Days';
   document.getElementById('sumDaily').textContent = fmt(daily)+' ETB/day';
   document.getElementById('sumLaborPct').textContent = laborPct.toFixed(2)+'%';
-  const cpi = total>0 ? (total/43333).toFixed(2) : '0.00'; // Est. based on typical monthly injera output
-  document.getElementById('sumCpi').textContent = cpi+' ETB';
+  // Cost per Injera = Total Overhead ÷ actual injera produced this month (production_batches.injera_qty).
+  // Shows '—' rather than a guessed figure when no batches have been logged for the month yet.
+  const cpiEl = document.getElementById('sumCpi');
+  if(total>0 && currentMonthInjeraQty>0){
+    cpiEl.textContent = (total/currentMonthInjeraQty).toFixed(2)+' ETB';
+  } else {
+    cpiEl.textContent = '— (no production logged)';
+  }
 
   runKpiAnimations();
 }
@@ -1068,7 +1100,7 @@ function renderDonut(){
     const pct = total>0 ? (r.amount/total*100).toFixed(1) : '0.0';
     const color = CAT_COLORS[r.category] || '#9aada5';
     return `<div class="exp-r">
-      <div class="exp-r-l"><div class="exp-d" style="background:${color}"></div><span class="exp-n">${r.category}</span></div>
+      <div class="exp-r-l"><div class="exp-d" style="background:${color}"></div><span class="exp-n">${esc(r.category)}</span></div>
       <span class="exp-v">${fmt(r.amount)} <span class="exp-p">(${pct}%)</span></span>
     </div>`;
   }).join('');
@@ -1095,22 +1127,37 @@ function renderDonut(){
 }
 
 /* ════════════════ RENDER: TREND CHART ════════════════ */
+function yearToDatePeriods(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const out = [];
+  for(let mo=1; mo<=m; mo++) out.push(y+'-'+String(mo).padStart(2,'0'));
+  return out;
+}
 function renderTrendChart(){
   const range = document.getElementById('trendRange').value;
-  let periods = trailingPeriods(currentMonth, 6);
-  if(range==='Last 3 Months') periods = periods.slice(-3);
+  let periods;
+  if(range==='Last 3 Months') periods = trailingPeriods(currentMonth, 6).slice(-3);
+  else if(range==='This Year') periods = yearToDatePeriods(currentMonth);
+  else periods = trailingPeriods(currentMonth, 6);
   let history = periods.map(p=>({
     label: monthLabel(p).replace(/(\w+) (\d+)/, (m,mo,y)=>mo.slice(0,3)+' '+y),
     value: p===currentMonth ? totalOverhead() : (trendTotals[p]||0)
   }));
 
-  const prevVal = history.length>1 ? history[history.length-2].value : null;
+  const hasPrevPeriod = history.length>1;
+  const prevVal = hasPrevPeriod ? history[history.length-2].value : null;
   const curVal = history[history.length-1].value;
   const el = document.getElementById('kpiTotalChg');
-  if(prevVal){
+  if(hasPrevPeriod && prevVal>0){
     const pct = ((curVal-prevVal)/prevVal*100);
     el.className = 'kc-chg '+(pct<=0?'dn':'up');
     el.innerHTML = (pct<=0?'▼ ':'▲ ')+Math.abs(pct).toFixed(2)+'%<span class="vs">vs '+history[history.length-2].label+'</span>';
+  } else if(hasPrevPeriod && prevVal===0 && curVal>0){
+    // Previous month genuinely had $0 overhead recorded (not "no data") — a
+    // percent change vs zero is undefined/infinite, so say so plainly instead
+    // of a misleading number or silently pretending there's no prior month.
+    el.className = 'kc-chg up';
+    el.innerHTML = 'New this month<span class="vs">vs '+history[history.length-2].label+' ($0)</span>';
   } else {
     el.className = 'kc-chg';
     el.innerHTML = '<span class="vs">No prior month data</span>';
@@ -1257,16 +1304,26 @@ function togglePrRowMenu(e, id){
 /* ════════════════ SELECT POPULATION ════════════════ */
 function populateCategorySelect(){
   const sel = document.getElementById('ohCategory');
-  sel.innerHTML = overheadCategories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  sel.innerHTML = overheadCategories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
 }
-function populateWorkerSelect(selectedId){
+function populateWorkerSelect(selectedId, extraWorker){
   const sel = document.getElementById('prWorker');
-  sel.innerHTML = workers.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')
+  // If we're editing a payroll row for a worker who has since been deactivated,
+  // `workers` (loaded with is_active=eq.true) won't contain them — without this,
+  // sel.value below would silently fail to match, leaving whichever option is
+  // first in the list selected instead, and saving would reassign this payroll
+  // entry to the wrong employee without any warning.
+  let options = workers;
+  if(extraWorker && !workers.some(w=>w.id===extraWorker.id)){
+    options = [...workers, extraWorker];
+  }
+  sel.innerHTML = options.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}${(extraWorker && w.id===extraWorker.id)?' (inactive)':''}</option>`).join('')
     + `<option value="__new__">+ Add New Employee</option>`;
   sel.value = selectedId || (workers.length ? workers[0].id : '__new__');
-  onPrWorkerChange();
+  onPrWorkerChange(options);
 }
-function onPrWorkerChange(){
+function onPrWorkerChange(workerList){
+  const list = workerList || workers;
   const val = document.getElementById('prWorker').value;
   const isNew = val === '__new__';
   document.getElementById('prNewNameRow').style.display = isNew ? '' : 'none';
@@ -1274,7 +1331,7 @@ function onPrWorkerChange(){
     document.getElementById('prRole').value = '';
     document.getElementById('prBaseSalary').value = 0;
   } else {
-    const w = workers.find(x=>x.id===val);
+    const w = list.find(x=>x.id===val);
     if(w){
       document.getElementById('prRole').value = w.role||'';
       document.getElementById('prBaseSalary').value = w.base_salary||0;
@@ -1288,9 +1345,12 @@ function openOverheadModal(){
   document.getElementById('ohModalTitle').textContent = 'Add Overhead Expense';
   document.getElementById('ohEditId').value = '';
   document.getElementById('ohMonth').value = currentMonth;
+  document.getElementById('ohMonth').disabled = false;
+  document.getElementById('ohMonthLockNote').style.display = 'none';
   populateCategorySelect();
   document.getElementById('ohDescription').value = '';
   document.getElementById('ohAmount').value = 0;
+  onOhCategoryChange();
   recalcOhPreview();
   document.getElementById('ohModalOverlay').classList.add('show');
 }
@@ -1300,10 +1360,16 @@ function editOverhead(id){
   document.getElementById('ohModalTitle').textContent = 'Edit Overhead Expense';
   document.getElementById('ohEditId').value = r.id;
   document.getElementById('ohMonth').value = r.period;
+  // Month is locked during edit: changing it here would silently move this entry
+  // out of the currently-viewed month with no visible confirmation. To move an
+  // entry to a different month, delete it and re-add it under that month instead.
+  document.getElementById('ohMonth').disabled = true;
+  document.getElementById('ohMonthLockNote').style.display = '';
   populateCategorySelect();
   document.getElementById('ohCategory').value = r.categoryId;
   document.getElementById('ohDescription').value = r.description;
   document.getElementById('ohAmount').value = r.amount;
+  onOhCategoryChange();
   recalcOhPreview();
   document.getElementById('ohModalOverlay').classList.add('show');
 }
@@ -1316,6 +1382,12 @@ function onOhCategoryChange(){
   };
   const cat = overheadCategories.find(c=>c.id===document.getElementById('ohCategory').value);
   if(cat && !document.getElementById('ohDescription').value) document.getElementById('ohDescription').value = defaults[cat.name]||'';
+  // Labor/Wages is recalculated automatically from Payroll Detail (sum of net pay)
+  // every time a payroll entry is added, edited, or deleted — so a manual amount
+  // entered here will be silently overwritten the next time payroll changes.
+  const isLabor = cat && cat.name === 'Labor/Wages';
+  const noteEl = document.getElementById('ohLaborSyncNote');
+  if(noteEl) noteEl.style.display = isLabor ? '' : 'none';
 }
 function recalcOhPreview(){
   const ym = document.getElementById('ohMonth').value || currentMonth;
@@ -1334,6 +1406,10 @@ async function saveOverhead(){
   const description = document.getElementById('ohDescription').value.trim();
   const amount = parseFloat(document.getElementById('ohAmount').value)||0;
   if(!category_id){ toast('Please select a category','error'); return; }
+  // The DB rejects amount < 0 (CHECK constraint), but this page has no <form>
+  // element, so the input's min="0" attribute is purely cosmetic and never
+  // actually blocks submission — validate for real here instead.
+  if(amount < 0){ toast('Amount cannot be negative','error'); return; }
   try{
     if(id){
       await sbUpdate('monthly_overhead', id, {period, category_id, description, amount});
@@ -1376,7 +1452,11 @@ function editPayroll(id){
   if(!r) return;
   document.getElementById('prModalTitle').textContent = 'Edit Payroll Entry';
   document.getElementById('prEditId').value = r.id;
-  populateWorkerSelect(r.workerId);
+  // r already carries this row's worker name/role/base_salary from the joined
+  // query in loadMonthData() — reuse that as a fallback option in case this
+  // worker has since been deactivated and is no longer in the `workers` list.
+  const extraWorker = { id:r.workerId, name:r.name, role:r.role, base_salary:r.baseSalary };
+  populateWorkerSelect(r.workerId, extraWorker);
   document.getElementById('prRole').value = r.role;
   document.getElementById('prBaseSalary').value = r.baseSalary;
   document.getElementById('prDaysPresent').value = r.daysPresent;
@@ -1411,6 +1491,17 @@ async function savePayroll(){
   const other = parseFloat(document.getElementById('prOther').value)||0;
   const payDate = document.getElementById('prPayDate').value || null;
   const channel = document.getElementById('prChannel').value;
+
+  // This page has no <form> element, so the inputs' min= attributes are purely
+  // cosmetic and never actually block submission — validate for real here,
+  // matching what the DB's CHECK constraints require (and a couple of things
+  // the DB happily allows but make no business sense, like a negative advance).
+  if(baseSalary < 0){ toast('Base salary cannot be negative','error'); return; }
+  if(daysPresent < 0){ toast('Days present cannot be negative','error'); return; }
+  if(daysInMonthVal <= 0){ toast('Days in month must be greater than zero','error'); return; }
+  if(daysPresent > daysInMonthVal){ toast('Days present cannot exceed days in month','error'); return; }
+  if(advance < 0){ toast('Advance taken cannot be negative','error'); return; }
+  if(other < 0){ toast('Other deductions cannot be negative','error'); return; }
 
   try{
     if(workerId==='__new__'){
@@ -1817,19 +1908,32 @@ async function onHeaderMonthChange(label){
 }
 
 /* ════════════════ INIT ════════════════ */
-renderHeader({
-  title: 'Monthly Overhead',
-  subtitle: 'Manage monthly overhead expenses and payroll details',
-  showMonthPicker: true,
-  months: MONTH_OPTIONS.map(monthLabel),
-  selectedMonth: monthLabel(currentMonth),
-  onMonthChange: onHeaderMonthChange,
-  notifications: []
-});
+if(typeof renderHeader === 'function'){
+  try{
+    renderHeader({
+      title: 'Monthly Overhead',
+      subtitle: 'Manage monthly overhead expenses and payroll details',
+      showMonthPicker: true,
+      months: MONTH_OPTIONS.map(monthLabel),
+      selectedMonth: monthLabel(currentMonth),
+      onMonthChange: onHeaderMonthChange,
+      notifications: []
+    });
+  } catch(err){
+    console.error('renderHeader failed:', err);
+  }
+} else {
+  console.error('renderHeader is not defined — /js/header.js may not have loaded. Header/month-picker UI will be missing, but the page data below will still load.');
+}
 (async function init(){
-  await loadStaticData();
-  await loadMonthData();
-  renderAll();
+  try{
+    await loadStaticData();
+    await loadMonthData();
+    renderAll();
+  } catch(err){
+    console.error('Page init failed:', err);
+    if(typeof toast==='function') toast('Something went wrong loading this page. Please refresh.','error');
+  }
 })();
 </script>
 </body>
