@@ -175,6 +175,8 @@ html,body{overflow-x:hidden;max-width:100%}
 .pg-b,.btn-new,.vall,.act-dots,.qa-btn{transition:all .15s ease}
 .btn-new:active,.pg-b:active,.qa-btn:active{transform:scale(.96)}
 
+.pl-hd-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
 @media (max-width:900px){
   .bot2{display:flex;flex-direction:column}
   .card{overflow:hidden;min-width:0;max-width:100%}
@@ -184,10 +186,27 @@ html,body{overflow-x:hidden;max-width:100%}
   .rs-strip{grid-template-columns:1fr 1fr}
   .qa-grid{grid-template-columns:1fr 1fr}
   .pg{flex-wrap:wrap;gap:8px}
+  .modal{max-width:94vw}
+  .modal-lg{max-width:94vw}
+}
+@media (max-width:600px){
+  .f-row{grid-template-columns:1fr;gap:0}
+  .f-row .f-grp{margin-bottom:12px}
 }
 @media (max-width:480px){
   .rs-strip{grid-template-columns:1fr}
   .rs-strip-cell{border-right:none;border-bottom:1px solid var(--border)}
+  .pl-hd-actions{width:100%}
+  .reg-search{width:100%;flex:1 1 auto}
+  .btn-new{width:100%;justify-content:center}
+  .rs-hd{flex-direction:column;align-items:stretch}
+  .rs-sel-wrap{flex-direction:column;align-items:stretch;width:100%}
+  .rs-sel-wrap .fsel,.rs-sel-wrap .btn-sec{width:100%}
+  .modal-ft{flex-wrap:wrap}
+  .modal-ft button{flex:1;min-width:120px}
+  .cal-hd{justify-content:center}
+  .cal-legend{width:100%;justify-content:center;flex-wrap:wrap;row-gap:6px}
+  .pg-info{font-size:11px}
 }
 </style>
 </head>
@@ -213,7 +232,7 @@ html,body{overflow-x:hidden;max-width:100%}
                 <p>All active and paid-off loans</p>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="pl-hd-actions">
               <div class="reg-search">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="searchInput" placeholder="Search loans..." oninput="renderRegister()">
@@ -329,7 +348,7 @@ html,body{overflow-x:hidden;max-width:100%}
       </div><!-- /right column -->
     </div><!-- /two-column area -->
   </div><!-- /content -->
-  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+  <footer class="footer">© <span id="footerYear">2026</span> Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
 </div>
 
 <!-- ════ ADD / EDIT LOAN MODAL ════ -->
@@ -623,9 +642,18 @@ async function loadAll(){
     (schedRes.data||[]).forEach(r=>{
       (scheduleByLoan[r.loan_id] = scheduleByLoan[r.loan_id]||[]).push(r);
     });
+    // This page talks to Supabase via the supabase-js client directly (db.from(...))
+    // rather than app-state.js's sbGet/sbPost helpers, so app-state.js's shared
+    // _sbRequest layer — which is what normally calls window.setSyncStatus('live')
+    // on every successful call — never runs for this page's own queries. Without
+    // this, header.js's status pill is left on its initial "Connecting…" state
+    // forever, even though the data loaded fine. Called here explicitly so the
+    // header reflects the real state without any change to the shared files.
+    window.setSyncStatus?.('live');
   } catch(err){
     console.error('Failed to load loans from Supabase:', err);
     showToast('Could not load loan data: '+(err.message||'unknown error'));
+    window.setSyncStatus?.('error', { message: 'Could not load loan data' });
     loans = []; scheduleByLoan = {};
   }
   populateLoanSelects();
@@ -718,17 +746,41 @@ function renderRegister(){
 function gotoPage(p){ state.page=p; renderRegister(); }
 
 /* ════════════════ ROW MENU (dots) ════════════════ */
+/* Positioned as position:fixed and placed via getBoundingClientRect so it can never
+   get clipped by an ancestor's overflow:hidden/auto (e.g. the horizontally-scrolling
+   table wrapper) — matters most on phone/tablet widths where the table scrolls. */
+function closeAllRowMenus(){
+  document.querySelectorAll('.row-menu').forEach(m=>{ m.style.display='none'; });
+  openRowMenuEl = null;
+}
 function toggleRowMenu(ev, id){
   ev.stopPropagation();
   const menu = document.getElementById('rowMenu-'+id);
   const isOpen = menu.style.display==='block';
-  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
-  menu.style.display = isOpen ? 'none' : 'block';
-  openRowMenuEl = isOpen ? null : menu;
+  closeAllRowMenus();
+  if(isOpen) return;
+
+  const dotsEl = ev.currentTarget;
+  const rect = dotsEl.getBoundingClientRect();
+  const menuWidth = Math.max(170, menu.offsetWidth||170);
+  let left = rect.right - menuWidth;
+  left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+
+  menu.style.position = 'fixed';
+  menu.style.right = 'auto';
+  menu.style.left = left+'px';
+  menu.style.top = (rect.bottom+4)+'px';
+  menu.style.display = 'block';
+
+  const mh = menu.offsetHeight;
+  if(rect.bottom + 4 + mh > window.innerHeight - 8){
+    menu.style.top = Math.max(8, rect.top - mh - 4)+'px';
+  }
+  openRowMenuEl = menu;
 }
-document.addEventListener('click', ()=>{
-  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
-});
+document.addEventListener('click', closeAllRowMenus);
+window.addEventListener('resize', closeAllRowMenus);
+window.addEventListener('scroll', closeAllRowMenus, true);
 
 /* ════════════════ SELECT DROPDOWN SYNC ════════════════ */
 function populateLoanSelects(){
@@ -1095,6 +1147,7 @@ async function saveLoan(){
   } catch(err){
     console.error('Save loan failed:', err);
     showToast('Failed to save loan: '+(err.message||'unknown error'));
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = oldBtnText;
   }
@@ -1112,6 +1165,7 @@ async function markPaidOff(id){
   } catch(err){
     console.error('Mark paid off failed:', err);
     showToast('Failed to update loan: '+(err.message||'unknown error'));
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
   }
 }
 async function deleteLoan(id){
@@ -1126,6 +1180,7 @@ async function deleteLoan(id){
   } catch(err){
     console.error('Delete loan failed:', err);
     showToast('Failed to delete loan: '+(err.message||'unknown error'));
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
   }
 }
 
@@ -1181,6 +1236,7 @@ async function confirmPayment(){
   } catch(err){
     console.error('Record payment failed:', err);
     showToast('Failed to record payment: '+(err.message||'unknown error'));
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
   } finally {
     confirmBtn.disabled = false; confirmBtn.textContent = oldText;
   }
@@ -1225,7 +1281,8 @@ function exportAllLoans(){
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'loans_register_may_2026.csv';
+  const ymd = TODAY.getFullYear()+'-'+String(TODAY.getMonth()+1).padStart(2,'0')+'-'+String(TODAY.getDate()).padStart(2,'0');
+  a.href = url; a.download = 'loans_register_'+ymd+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast('Exported '+loans.length+' loans to CSV');
@@ -1337,6 +1394,7 @@ function refreshHeaderNotifications(){
 }
 
 /* ════════════════ INIT ════════════════ */
+document.getElementById('footerYear').textContent = TODAY.getFullYear();
 document.getElementById('scheduleLoanSel').addEventListener('change', renderSchedule);
 document.getElementById('lPrincipal').addEventListener('input', updatePmtPreview);
 document.getElementById('lRate').addEventListener('input', updatePmtPreview);
