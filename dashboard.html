@@ -1766,21 +1766,25 @@ const AL_ICONS = {
 // ignored, without ever hiding anything from the dashboard card or the
 // "View All" modal — those stay a complete, honest record.
 // ── Supabase wiring ─────────────────────────────────────────────────────
-// Talks directly to the project's REST (PostgREST) endpoint. This dashboard
-// doesn't have access to whatever Supabase client/session helper the rest of
-// the app uses (that lives in /js/app-state.js), so these calls are business-
-// wide (no per-user split) and unauthenticated beyond the publishable key.
-const SB_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
-const SB_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
-async function sbFetch(path, opts={}){
+// Now routes through the shared sbGet/sbPost/sbDelete in app-state.js —
+// which this file, in fact, already uses extensively everywhere else on
+// this page (see loadAll() above). This block previously talked to the
+// REST endpoint directly with only the publishable anon key, on the
+// mistaken assumption (per the old comment here) that the shared helpers
+// weren't available on this page — they are, since app-state.js is loaded
+// like everywhere else. That meant every notification-engagement read/write
+// on this specific dashboard feature carried no user identity, and got none
+// of the 401-refresh-and-retry or sync-status wiring the rest of the page
+// already benefits from.
+function sbFetch(path, opts={}){
+  const method = (opts.method||'GET').toUpperCase();
+  const body = opts.body!==undefined ? JSON.parse(opts.body) : undefined;
   try{
-    const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
-      ...opts,
-      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', ...(opts.headers||{}) }
-    });
-    if(!res.ok) throw new Error(`Supabase ${res.status}`);
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
+    if(method==='GET') return sbGet(path);
+    if(method==='POST') return sbPost(path, body);
+    if(method==='PATCH') return sbPatch(path, body);
+    if(method==='DELETE') return sbDelete(path);
+    throw new Error('sbFetch: unsupported method '+method);
   }catch(e){ console.warn('Supabase call failed:', path, e); return null; }
 }
 const ENGAGEMENT_CACHE = {}; // type_key -> {shown, opened, dismissed}, populated once per refresh

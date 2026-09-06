@@ -10,13 +10,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-const { createClient } = supabase;
-const db = createClient(
-  'https://mfxkkaavgzyttasgqnmw.supabase.co',
-  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-);
-</script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -611,6 +604,24 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script>
+// This page's Supabase client previously created with only the publishable
+// anon key, and never authenticated — every one of this file's 31 db.from()
+// calls ran with no logged-in user identity at all. Session wiring below
+// mirrors cashflow.html's own wireSession() pattern: created here (after
+// app-state.js loads, so loadSession() is available).
+const { createClient } = supabase;
+const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
+(function wireSession(){
+  const session = loadSession();
+  if(session && session.access_token){
+    db.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token
+    }).catch(()=>{});
+  }
+})();
+</script>
 <script>
 /* ════════════════ DATA MODEL ════════════════
    Multi-Year Reporting reads from the same tables as every other module —

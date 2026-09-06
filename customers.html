@@ -670,12 +670,36 @@ html{scroll-behavior:smooth}
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
+/* ══ MONTH SCOPING ═══════════════════════════
+   Built dynamically (13 real calendar months through the current month)
+   instead of a hardcoded Jan–Jun 2026 array — the old list meant the page
+   couldn't show, or even default to, any month past June 2026 and needed
+   a manual edit every month to keep working. header.js's <select> uses the
+   same string for an option's value and its label, so MONTHS below stores
+   {label, key} pairs and periodFromLabel() translates label -> 'YYYY-MM'
+   wherever a Supabase query needs it. */
+function buildRecentMonths(monthsBack=13){
+  const MONTH_ABBR=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today=new Date();
+  let y=today.getFullYear(), m=today.getMonth()-(monthsBack-1);
+  while(m<0){ m+=12; y--; }
+  const months=[];
+  for(let i=0;i<monthsBack;i++){
+    months.push({ key:`${y}-${String(m+1).padStart(2,'0')}`, label:`${MONTH_ABBR[m]} ${y}` });
+    m++; if(m>11){ m=0; y++; }
+  }
+  return months;
+}
+const MONTHS = buildRecentMonths();
+const CURRENT_MONTH_LABEL = MONTHS[MONTHS.length-1].label;
+function periodFromLabel(label){ const m=MONTHS.find(x=>x.label===label); return m ? m.key : MONTHS[MONTHS.length-1].key; }
+
 renderHeader({
   title: 'Customers',
   subtitle: 'Manage customers, credit and profitability',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
+  months: MONTHS.map(m=>m.label),
+  selectedMonth: CURRENT_MONTH_LABEL,
   onMonthChange: () => { onMonthChange(); },
   notifications: [] // populated for real once loadCustomers() resolves — see updateHeaderNotifications()
 });
@@ -727,14 +751,11 @@ async function getCurrentUserLabel(){
   return _currentUserLabelCache;
 }
 
-/* ══ MONTH SCOPING ═══════════════════════════
+/* ══ MONTH SCOPING (continued) ═══════════════════════════
    Total Customers and Outstanding A/R are all-time snapshots. Revenue,
    Credit Sales, and Avg Days to Pay are scoped to the selected month,
-   with a vs-prior-month % comparison. */
-const MONTH_LABEL_TO_PERIOD={
-  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
-  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06'
-};
+   with a vs-prior-month % comparison. MONTHS/periodFromLabel are defined
+   above, right before renderHeader(), since that call needs them too. */
 function prevPeriod(period){
   const [y,m]=period.split('-').map(Number);
   const d=new Date(y, m-2, 1);
@@ -754,10 +775,9 @@ function renderChg(elId, pct, unit, decimals){
 }
 function prevMonthLabel(){
   const sel=document.getElementById('msel');
-  const months=['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'];
-  const cur=sel?sel.value:'May 2026';
-  const idx=months.indexOf(cur);
-  return idx>0?months[idx-1]:cur;
+  const cur=sel?sel.value:CURRENT_MONTH_LABEL;
+  const idx=MONTHS.findIndex(x=>x.label===cur);
+  return idx>0?MONTHS[idx-1].label:cur;
 }
 async function fetchMonthSalesKpis(period){
   try{
@@ -777,7 +797,7 @@ async function fetchMonthSalesKpis(period){
 }
 async function refreshKpis(){
   const monthLabel = document.getElementById('msel') ? document.getElementById('msel').value : 'May 2026';
-  const period = MONTH_LABEL_TO_PERIOD[monthLabel] || '2026-05';
+  const period = periodFromLabel(monthLabel);
   const prior = prevPeriod(period);
 
   const totalCustomers = customers.length;

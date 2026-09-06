@@ -9,7 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -260,20 +259,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* Supabase client + session wiring (page-specific: cash flow data queries below
-   use this `db` client directly via db.from(...), so it's kept on the page
-   rather than folded into app-state.js's generic sbGet/sbPost helpers). */
-const { createClient } = supabase;
-const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
-(function wireSession(){
-  const session = loadSession();
-  if(session && session.access_token){
-    db.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token
-    }).catch(()=>{});
-  }
-})();
+/* Session wiring only — the raw supabase-js client this page used to keep
+   for its own db.from(...) query-builder calls (see fetchPeriodData() below)
+   has been removed; every read now goes through the shared sbGet() in
+   app-state.js instead, same as every other retrofitted module. */
 </script>
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -334,47 +323,54 @@ async function fetchPeriodData(period){
   const [y,m] = period.split('-').map(Number);
   const endDate = new Date(y, m, 0).toISOString().slice(0,10); // last day of month
 
+  // Each query below used to be a supabase-js `db.from(table).select(...)`
+  // chain; converted to the shared sbGet(path) — same filters, expressed as
+  // a PostgREST query string instead of the query-builder's method chain.
+  // sbGet() resolves directly to the row array (or throws), so each entry
+  // below is either 'fulfilled' with the array as .value, or 'rejected' —
+  // Promise.allSettled() handles that the same way regardless of which
+  // client produced the promise.
   const results = await Promise.allSettled([
-    db.from('channel_opening_balances').select('*').eq('period', period),
-    db.from('sales').select('*').eq('period', period).eq('is_deleted', false),
-    db.from('credit_payments').select('*').eq('period', period),
-    db.from('purchases').select('*').eq('period', period).eq('is_deleted', false).in('approval_status', ['auto_approved','approved']),
-    db.from('payroll_detail').select('*').eq('period', period),
-    db.from('petty_cash').select('*').eq('period', period),
-    db.from('cash_flow_entries').select('*').eq('period', period),
-    db.from('expense_categories').select('*'),
-    db.from('inventory_items').select('*'),
-    db.from('loan_repayment_schedule').select('*').eq('status', 'paid').gte('actual_payment_date', startDate).lte('actual_payment_date', endDate)
+    sbGet(`channel_opening_balances?select=*&period=eq.${period}`),
+    sbGet(`sales?select=*&period=eq.${period}&is_deleted=eq.false`),
+    sbGet(`credit_payments?select=*&period=eq.${period}`),
+    sbGet(`purchases?select=*&period=eq.${period}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
+    sbGet(`payroll_detail?select=*&period=eq.${period}`),
+    sbGet(`petty_cash?select=*&period=eq.${period}`),
+    sbGet(`cash_flow_entries?select=*&period=eq.${period}`),
+    sbGet(`expense_categories?select=*`),
+    sbGet(`inventory_items?select=*`),
+    sbGet(`loan_repayment_schedule?select=*&status=eq.paid&actual_payment_date=gte.${startDate}&actual_payment_date=lte.${endDate}`)
   ]);
 
   const [obRes, salesRes, cpRes, purchRes, payrollRes, pettyRes, cfeRes, catRes, itemRes, loanRepayRes] = results;
 
   const openingBalances = {};
-  ((obRes.status==='fulfilled' && !obRes.value.error) ? (obRes.value.data||[]) : []).forEach(r=>{
+  ((obRes.status==='fulfilled') ? (obRes.value||[]) : []).forEach(r=>{
     openingBalances[r.channel] = parseFloat(r.opening_balance||0);
   });
 
   const expenseCatById = {};
-  if(catRes.status==='fulfilled' && !catRes.value.error){
-    (catRes.value.data||[]).forEach(c=>{ expenseCatById[c.id] = c.name; });
+  if(catRes.status==='fulfilled'){
+    (catRes.value||[]).forEach(c=>{ expenseCatById[c.id] = c.name; });
   }
   const itemById = {};
-  if(itemRes.status==='fulfilled' && !itemRes.value.error){
-    (itemRes.value.data||[]).forEach(it=>{ itemById[it.id] = it; });
+  if(itemRes.status==='fulfilled'){
+    (itemRes.value||[]).forEach(it=>{ itemById[it.id] = it; });
   }
 
   const data = {
     period,
     openingBalance: openingBalances, // {cash,bank,mobile} for THIS period only
-    sales: (salesRes.status==='fulfilled' && !salesRes.value.error) ? (salesRes.value.data||[]) : [],
-    creditPayments: (cpRes.status==='fulfilled' && !cpRes.value.error) ? (cpRes.value.data||[]) : [],
-    purchases: (purchRes.status==='fulfilled' && !purchRes.value.error) ? (purchRes.value.data||[]) : [],
-    payroll: (payrollRes.status==='fulfilled' && !payrollRes.value.error) ? (payrollRes.value.data||[]) : [],
-    pettyCash: (pettyRes.status==='fulfilled' && !pettyRes.value.error) ? (pettyRes.value.data||[]) : [],
-    cfEntries: (cfeRes.status==='fulfilled' && !cfeRes.value.error) ? (cfeRes.value.data||[]) : [],
+    sales: (salesRes.status==='fulfilled') ? (salesRes.value||[]) : [],
+    creditPayments: (cpRes.status==='fulfilled') ? (cpRes.value||[]) : [],
+    purchases: (purchRes.status==='fulfilled') ? (purchRes.value||[]) : [],
+    payroll: (payrollRes.status==='fulfilled') ? (payrollRes.value||[]) : [],
+    pettyCash: (pettyRes.status==='fulfilled') ? (pettyRes.value||[]) : [],
+    cfEntries: (cfeRes.status==='fulfilled') ? (cfeRes.value||[]) : [],
     expenseCatById, itemById,
-    loanRepayments: (loanRepayRes && loanRepayRes.status==='fulfilled' && !loanRepayRes.value.error) ? (loanRepayRes.value.data||[]) : [],
-    ok: !results.some(r => r.status==='rejected' || (r.value && r.value.error))
+    loanRepayments: (loanRepayRes && loanRepayRes.status==='fulfilled') ? (loanRepayRes.value||[]) : [],
+    ok: !results.some(r => r.status==='rejected')
   };
   PERIOD_CACHE[period] = data;
   return data;

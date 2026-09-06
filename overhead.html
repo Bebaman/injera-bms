@@ -786,7 +786,15 @@ function daysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date
 function fmt(n){ return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
-let currentMonth = '2026-05'; // YYYY-MM, matches Monthly Overhead spec §3.4
+// Real current month ('YYYY-MM'), not a hardcoded '2026-05' default that
+// left the page permanently stuck on a stale month until the user manually
+// picked a different one — see MONTH_OPTIONS below for the same fix applied
+// to the picker's range.
+function currentPeriodKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+let currentMonth = currentPeriodKey(); // YYYY-MM, matches Monthly Overhead spec §3.4
 
 // Static reference data, loaded once at startup
 let overheadCategories = []; // [{id, name}] from overhead_categories
@@ -1785,7 +1793,22 @@ function runKpiAnimations(){
    Sidebar, topbar, notif panel, user panel, toast, and sign-out are all
    handled by the shared sidebar.js/header.js/app-state.js now — this page
    only supplies the month list and re-renders on month change. */
-const MONTH_OPTIONS = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
+// Built dynamically (13 real calendar months through the current month)
+// instead of a hardcoded Jan–Jun 2026 array — the old list meant the page
+// couldn't show, or even default to, any month past June 2026 and needed
+// a manual edit every month to keep working.
+function buildMonthOptions(monthsBack=13){
+  const d=new Date();
+  let y=d.getFullYear(), m=d.getMonth()-(monthsBack-1);
+  while(m<0){ m+=12; y--; }
+  const opts=[];
+  for(let i=0;i<monthsBack;i++){
+    opts.push(`${y}-${String(m+1).padStart(2,'0')}`);
+    m++; if(m>11){ m=0; y++; }
+  }
+  return opts;
+}
+const MONTH_OPTIONS = buildMonthOptions();
 
 async function onHeaderMonthChange(label){
   const idx = MONTH_OPTIONS.map(monthLabel).indexOf(label);

@@ -218,103 +218,24 @@
 <!-- Toast notifications -->
 <div class="toast-stack" id="toastStack"></div>
 
+<script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 // ── SUPABASE CONFIG & HELPERS ────────────────────────────
+// SB_URL/SB_KEY, sbGet/sbPost/sbPatch/sbDelete, loadSession(), and toast()
+// now all come from the shared app-state.js (same as every other module) —
+// this page previously carried its own copies, which meant no auth guard,
+// no token refresh, and a different session storage key ('injera_bms_session'
+// instead of 'injera_session') that never matched what login.html actually
+// writes, so the logged-in user's name never resolved on PDF exports.
 // ══════════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://mfxkkaavgzyttasgqnmw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
-
-async function sbGet(path){
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  if(!res.ok){
-    let detail = '';
-    try{ detail = (await res.json()).message || ''; }catch(_){}
-    throw new Error(`Supabase GET ${path.split('?')[0]} failed (${res.status})${detail ? ': '+detail : ''}`);
-  }
-  return res.json();
-}
-
-// This page is read-only (reporting), but kept here for consistency with
-// the other Injera BMS modules that INSERT/UPDATE via the same pattern.
-async function sbPost(path, body){
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
-    },
-    body: JSON.stringify(body)
-  });
-  if(!res.ok){
-    let detail = '';
-    try{ detail = (await res.json()).message || ''; }catch(_){}
-    throw new Error(`Supabase POST ${path.split('?')[0]} failed (${res.status})${detail ? ': '+detail : ''}`);
-  }
-  return res.json();
-}
-
-// Lightweight session reader — this page only uses it to label PDF exports
-// with the logged-in user's name; falls back gracefully if no session exists.
-function loadSession(){
-  try{
-    const raw = localStorage.getItem('injera_bms_session') || sessionStorage.getItem('injera_bms_session');
-    return raw ? JSON.parse(raw) : null;
-  }catch(_){ return null; }
-}
 
 function num(v){ return v===null || v===undefined || v==='' ? 0 : Number(v); }
 function fmtETB(n){ return num(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function pctOf(v, total){ return total ? (v/total*100) : 0; }
 function approved(status){ return ['auto_approved','approved'].includes(status); }
-
-// ── Toast notifications ──────────────────────────────────
-// Self-contained on purpose: this page previously called toast() assuming it
-// came from a shared script that doesn't exist here, which meant EVERY error
-// handler in this file threw a *second*, unrelated "toast is not defined"
-// error the moment it tried to notify the user — masking whatever the real
-// problem was. This page no longer depends on any external script for it.
-function toast(message, type){
-  type = type || 'info';
-  let container = document.getElementById('toastStack');
-  if(!container){
-    // Defensive fallback only — #toastStack should already exist in this page's HTML.
-    container = document.createElement('div');
-    container.id = 'toastStack';
-    container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px;pointer-events:none;';
-    document.body.appendChild(container);
-  }
-  const colors = {
-    info:    { bg:'#eef6f1', border:'#c9e4d4', text:'#1B4332' },
-    success: { bg:'#eafbf1', border:'#a8e6c1', text:'#166534' },
-    error:   { bg:'#fdecec', border:'#f5b8b8', text:'#8a2323' }
-  };
-  const c = colors[type] || colors.info;
-  const el = document.createElement('div');
-  el.className = `toast toast-${type}`;
-  el.textContent = message;
-  // Inline styles guarantee this looks right even if shared-shell.css's own
-  // .toast-stack/.toast rules aren't loaded — if they ARE loaded, these
-  // inline styles simply take precedence, so it's safe either way.
-  el.style.cssText = `background:${c.bg};border:1px solid ${c.border};color:${c.text};padding:10px 16px;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.12);opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease;pointer-events:auto;`;
-  container.appendChild(el);
-  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translateY(0)'; });
-  setTimeout(()=>{
-    el.style.opacity='0';
-    el.style.transform='translateY(8px)';
-    setTimeout(()=>el.remove(), 250);
-  }, 3800);
-}
 
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTH_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];

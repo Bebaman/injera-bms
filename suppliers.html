@@ -10,14 +10,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-const { createClient } = supabase;
-const db = createClient(
-  'https://mfxkkaavgzyttasgqnmw.supabase.co',
-  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-);
-</script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 /* Reset, :root vars, base body/heading font rules now live in shared-shell.css. */
@@ -1857,13 +1849,18 @@ function showToast(msg){
 /* ════════════════ SUPABASE WIRING ════════════════
    suppliers table per spec §5 TABLE 44. Falls back silently to the seeded
    local data above if the table/columns aren't present yet or the network
-   is unavailable — the module stays fully usable either way. */
+   is unavailable — the module stays fully usable either way.
+   Now routed through the shared sbGet/sbPost/sbPatch in app-state.js instead
+   of its own raw @supabase/supabase-js client (removed above) — that client
+   was created with only the publishable anon key, so every read/write here
+   carried no logged-in user identity, got no 401 refresh-and-retry, and
+   didn't feed the shared sync-status pill the way every other module's
+   requests do. */
 const SUPPLIERS_TABLE = 'suppliers';
 
 async function loadSuppliersFromSupabase(){
   try{
-    const { data, error } = await db.from(SUPPLIERS_TABLE).select('*').order('name');
-    if(error) throw error;
+    const data = await sbGet(`${SUPPLIERS_TABLE}?select=*&order=name.asc`);
     if(data && data.length > 0){
       suppliers = data.map(r=>{
         const existing = suppliers.find(s=>s.name===r.name) || {};
@@ -1921,17 +1918,18 @@ async function saveSupplierToSupabase(s){
       credit_limit: s.creditLimit ?? null
     };
     if(s._dbId){
-      const { error } = await db.from(SUPPLIERS_TABLE).update(row).eq('id', s._dbId);
-      if(error) throw error;
+      await sbPatch(`${SUPPLIERS_TABLE}?id=eq.${s._dbId}`, row);
     } else {
-      const { data, error } = await db.from(SUPPLIERS_TABLE).insert(row).select().single();
-      if(error) throw error;
+      // sbPost() returns the inserted row(s) as an array (Prefer:
+      // return=representation), same as this page's old .insert().select()
+      // — just unwrap [0] instead of using .single().
+      const data = await sbPost(SUPPLIERS_TABLE, row);
       // Record the database's own id separately from the UI-facing `id` — the
       // UI (row menu ids, selectedSupplierId, already-rendered onclick
       // handlers) is already keyed on the local id, so swapping s.id here
       // would silently desync every reference built before this save
       // resolved (e.g. a still-open row menu, or a stale selection).
-      if(data) s._dbId = data.id;
+      if(data && data[0]) s._dbId = data[0].id;
     }
   }catch(err){
     console.log('Supabase supplier save failed (local only):', err.message);
@@ -1944,8 +1942,7 @@ async function saveSupplierToSupabase(s){
    with live figures, keyed by supplier_id FK. */
 async function loadPurchaseAggregatesFromSupabase(){
   try{
-    const { data, error } = await db.from('purchases').select('supplier_id,date,quantity,unit_price,total_cost,item_id').eq('is_deleted', false);
-    if(error) throw error;
+    const data = await sbGet('purchases?select=supplier_id,date,quantity,unit_price,total_cost,item_id&is_deleted=eq.false');
     if(!data || data.length===0) return;
     suppliers.forEach(s=>{
       const dbId = s._dbId || s.id;

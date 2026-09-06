@@ -9,7 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -715,22 +714,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 const CURRENT_SESSION = loadSession();
 
 /* ════════════════════════════════════════════════════════
-   SUPABASE CLIENT — same project as login.html/dashboard.html.
-   Requests are made with the logged-in user's own access_token
-   (not just the bare anon key) so that if/when RLS policies are
-   added later, this page keeps working without further changes.
+   SUPABASE — now routed through the shared sbGet/sbPost/sbPatch/sbDelete
+   in app-state.js instead of this page's own supabase-js client. That
+   client already sent the logged-in user's access_token correctly (see
+   git history), but ran on a different library than the rest of the app;
+   converting keeps this page on the same request layer (401 refresh-and-
+   retry, sync-status pill wiring, session-expiry handling) as everywhere
+   else. window.db is no longer set — app-state.js's signOut() only
+   best-effort calls db.auth.signOut() if window.db exists, so this is a
+   harmless no-op now, not a functional loss.
    ════════════════════════════════════════════════════════ */
-window.db = null; // window-scoped so app-state.js's signOut() can best-effort db.auth.signOut()
-if(typeof supabase !== 'undefined' && CURRENT_SESSION){
-  const { createClient } = supabase;
-  db = createClient(
-    'https://mfxkkaavgzyttasgqnmw.supabase.co',
-    'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH',
-    { global: { headers: { Authorization: `Bearer ${CURRENT_SESSION.access_token}` } } }
-  );
-} else if(typeof supabase === 'undefined') {
-  console.error('Supabase JS failed to load from CDN — check your internet connection and reload.');
-}
 
 /* ════════════════════════════════════════════════════════
    DATA MODEL — backed by live Supabase reads/writes against
@@ -796,15 +789,15 @@ function monthLabelToPeriod(label){
 let ITEM_IDS = null; // { blend, corn, gomen }
 async function loadItemIds(){
   if(ITEM_IDS) return ITEM_IDS;
-  if(!db) throw new Error('Supabase client not available (CDN failed to load).');
-  const { data, error } = await db.from('inventory_items')
-    .select('id,name')
-    .in('name', ['Injera Blend','Corn','Gomen Zere']);
-  if(error){ console.error('loadItemIds error', error); throw error; }
+  let data;
+  try{
+    const names = ['Injera Blend','Corn','Gomen Zere'].map(encodeURIComponent).join(',');
+    data = await sbGet(`inventory_items?select=id,name&name=in.(${names})`);
+  }catch(error){ console.error('loadItemIds error', error); throw error; }
   const byName = Object.fromEntries(data.map(r=>[r.name, r.id]));
   let blendId = byName['Injera Blend'];
   try {
-    const { data: bs } = await db.from('business_settings').select('blend_item_id').limit(1);
+    const bs = await sbGet('business_settings?select=blend_item_id&limit=1');
     if(bs && bs[0] && bs[0].blend_item_id) blendId = bs[0].blend_item_id;
   } catch(e){ /* non-fatal — fall back to name match above */ }
   ITEM_IDS = { blend: blendId, corn: byName['Corn'], gomen: byName['Gomen Zere'] };
@@ -819,10 +812,11 @@ async function loadItemIds(){
 const FALLBACK_WAC = { blend: 15.05, corn: 11.20, gomen: 18.40 };
 async function loadWacForPeriod(period){
   const ids = await loadItemIds();
-  const { data, error } = await db.from('monthly_wac')
-    .select('item_id,period,wac_per_unit')
-    .in('item_id', [ids.blend, ids.corn, ids.gomen].filter(Boolean));
-  if(error){ console.error('loadWacForPeriod error', error); throw error; }
+  const idList = [ids.blend, ids.corn, ids.gomen].filter(Boolean).join(',');
+  let data;
+  try{
+    data = await sbGet(`monthly_wac?select=item_id,period,wac_per_unit&item_id=in.(${idList})`);
+  }catch(error){ console.error('loadWacForPeriod error', error); throw error; }
 
   const pick = (itemId) => {
     const rows = data.filter(r=>r.item_id===itemId);
@@ -857,9 +851,10 @@ let WAC = { ...FALLBACK_WAC }; // live value populated by loadMonth(); kept as a
 const FALLBACK_DAILY_OVERHEAD = 633.00;
 let DAILY_OVERHEAD = FALLBACK_DAILY_OVERHEAD;
 async function loadDailyOverheadForPeriod(period){
-  if(!db) return FALLBACK_DAILY_OVERHEAD;
-  const { data, error } = await db.from('monthly_overhead').select('amount').eq('period', period);
-  if(error){ console.error('loadDailyOverheadForPeriod error', error); return FALLBACK_DAILY_OVERHEAD; }
+  let data;
+  try{
+    data = await sbGet(`monthly_overhead?select=amount&period=eq.${period}`);
+  }catch(error){ console.error('loadDailyOverheadForPeriod error', error); return FALLBACK_DAILY_OVERHEAD; }
   if(!data.length){
     toast('No overhead recorded for this period yet — using last-known daily overhead as a fallback.','info');
     return FALLBACK_DAILY_OVERHEAD;
@@ -899,23 +894,22 @@ async function loadMonth(monthLabel){
   DAILY_OVERHEAD = await loadDailyOverheadForPeriod(period);
   const ids = await loadItemIds();
 
-  const { data: batches, error: batchesErr } = await db.from('production_batches')
-    .select('*').eq('period', period).eq('is_deleted', false);
-  if(batchesErr) throw batchesErr;
+  let batches;
+  try{
+    batches = await sbGet(`production_batches?select=*&period=eq.${period}&is_deleted=eq.false`);
+  }catch(batchesErr){ throw batchesErr; }
 
   const batchIds = batches.map(b=>b.id);
-  const [costsRes, materialsRes] = await Promise.all([
-    db.from('production_batch_costs').select('*').eq('period', period),
+  const [costsData, materialsData] = await Promise.all([
+    sbGet(`production_batch_costs?select=*&period=eq.${period}`),
     batchIds.length
-      ? db.from('production_batch_materials').select('batch_id,item_id,quantity_used').in('batch_id', batchIds)
-      : Promise.resolve({ data: [], error: null })
+      ? sbGet(`production_batch_materials?select=batch_id,item_id,quantity_used&batch_id=in.(${batchIds.join(',')})`)
+      : Promise.resolve([])
   ]);
-  if(costsRes.error) throw costsRes.error;
-  if(materialsRes.error) throw materialsRes.error;
 
-  const costsById = Object.fromEntries(costsRes.data.map(c=>[c.id, c]));
+  const costsById = Object.fromEntries(costsData.map(c=>[c.id, c]));
   const materialsByBatch = {};
-  materialsRes.data.forEach(m=>{
+  materialsData.forEach(m=>{
     (materialsByBatch[m.batch_id] ??= []).push(m);
   });
 
@@ -1253,10 +1247,8 @@ const FALLBACK_BATCH_STD = {
 let BATCH_STD = { ...FALLBACK_BATCH_STD };
 
 async function loadBatchStandards(){
-  if(!db) return;
   try{
-    const { data, error } = await db.from('batch_standards').select('*');
-    if(error) throw error;
+    const data = await sbGet('batch_standards?select=*');
     const byType = { normal:'Normal', special:'Special' };
     data.forEach(row=>{
       const label = byType[row.batch_type];
@@ -1275,17 +1267,19 @@ async function loadBatchStandards(){
 }
 
 async function saveBatchStandard(batchTypeKey, payload){
-  if(!db){ toast('Not connected to the database.','error'); return false; }
-  const { error } = await db.from('batch_standards')
-    .update({
+  try{
+    await sbPatch(`batch_standards?batch_type=eq.${batchTypeKey}`, {
       target_blend_kg: payload.blend,
       target_corn_kg: payload.corn,
       target_gomen_kg: payload.gomen,
       target_injera_count: payload.count
-    })
-    .eq('batch_type', batchTypeKey);
-  if(error){ console.error('saveBatchStandard error', error); toast('Could not save Efficiency Targets.','error'); return false; }
-  return true;
+    });
+    return true;
+  }catch(error){
+    console.error('saveBatchStandard error', error);
+    toast('Could not save Efficiency Targets.','error');
+    return false;
+  }
 }
 
 /* ── Add / Edit Production Modal — spec §11.4 layout ── */
@@ -1538,10 +1532,13 @@ function recalcForm(){
 let LOCATION_IDS = null;
 async function loadLocationIds(){
   if(LOCATION_IDS) return LOCATION_IDS;
-  if(!db){ LOCATION_IDS = {}; return LOCATION_IDS; }
-  const { data, error } = await db.from('locations').select('id,name');
-  if(error){ console.error('loadLocationIds error', error); LOCATION_IDS = {}; return LOCATION_IDS; }
-  LOCATION_IDS = Object.fromEntries(data.map(r=>[r.name, r.id]));
+  try{
+    const data = await sbGet('locations?select=id,name');
+    LOCATION_IDS = Object.fromEntries(data.map(r=>[r.name, r.id]));
+  }catch(error){
+    console.error('loadLocationIds error', error);
+    LOCATION_IDS = {};
+  }
   return LOCATION_IDS;
 }
 
@@ -1555,13 +1552,14 @@ async function loadLocationIds(){
 // the running balance — this number can be optimistic in that case. Good
 // enough for a warning; not relied on to block anything.
 async function getAvailableStock(itemId, uptoPeriod){
-  if(!db || !itemId) return null;
-  const { data, error } = await db.from('inventory_balance')
-    .select('period,closing_qty')
-    .eq('item_id', itemId)
-    .lte('period', uptoPeriod);
-  if(error){ console.warn('getAvailableStock error', error); return null; }
-  return data.reduce((s,r)=>s+Number(r.closing_qty||0), 0);
+  if(!itemId) return null;
+  try{
+    const data = await sbGet(`inventory_balance?select=period,closing_qty&item_id=eq.${itemId}&period=lte.${uptoPeriod}`);
+    return data.reduce((s,r)=>s+Number(r.closing_qty||0), 0);
+  }catch(error){
+    console.warn('getAvailableStock error', error);
+    return null;
+  }
 }
 
 // Warn-only stock check (per business decision, see chat: never blocks the
@@ -1585,8 +1583,7 @@ async function checkMaterialStock({blend, corn, gomen}, date, editingBatchId){
       // This batch's own prior usage was already subtracted into the running
       // balance above — add it back before comparing, so re-saving an
       // unchanged edit doesn't falsely trigger a warning every time.
-      const { data: prior } = await db.from('production_batch_materials')
-        .select('quantity_used').eq('batch_id', editingBatchId).eq('item_id', c.id);
+      const prior = await sbGet(`production_batch_materials?select=quantity_used&batch_id=eq.${editingBatchId}&item_id=eq.${c.id}`).catch(()=>null);
       if(prior && prior.length) available += prior.reduce((s,r)=>s+Number(r.quantity_used), 0);
     }
     if(c.need > available){
@@ -1709,39 +1706,30 @@ async function saveBatch(editId){
     let batchId;
 
     if(isEdit){
-      const { error } = await db.from('production_batches')
-        .update({
-          date, batch_number: batchNum,
-          type: type.toLowerCase(),
-          injera_qty: qty,
-          other_cost: other,
-          status: STATUS_VALUE[statusLabel] || 'completed',
-          location_id: locationId
-        })
-        .eq('id', editId);
-      if(error) throw error;
+      await sbPatch(`production_batches?id=eq.${editId}`, {
+        date, batch_number: batchNum,
+        type: type.toLowerCase(),
+        injera_qty: qty,
+        other_cost: other,
+        status: STATUS_VALUE[statusLabel] || 'completed',
+        location_id: locationId
+      });
       batchId = editId;
 
       // Simplest correct way to replace the ingredient set on edit, given the
       // UNIQUE(batch_id, item_id) constraint on production_batch_materials:
       // delete this batch's rows and reinsert from the form's current values.
-      const { error: delErr } = await db.from('production_batch_materials')
-        .delete().eq('batch_id', batchId);
-      if(delErr) throw delErr;
+      await sbDelete(`production_batch_materials?batch_id=eq.${batchId}`);
     } else {
-      const { data, error } = await db.from('production_batches')
-        .insert({
-          date, batch_number: batchNum,
-          type: type.toLowerCase(),
-          injera_qty: qty,
-          other_cost: other,
-          status: STATUS_VALUE[statusLabel] || 'completed',
-          location_id: locationId
-        })
-        .select('id')
-        .single();
-      if(error) throw error;
-      batchId = data.id;
+      const data = await sbPost('production_batches', {
+        date, batch_number: batchNum,
+        type: type.toLowerCase(),
+        injera_qty: qty,
+        other_cost: other,
+        status: STATUS_VALUE[statusLabel] || 'completed',
+        location_id: locationId
+      });
+      batchId = data[0].id;
     }
 
     // production_batch_materials.quantity_used has a CHECK (> 0) constraint,
@@ -1753,8 +1741,7 @@ async function saveBatch(editId){
     if(gomen && gomen > 0) materialRows.push({ batch_id: batchId, item_id: ids.gomen, quantity_used: gomen });
     const toInsert = materialRows.filter(r=>r.quantity_used > 0);
     if(toInsert.length){
-      const { error: matErr } = await db.from('production_batch_materials').insert(toInsert);
-      if(matErr) throw matErr;
+      await sbPost('production_batch_materials', toInsert);
     }
 
     closeModal();
@@ -1853,10 +1840,7 @@ async function confirmDelete(id){
   const btn = document.getElementById('confirmDeleteBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Deleting…'; }
   try{
-    const { error } = await db.from('production_batches')
-      .update({ is_deleted: true })
-      .eq('id', id);
-    if(error) throw error;
+    await sbPatch(`production_batches?id=eq.${id}`, { is_deleted: true });
     toast(`Batch ${b.batchNo} deleted.`,'success');
     closeModal();
     await refreshCurrentMonth();
@@ -2799,10 +2783,10 @@ function periodLabel(period){
 // for one period — is_deleted rows are already excluded by the view itself.
 async function loadPeriodSummary(period){
   if(PREV_SUMMARY_CACHE[period]) return PREV_SUMMARY_CACHE[period];
-  if(!db) return null;
-  const { data, error } = await db.from('production_batch_costs')
-    .select('injera_qty,total_cost').eq('period', period);
-  if(error){ console.warn('loadPeriodSummary error', error); return null; }
+  let data;
+  try{
+    data = await sbGet(`production_batch_costs?select=injera_qty,total_cost&period=eq.${period}`);
+  }catch(error){ console.warn('loadPeriodSummary error', error); return null; }
   const summary = {
     batches: data.length,
     qty: data.reduce((s,r)=>s+Number(r.injera_qty||0), 0),

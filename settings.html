@@ -9,25 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/shared-shell.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed=true"></script>
-<script>
-// Defensive init: if the CDN failed to load (offline, blocked, ad-blocker), `supabase`
-// will be undefined. Never let that throw and take down the rest of the page —
-// db stays null and every call site checks for that before using it.
-let db = null;
-try {
-  if (typeof supabase !== 'undefined' && supabase.createClient) {
-    db = supabase.createClient(
-      'https://mfxkkaavgzyttasgqnmw.supabase.co',
-      'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-    );
-  } else {
-    window.__supabaseCdnFailed = true;
-  }
-} catch (e) {
-  window.__supabaseCdnFailed = true;
-  console.log('Supabase client init failed:', e.message);
-}
-</script>
 <style>
 h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
 
@@ -731,6 +712,39 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script>
+// Defensive init: if the CDN failed to load (offline, blocked, ad-blocker), `supabase`
+// will be undefined. Never let that throw and take down the rest of the page —
+// db stays null and every call site checks for that before using it.
+//
+// This client previously connected with only the publishable anon key and
+// never authenticated as the logged-in user — every one of this file's 30
+// db.from() calls (including user/role/permission management, a genuinely
+// sensitive area) ran with no user identity at all. Session wiring below
+// mirrors cashflow.html's own wireSession() pattern, run once app-state.js
+// (and its loadSession()) is available.
+let db = null;
+try {
+  if (typeof supabase !== 'undefined' && supabase.createClient) {
+    db = supabase.createClient(
+      window.SB_URL.replace('/rest/v1',''),
+      window.SB_KEY
+    );
+    const session = loadSession();
+    if(session && session.access_token){
+      db.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      }).catch(()=>{});
+    }
+  } else {
+    window.__supabaseCdnFailed = true;
+  }
+} catch (e) {
+  window.__supabaseCdnFailed = true;
+  console.log('Supabase client init failed:', e.message);
+}
+</script>
 <script>
 renderHeader({
   title: 'Settings',

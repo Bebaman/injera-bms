@@ -18,24 +18,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const { createClient } = supabase;
-const db = createClient(
-  'https://mfxkkaavgzyttasgqnmw.supabase.co',
-  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-);
-window.db = db; // lets app-state.js's shared signOut() call db.auth.signOut()
-// Restore the signed-in session onto this client (harmless today since no RLS
-// policies exist yet, but keeps this client authenticated if/when they're added).
-const _bootSession = loadSession();
-if(_bootSession && _bootSession.access_token){
-  db.auth.setSession({
-    access_token: _bootSession.access_token,
-    refresh_token: _bootSession.refresh_token
-  }).catch(()=>{});
-}
+// This page's Supabase client (and the raw @supabase/supabase-js CDN script
+// above it) have been removed — every db.from(...) call below now goes
+// through the shared sbGet/sbPost/sbPatch/sbDelete in app-state.js instead,
+// same request layer (401 refresh-and-retry, sync-status pill) every other
+// module uses. window.db is no longer set — app-state.js's signOut() only
+// best-effort calls db.auth.signOut() if window.db exists, so removing it
+// is a harmless no-op, not a functional loss.
 </script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
@@ -1794,8 +1785,7 @@ async function saveApprovalThreshold(){
   EXPENSE_APPROVAL_THRESHOLD = val;
   try {
     if(businessSettingsId){
-      const { error } = await db.from('business_settings').update({ approval_threshold_etb: val }).eq('id', businessSettingsId);
-      if(error) throw error;
+      await sbPatch(`business_settings?id=eq.${businessSettingsId}`, { approval_threshold_etb: val });
     }
     showToast('Approval threshold saved — '+fmt(val)+' ETB');
   } catch(err){
@@ -1821,8 +1811,7 @@ async function savePriceChangeThreshold(){
   priceChangeThresholdPct = val;
   try {
     if(businessSettingsId){
-      const { error } = await db.from('business_settings').update({ price_spike_pct: val }).eq('id', businessSettingsId);
-      if(error) throw error;
+      await sbPatch(`business_settings?id=eq.${businessSettingsId}`, { price_spike_pct: val });
     }
     showToast('Price change threshold saved — '+val+'%');
   } catch(err){
@@ -1845,8 +1834,7 @@ async function saveVatSettings(){
   vatSettings = { isRegistered, ratePct };
   try {
     if(businessSettingsId){
-      const { error } = await db.from('business_settings').update({ is_vat_registered: isRegistered }).eq('id', businessSettingsId);
-      if(error) throw error;
+      await sbPatch(`business_settings?id=eq.${businessSettingsId}`, { is_vat_registered: isRegistered });
     }
     toggleVatFieldInModal();
     showToast(isRegistered ? `VAT enabled at ${ratePct}%` : 'VAT registration turned off');
@@ -2530,8 +2518,7 @@ const SUPPLIERS_TABLE = 'suppliers';
 
 async function loadSuppliersFromSupabase(){
   try {
-    const { data, error } = await db.from(SUPPLIERS_TABLE).select('*').order('name');
-    if(error) throw error;
+    const data = await sbGet(`${SUPPLIERS_TABLE}?select=*&order=name.asc`);
     if(data && data.length > 0){
       suppliers = data.map(r => ({
         id: r.id,
@@ -2549,12 +2536,10 @@ async function saveSupplierToSupabase(s){
   try {
     const row = { name: s.name, category: s.category, is_active: s.isActive !== false };
     if(s._dbId || (typeof s.id === 'string' && s.id.length === 36 && s.id.includes('-'))){
-      const { error } = await db.from(SUPPLIERS_TABLE).update(row).eq('id', s._dbId || s.id);
-      if(error) throw error;
+      await sbPatch(`${SUPPLIERS_TABLE}?id=eq.${s._dbId || s.id}`, row);
     } else {
-      const { data, error } = await db.from(SUPPLIERS_TABLE).insert(row).select().single();
-      if(error) throw error;
-      if(data){ s._dbId = data.id; s.id = data.id; }
+      const data = await sbPost(SUPPLIERS_TABLE, row);
+      if(data && data[0]){ s._dbId = data[0].id; s.id = data[0].id; }
     }
     return {ok:true};
   } catch(err){
@@ -2568,8 +2553,7 @@ async function deleteSupplierFromSupabase(s){
   try {
     const dbId = s._dbId || s.id;
     if(!dbId) return {ok:true};
-    const { error } = await db.from(SUPPLIERS_TABLE).delete().eq('id', dbId);
-    if(error) throw error;
+    await sbDelete(`${SUPPLIERS_TABLE}?id=eq.${dbId}`);
     return {ok:true};
   } catch(err){
     console.log('Supabase supplier delete failed:', err.message);
@@ -2579,8 +2563,8 @@ async function deleteSupplierFromSupabase(s){
 
 async function loadLookupsFromSupabase(){
   try {
-    const { data, error } = await db.from('inventory_items').select('*').eq('is_active', true).order('name');
-    if(!error && data && data.length > 0){
+    const data = await sbGet('inventory_items?select=*&is_active=eq.true&order=name.asc');
+    if(data && data.length > 0){
       // BUG FIX: this used to guess the group by matching item name against a hardcoded
       // {'Small Bags','Large Bags'} set, defaulting everything else to 'Raw Materials'.
       // inventory_items already has a real `category` column (confirmed against the live
@@ -2596,8 +2580,8 @@ async function loadLookupsFromSupabase(){
   } catch(err){ console.log('inventory_items load failed, using local fallback:', err.message); }
 
   try {
-    const { data, error } = await db.from('expense_categories').select('*').order('name');
-    if(!error && data && data.length > 0){
+    const data = await sbGet('expense_categories?select=*&order=name.asc');
+    if(data && data.length > 0){
       expenseCategories = data.map(r => ({ id: r.id, name: r.name, group: 'Operating Expenses' }));
     }
   } catch(err){ console.log('expense_categories load failed, using local fallback:', err.message); }
@@ -2607,8 +2591,10 @@ let businessSettingsId = null;
 
 async function loadBusinessSettingsFromSupabase(){
   try {
-    const { data, error } = await db.from('business_settings').select('*').limit(1).single();
-    if(error) throw error;
+    // .single() previously unwrapped this to a single object (or threw if zero
+    // rows). sbGet() always resolves to an array — data[0] is that same row.
+    const rows = await sbGet('business_settings?select=*&limit=1');
+    const data = rows && rows[0];
     if(data){
       EXPENSE_APPROVAL_THRESHOLD = parseFloat(data.approval_threshold_etb ?? 1000);
       vatSettings = {
@@ -2631,8 +2617,7 @@ async function loadFromSupabase(){
     loadBusinessSettingsFromSupabase()
   ]);
   try {
-    const { data, error } = await db.from(PURCHASES_TABLE).select('*').eq('is_deleted', false).order('date', { ascending: false });
-    if(error) throw error;
+    const data = await sbGet(`${PURCHASES_TABLE}?select=*&is_deleted=eq.false&order=date.desc`);
 
     if(data && data.length > 0){
       purchases = data.map((r, idx) => {
@@ -2722,13 +2707,11 @@ async function saveToSupabase(p){
       location_id: null
     };
     if(p._dbId){
-      const { data, error } = await db.from(PURCHASES_TABLE).update(row).eq('id', p._dbId).select().single();
-      if(error) throw error;
-      if(data) syncTriggerComputedFields(p, data);
+      const data = await sbPatch(`${PURCHASES_TABLE}?id=eq.${p._dbId}`, row);
+      if(data && data[0]) syncTriggerComputedFields(p, data[0]);
     } else {
-      const { data, error } = await db.from(PURCHASES_TABLE).insert(row).select().single();
-      if(error) throw error;
-      if(data){ p._dbId = data.id; syncTriggerComputedFields(p, data); }
+      const data = await sbPost(PURCHASES_TABLE, row);
+      if(data && data[0]){ p._dbId = data[0].id; syncTriggerComputedFields(p, data[0]); }
     }
   } catch(err){
     console.log('Supabase save failed (local only):', err.message);
@@ -2746,7 +2729,7 @@ function syncTriggerComputedFields(local, dbRow){
 async function deleteFromSupabase(p){
   try {
     if(!p._dbId) return;
-    await db.from(PURCHASES_TABLE).update({ is_deleted: true }).eq('id', p._dbId);
+    await sbPatch(`${PURCHASES_TABLE}?id=eq.${p._dbId}`, { is_deleted: true });
   } catch(err){
     console.log('Supabase delete failed:', err.message);
   }

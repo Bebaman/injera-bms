@@ -293,24 +293,19 @@ button{font-family:inherit}
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* ══════════════════════ SUPABASE CONFIG ══════════════════════ */
-const SUPABASE_URL='https://mfxkkaavgzyttasgqnmw.supabase.co';
-const SUPABASE_KEY='sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
-
-async function sb(path){
-  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY}});
-  if(!res.ok){const t=await res.text().catch(()=>'');throw new Error('GET '+path+' → '+res.status+' '+t);}
-  return res.json();
-}
-async function sbWrite(path,method,body){
-  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{
-    method,
-    headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=representation'},
-    body:JSON.stringify(body)
-  });
-  if(!res.ok){const t=await res.text().catch(()=>'');throw new Error(method+' '+path+' → '+res.status+' '+t);}
-  const text=await res.text();
-  return text?JSON.parse(text):null;
+/* ══════════════════════ SUPABASE ══════════════════════
+   sb()/sbWrite() now delegate to the shared sbGet/sbPost/sbPatch in
+   app-state.js — this page previously carried its own SUPABASE_URL/KEY
+   and always sent the anon key directly, bypassing the logged-in user's
+   session token entirely (no auth identity on any request, no 401
+   refresh-and-retry, no sync-status pill wiring). Kept as thin wrappers
+   so none of the many call sites below need to change. */
+function sb(path){ return sbGet(path); }
+function sbWrite(path,method,body){
+  if(method==='PATCH') return sbPatch(path,body);
+  if(method==='POST') return sbPost(path,body);
+  if(method==='DELETE') return sbDelete(path);
+  throw new Error('sbWrite: unsupported method '+method);
 }
 
 /* ══════════════════════ DATA MODEL ══════════════════════ */

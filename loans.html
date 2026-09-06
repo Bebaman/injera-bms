@@ -1318,8 +1318,11 @@ function lastSixMonthLabels(){
 }
 function refreshHeaderNotifications(){
   const months = lastSixMonthLabels();
-  const headerRoot = document.getElementById('header-root');
-  if(headerRoot) headerRoot.innerHTML = ''; // defensive: avoid stacking duplicate header bars if renderHeader appends instead of replacing
+  // The duplicate-header workaround that used to live here is no longer
+  // needed — header.js's renderHeader() now keeps id="header-root" on its
+  // replacement <header> element on every call, so repeat calls (like this
+  // one, fired again on every loadAll()) correctly replace the existing
+  // topbar instead of stacking a new one on top of it.
   renderHeader({
     title: 'Loans',
     subtitle: 'Manage loans, repayment schedules and balances',

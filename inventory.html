@@ -389,7 +389,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     <!-- INVENTORY OVERVIEW (detailed table) -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-hd">
-        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl">(Jul 2026)</span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
+        <div class="card-ttl">Inventory Overview <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="ovMonthLbl"></span> <span class="info-ic" title="Monthly View shows this month's activity per item. All-Time Perpetual shows the running stock balance.">i</span></div>
         <div class="exp-btns">
           <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
           <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
@@ -617,20 +617,35 @@ function num(v){ return parseFloat(v)||0; }
 function dash(v){ return (v===null || v===undefined) ? '-' : fmt(v); }
 function fmtDateLong(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
 
-/* ════════════════ HEADER MONTH CHANGE ════════════════ */
-const MONTH_LABEL_TO_PERIOD = {
-  'Jan 2026':'2026-01','Feb 2026':'2026-02','Mar 2026':'2026-03',
-  'Apr 2026':'2026-04','May 2026':'2026-05','Jun 2026':'2026-06','Jul 2026':'2026-07'
-};
+/* ════════════════ HEADER MONTH CHANGE ════════════════
+   Built dynamically (13 real calendar months through the current month)
+   instead of a hardcoded map that stopped at Jul 2026 — that meant the
+   page could never show (or even default to) August 2026 or later, and
+   needed a manual edit every month to keep working. */
+function buildRecentMonths(monthsBack=13){
+  const MONTH_ABBR=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today=new Date();
+  let y=today.getFullYear(), m=today.getMonth()-(monthsBack-1);
+  while(m<0){ m+=12; y--; }
+  const months=[];
+  for(let i=0;i<monthsBack;i++){
+    months.push({ key:`${y}-${String(m+1).padStart(2,'0')}`, label:`${MONTH_ABBR[m]} ${y}` });
+    m++; if(m>11){ m=0; y++; }
+  }
+  return months;
+}
+const MONTHS = buildRecentMonths();
+const CURRENT_MONTH_LABEL = MONTHS[MONTHS.length-1].label;
+function periodFromLabel(label){ const m=MONTHS.find(x=>x.label===label); return m ? m.key : MONTHS[MONTHS.length-1].key; }
 function prevPeriodOf(period){
   const [y,m] = period.split('-').map(Number);
   const d = new Date(y, m-2, 1);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
-let currentPeriod = MONTH_LABEL_TO_PERIOD['Jul 2026'];
+let currentPeriod = periodFromLabel(CURRENT_MONTH_LABEL);
 function onMonthChange(m){
   document.getElementById('ovMonthLbl').textContent = '('+m+')';
-  currentPeriod = MONTH_LABEL_TO_PERIOD[m] || currentPeriod;
+  currentPeriod = periodFromLabel(m);
   showToast('Loading inventory for '+m+'…');
   loadFromSupabase();
 }
@@ -2046,8 +2061,8 @@ renderHeader({
   title: 'Inventory',
   subtitle: 'Track stock levels, costs, and price history',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
-  selectedMonth: 'Jul 2026',
+  months: MONTHS.map(m=>m.label),
+  selectedMonth: CURRENT_MONTH_LABEL,
   onMonthChange: onMonthChange,
   showExport: true,
   onExportPdf: exportPDF,
@@ -2059,6 +2074,7 @@ renderHeader({
     time: ''
   }))
 });
+document.getElementById('ovMonthLbl').textContent = '('+CURRENT_MONTH_LABEL+')';
 
 loadFromSupabase();
 </script>
