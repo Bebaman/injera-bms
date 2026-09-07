@@ -750,9 +750,17 @@ async function sbGet(table, query){
   try{
     const res = await fetch(`${SB_REST_URL}/${table}${query||''}`, { headers: sbHeaders });
     if(!res.ok) throw new Error(await res.text());
-    return await res.json();
+    const data = await res.json();
+    // Reports success to the shared header status pill (set up by app-state.js).
+    // This page has its own REST helpers (see comment above) rather than calling
+    // app-state.js's sbGet/sbPost/etc., which was why the pill stayed stuck on
+    // "Connecting..." even though data was loading fine underneath it — nothing
+    // on this page was ever telling it a request had actually succeeded.
+    window.setSyncStatus?.('live');
+    return data;
   } catch(err){
     console.error('sbGet', table, err);
+    window.setSyncStatus?.('error', { message: 'Some data failed to load' });
     if(typeof toast==='function') toast('Could not load '+table.replace(/_/g,' ')+'. Check your connection.','error');
     return [];
   }
@@ -763,9 +771,11 @@ async function sbInsert(table, body){
   });
   if(!res.ok){
     const t = await res.text();
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
     if(typeof toast==='function') toast('Could not save to '+table.replace(/_/g,' ')+'.','error');
     throw new Error(t);
   }
+  window.setSyncStatus?.('live');
   return await res.json();
 }
 async function sbUpdate(table, id, body){
@@ -774,18 +784,22 @@ async function sbUpdate(table, id, body){
   });
   if(!res.ok){
     const t = await res.text();
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
     if(typeof toast==='function') toast('Could not update '+table.replace(/_/g,' ')+'.','error');
     throw new Error(t);
   }
+  window.setSyncStatus?.('live');
   return await res.json();
 }
 async function sbDelete(table, id){
   const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, { method:'DELETE', headers: sbHeaders });
   if(!res.ok){
     const t = await res.text();
+    window.setSyncStatus?.('error', { message: 'Some data failed to delete' });
     if(typeof toast==='function') toast('Could not delete from '+table.replace(/_/g,' ')+'.','error');
     throw new Error(t);
   }
+  window.setSyncStatus?.('live');
   return true;
 }
 
