@@ -90,7 +90,7 @@
 .act-dots:hover{background:var(--bg);color:var(--tm)}
 .act-dots svg{width:15px;height:15px;fill:currentColor;stroke:none}
 .act-dots svg circle{fill:currentColor}
-.row-menu{position:absolute;top:26px;right:0;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:50;min-width:150px;display:none;overflow:hidden}
+.row-menu{position:fixed;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:520;min-width:150px;display:none;overflow:hidden}
 .row-menu.show{display:block}
 .row-menu a{display:block;padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--td);cursor:pointer;white-space:nowrap}
 .row-menu a:hover{background:#f7fbf9}
@@ -138,13 +138,13 @@
    auto-fit + minmax keeps these tiles flowing horizontally across
    several columns at essentially any container width, instead of a
    fixed column-count grid that can collapse to one narrow column. */
-.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 15px 15px}
-.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1px solid var(--border);border-radius:10px;padding:16px 6px;cursor:pointer;background:#fbfcfb;transition:all .12s;text-align:center}
-.qa-btn:hover{background:var(--bg);transform:translateY(-1px)}
-.qa-ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:transparent}
-.qa-ic.ic-g,.qa-ic.ic-p,.qa-ic.ic-o,.qa-ic.ic-b{background:transparent}
-.qa-ic svg{width:28px;height:28px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.qa-ic.qa-ic-solid svg{width:16px;height:16px;stroke:#fff;stroke-width:2.4}
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:10px;padding:8px 15px 15px}
+.qa-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;padding:16px 6px;cursor:pointer;background:#fbfcfb;transition:transform .15s ease,box-shadow .15s ease,background .12s ease;text-align:center;position:relative}
+.qa-btn:hover{background:var(--bg);transform:translateY(-2px) scale(1.06);box-shadow:0 8px 20px rgba(13,27,21,.12);z-index:2}
+.qa-btn:active{transform:translateY(-1px) scale(1.02)}
+.qa-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.qa-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.qa-ic.ic-r{background:#fdecea}.qa-ic.ic-r svg{stroke:#e53935}
 .qa-btn span{font-size:11px;font-weight:700;color:var(--td);line-height:1.25}
 @media (max-width:900px){.qa-grid{grid-template-columns:repeat(4,1fr)}}
 @media (max-width:520px){.qa-grid{grid-template-columns:repeat(2,1fr)}}
@@ -266,6 +266,15 @@ html,body{overflow-x:hidden}
 @media (max-width:480px){
   .kpi-row{grid-template-columns:repeat(2,1fr)}
 }
+@media (max-width:700px){
+  /* Bigger touch target for the row-actions dots on phones/tablets, and a
+     comfortably-tappable menu — the visible icon stays the same size. */
+  .act-dots{width:36px;height:36px;margin-left:auto}
+  .row-menu a{padding:12px 16px;font-size:13.5px}
+  .row-menu{min-width:170px}
+  .exp-mini{padding:0 8px;font-size:10.5px}
+  .modal-ft{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -283,41 +292,41 @@ html,body{overflow-x:hidden}
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         </div>
         <span class="kc-lbl">Total Suppliers</span>
-        <div class="kc-val"><span id="kpiTotal" data-target="16" data-decimals="0">0</span></div>
+        <div class="kc-val"><span id="kpiTotal" data-target="0" data-decimals="0">0</span></div>
         <div class="kc-sub">Active</div>
-        <div class="kc-sub2" id="kpiInactive">1 Inactive</div>
+        <div class="kc-sub2" id="kpiInactive">0 Inactive</div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-g">
           <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
         </div>
-        <span class="kc-lbl" id="kpiPurchLbl">Total Purchases (May 2026)</span>
-        <div class="kc-val"><span id="kpiPurch" data-target="88842">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-chg dn">▼ 6.3%<span class="vs">vs Apr 2026</span></div>
+        <span class="kc-lbl" id="kpiPurchLbl">Total Purchases</span>
+        <div class="kc-val"><span id="kpiPurch" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiPurchChg" style="display:none"></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-p">
           <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
         </div>
         <span class="kc-lbl">Avg. Purchase Price (Blend)</span>
-        <div class="kc-val"><span id="kpiAvgPrice" data-target="916.67">0.00</span> <span class="u">ETB / kg</span></div>
-        <div class="kc-chg up">▲ 1.8%<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-val"><span id="kpiAvgPrice" data-target="0">0.00</span> <span class="u" id="kpiAvgPriceUnit">ETB / kg</span></div>
+        <div class="kc-chg" id="kpiAvgPriceChg" style="display:none"></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-o">
           <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
         <span class="kc-lbl">Suppliers This Month</span>
-        <div class="kc-val"><span id="kpiActiveMonth" data-target="7" data-decimals="0">0</span></div>
+        <div class="kc-val"><span id="kpiActiveMonth" data-target="0" data-decimals="0">0</span></div>
         <div class="kc-sub">Placed orders</div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-b">
           <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </div>
-        <span class="kc-lbl" id="kpiPaidLbl">Amount Paid (May 2026)</span>
-        <div class="kc-val"><span id="kpiPaid" data-target="88842">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-chg dn">▼ 6.3%<span class="vs">vs Apr 2026</span></div>
+        <span class="kc-lbl" id="kpiPaidLbl">Amount Paid</span>
+        <div class="kc-val"><span id="kpiPaid" data-target="0">0.00</span> <span class="u">ETB</span></div>
+        <div class="kc-chg" id="kpiPaidChg" style="display:none"></div>
       </div>
     </div>
 
@@ -363,7 +372,7 @@ html,body{overflow-x:hidden}
           <table class="tbl">
             <thead><tr>
               <th>Supplier Name</th><th>Category</th><th>Phone</th>
-              <th>Total Purchase (All Time)</th><th id="thMonth">This Month (May 2026)</th>
+              <th>Total Purchase (All Time)</th><th id="thMonth">This Month</th>
               <th>Last Purchase</th><th>Status</th><th>Action</th>
             </tr></thead>
             <tbody id="supTbody"></tbody>
@@ -411,7 +420,7 @@ html,body{overflow-x:hidden}
           <div class="card-hd">
             <div class="card-ttl">
               <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              Supplier Performance <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px" id="perfMonthLbl">(May 2026)</span>
+              Supplier Performance <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px" id="perfMonthLbl">(loading)</span>
             </div>
             <button class="vall" onclick="openPerformanceModal()">View Full Report</button>
           </div>
@@ -420,17 +429,14 @@ html,body{overflow-x:hidden}
             <thead><tr>
               <th>Supplier</th><th>Total Purchases (ETB)</th><th>% of Total</th>
               <th>Avg. Price - Blend (ETB/kg)</th><th>Vs. Market Avg.</th>
-              <th>Orders This Month</th><th>On-Time Delivery</th>
+              <th>Orders This Month</th><th title="No delivery-date tracking exists on Purchases yet — see note below">On-Time Delivery</th>
             </tr></thead>
             <tbody id="perfTbody">
-              <tr><td data-label="Supplier">Awash Grain Suppliers</td><td data-label="Total Purchases (ETB)">51,040.00</td><td data-label="% of Total">57.4%</td><td data-label="Avg. Price - Blend (ETB/kg)">916.67</td><td data-label="Vs. Market Avg." class="chg-dn">▼ 1.8%</td><td data-label="Orders This Month">2</td><td data-label="On-Time Delivery">100%</td></tr>
-              <tr><td data-label="Supplier">Ethiopia Milling PLC</td><td data-label="Total Purchases (ETB)">31,450.00</td><td data-label="% of Total">35.4%</td><td data-label="Avg. Price - Blend (ETB/kg)">925.00</td><td data-label="Vs. Market Avg." class="chg-up">▲ 0.5%</td><td data-label="Orders This Month">1</td><td data-label="On-Time Delivery">100%</td></tr>
-              <tr><td data-label="Supplier">Adama Grain Traders</td><td data-label="Total Purchases (ETB)">4,200.00</td><td data-label="% of Total">4.7%</td><td data-label="Avg. Price - Blend (ETB/kg)">930.00</td><td data-label="Vs. Market Avg." class="chg-up">▲ 1.0%</td><td data-label="Orders This Month">1</td><td data-label="On-Time Delivery">100%</td></tr>
-              <tr><td data-label="Supplier">Other Suppliers</td><td data-label="Total Purchases (ETB)">2,152.00</td><td data-label="% of Total">2.5%</td><td data-label="Avg. Price - Blend (ETB/kg)">—</td><td data-label="Vs. Market Avg.">—</td><td data-label="Orders This Month">3</td><td data-label="On-Time Delivery">66.7%</td></tr>
-              <tr class="tot"><td data-label="Total">Total</td><td data-label="Total Purchases (ETB)">88,842.00</td><td data-label="% of Total">100%</td><td data-label="Avg. Price - Blend (ETB/kg)">916.67</td><td data-label="Vs. Market Avg." class="chg-dn">▼ 1.8%</td><td data-label="Orders This Month">7</td><td data-label="On-Time Delivery">95.2%</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--tl);padding:20px">Loading…</td></tr>
             </tbody>
           </table>
           </div>
+          <div style="padding:8px 17px 12px;font-size:10.5px;color:var(--tl);line-height:1.5">On-Time Delivery isn't tracked yet — Purchases has no expected/actual delivery date fields. Add them there to enable this column.</div>
         </div>
 
       </div>
@@ -450,8 +456,8 @@ html,body{overflow-x:hidden}
           </div>
           <div style="padding:6px 17px 0;height:150px"><canvas id="priceTrendChart"></canvas></div>
           <div class="pt-foot">
-            <span id="ptMarketAvg">Market Average (May 2026): <b>933.33 ETB/kg</b></span>
-            <span id="ptYouPay">You Pay: <b>916.67 ETB/kg</b> <span class="chg-dn">▼ 1.8%</span></span>
+            <span id="ptMarketAvg">Loading…</span>
+            <span id="ptYouPay"></span>
           </div>
         </div>
 
@@ -472,16 +478,12 @@ html,body{overflow-x:hidden}
               <th>Unit Price (ETB)</th><th>Total Cost (ETB)</th><th>Payment Method</th><th>Status</th>
             </tr></thead>
             <tbody id="recentPurchasesTbody">
-              <tr><td data-label="Date">May 29, 2026</td><td data-label="Supplier">Awash Grain Suppliers</td><td data-label="Item">Injera Blend</td><td data-label="Quantity">50 kg</td><td data-label="Unit Price (ETB)">920.00</td><td data-label="Total Cost (ETB)">46,000.00</td><td data-label="Payment Method">Bank Transfer</td><td data-label="Status"><span class="pill-sm pill-done">Paid</span></td></tr>
-              <tr><td data-label="Date">May 28, 2026</td><td data-label="Supplier">Ethiopia Milling PLC</td><td data-label="Item">Corn</td><td data-label="Quantity">40 kg</td><td data-label="Unit Price (ETB)">260.00</td><td data-label="Total Cost (ETB)">10,400.00</td><td data-label="Payment Method">Cash</td><td data-label="Status"><span class="pill-sm pill-done">Paid</span></td></tr>
-              <tr><td data-label="Date">May 27, 2026</td><td data-label="Supplier">Alemu Packaging</td><td data-label="Item">Small Bags</td><td data-label="Quantity">200 pcs</td><td data-label="Unit Price (ETB)">23.00</td><td data-label="Total Cost (ETB)">4,600.00</td><td data-label="Payment Method">Mobile Money</td><td data-label="Status"><span class="pill-sm pill-done">Paid</span></td></tr>
-              <tr><td data-label="Date">May 26, 2026</td><td data-label="Supplier">Habesha Transport</td><td data-label="Item">Delivery Trip</td><td data-label="Quantity">1 trip</td><td data-label="Unit Price (ETB)">2,100.00</td><td data-label="Total Cost (ETB)">2,100.00</td><td data-label="Payment Method">Cash</td><td data-label="Status"><span class="pill-sm pill-done">Paid</span></td></tr>
-              <tr><td data-label="Date">May 25, 2026</td><td data-label="Supplier">Tigray Water Supply</td><td data-label="Item">Water</td><td data-label="Quantity">1 month</td><td data-label="Unit Price (ETB)">850.00</td><td data-label="Total Cost (ETB)">850.00</td><td data-label="Payment Method">Cash</td><td data-label="Status"><span class="pill-sm pill-done">Paid</span></td></tr>
+              <tr><td colspan="8" style="text-align:center;color:var(--tl);padding:20px">Loading…</td></tr>
             </tbody>
           </table>
           </div>
           <div style="padding:12px 17px;border-top:1px solid var(--border);text-align:center">
-            <button class="vall" style="margin:0 auto" onclick="showToast('Full purchase history coming soon')">View All Purchases</button>
+            <button class="vall" style="margin:0 auto" onclick="window.location.href='purchases.html'">View All Purchases</button>
           </div>
         </div>
 
@@ -494,23 +496,23 @@ html,body{overflow-x:hidden}
           <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
           <div class="qa-grid">
             <div class="qa-btn" onclick="openAddSupplierModal()">
-              <div class="qa-ic qa-ic-solid" style="background:#1d5c38"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
               <span>Add New Supplier</span>
             </div>
             <div class="qa-btn" onclick="openLedgerModal()">
-              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
+              <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
               <span>Supplier Ledger</span>
             </div>
             <div class="qa-btn" onclick="openPurchaseReportModal()">
-              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
               <span>Purchase Report</span>
             </div>
             <div class="qa-btn" onclick="openPriceComparisonModal()">
-              <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-4-4L3 15.6"/></svg></div>
+              <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-4-4L3 15.6"/></svg></div>
               <span>Price Comparison</span>
             </div>
             <div class="qa-btn" onclick="openPerformanceModal()">
-              <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+              <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
               <span>Supplier Performance</span>
             </div>
             <div class="qa-btn" onclick="openTopSuppliersModal()">
@@ -522,7 +524,7 @@ html,body{overflow-x:hidden}
               <span>Export Suppliers (Excel)</span>
             </div>
             <div class="qa-btn" onclick="exportAllSuppliersPDF()">
-              <div class="qa-ic" style="background:transparent"><svg viewBox="0 0 24 24" style="stroke:#e53935"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <span>Export Suppliers (PDF)</span>
             </div>
           </div>
@@ -748,6 +750,11 @@ html,body{overflow-x:hidden}
   </div>
 </div>
 
+<!-- Shared row-actions dropdown — one instance, positioned by JS. Lives as a
+     direct child of <body> (not inside any .card) so it is never clipped;
+     see the comment above toggleRowMenu() in the script below. -->
+<div class="row-menu" id="sharedRowMenu" onclick="event.stopPropagation()"></div>
+
 <!-- ════ TOAST ════ -->
 <div class="sup-toast" id="toast">
   <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -758,156 +765,96 @@ html,body{overflow-x:hidden}
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-renderHeader({
-  title: 'Suppliers',
-  subtitle: 'Manage suppliers and purchase history',
-  showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'],
-  selectedMonth: 'May 2026',
-  onMonthChange: () => { renderAll(); },
-  notifications: [
-    { type:'g', title:'New Supplier Added', sub:'Adama Grain Traders was added to your supplier list', time:'2 hours ago' },
-    { type:'o', title:'Price Increase Alert', sub:'Ethiopia Milling PLC raised Injera Blend price by 0.5%', time:'1 day ago' }
-  ]
-});
+let businessSettings = {};
 
 /* ════════════════ DATA MODEL ════════════════
-   Mirrors spec §5 TABLE 44 `suppliers`: id, name, category, contact_phone,
-   contact_email, address, payment_terms, is_active. Purchase-derived figures
-   (allTime / month / lastPurchase / priceHistory) are computed from the
-   `purchases` table in production; seeded here with figures matching the
-   reference design so the module renders identically before Supabase is live. */
+   Mirrors the real `suppliers` table (id, name, category, contact_phone,
+   contact_email, address, payment_terms, is_active, tin, vat_number,
+   bank_name, bank_account, credit_limit, market_days) plus `supplier_products`
+   (this supplier's price list) and purchase-derived figures aggregated live
+   from the `purchases` table. No mock/seed suppliers — the list starts empty
+   and is populated entirely from Supabase. */
+let suppliers = [];
+/* Raw purchase rows (supplier_id not null, is_deleted=false), each already
+   joined with item/expense-category name client-side. Single source of truth
+   reused by KPIs, Recent Purchases, Supplier Performance, Price Trend/Market
+   Average, and the Supplier Ledger — see loadPurchasesFromSupabase(). */
+let allPurchases = [];
 /* marketDays: [] = orderable/deliverable any day. Non-empty = the supplier
    (typically an open-air market vendor) only sells on those weekdays —
    1=Sun...7=Sat, matching event_create_v0's day convention. Used by the
    Restock Calendar quick action to warn when stock will run out before the
    next day this supplier can actually be bought from. */
-/* itemsSupplied: line items this supplier actually sells, each with its own
-   unit price + 6-month history — the real basis for price comparison (a
-   blended avgPriceBlend alone can't answer "who's cheapest for X"). Item
-   `name` is the join key used to group the same item across suppliers; once
-   the Inventory module is linked these will carry a shared itemId instead. */
-let suppliers = [
-  {id:'s1', name:'Awash Grain Suppliers', category:'Grain', phone:'+251 91 123 4111', email:'info@awashgrain.com', contactPerson:'Ato Girma Wolde', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:'0012345678', vatNumber:'VAT-000123456', bankName:'Commercial Bank of Ethiopia', bankAccount:'1000456789012', creditLimit:80000,
-    allTime:142350.00, month:51040.00, lastPurchase:'2026-05-29', unit:'kg', avgPriceBlend:916.67, vsMarketPct:-1.8, marketDays:[4,6],
-    priceHistory:[935.00,938.33,930.00,928.33,933.33,916.67],
-    itemsSupplied:[
-      {name:'Teff (White)', unit:'kg', price:918.00, history:[935,938,930,928,933,918]},
-      {name:'Teff (Mixed)', unit:'kg', price:860.00, history:[875,872,868,865,862,860]},
-      {name:'Wheat Flour', unit:'kg', price:62.00, history:[58,59,60,60,61,62]}
-    ]},
-  {id:'s2', name:'Ethiopia Milling PLC', category:'Grain', phone:'+251 91 234 2222', email:'sales@ethiomilling.com', contactPerson:'W/ro Selamawit Tesfaye', address:'Kaliti, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-   tin:'0023456789', vatNumber:'VAT-000234567', bankName:'Awash Bank', bankAccount:'0130987654321', creditLimit:60000,
-    allTime:98600.00, month:31450.00, lastPurchase:'2026-05-28', unit:'kg', avgPriceBlend:925.00, vsMarketPct:0.5, marketDays:[],
-    priceHistory:[940.00,936.00,922.00,918.00,927.50,925.00],
-    itemsSupplied:[
-      {name:'Teff (White)', unit:'kg', price:928.00, history:[940,936,922,918,927,928]},
-      {name:'Barley', unit:'kg', price:48.00, history:[44,45,46,46,47,48]}
-    ]},
-  {id:'s3', name:'Alemu Packaging', category:'Packaging', phone:'+251 91 234 3333', email:'orders@alemupack.com', contactPerson:'Ato Alemu Bekele', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:'0034567890', vatNumber:'VAT-000345678', bankName:'Dashen Bank', bankAccount:'0250112233445', creditLimit:20000,
-    allTime:37820.00, month:5800.00, lastPurchase:'2026-05-27', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[3.60,3.65,3.70,3.75,3.80,3.90],
-    itemsSupplied:[
-      {name:'Injera Packaging Bags', unit:'pcs', price:3.90, history:[3.60,3.65,3.70,3.75,3.80,3.90]},
-      {name:'Sealing Tape', unit:'roll', price:45.00, history:[40,41,42,43,44,45]}
-    ]},
-  {id:'s4', name:'Habesha Transport', category:'Services', phone:'+251 91 234 4444', email:'dispatch@habeshatransport.com', contactPerson:'Ato Dawit Assefa', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-   tin:'0045678901', vatNumber:null, bankName:'Commercial Bank of Ethiopia', bankAccount:'1000998877665', creditLimit:15000,
-    allTime:18750.00, month:2100.00, lastPurchase:'2026-05-26', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[1900,1950,2000,2050,2080,2100],
-    itemsSupplied:[
-      {name:'Delivery Trip (Local)', unit:'trip', price:2100.00, history:[1900,1950,2000,2050,2080,2100]}
-    ]},
-  {id:'s5', name:'Tigray Water Supply', category:'Utilities', phone:'+251 91 234 5555', email:'info@tigraywater.com', contactPerson:'W/ro Hiwot Gebre', address:'Piassa, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:'0056789012', vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:12550.00, month:850.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[780,800,820,830,840,850],
-    itemsSupplied:[
-      {name:'Water Supply (Monthly)', unit:'month', price:850.00, history:[780,800,820,830,840,850]}
-    ]},
-  {id:'s6', name:'Adama Grain Traders', category:'Grain', phone:'+251 91 234 6666', email:'contact@adamagrain.com', contactPerson:'Ato Mulugeta Fikru', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
-   tin:'0067890123', vatNumber:'VAT-000678901', bankName:'Oromia International Bank', bankAccount:'0345566778899', creditLimit:25000,
-    allTime:29400.00, month:4200.00, lastPurchase:'2026-05-24', unit:'kg', avgPriceBlend:930.00, vsMarketPct:1.0, marketDays:[4,6],
-    priceHistory:[918,920,924,926,928,930],
-    itemsSupplied:[
-      {name:'Teff (White)', unit:'kg', price:932.00, history:[918,920,924,926,928,932]},
-      {name:'Teff (Mixed)', unit:'kg', price:872.00, history:[860,862,865,868,870,872]}
-    ]},
-  {id:'s7', name:'Berhan Bank', category:'Services', phone:'+251 11 551 7171', email:'support@berhanbank.com', contactPerson:'W/ro Meron Tadesse', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:4820.00, month:306.39, lastPurchase:'2026-05-06', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[210,180,240,190,220,306],
-    itemsSupplied:[
-      {name:'Transaction & Service Fees', unit:'ls', price:306.39, history:[210,180,240,190,220,306]}
-    ]},
-  {id:'s8', name:'Ethio Electric', category:'Utilities', phone:'+251 11 552 0202', email:'billing@ethioelectric.gov.et', contactPerson:'Ato Yonas Kebede', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:21300.00, month:7052.30, lastPurchase:'2026-05-06', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[1732,2376,1776,1662,1618,7052],
-    itemsSupplied:[
-      {name:'Electricity Supply (Monthly)', unit:'month', price:7052.30, history:[1732,2376,1776,1662,1618,7052]}
-    ]},
-  {id:'s9', name:'Yimaru Transport', category:'Services', phone:'+251 91 234 7777', email:'info@yimarutransport.com', contactPerson:'Ato Yimaru Desta', address:'Gerji, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-   tin:'0089012345', vatNumber:null, bankName:'Awash Bank', bankAccount:'0130112244556', creditLimit:10000,
-    allTime:9840.00, month:1138.91, lastPurchase:'2026-05-02', unit:'trip', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[1800,1650,1400,1200,1100,1139],
-    itemsSupplied:[
-      {name:'Delivery Trip (Local)', unit:'trip', price:1139.00, history:[1800,1650,1400,1200,1100,1139]}
-    ]},
-  {id:'s10', name:'Zemen Packaging', category:'Packaging', phone:'+251 91 234 8888', email:'sales@zemenpack.com', contactPerson:'W/ro Zemen Alemayehu', address:'Akaki, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:'0090123456', vatNumber:'VAT-000901234', bankName:'Dashen Bank', bankAccount:'0250223344556', creditLimit:12000,
-    allTime:15680.00, month:1876.40, lastPurchase:'2026-05-15', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[1.70,1.75,1.80,1.85,1.90,1.93],
-    itemsSupplied:[
-      {name:'Injera Packaging Bags', unit:'pcs', price:1.93, history:[1.70,1.75,1.80,1.85,1.90,1.93]}
-    ]},
-  {id:'s11', name:'Addis Water Utility', category:'Utilities', phone:'+251 11 553 0303', email:'billing@addiswater.gov.et', contactPerson:'Ato Samuel Getachew', address:'Kirkos, Addis Ababa, Ethiopia', terms:'Net 15 days', currency:'ETB', isActive:true,
-   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:6600.00, month:1200.00, lastPurchase:'2026-05-25', unit:'month', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[900,950,1000,1100,1150,1200],
-    itemsSupplied:[
-      {name:'Water Supply (Monthly)', unit:'month', price:1200.00, history:[900,950,1000,1100,1150,1200]}
-    ]},
-  {id:'s12', name:'Bole Feed Co', category:'Grain', phone:'+251 91 234 9999', email:'info@bolefeed.com', contactPerson:'Ato Teshome Wolde', address:'Bole, Addis Ababa, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:true,
-   tin:'0012309876', vatNumber:'VAT-000123098', bankName:'Commercial Bank of Ethiopia', bankAccount:'1000554433221', creditLimit:30000,
-    allTime:22150.00, month:0, lastPurchase:'2026-04-18', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
-    priceHistory:[905,908,910,912,915,0],
-    itemsSupplied:[
-      {name:'Teff (Mixed)', unit:'kg', price:915.00, history:[905,908,910,912,915,915]}
-    ]},
-  {id:'s13', name:'Merkato Sacks Ltd', category:'Packaging', phone:'+251 91 235 1111', email:'sales@merkatosacks.com', contactPerson:'W/ro Aster Haile', address:'Merkato, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:'0013409876', vatNumber:null, bankName:'Bank of Abyssinia', bankAccount:'0087766554433', creditLimit:8000,
-    allTime:8900.00, month:0, lastPurchase:'2026-04-11', unit:'pcs', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[3.50,3.55,3.60,3.62,3.65,0],
-    itemsSupplied:[
-      {name:'Sacks (50kg)', unit:'pcs', price:3.65, history:[3.50,3.55,3.60,3.62,3.65,3.65]}
-    ]},
-  {id:'s14', name:'Nile Cleaning Services', category:'Services', phone:'+251 91 235 2222', email:'contact@nileclean.com', contactPerson:'Ato Biniam Tsegaye', address:'Lideta, Addis Ababa, Ethiopia', terms:'Net 7 days', currency:'ETB', isActive:true,
-   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:5400.00, month:0, lastPurchase:'2026-04-09', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[400,420,440,450,460,0],
-    itemsSupplied:[
-      {name:'Facility Cleaning (Monthly)', unit:'ls', price:460.00, history:[400,420,440,450,460,460]}
-    ]},
-  {id:'s15', name:'Kaleb Maintenance', category:'Services', phone:'+251 91 235 3333', email:'kaleb.maint@gmail.com', contactPerson:'Ato Kaleb Amanuel', address:'Bole, Addis Ababa, Ethiopia', terms:'Cash on Delivery', currency:'ETB', isActive:true,
-   tin:null, vatNumber:null, bankName:null, bankAccount:null, creditLimit:null,
-    allTime:3200.00, month:0, lastPurchase:'2026-03-22', unit:'ls', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-    priceHistory:[300,310,320,0,0,0],
-    itemsSupplied:[
-      {name:'Equipment Maintenance', unit:'ls', price:320.00, history:[300,310,320,320,320,320]}
-    ]},
-  {id:'s16', name:'Sunrise Grain Depot', category:'Grain', phone:'+251 91 235 4444', email:'info@sunrisegrain.com', contactPerson:'Ato Fitsum Abera', address:'Adama, Oromia, Ethiopia', terms:'Net 30 days', currency:'ETB', isActive:false,
-   tin:'0016709876', vatNumber:'VAT-000167098', bankName:'Awash Bank', bankAccount:'0130445566778', creditLimit:18000,
-    allTime:11400.00, month:0, lastPurchase:'2026-01-14', unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[4,6],
-    priceHistory:[895,900,905,0,0,0],
-    itemsSupplied:[
-      {name:'Teff (White)', unit:'kg', price:905.00, history:[895,900,905,905,905,905]}
-    ]}
-];
-const priceMonths = ['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
-let selectedSupplierId = 's1';
+/* itemsSupplied: this supplier's price list (from `supplier_products`) — the
+   real basis for price comparison (a blended avgPriceBlend alone can't answer
+   "who's cheapest for X"). Item `name` is the join key used to group the same
+   item across suppliers. */
+
+/* Rolling 6-month window ending on the real current month, used for the Price
+   Trend chart's x-axis, the header's month picker, and any "last 6 months"
+   aggregation. Declared first (before renderHeader() below) since it needs
+   real dates, not the hardcoded 2026 months the header used to be given. */
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function monthLabel(d){ return MONTH_ABBR[d.getMonth()]+' '+d.getFullYear(); }
+function last6Months(ref){
+  const out = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(ref.getFullYear(), ref.getMonth()-i, 1);
+    out.push({key:monthKey(d), label:monthLabel(d)});
+  }
+  return out;
+}
+const priceMonths = last6Months(new Date()).map(m=>m.label);
+
+/* Header chrome (title/sidebar/month-picker/notification bell) is rendered
+   once real data has loaded — see init() at the bottom of this file — rather
+   than eagerly with a hardcoded 2026 month list and two fabricated sample
+   notifications ("Adama Grain Traders was added...", a fake price alert).
+   renderSuppliersHeader() builds the real config each time it's called:
+   months = the actual rolling 6-month window ending on today, and
+   notifications = computed live from real supplier/purchase data. */
+function computeSupplierNotifications(){
+  const notifications = [];
+  const now = new Date();
+  suppliers.forEach(s=>{
+    if(!s.createdAt) return;
+    const ageDays = (now - new Date(s.createdAt)) / 86400000;
+    if(ageDays <= 7){
+      notifications.push({ type:'g', title:'New Supplier Added', sub:`${s.name} was added to your supplier list`, time: ageDays<1 ? 'Today' : Math.round(ageDays)+' day(s) ago', _at: new Date(s.createdAt) });
+    }
+  });
+  const spikePct = businessSettings.price_spike_pct != null ? Number(businessSettings.price_spike_pct) : 15;
+  const months = last6Months(now);
+  if(months.length>=2){
+    const curKey = months[months.length-1].key, prevKey = months[months.length-2].key;
+    const itemNames = new Set(allPurchases.filter(p=>p.item_name).map(p=>p.item_name));
+    itemNames.forEach(name=>{
+      const [curAvg, prevAvg] = monthlyAvgPriceForItem(name, null, [prevKey, curKey]);
+      if(curAvg!=null && prevAvg!=null && prevAvg>0){
+        const changePct = ((curAvg-prevAvg)/prevAvg)*100;
+        if(changePct >= spikePct){
+          notifications.push({ type:'o', title:'Price Increase Alert', sub:`${name} rose ${changePct.toFixed(1)}% vs last month`, time: months[months.length-1].label, _at: new Date(now.getFullYear(), now.getMonth(), 1) });
+        }
+      }
+    });
+  }
+  return notifications.sort((a,b)=>b._at-a._at).slice(0,8).map(({_at,...n})=>n);
+}
+function renderSuppliersHeader(){
+  const months = last6Months(new Date());
+  renderHeader({
+    title: 'Suppliers',
+    subtitle: 'Manage suppliers and purchase history',
+    showMonthPicker: true,
+    months: months.map(m=>m.label),
+    selectedMonth: months[months.length-1].label,
+    onMonthChange: () => { renderAll(); },
+    notifications: computeSupplierNotifications()
+  });
+}
+
+let selectedSupplierId = null;
 let curPage = 1;
 const PAGE_SIZE = 5;
 let priceChart = null;
@@ -950,26 +897,23 @@ function renderSupplierList(){
   const pageItems = list.slice(start, start + PAGE_SIZE);
 
   const tbody = document.getElementById('supTbody');
-  if(pageItems.length===0){
+  if(suppliers.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:32px 20px">No suppliers yet — click <b>Add New Supplier</b> above to add your first one.</td></tr>`;
+  } else if(pageItems.length===0){
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:24px">No suppliers match your filters.</td></tr>`;
   } else {
     tbody.innerHTML = pageItems.map(s => `
       <tr class="sup-row ${s.id===selectedSupplierId?'sel':''}" onclick="selectSupplier('${s.id}')">
-        <td data-label="Supplier Name" style="font-weight:700">${s.name}</td>
-        <td data-label="Category"><span class="pill-sm ${catClass(s.category)}">${s.category}</span></td>
-        <td data-label="Phone">${s.phone||'—'}</td>
+        <td data-label="Supplier Name" style="font-weight:700">${esc(s.name)}</td>
+        <td data-label="Category"><span class="pill-sm ${catClass(s.category)}">${esc(s.category)}</span></td>
+        <td data-label="Phone">${esc(s.phone)||'—'}</td>
         <td data-label="Total (All Time)">${fmt(s.allTime)}</td>
         <td data-label="This Month" style="font-weight:700;color:#27ae60">${fmt(s.month)}</td>
-        <td data-label="Last Purchase">${fmtDate(s.lastPurchase)}</td>
+        <td data-label="Last Purchase">${s.lastPurchase?fmtDate(s.lastPurchase):'—'}</td>
         <td data-label="Status"><span class="pill-sm ${s.isActive?'pill-done':'pill-rej'}">${s.isActive?'Active':'Inactive'}</span></td>
         <td onclick="event.stopPropagation()">
           <div class="act-dots" onclick="toggleRowMenu(event,'${s.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg>
-            <div class="row-menu" id="menu-${s.id}" onclick="event.stopPropagation()">
-              <a onclick="editSupplier('${s.id}')">Edit</a>
-              <a onclick="selectSupplier('${s.id}');closeAllRowMenus()">View Details</a>
-              <a onclick="toggleSupplierActive('${s.id}');closeAllRowMenus()">${s.isActive?'Deactivate':'Reactivate'}</a>
-            </div>
           </div>
         </td>
       </tr>
@@ -977,7 +921,7 @@ function renderSupplierList(){
   }
 
   document.getElementById('pgInfo').textContent =
-    list.length===0 ? 'No suppliers found' :
+    list.length===0 ? (suppliers.length===0 ? 'No suppliers yet' : 'No suppliers found') :
     `Showing ${start+1} to ${Math.min(start+PAGE_SIZE,list.length)} of ${list.length} suppliers`;
 
   const ctrl = document.getElementById('pgCtrl');
@@ -996,34 +940,47 @@ function gotoPage(p){
 }
 
 /* ════════════════ ROW ACTIONS MENU ════════════════
-   Positioned with `fixed` + coordinates computed from the dots icon,
-   rather than relying on `absolute` inside the table. The table wrapper
-   now scrolls (overflow-x:auto) so it needs `overflow-y` to also compute
-   to auto per spec — meaning an absolutely-positioned popup could get
-   clipped instead of floating above the table. Fixed positioning escapes
-   that clipping since none of the ancestors use transform/filter. */
+   A single shared menu element lives at the end of <body> (see markup below),
+   not nested inside any table row. This is deliberate: every ancestor .card
+   on this page uses `overflow:hidden` for its rounded corners, and in every
+   browser that clips ANY descendant painted inside it — including
+   position:fixed children — regardless of coordinates. (This is a well-known
+   CSS gotcha: position:fixed only changes what a box is positioned relative
+   to, not whether an overflow:hidden ancestor still clips it.) The previous
+   per-row menu nested inside .act-dots (itself inside .card) was getting cut
+   off for exactly this reason. Rendering one reusable menu as a direct child
+   of <body> sidesteps the clipping entirely, and its content is (re)built
+   for whichever row's dots were clicked. */
 function toggleRowMenu(ev, id){
   ev.stopPropagation();
-  const menu = document.getElementById('menu-'+id);
-  const isOpen = menu.classList.contains('show');
+  const menu = document.getElementById('sharedRowMenu');
+  const wasOpenForThisRow = menu.classList.contains('show') && menu.dataset.forId===id;
   closeAllRowMenus();
-  if(isOpen) return;
+  if(wasOpenForThisRow) return;
+  const s = supplierById(id);
+  if(!s) return;
+  menu.dataset.forId = id;
+  menu.innerHTML = `
+    <a onclick="editSupplier('${id}');closeAllRowMenus()">Edit</a>
+    <a onclick="selectSupplier('${id}');closeAllRowMenus()">View Details</a>
+    <a onclick="toggleSupplierActive('${id}');closeAllRowMenus()">${s.isActive?'Deactivate':'Reactivate'}</a>
+  `;
   menu.classList.add('show');
   const dotsRect = ev.currentTarget.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
   let left = dotsRect.right - menuRect.width;
   if(left < 8) left = 8;
+  if(left + menuRect.width > window.innerWidth - 8) left = window.innerWidth - menuRect.width - 8;
   let top = dotsRect.bottom + 4;
   if(top + menuRect.height > window.innerHeight - 8){
     top = dotsRect.top - menuRect.height - 4;
   }
-  menu.style.position = 'fixed';
   menu.style.top = top + 'px';
   menu.style.left = left + 'px';
-  menu.style.right = 'auto';
 }
 function closeAllRowMenus(){
-  document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
+  const menu = document.getElementById('sharedRowMenu');
+  if(menu) menu.classList.remove('show');
 }
 document.addEventListener('click', closeAllRowMenus);
 document.addEventListener('scroll', closeAllRowMenus, true);
@@ -1059,42 +1016,49 @@ function maskBankAccount(acct){
   return '•••• ' + digits.slice(-4);
 }
 function renderDetails(s){
+  if(!s){
+    document.getElementById('supplierDetailsBody').innerHTML =
+      `<div style="text-align:center;color:var(--tl);padding:36px 20px;font-size:12.5px">
+         ${suppliers.length===0 ? 'Add your first supplier to see details here.' : 'Select a supplier from the list to view details.'}
+       </div>`;
+    return;
+  }
   const html = `
     <div class="sd-top">
       <div class="sd-av">${initials(s.name)}</div>
       <div style="min-width:0">
         <div class="sd-name">
-          <h3>${s.name}</h3>
-          <span class="sd-tag">${s.category} Supplier</span>
+          <h3>${esc(s.name)}</h3>
+          <span class="sd-tag">${esc(s.category)} Supplier</span>
         </div>
         <div class="sd-contact">
-          <div><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 10-16 0"/><circle cx="12" cy="7" r="4"/></svg>${s.contactPerson||'No contact person on file'}</div>
-          <div><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.34 1.9.62 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.28 1.85.49 2.81.62A2 2 0 0122 16.92z"/></svg>${s.phone||'—'}</div>
-          <div><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${s.email||'—'}</div>
-          <div><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>${s.address||'—'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 10-16 0"/><circle cx="12" cy="7" r="4"/></svg>${esc(s.contactPerson)||'No contact person on file'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.34 1.9.62 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.28 1.85.49 2.81.62A2 2 0 0122 16.92z"/></svg>${esc(s.phone)||'—'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" style="display:none"/><path d="M22 6l-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>${esc(s.email)||'—'}</div>
+          <div><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(s.address)||'—'}</div>
         </div>
       </div>
     </div>
     <div class="sd-grid">
-      <div class="sd-cell"><label>Category</label><span>${s.category} Supplier</span></div>
+      <div class="sd-cell"><label>Category</label><span>${esc(s.category)} Supplier</span></div>
       <div class="sd-cell"><label>Total Purchases (All Time)</label><span>${fmt(s.allTime)} ETB</span></div>
-      <div class="sd-cell"><label>Payment Terms</label><span>${s.terms}</span></div>
+      <div class="sd-cell"><label>Payment Terms</label><span>${esc(s.terms)}</span></div>
       <div class="sd-cell"><label>This Month</label><span>${fmt(s.month)} ETB</span></div>
-      <div class="sd-cell"><label>Preferred Currency</label><span>${s.currency}</span></div>
-      <div class="sd-cell"><label>Last Purchase</label><span>${fmtDate(s.lastPurchase)}</span></div>
+      <div class="sd-cell"><label>Preferred Currency</label><span>${esc(s.currency)}</span></div>
+      <div class="sd-cell"><label>Last Purchase</label><span>${s.lastPurchase?fmtDate(s.lastPurchase):'No purchases on file'}</span></div>
       <div class="sd-cell"><label>Status</label><span>${s.isActive?'Active':'Inactive'}</span></div>
       <div class="sd-cell"><label>Avg. Price (Blend)</label><span>${s.avgPriceBlend!=null ? fmt(s.avgPriceBlend)+' ETB/kg' : '—'}</span></div>
       <div class="sd-cell"><label>Buying Schedule</label><span>${marketDaysLabel(s)}</span></div>
     </div>
-    ${s.itemsSupplied && s.itemsSupplied.length>1 ? `
+    ${s.itemsSupplied && s.itemsSupplied.length>0 ? `
     <div class="sd-section-label" style="cursor:default">
       ${isServiceCategory(s.category) ? 'Services Provided' : 'Products Supplied'}
     </div>
     <div class="sd-products">
       ${s.itemsSupplied.map(it=>`
         <div class="sd-prod-row">
-          <span class="sd-prod-name">${it.name}</span>
-          <span class="sd-prod-price">${fmt(it.price)} <span class="u">ETB/${it.unit}</span></span>
+          <span class="sd-prod-name">${esc(it.name)}</span>
+          <span class="sd-prod-price">${fmt(it.price)} <span class="u">ETB/${esc(it.unit)}</span></span>
         </div>
       `).join('')}
     </div>` : ''}
@@ -1104,9 +1068,9 @@ function renderDetails(s){
     </div>
     <div class="sd-collapse" id="sdFinancial">
     <div class="sd-grid">
-      <div class="sd-cell"><label>Tax ID (TIN)</label><span>${s.tin||'—'}</span></div>
-      <div class="sd-cell"><label>VAT Registration No.</label><span>${s.vatNumber||'—'}</span></div>
-      <div class="sd-cell"><label>Bank Name</label><span>${s.bankName||'—'}</span></div>
+      <div class="sd-cell"><label>Tax ID (TIN)</label><span>${esc(s.tin)||'—'}</span></div>
+      <div class="sd-cell"><label>VAT Registration No.</label><span>${esc(s.vatNumber)||'—'}</span></div>
+      <div class="sd-cell"><label>Bank Name</label><span>${esc(s.bankName)||'—'}</span></div>
       <div class="sd-cell"><label>Bank Account</label><span>${maskBankAccount(s.bankAccount)}</span></div>
       <div class="sd-cell"><label>Credit Limit</label><span>${s.creditLimit!=null ? fmt(s.creditLimit)+' ETB' : 'Not set'}</span></div>
       <div class="sd-cell"><label>Credit Used (This Month)</label><span>${s.creditLimit!=null ? fmt(s.month)+' ETB ('+Math.min(100,Math.round(s.month/s.creditLimit*100))+'%)' : '—'}</span></div>
@@ -1116,17 +1080,55 @@ function renderDetails(s){
   document.getElementById('supplierDetailsBody').innerHTML = html;
 }
 
-/* ════════════════ PRICE TREND CHART ════════════════ */
+/* ════════════════ PRICE TREND CHART ════════════════
+   Both the supplier's own line and the "Market Average" figure are computed
+   live from the `purchases` table (grouped by item name + month), never
+   hardcoded. If a supplier has multiple products/services (`itemsSupplied`,
+   sourced from `supplier_products`), the dropdown below switches which
+   item's history is charted — each item gets its own independently computed
+   series and its own market comparison, since different items have
+   different markets. "Market Average" = the quantity-weighted average unit
+   price OTHER suppliers were paid for purchases of that same item name in
+   the most recent month any such purchase exists; it is intentionally left
+   blank (not guessed) when no other supplier has a purchase of that item on
+   file, which — with an empty purchases table — is the current state for
+   every item. */
 let ptLastSupplierId = null;
+function monthlyAvgPriceForItem(itemName, supplierDbId, monthKeys){
+  const nameLc = itemName.toLowerCase();
+  return monthKeys.map(mk=>{
+    const rows = allPurchases.filter(p =>
+      p.item_name && p.item_name.toLowerCase()===nameLc &&
+      p.period===mk &&
+      (supplierDbId==null || p.supplier_id===supplierDbId) &&
+      p.unit_price!=null
+    );
+    if(!rows.length) return null;
+    const totalQty = rows.reduce((a,r)=>a+(Number(r.quantity)||0),0);
+    if(totalQty>0) return rows.reduce((a,r)=>a+Number(r.unit_price)*(Number(r.quantity)||0),0)/totalQty;
+    return rows.reduce((a,r)=>a+Number(r.unit_price),0)/rows.length;
+  });
+}
 function renderPriceTrend(){
   const s = supplierById(selectedSupplierId);
-  const items = (s.itemsSupplied && s.itemsSupplied.length) ? s.itemsSupplied : [{name:s.name, unit:s.unit, price:s.avgPriceBlend, history:s.priceHistory}];
   const sel = document.getElementById('ptProduct');
+  const marketAvgEl = document.getElementById('ptMarketAvg');
+  const youPayEl = document.getElementById('ptYouPay');
 
-  // Only rebuild + reset the dropdown when the supplier itself changed —
-  // switching products for the same supplier shouldn't jump back to item 0.
+  if(!s || !(s.itemsSupplied && s.itemsSupplied.length)){
+    sel.innerHTML = ''; sel.style.display = 'none';
+    document.getElementById('ptTitle').innerHTML = `Price Trend<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">ETB</span>`;
+    marketAvgEl.textContent = !s
+      ? (suppliers.length ? 'Select a supplier to see its price trend.' : 'Add a supplier to see price trend.')
+      : 'No products/services on file for this supplier yet — add one via Edit Supplier.';
+    youPayEl.textContent = '';
+    if(priceChart){ priceChart.destroy(); priceChart = null; }
+    return;
+  }
+
+  const items = s.itemsSupplied;
   if(ptLastSupplierId !== s.id){
-    sel.innerHTML = items.map((it,i)=>`<option value="${i}">${it.name}</option>`).join('');
+    sel.innerHTML = items.map((it,i)=>`<option value="${i}">${esc(it.name)}</option>`).join('');
     sel.value = '0';
     ptLastSupplierId = s.id;
   }
@@ -1135,31 +1137,55 @@ function renderPriceTrend(){
   const idx = Math.min(parseInt(sel.value||'0',10), items.length-1);
   const item = items[idx] || items[0];
   const unitLbl = item.unit==='kg' ? 'ETB / kg' : (item.unit==='pcs' ? 'ETB / pc' : (item.unit ? 'ETB / '+item.unit : 'ETB'));
-  const isGrainItem = s.category==='Grain' && item.unit==='kg';
+  document.getElementById('ptTitle').innerHTML = `Price Trend (${esc(item.name)})<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">${unitLbl}</span>`;
 
-  document.getElementById('ptTitle').innerHTML = `Price Trend (${item.name})<span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">${unitLbl}</span>`;
+  const months = last6Months(new Date());
+  const monthKeys = months.map(m=>m.key);
+  const supplierDbId = s._dbId || s.id;
+  const supplierSeriesRaw = monthlyAvgPriceForItem(item.name, supplierDbId, monthKeys);
+  const marketSeries = monthlyAvgPriceForItem(item.name, null, monthKeys)
+    .map((v,i)=>{ // exclude this supplier's own rows from the market figure
+      const otherRows = allPurchases.filter(p=>p.item_name && p.item_name.toLowerCase()===item.name.toLowerCase() && p.period===monthKeys[i] && p.supplier_id!==supplierDbId && p.unit_price!=null);
+      if(!otherRows.length) return null;
+      const qty = otherRows.reduce((a,r)=>a+(Number(r.quantity)||0),0);
+      return qty>0 ? otherRows.reduce((a,r)=>a+Number(r.unit_price)*(Number(r.quantity)||0),0)/qty : otherRows.reduce((a,r)=>a+Number(r.unit_price),0)/otherRows.length;
+    });
 
-  const data = item.history;
-  const lastVal = data[data.length-1];
-  const prevVal = data[data.length-2] || lastVal;
-  const marketAvg = 933.33;
-  const vsMarket = isGrainItem ? Math.round(((lastVal-marketAvg)/marketAvg)*1000)/10 : null;
+  const hasAnyPurchaseData = supplierSeriesRaw.some(v=>v!=null);
+  const data = (hasAnyPurchaseData ? supplierSeriesRaw : months.map(()=>item.price)).map(v=>v==null?null:Math.round(v*100)/100);
 
-  document.getElementById('ptMarketAvg').innerHTML = isGrainItem
-    ? `Market Average (May 2026): <b>${fmt(marketAvg)} ETB/kg</b>`
-    : `Latest recorded price: <b>${fmt(lastVal)} ${unitLbl}</b>`;
-  document.getElementById('ptYouPay').innerHTML = isGrainItem
-    ? `You Pay: <b>${fmt(lastVal)} ETB/kg</b> <span class="${vsMarket<0?'chg-dn':'chg-up'}">${vsMarket<0?'▼':'▲'} ${Math.abs(vsMarket)}%</span>`
-    : `Change vs prior month: <span class="${lastVal<prevVal?'chg-dn':'chg-up'}">${lastVal<prevVal?'▼':'▲'} ${prevVal? Math.abs(((lastVal-prevVal)/prevVal)*100).toFixed(1):'0.0'}%</span>`;
+  let lastVal = null, lastValIdx = -1;
+  for(let i=data.length-1;i>=0;i--){ if(data[i]!=null){ lastVal=data[i]; lastValIdx=i; break; } }
+  const prevVal = lastValIdx>0 ? data[lastValIdx-1] : null;
+
+  let lastMarketVal = null, lastMarketIdx = -1;
+  for(let i=marketSeries.length-1;i>=0;i--){ if(marketSeries[i]!=null){ lastMarketVal=marketSeries[i]; lastMarketIdx=i; break; } }
+
+  if(lastMarketVal!=null){
+    const vsMarket = lastVal!=null ? Math.round(((lastVal-lastMarketVal)/lastMarketVal)*1000)/10 : null;
+    marketAvgEl.innerHTML = `Market Average (${months[lastMarketIdx].label}): <b>${fmt(lastMarketVal)} ${unitLbl}</b>`;
+    youPayEl.innerHTML = vsMarket!=null
+      ? `You Pay: <b>${fmt(lastVal)} ${unitLbl}</b> <span class="${vsMarket<0?'chg-dn':'chg-up'}">${vsMarket<0?'▼':'▲'} ${Math.abs(vsMarket)}%</span>`
+      : `You Pay: <b>—</b>`;
+  } else if(hasAnyPurchaseData){
+    marketAvgEl.innerHTML = `Latest recorded price: <b>${fmt(lastVal)} ${unitLbl}</b>`;
+    youPayEl.innerHTML = (lastVal!=null && prevVal!=null)
+      ? `Change vs prior month: <span class="${lastVal<prevVal?'chg-dn':'chg-up'}">${lastVal<prevVal?'▼':'▲'} ${Math.abs(((lastVal-prevVal)/prevVal)*100).toFixed(1)}%</span>`
+      : `No other suppliers have purchases of this item on file yet — market comparison isn't available.`;
+  } else {
+    marketAvgEl.innerHTML = `Listed price (no purchases recorded yet): <b>${fmt(item.price)} ${unitLbl}</b>`;
+    youPayEl.innerHTML = `No purchase history yet for this item — the line shown is the listed price.`;
+  }
 
   const ctx = document.getElementById('priceTrendChart').getContext('2d');
   if(priceChart) priceChart.destroy();
   priceChart = new Chart(ctx, {
     type:'line',
     data:{
-      labels: priceMonths,
+      labels: months.map(m=>m.label),
       datasets:[{
         data: data,
+        spanGaps: true,
         borderColor:'#27ae60',
         backgroundColor:'rgba(39,174,96,.08)',
         borderWidth:2.5,
@@ -1174,7 +1200,7 @@ function renderPriceTrend(){
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>fmt(c.parsed.y)+' '+unitLbl}} },
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.y==null?'No data':fmt(c.parsed.y)+' '+unitLbl}} },
       scales:{
         y:{ grid:{color:'#f0f5f2'}, ticks:{font:{size:10},color:'#9aada5'} },
         x:{ grid:{display:false}, ticks:{font:{size:10},color:'#9aada5'} }
@@ -1195,10 +1221,89 @@ function animateCount(el, decimals){
   }
   requestAnimationFrame(step);
 }
+/* Converts a header month-picker label ("Jun 2026") to the purchases.period
+   key ("2026-06") used to filter allPurchases. Falls back to the real
+   current month if the label can't be parsed. */
+function labelToMonthKey(label){
+  if(label){
+    const m = /^([A-Za-z]{3})\w*\s+(\d{4})$/.exec(label.trim());
+    if(m){
+      const idx = MONTH_ABBR.findIndex(a=>a.toLowerCase()===m[1].slice(0,3).toLowerCase());
+      if(idx>-1) return m[2]+'-'+String(idx+1).padStart(2,'0');
+    }
+  }
+  return monthKey(new Date());
+}
+function prevMonthKey(mk){
+  const [y,mo] = mk.split('-').map(Number);
+  const d = new Date(y, mo-2, 1);
+  return monthKey(d);
+}
+function pctChange(cur, prev){
+  if(prev===0 || prev==null) return null;
+  return Math.round(((cur-prev)/prev)*1000)/10;
+}
+function renderChgBadge(elId, pct, vsLabel){
+  const el = document.getElementById(elId);
+  if(pct==null){ el.style.display='none'; return; }
+  el.style.display = '';
+  el.className = 'kc-chg ' + (pct<0?'dn':'up');
+  el.innerHTML = `${pct<0?'▼':'▲'} ${Math.abs(pct)}%<span class="vs">vs ${vsLabel}</span>`;
+}
+
+/* ════════════════ KPI ROW ════════════════
+   Every figure here is computed live from `suppliers` + `allPurchases` for
+   whichever month is selected in the header — nothing is hardcoded. */
 function renderKPIs(){
+  const mLabel = document.getElementById('msel') ? document.getElementById('msel').value : monthLabel(new Date());
+  const mk = labelToMonthKey(mLabel);
+  const prevMk = prevMonthKey(mk);
+  const prevLabel = monthLabel(new Date(Number(prevMk.slice(0,4)), Number(prevMk.slice(5,7))-1, 1));
+
   const inactiveCount = suppliers.filter(s=>!s.isActive).length;
   document.getElementById('kpiTotal').setAttribute('data-target', suppliers.length);
-  document.getElementById('kpiInactive').textContent = inactiveCount + (inactiveCount===1?' Inactive':' Inactive');
+  document.getElementById('kpiInactive').textContent = inactiveCount + ' Inactive';
+
+  const curRows = allPurchases.filter(p=>p.period===mk);
+  const prevRows = allPurchases.filter(p=>p.period===prevMk);
+  const curTotal = curRows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+  const prevTotal = prevRows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+  document.getElementById('kpiPurch').setAttribute('data-target', curTotal);
+  renderChgBadge('kpiPurchChg', pctChange(curTotal, prevTotal), prevLabel);
+
+  // Amount Paid = same purchases total, restricted to non-pending rows
+  // (approval_status auto_approved/approved) — there's no separate
+  // paid-vs-invoiced tracking on `purchases` yet, so "paid" means
+  // "approved/processed spend" rather than a distinct ledger figure.
+  const curPaidRows = curRows.filter(r=>r.approval_status==='approved' || r.approval_status==='auto_approved');
+  const prevPaidRows = prevRows.filter(r=>r.approval_status==='approved' || r.approval_status==='auto_approved');
+  const curPaid = curPaidRows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+  const prevPaid = prevPaidRows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+  document.getElementById('kpiPaid').setAttribute('data-target', curPaid);
+  renderChgBadge('kpiPaidChg', pctChange(curPaid, prevPaid), prevLabel);
+
+  // Avg. Purchase Price (Blend) = quantity-weighted average unit price across
+  // Grain-category kg purchases this month (the "blend" the rest of the page
+  // treats as the headline grain price), vs the same figure last month.
+  const grainSupplierIds = new Set(suppliers.filter(s=>s.category==='Grain').map(s=>s._dbId||s.id));
+  const blendRows = r => r.unit==='kg' && grainSupplierIds.has(r.supplier_id) && r.unit_price!=null;
+  const curBlend = curRows.filter(blendRows);
+  const prevBlend = prevRows.filter(blendRows);
+  const wavg = rows => {
+    const qty = rows.reduce((a,r)=>a+(Number(r.quantity)||0),0);
+    return qty>0 ? rows.reduce((a,r)=>a+Number(r.unit_price)*(Number(r.quantity)||0),0)/qty : null;
+  };
+  const curBlendAvg = wavg(curBlend);
+  const prevBlendAvg = wavg(prevBlend);
+  document.getElementById('kpiAvgPrice').setAttribute('data-target', curBlendAvg || 0);
+  document.getElementById('kpiAvgPriceUnit').textContent = 'ETB / kg';
+  renderChgBadge('kpiAvgPriceChg', curBlendAvg!=null ? pctChange(curBlendAvg, prevBlendAvg) : null, prevLabel);
+
+  // Suppliers This Month = distinct suppliers with at least one purchase row
+  // in the selected month.
+  const activeThisMonth = new Set(curRows.map(r=>r.supplier_id)).size;
+  document.getElementById('kpiActiveMonth').setAttribute('data-target', activeThisMonth);
+
   document.querySelectorAll('[data-target]').forEach(el=>{
     const decimals = el.getAttribute('data-decimals')==='0' ? 0 : 2;
     animateCount(el, decimals);
@@ -1210,14 +1315,128 @@ function renderKPIs(){
    arrows, which call onMonthChange (wired to renderAll() above) after moving
    the selection — chgM() is no longer needed. */
 function renderAll(){
+  syncMonthLabels();
+  renderKPIs();
+  renderSupplierList();
+  renderDetails(supplierById(selectedSupplierId));
+  renderPriceTrend();
+  renderRecentPurchases();
+  renderPerformanceTable();
+}
+function syncMonthLabels(){
   const m = document.getElementById('msel').value;
   document.getElementById('kpiPurchLbl').textContent = `Total Purchases (${m})`;
   document.getElementById('kpiPaidLbl').textContent = `Amount Paid (${m})`;
   document.getElementById('thMonth').textContent = `This Month (${m})`;
   document.getElementById('perfMonthLbl').textContent = `(${m})`;
-  renderSupplierList();
-  renderDetails(supplierById(selectedSupplierId));
-  renderPriceTrend();
+}
+
+/* ════════════════ RECENT PURCHASES ════════════════
+   Sourced entirely from `allPurchases` (the `purchases` table, joined with
+   the supplier and item/expense-category names) — the 5 most recent rows
+   across all suppliers, regardless of month filter, so the card is never
+   empty just because the header's month picker is on a quiet month. */
+function renderRecentPurchases(){
+  const tbody = document.getElementById('recentPurchasesTbody');
+  const rows = allPurchases.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--tl);padding:24px">No purchases recorded yet. Purchases entered in the Purchases module will appear here once a supplier is attached.</td></tr>`;
+    return;
+  }
+  const payMethodLabel = {cash:'Cash', bank:'Bank Transfer', mobile:'Mobile Money'};
+  const statusFor = r => {
+    if(r.approval_status==='rejected') return '<span class="pill-sm pill-rej">Rejected</span>';
+    if(r.approval_status==='pending') return '<span class="pill-sm cat-services">Pending Approval</span>';
+    return '<span class="pill-sm pill-done">Approved</span>';
+  };
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td data-label="Date">${fmtDate(r.date)}</td>
+      <td data-label="Supplier">${esc(r.supplier_name)||'—'}</td>
+      <td data-label="Item">${esc(r.item_name)||'—'}</td>
+      <td data-label="Quantity">${r.quantity!=null ? fmt(r.quantity)+' '+esc(r.unit||'') : '—'}</td>
+      <td data-label="Unit Price (ETB)">${r.unit_price!=null ? fmt(r.unit_price) : '—'}</td>
+      <td data-label="Total Cost (ETB)">${fmt(r.total_cost)}</td>
+      <td data-label="Payment Method">${payMethodLabel[r.payment_channel]||r.payment_channel||'—'}</td>
+      <td data-label="Status">${statusFor(r)}</td>
+    </tr>`).join('');
+}
+
+/* ════════════════ SUPPLIER PERFORMANCE TABLE ════════════════
+   Every column computed live from allPurchases for the currently selected
+   month, per supplier:
+   - Total Purchases / % of Total: straight sums of total_cost.
+   - Avg. Price - Blend: quantity-weighted average unit price across this
+     supplier's kg-unit purchases this month (blank if none).
+   - Vs. Market Avg.: this supplier's blend price vs. the same figure
+     computed across every OTHER supplier's kg purchases this month — blank
+     when no other supplier has a comparable purchase, rather than guessed.
+   - Orders This Month: count of purchase rows.
+   - On-Time Delivery: always shown as "—". There is no expected/actual
+     delivery-date tracking anywhere in the `purchases` schema, so this
+     figure cannot be computed truthfully yet — see the note under the table. */
+function renderPerformanceTable(){
+  const tbody = document.getElementById('perfTbody');
+  const mLabel = document.getElementById('msel') ? document.getElementById('msel').value : monthLabel(new Date());
+  const mk = labelToMonthKey(mLabel);
+  const rows = allPurchases.filter(p=>p.period===mk);
+
+  if(suppliers.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--tl);padding:24px">Add suppliers to see performance data.</td></tr>`;
+    return;
+  }
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--tl);padding:24px">No purchases recorded for ${esc(mLabel)} yet.</td></tr>`;
+    return;
+  }
+
+  const grandTotal = rows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+  const bySupplier = new Map();
+  rows.forEach(r=>{
+    const key = r.supplier_id;
+    if(!bySupplier.has(key)) bySupplier.set(key, []);
+    bySupplier.get(key).push(r);
+  });
+
+  const wavg = list => {
+    const kgRows = list.filter(r=>r.unit==='kg' && r.unit_price!=null);
+    const qty = kgRows.reduce((a,r)=>a+(Number(r.quantity)||0),0);
+    return qty>0 ? kgRows.reduce((a,r)=>a+Number(r.unit_price)*(Number(r.quantity)||0),0)/qty : null;
+  };
+
+  const supplierRows = Array.from(bySupplier.entries()).map(([supplierId, list])=>{
+    const s = suppliers.find(x=>(x._dbId||x.id)===supplierId);
+    const total = list.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+    const blend = wavg(list);
+    const otherRows = rows.filter(r=>r.supplier_id!==supplierId);
+    const marketBlend = wavg(otherRows);
+    const vsMarket = (blend!=null && marketBlend!=null) ? Math.round(((blend-marketBlend)/marketBlend)*1000)/10 : null;
+    return { name: s ? s.name : 'Unknown Supplier', total, pct: grandTotal>0 ? total/grandTotal*100 : 0, blend, vsMarket, orders: list.length };
+  }).sort((a,b)=>b.total-a.total);
+
+  const totalOrders = rows.length;
+  const grandBlend = wavg(rows);
+
+  const rowHtml = r => `<tr>
+    <td data-label="Supplier">${esc(r.name)}</td>
+    <td data-label="Total Purchases (ETB)">${fmt(r.total)}</td>
+    <td data-label="% of Total">${r.pct.toFixed(1)}%</td>
+    <td data-label="Avg. Price - Blend (ETB/kg)">${r.blend!=null?fmt(r.blend):'—'}</td>
+    <td data-label="Vs. Market Avg." class="${r.vsMarket==null?'':(r.vsMarket<0?'chg-dn':'chg-up')}">${r.vsMarket==null?'—':(r.vsMarket<0?'▼':'▲')+' '+Math.abs(r.vsMarket)+'%'}</td>
+    <td data-label="Orders This Month">${r.orders}</td>
+    <td data-label="On-Time Delivery" title="No delivery-date tracking on Purchases yet">—</td>
+  </tr>`;
+
+  tbody.innerHTML = supplierRows.map(rowHtml).join('') +
+    `<tr class="tot">
+      <td data-label="Total">Total</td>
+      <td data-label="Total Purchases (ETB)">${fmt(grandTotal)}</td>
+      <td data-label="% of Total">100%</td>
+      <td data-label="Avg. Price - Blend (ETB/kg)">${grandBlend!=null?fmt(grandBlend):'—'}</td>
+      <td data-label="Vs. Market Avg.">—</td>
+      <td data-label="Orders This Month">${totalOrders}</td>
+      <td data-label="On-Time Delivery">—</td>
+    </tr>`;
 }
 
 /* ════════════════ ADD / EDIT SUPPLIER MODAL ════════════════ */
@@ -1347,25 +1566,19 @@ function saveSupplier(){
     showToast('Credit limit must be a positive number'); return;
   }
 
-  // Build itemsSupplied from the product rows. If a row's name matches an
-  // existing item (edit mode), keep its real 6-month history and just
-  // refresh the price; brand-new products get a flat history seeded from
-  // the entered price, since there's no purchase data for them yet.
-  const prevItems = editId ? (supplierById(editId).itemsSupplied||[]) : [];
+  // Build itemsSupplied from the product rows — this is the supplier's
+  // stated price list, persisted to `supplier_products`. Historical price
+  // trend data is never fabricated here; it's computed live from real
+  // `purchases` rows in renderPriceTrend()/monthlyAvgPriceForItem().
   const cleanRows = supProductRows.filter(r=>r.name && r.name.trim());
   if(cleanRows.some(r=>r.price==='' || isNaN(Number(r.price)) || Number(r.price)<0)){
     showToast('Enter a valid price for every product'); return;
   }
-  const itemsSupplied = cleanRows.map(r=>{
-    const prior = prevItems.find(p=>p.name.trim().toLowerCase()===r.name.trim().toLowerCase());
-    const price = Number(r.price);
-    return {
-      name: r.name.trim(),
-      unit: (r.unit||'unit').trim() || 'unit',
-      price,
-      history: prior ? [...prior.history.slice(0,-1), price] : [price,price,price,price,price,price]
-    };
-  });
+  const itemsSupplied = cleanRows.map(r=>({
+    name: r.name.trim(),
+    unit: (r.unit||'unit').trim() || 'unit',
+    price: Number(r.price)
+  }));
 
   const fields = {
     name,
@@ -1386,33 +1599,37 @@ function saveSupplier(){
     itemsSupplied
   };
 
-  // The blended figures shown on the list/KPI row (avgPriceBlend, priceHistory)
-  // track the first product entered — same convention as the seed data, where
-  // e.g. Awash Grain Suppliers' blend tracks its primary Teff line.
+  // The blended figures shown on the list/KPI row track the first product
+  // entered, purely as a display convenience — the real per-item prices live
+  // in itemsSupplied / `supplier_products`.
   if(itemsSupplied.length){
     fields.avgPriceBlend = itemsSupplied[0].price;
-    fields.priceHistory = itemsSupplied[0].history;
     fields.unit = itemsSupplied[0].unit;
   }
 
-  let s;
+  let s, isNew = false;
   if(editId){
     s = supplierById(editId);
     Object.assign(s, fields);
   } else {
+    isNew = true;
     s = Object.assign({
       id: 's'+Date.now(),
-      allTime:0, month:0, lastPurchase:new Date().toISOString().slice(0,10),
-      unit:'kg', avgPriceBlend:null, vsMarketPct:null,
-      priceHistory:[0,0,0,0,0,0]
+      allTime:0, month:0, lastPurchase:null,
+      unit:'kg', avgPriceBlend:null
     }, fields);
     suppliers.push(s);
   }
-  saveSupplierToSupabase(s);
+  (async ()=>{
+    await saveSupplierToSupabase(s);
+    if(!isNew || s._dbId){
+      await saveSupplierProductsToSupabase(s);
+    }
+    renderSupplierList();
+    renderKPIs();
+    if(s.id===selectedSupplierId){ renderDetails(s); renderPriceTrend(); }
+  })();
   closeAddSupplierModal();
-  renderSupplierList();
-  renderKPIs();
-  if(s.id===selectedSupplierId){ renderDetails(s); renderPriceTrend(); }
   if(editId && prevCategory && prevCategory!==newCategory){
     showToast(`Supplier updated — category changed to ${newCategory}`);
   } else {
@@ -1434,22 +1651,31 @@ function openLedgerModal(){
 }
 function renderLedger(){
   const s = supplierById(document.getElementById('ledgerSupSel').value);
-  if(!s) return;
-  // Synthesize a simple ledger from priceHistory-derived monthly activity, since
-  // no dedicated ledger/transactions table exists yet in this module.
+  const tbody = document.getElementById('ledgerTbody');
+  if(!s){ tbody.innerHTML = ''; return; }
+  // Real ledger: every actual purchases row for this supplier, oldest first,
+  // with a running balance. No dedicated separate ledger table exists —
+  // `purchases` itself is the transaction record.
+  const supplierDbId = s._dbId || s.id;
+  const rows = allPurchases
+    .filter(p=>p.supplier_id===supplierDbId)
+    .slice()
+    .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--tl);padding:20px">No purchases on file for this supplier yet.</td></tr>`;
+    return;
+  }
   let balance = 0;
-  const rows = priceMonths.map((m,i)=>{
-    const amt = i===priceMonths.length-1 ? s.month : Math.round(s.allTime/priceMonths.length);
+  tbody.innerHTML = rows.map(r=>{
+    const amt = Number(r.total_cost)||0;
     balance += amt;
-    return {date:m, desc:'Purchases — '+s.category, amt};
-  });
-  document.getElementById('ledgerTbody').innerHTML = rows.map(r=>`
-    <tr>
-      <td data-label="Date">${r.date}</td>
-      <td data-label="Description">${r.desc}</td>
-      <td data-label="Amount (ETB)">${fmt(r.amt)}</td>
-      <td data-label="Running Balance">${fmt(rows.slice(0,rows.indexOf(r)+1).reduce((a,x)=>a+x.amt,0))}</td>
-    </tr>`).join('');
+    return `<tr>
+      <td data-label="Date">${fmtDate(r.date)}</td>
+      <td data-label="Description">${esc(r.item_name||'Purchase')}</td>
+      <td data-label="Amount (ETB)">${fmt(amt)}</td>
+      <td data-label="Running Balance">${fmt(balance)}</td>
+    </tr>`;
+  }).join('');
 }
 
 /* ════════════════ PURCHASE REPORT ════════════════ */
@@ -1741,9 +1967,8 @@ function importSuppliersFromCSV(){
       bankName: row['Bank Name']||'',
       bankAccount: row['Bank Account']||row['Bank Account Number']||'',
       creditLimit: creditLimitRaw && !isNaN(Number(creditLimitRaw)) ? Number(creditLimitRaw) : null,
-      allTime:0, month:0, lastPurchase:new Date().toISOString().slice(0,10),
-      unit:'kg', avgPriceBlend:null, vsMarketPct:null, marketDays:[],
-      priceHistory:[0,0,0,0,0,0]
+      allTime:0, month:0, lastPurchase:null,
+      unit:'kg', avgPriceBlend:null, marketDays:[], itemsSupplied:[]
     };
     suppliers.push(s);
     saveSupplierToSupabase(s);
@@ -1847,55 +2072,59 @@ function showToast(msg){
    (header.js) now live in the shared files; this page no longer defines them. */
 
 /* ════════════════ SUPABASE WIRING ════════════════
-   suppliers table per spec §5 TABLE 44. Falls back silently to the seeded
-   local data above if the table/columns aren't present yet or the network
-   is unavailable — the module stays fully usable either way.
-   Now routed through the shared sbGet/sbPost/sbPatch in app-state.js instead
-   of its own raw @supabase/supabase-js client (removed above) — that client
-   was created with only the publishable anon key, so every read/write here
-   carried no logged-in user identity, got no 401 refresh-and-retry, and
-   didn't feed the shared sync-status pill the way every other module's
-   requests do. */
+   `suppliers` (extended with tin/vat_number/bank_name/bank_account/
+   credit_limit/market_days — added via migration so every field this form
+   collects actually persists) + `supplier_products` (this supplier's price
+   list) + `purchases` (real transaction history, joined client-side with
+   `inventory_items`/`expense_categories` for display names). There is no
+   local seed/mock data anywhere in this module — every number on the page
+   comes from one of these three tables, or is explicitly shown as empty/
+   "no data yet" when a table has no rows. Routed through the shared
+   sbGet/sbPost/sbPatch/sbDelete in app-state.js so requests carry the
+   logged-in user's identity, get 401 refresh-and-retry, and feed the shared
+   sync-status pill like every other module. */
 const SUPPLIERS_TABLE = 'suppliers';
+const PRODUCTS_TABLE = 'supplier_products';
 
 async function loadSuppliersFromSupabase(){
   try{
-    const data = await sbGet(`${SUPPLIERS_TABLE}?select=*&order=name.asc`);
-    if(data && data.length > 0){
-      suppliers = data.map(r=>{
-        const existing = suppliers.find(s=>s.name===r.name) || {};
-        return {
-          id: r.id,
-          _dbId: r.id,
-          name: r.name,
-          category: r.category || 'General',
-          contactPerson: r.contact_person || existing.contactPerson || '',
-          phone: r.contact_phone || existing.phone || '',
-          email: r.contact_email || existing.email || '',
-          address: r.address || existing.address || '',
-          terms: r.payment_terms || existing.terms || 'Cash on Delivery',
-          currency: existing.currency || 'ETB',
-          isActive: r.is_active !== false,
-          marketDays: r.market_days || existing.marketDays || [],
-          tin: r.tin || existing.tin || '',
-          vatNumber: r.vat_number || existing.vatNumber || '',
-          bankName: r.bank_name || existing.bankName || '',
-          bankAccount: r.bank_account || existing.bankAccount || '',
-          creditLimit: r.credit_limit ?? existing.creditLimit ?? null,
-          allTime: existing.allTime || 0,
-          month: existing.month || 0,
-          lastPurchase: existing.lastPurchase || new Date().toISOString().slice(0,10),
-          unit: existing.unit || 'kg',
-          avgPriceBlend: existing.avgPriceBlend ?? null,
-          vsMarketPct: existing.vsMarketPct ?? null,
-          priceHistory: existing.priceHistory || [0,0,0,0,0,0]
-        };
-      });
-      if(!suppliers.some(s=>s.id===selectedSupplierId)) selectedSupplierId = suppliers[0].id;
-      showToast('Supplier list loaded from database ('+suppliers.length+' records)');
+    const [supplierRows, productRows] = await Promise.all([
+      sbGet(`${SUPPLIERS_TABLE}?select=*&order=name.asc`),
+      sbGet(`${PRODUCTS_TABLE}?select=*&order=name.asc`)
+    ]);
+    suppliers = (supplierRows||[]).map(r=>{
+      const products = (productRows||[]).filter(p=>p.supplier_id===r.id);
+      return {
+        id: r.id,
+        _dbId: r.id,
+        name: r.name,
+        category: r.category || 'General',
+        contactPerson: r.contact_person || '',
+        phone: r.contact_phone || '',
+        email: r.contact_email || '',
+        address: r.address || '',
+        terms: r.payment_terms || 'Cash on Delivery',
+        currency: 'ETB',
+        isActive: r.is_active !== false,
+        marketDays: r.market_days || [],
+        tin: r.tin || '',
+        vatNumber: r.vat_number || '',
+        bankName: r.bank_name || '',
+        bankAccount: r.bank_account || '',
+        creditLimit: r.credit_limit ?? null,
+        createdAt: r.created_at || null,
+        allTime: 0, month: 0, lastPurchase: null,
+        unit: products[0] ? products[0].unit : 'kg',
+        avgPriceBlend: products[0] ? Number(products[0].price) : null,
+        itemsSupplied: products.map(p=>({ name: p.name, unit: p.unit, price: Number(p.price) }))
+      };
+    });
+    if(selectedSupplierId==null || !suppliers.some(s=>s.id===selectedSupplierId)){
+      selectedSupplierId = suppliers.length ? suppliers[0].id : null;
     }
   }catch(err){
-    console.log('Supabase suppliers unavailable, using local seed data:', err.message);
+    console.log('Supabase suppliers load failed:', err.message);
+    showToast('⚠ Could not load suppliers from the database — '+err.message);
   }
 }
 
@@ -1921,8 +2150,7 @@ async function saveSupplierToSupabase(s){
       await sbPatch(`${SUPPLIERS_TABLE}?id=eq.${s._dbId}`, row);
     } else {
       // sbPost() returns the inserted row(s) as an array (Prefer:
-      // return=representation), same as this page's old .insert().select()
-      // — just unwrap [0] instead of using .single().
+      // return=representation) — unwrap [0] instead of using .single().
       const data = await sbPost(SUPPLIERS_TABLE, row);
       // Record the database's own id separately from the UI-facing `id` — the
       // UI (row menu ids, selectedSupplierId, already-rendered onclick
@@ -1937,37 +2165,89 @@ async function saveSupplierToSupabase(s){
   }
 }
 
-/* Aggregates real purchase history per supplier from the `purchases` table
-   (spec §5) when available — overrides the seeded totals/price history above
-   with live figures, keyed by supplier_id FK. */
-async function loadPurchaseAggregatesFromSupabase(){
+/* Replaces this supplier's `supplier_products` rows with whatever is
+   currently in s.itemsSupplied — delete rows the user removed, upsert the
+   rest via unique(supplier_id, name). Requires s._dbId (the supplier itself
+   must already be saved). */
+async function saveSupplierProductsToSupabase(s){
+  if(!s._dbId) return;
   try{
-    const data = await sbGet('purchases?select=supplier_id,date,quantity,unit_price,total_cost,item_id&is_deleted=eq.false');
-    if(!data || data.length===0) return;
+    const existing = await sbGet(`${PRODUCTS_TABLE}?select=id,name&supplier_id=eq.${s._dbId}`);
+    const keepNames = new Set((s.itemsSupplied||[]).map(it=>it.name.toLowerCase()));
+    const toDelete = (existing||[]).filter(e=>!keepNames.has(e.name.toLowerCase()));
+    await Promise.all(toDelete.map(e=>sbDelete(`${PRODUCTS_TABLE}?id=eq.${e.id}`)));
+    for(const it of (s.itemsSupplied||[])){
+      const match = (existing||[]).find(e=>e.name.toLowerCase()===it.name.toLowerCase());
+      const row = { supplier_id: s._dbId, name: it.name, unit: it.unit, price: it.price, updated_at: new Date().toISOString() };
+      if(match){ await sbPatch(`${PRODUCTS_TABLE}?id=eq.${match.id}`, row); }
+      else { await sbPost(PRODUCTS_TABLE, row); }
+    }
+  }catch(err){
+    console.log('Supabase supplier products save failed:', err.message);
+    showToast('⚠ Product list could not be saved — '+err.message);
+  }
+}
+
+/* Loads every real purchase row tied to a supplier, joins in item/expense
+   names client-side, and both stores the flat list (allPurchases — reused by
+   KPIs, Recent Purchases, Supplier Performance, Price Trend/Market Average,
+   and the Ledger) and rolls each supplier's allTime/month/lastPurchase up
+   from it. */
+async function loadPurchasesFromSupabase(){
+  try{
+    const [purchaseRows, items, expCats] = await Promise.all([
+      sbGet('purchases?select=id,date,period,supplier_id,item_id,expense_category_id,quantity,unit_price,total_cost,payment_channel,approval_status&is_deleted=eq.false&supplier_id=not.is.null&order=date.desc'),
+      sbGet('inventory_items?select=id,name,unit'),
+      sbGet('expense_categories?select=id,name')
+    ]);
+    const itemById = new Map((items||[]).map(i=>[i.id,i]));
+    const expById = new Map((expCats||[]).map(e=>[e.id,e]));
+    const supplierById_ = new Map(suppliers.map(s=>[s._dbId||s.id, s]));
+
+    allPurchases = (purchaseRows||[]).map(r=>{
+      const item = r.item_id ? itemById.get(r.item_id) : null;
+      const exp = r.expense_category_id ? expById.get(r.expense_category_id) : null;
+      const s = supplierById_.get(r.supplier_id);
+      return {
+        ...r,
+        supplier_name: s ? s.name : null,
+        item_name: item ? item.name : (exp ? exp.name : null),
+        unit: item ? item.unit : null
+      };
+    });
+
     suppliers.forEach(s=>{
       const dbId = s._dbId || s.id;
-      const rows = data.filter(r=>r.supplier_id===dbId);
+      const rows = allPurchases.filter(r=>r.supplier_id===dbId);
       if(rows.length===0) return;
-      s.allTime = rows.reduce((sum,r)=>sum+parseFloat(r.total_cost||0), 0);
+      s.allTime = rows.reduce((sum,r)=>sum+(Number(r.total_cost)||0), 0);
       const sorted = rows.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
       s.lastPurchase = sorted[0].date;
-      const monthKey = sorted[0].date.slice(0,7);
-      const monthRows = rows.filter(r=>r.date.slice(0,7)===monthKey);
-      s.month = monthRows.reduce((sum,r)=>sum+parseFloat(r.total_cost||0), 0);
+      const curMk = labelToMonthKey(document.getElementById('msel') ? document.getElementById('msel').value : monthLabel(new Date()));
+      s.month = rows.filter(r=>r.period===curMk).reduce((sum,r)=>sum+(Number(r.total_cost)||0), 0);
     });
   }catch(err){
-    console.log('Supabase purchases aggregation unavailable, using seed data:', err.message);
+    console.log('Supabase purchases load failed:', err.message);
+    showToast('⚠ Could not load purchase history — '+err.message);
   }
 }
 
 /* ════════════════ INIT ════════════════ */
 async function init(){
+  try{
+    const bs = await sbGet('business_settings?select=price_spike_pct&limit=1');
+    if(bs && bs[0]) businessSettings = bs[0];
+  }catch(err){ console.log('business_settings unavailable, using default price_spike_pct:', err.message); }
   await loadSuppliersFromSupabase();
-  await loadPurchaseAggregatesFromSupabase();
+  await loadPurchasesFromSupabase();
+  renderSuppliersHeader();
+  syncMonthLabels();
   renderKPIs();
   renderSupplierList();
   renderDetails(supplierById(selectedSupplierId));
   renderPriceTrend();
+  renderRecentPurchases();
+  renderPerformanceTable();
 }
 init();
 </script>
