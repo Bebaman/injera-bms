@@ -229,9 +229,20 @@ button{font-family:inherit}
   .qa-grid{grid-template-columns:1fr 1fr}
   .toast-stack{left:12px;right:12px;bottom:12px;align-items:stretch}
   .toast{max-width:none}
+  .form-grid.g2{grid-template-columns:1fr}
+  .modal{max-height:96vh;border-radius:16px}
+  .modal-hdr{padding:16px 16px 14px}
+  .modal-body{padding:16px}
+  .modal-footer{padding:12px 16px;flex-wrap:wrap}
+  .modal-footer button{flex:1;justify-content:center;min-width:120px}
+  .card-hd{flex-wrap:wrap;gap:8px}
+  .hd-actions{width:100%}
+  .hd-actions .btn-tool{width:100%;justify-content:center}
 }
 @media(max-width:420px){
   .pd-kpis{grid-template-columns:1fr 1fr}
+  .modal-overlay{padding:8px}
+  .qa-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -329,7 +340,7 @@ button{font-family:inherit}
             <table class="tbl">
               <thead><tr><th>Shareholder</th><th>Ownership % <span class="th-unit">(This Month)</span></th><th>Ownership % <span class="th-unit">(Snapshot)</span></th><th>Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
               <tbody id="shBody"></tbody>
-              <tfoot><tr class="tot"><td>Total</td><td>100.00%</td><td>100.00%</td><td class="acc" id="shAmtTot">2,966.90</td><td>Paid</td></tr></tfoot>
+              <tfoot><tr class="tot"><td>Total</td><td>100.00%</td><td>100.00%</td><td class="acc" id="shAmtTot">0.00</td><td id="shTotStatus">Preview</td></tr></tfoot>
             </table>
           </div>
 
@@ -358,7 +369,6 @@ button{font-family:inherit}
               <tbody id="histBody"></tbody>
             </table>
           </div>
-          <button class="view-exp" onclick="toast('Opening full distribution history…','info')">&#9776; View Full History</button>
         </div>
       </div>
 
@@ -395,12 +405,10 @@ button{font-family:inherit}
         </div>
 
         <div class="card" id="ownerActivityCard">
-          <div class="card-hd"><div class="card-ttl">Owner Injection / Withdrawal History <span class="sub" id="oaLbl">(this month)</span></div></div>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>Date</th><th>Type</th><th>Shareholder</th><th>Channel</th><th>Amount (ETB)</th><th>Note</th></tr></thead>
-              <tbody id="ownerActivityBody"></tbody>
-            </table>
+          <div class="card-hd"><div class="card-ttl">Owner Injections / Withdrawals</div></div>
+          <div class="info-note" style="margin:14px 17px">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Recording and history for owner injections/withdrawals moved to the <b>Cash Flow</b> page — this month's totals still show above in Cash Position (Owner Injections / Owner Withdrawals), calculated from the same records.</span>
           </div>
         </div>
 
@@ -442,11 +450,11 @@ button{font-family:inherit}
               <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
               <span class="qa-lbl">Shareholder Management</span>
             </div>
-            <div class="qa-item" onclick="openOwnerTxnModal()">
+            <div class="qa-item" onclick="window.location.href='cashflow.html'">
               <div class="qa-ic ic-t"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="19" y1="19" x2="5" y2="19"/></svg></div>
-              <span class="qa-lbl">Record Owner Injection / Withdrawal</span>
+              <span class="qa-lbl">Owner Injection / Withdrawal (Cash Flow page)</span>
             </div>
-            <div class="qa-item" onclick="toast('Distribution settings coming soon','info')">
+            <div class="qa-item" onclick="openDistributionSettingsModal()">
               <div class="qa-ic ic-o"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
               <span class="qa-lbl">Distribution Settings</span>
             </div>
@@ -536,79 +544,52 @@ button{font-family:inherit}
     <div class="modal-body">
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th>Shareholder</th><th>Ownership %</th><th>Status</th></tr></thead>
+          <thead><tr><th>Shareholder</th><th>Ownership %</th><th>Status</th><th id="shMgmtActionsHd" style="display:none;text-align:right">Actions</th></tr></thead>
           <tbody id="shMgmtBody"></tbody>
+          <tfoot><tr class="tot"><td>Total</td><td id="shMgmtTotal" class="acc">100.00%</td><td colspan="2"></td></tr></tfoot>
         </table>
       </div>
-      <div class="info-note" style="margin:14px 0 0">
+      <div class="info-note" id="shMgmtOwnerOnlyNote">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         <span>Percentage changes take effect from next month's distribution — not retroactively. Only the Owner role can add or deactivate shareholders.</span>
       </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn-ghost" onclick="closeShareholderModal()">Close</button>
-      <button type="button" class="btn-solid" onclick="toast('Add shareholder coming soon','info')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add Shareholder</span></button>
+      <button type="button" class="btn-ghost" id="shAddBtn" style="display:none" onclick="addShareholderRow()"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add Row</span></button>
+      <button type="button" class="btn-solid" id="shSaveBtn" style="display:none" onclick="saveShareholderChanges()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Save Changes</span></button>
     </div>
   </div>
 </div>
 
-<!-- RECORD OWNER INJECTION / WITHDRAWAL MODAL -->
-<div class="modal-overlay" id="ownerTxnModalOverlay" onclick="if(event.target===this)closeOwnerTxnModal()">
+<!-- DISTRIBUTION SETTINGS MODAL — reads/writes the SAME business_settings row
+     Settings > Accounting manages (default_distribution_pct, rounding_mode) so
+     the two pages can never drift out of sync. -->
+<div class="modal-overlay" id="distSettingsModalOverlay" onclick="if(event.target===this)closeDistributionSettingsModal()">
   <div class="modal">
     <div class="modal-hdr">
-      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
-      <div class="modal-hdr-txt"><h3>Record Owner Injection / Withdrawal</h3><p>Capital in or out — tracked separately from Net Cash Profit</p></div>
-      <button class="modal-hdr-close" onclick="closeOwnerTxnModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+      <div class="modal-hdr-txt"><h3>Distribution Settings</h3><p>Shared with Settings &gt; Accounting — changing it here changes it there too</p></div>
+      <button class="modal-hdr-close" onclick="closeDistributionSettingsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <form onsubmit="submitOwnerTxnModal(event)">
+    <form onsubmit="submitDistributionSettingsModal(event)">
       <div class="modal-body">
-        <div class="form-grid g2">
+        <div class="form-grid">
           <div class="fg">
-            <label>Type</label>
-            <div class="fg-wrap">
-              <select id="otType" required>
-                <option value="injection">Owner Injection (cash in)</option>
-                <option value="withdrawal">Owner Withdrawal / Draw (cash out)</option>
-              </select>
-            </div>
+            <label>Default Distribution %</label>
+            <div class="fg-wrap"><input type="number" id="dsDefaultPct" class="pu" min="0" max="100" step="0.01" required><span class="fg-suf">%</span></div>
+            <span class="fg-hint">Applied to any month that hasn't had its % edited or recorded yet</span>
           </div>
           <div class="fg">
-            <label>Date</label>
-            <div class="fg-wrap"><input type="date" id="otDate" required></div>
+            <label>Rounding</label>
+            <div class="fg-wrap"><input type="text" id="dsRounding" readonly></div>
+            <span class="fg-hint">Set in Settings &gt; Accounting (rounds every ETB amount on this page)</span>
           </div>
-          <div class="fg">
-            <label>Amount</label>
-            <div class="fg-wrap"><input type="number" id="otAmount" class="pu" min="0.01" step="0.01" required><span class="fg-suf">ETB</span></div>
-          </div>
-          <div class="fg">
-            <label>Channel</label>
-            <div class="fg-wrap">
-              <select id="otChannel" required>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="mobile">Mobile Money</option>
-              </select>
-            </div>
-          </div>
-          <div class="fg">
-            <label>Shareholder</label>
-            <div class="fg-wrap">
-              <select id="otShareholder"><option value="">— Unspecified —</option></select>
-            </div>
-          </div>
-          <div class="fg" style="grid-column:1/-1">
-            <label>Note (optional)</label>
-            <div class="fg-wrap"><input type="text" id="otNote" placeholder="e.g. Working capital top-up"></div>
-          </div>
-        </div>
-        <div class="info-note" style="margin-top:12px">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>This updates the Cash Position for the transaction's month — it never affects Net Cash Profit or the distribution split.</span>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn-ghost" onclick="closeOwnerTxnModal()">Cancel</button>
-        <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Save Transaction</span></button>
+        <button type="button" class="btn-ghost" onclick="closeDistributionSettingsModal()">Cancel</button>
+        <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Save</span></button>
       </div>
     </form>
   </div>
@@ -757,8 +738,16 @@ async function buildHistory(){
   }
   history = rows;
   MONTHS = rows.map(r=>r.m);
-  const lastWithData = [...history].reverse().find(h=>h.hasOpeningBalance);
-  curIdx = lastWithData ? history.indexOf(lastWithData) : history.length-1;
+  // Always default to the actual current calendar month (always the last
+  // entry — buildHistory() above guarantees it's included and periods are
+  // sorted) rather than the last month that happens to have a recorded
+  // opening balance. Falling back to an older "complete" month meant this
+  // page could silently open on August, say, instead of September just
+  // because September's opening balance hadn't been entered in Settings
+  // yet — the same "doesn't default to the current period" issue fixed on
+  // the Dashboard. A current month with no data yet is exactly the gap
+  // this page should surface, not quietly skip past.
+  curIdx = history.length - 1;
 }
 
 async function refreshAll(){
@@ -802,48 +791,6 @@ function renderSummary(sum){
   document.getElementById('sumAvgPct').textContent = sum.avgPct.toFixed(1)+'%';
   document.getElementById('sumDistributableProfit').textContent = f(sum.totalDistributableProfit)+' ETB';
   document.getElementById('sumNetAllTime').textContent = f(sum.totalNetAllTime)+' ETB';
-}
-
-// ── Owner Injection / Withdrawal History — the raw capital_injections /
-// capital_withdrawals rows for the selected month, so it's clear who moved what,
-// when, and through which channel (not just the month's totals).
-async function loadOwnerActivityHistory(period){
-  const rangeStart = period+'-01';
-  const [yy, mm] = period.split('-').map(Number);
-  const nextY = mm===12 ? yy+1 : yy;
-  const nextM = mm===12 ? 1 : mm+1;
-  const rangeEndExclusive = nextY+'-'+String(nextM).padStart(2,'0')+'-01'; // first day of next month — avoids invalid "-31" on short months
-  let rows = [];
-  try{
-    const inj = await sbGet(`capital_injections?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lt.${rangeEndExclusive}&order=date.desc`) || [];
-    rows = rows.concat(inj.map(r=>({...r, kind:'Injection'})));
-  }catch(err){ console.log('capital_injections history load failed for '+period+':', err.message); }
-  try{
-    const wd = await sbGet(`capital_withdrawals?select=date,shareholder_name,amount,channel,notes&date=gte.${rangeStart}&date=lt.${rangeEndExclusive}&order=date.desc`) || [];
-    rows = rows.concat(wd.map(r=>({...r, kind:'Withdrawal'})));
-  }catch(err){ console.log('capital_withdrawals history load failed for '+period+':', err.message); }
-  rows.sort((a,b)=> (a.date<b.date?1:-1));
-  return rows;
-}
-
-function renderOwnerActivityHistory(rows, monthLabel){
-  document.getElementById('oaLbl').textContent = '('+monthLabel+')';
-  const body = document.getElementById('ownerActivityBody');
-  if(!rows.length){
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">No owner injections or withdrawals recorded for '+monthLabel+'</td></tr>';
-    return;
-  }
-  body.innerHTML = rows.map(r=>{
-    const channelLbl = r.channel==='cash'?'Cash':(r.channel==='bank'?'Bank':'Mobile Money');
-    return `<tr>
-      <td>${new Date(r.date+'T00:00:00').toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'})}</td>
-      <td><span class="tbl-badge">${r.kind}</span></td>
-      <td>${r.shareholder_name||'—'}</td>
-      <td>${channelLbl}</td>
-      <td>${f(n(r.amount))}</td>
-      <td>${r.notes||'—'}</td>
-    </tr>`;
-  }).join('');
 }
 
 function roundAmt(v){ return Math.round(v/ROUNDING_UNIT)*ROUNDING_UNIT; }
@@ -936,6 +883,11 @@ function renderShareholderTable(disp){
     </tr>`;
   }).join('');
   document.getElementById('shAmtTot').textContent = f(disp.distAmt);
+  // Was always hardcoded "Paid" regardless of whether this month's
+  // distribution had actually been recorded — a not-yet-recorded ("Preview")
+  // month's per-shareholder rows correctly said Preview while the total row
+  // contradicted them.
+  document.getElementById('shTotStatus').textContent = disp.recorded ? 'Paid' : 'Preview';
 }
 
 function renderMonth(){
@@ -951,7 +903,6 @@ function renderMonth(){
   renderShareholderTable(disp);
   renderCashPosition(rec);
   renderHistory();
-  loadOwnerActivityHistory(rec.key).then(rows => renderOwnerActivityHistory(rows, rec.m));
 }
 
 function renderHistory(){
@@ -973,12 +924,104 @@ function renderHistory(){
   }
 }
 
+let modalShareholders = []; // working copy edited within the modal — only synced back via refreshAll() after a successful save
 function renderShareholderModalTable(){
   const body = document.getElementById('shMgmtBody');
   if(!body) return;
-  const total = shareholders.reduce((a,s)=>a+s.pct,0);
-  body.innerHTML = shareholders.map(s=>`<tr><td>${s.name}</td><td>${s.pct.toFixed(2)}%</td><td><span class="tbl-badge">Active</span></td></tr>`).join('')
-    + `<tr class="tot"><td>Total</td><td class="acc">${total.toFixed(2)}%</td><td>–</td></tr>`;
+  const isOwner = window.currentUser && window.currentUser.role === 'owner';
+  document.getElementById('shMgmtActionsHd').style.display = isOwner ? '' : 'none';
+  document.getElementById('shAddBtn').style.display = isOwner ? '' : 'none';
+  document.getElementById('shSaveBtn').style.display = isOwner ? '' : 'none';
+  document.getElementById('shMgmtOwnerOnlyNote').style.display = isOwner ? 'none' : '';
+
+  const rows = modalShareholders.map((s,i)=>{
+    if(!isOwner){
+      return `<tr><td>${s.name}</td><td>${s.pct.toFixed(2)}%</td><td><span class="tbl-badge">Active</span></td><td></td></tr>`;
+    }
+    return `<tr data-sh-id="${s.id||''}" data-sh-idx="${i}">
+      <td>${s.name}</td>
+      <td><div class="fg-wrap" style="max-width:100px"><input type="number" class="sh-pct-input" min="0" max="100" step="0.01" value="${s.pct.toFixed(2)}" oninput="updateShMgmtTotal()" style="border:1.5px solid #dde8e2;border-radius:8px;padding:6px 8px;font-size:12.5px;width:100%"></div></td>
+      <td><span class="tbl-badge">Active</span></td>
+      <td style="text-align:right"><button type="button" class="btn-tool" style="padding:6px 10px;color:#e5484d" onclick="deactivateShareholder(${i})" title="Deactivate"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:#e5484d"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = rows + pendingNewShareholderRows.map((r,i)=>`
+    <tr data-new-idx="${i}">
+      <td><div class="fg-wrap"><input type="text" class="sh-new-name" placeholder="Shareholder name" value="${r.name}" oninput="pendingNewShareholderRows[${i}].name=this.value" style="border:1.5px solid #dde8e2;border-radius:8px;padding:6px 8px;font-size:12.5px;width:100%"></div></td>
+      <td><div class="fg-wrap" style="max-width:100px"><input type="number" class="sh-pct-input" min="0" max="100" step="0.01" value="${r.pct}" oninput="pendingNewShareholderRows[${i}].pct=parseFloat(this.value)||0;updateShMgmtTotal()" style="border:1.5px solid #dde8e2;border-radius:8px;padding:6px 8px;font-size:12.5px;width:100%"></div></td>
+      <td><span class="tbl-badge">New</span></td>
+      <td style="text-align:right"><button type="button" class="btn-tool" style="padding:6px 10px;color:#e5484d" onclick="removePendingShareholderRow(${i})" title="Remove"><svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:#e5484d"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+    </tr>`).join('');
+  updateShMgmtTotal();
+}
+let pendingNewShareholderRows = [];
+let pendingDeactivateIds = [];
+function updateShMgmtTotal(){
+  const pctInputs = document.querySelectorAll('#shMgmtBody .sh-pct-input');
+  let total = 0; pctInputs.forEach(inp=>{ total += parseFloat(inp.value)||0; });
+  const el = document.getElementById('shMgmtTotal');
+  el.textContent = total.toFixed(2)+'%';
+  el.style.color = Math.abs(total-100) < 0.01 ? '' : '#e5484d';
+}
+function addShareholderRow(){
+  pendingNewShareholderRows.push({ name:'', pct:0 });
+  renderShareholderModalTable();
+}
+function removePendingShareholderRow(i){
+  pendingNewShareholderRows.splice(i,1);
+  renderShareholderModalTable();
+}
+function deactivateShareholder(i){
+  const s = modalShareholders[i];
+  if(!s.id){ toast('Cannot deactivate the fallback demo shareholder','error'); return; }
+  if(!confirm(`Deactivate ${s.name}? Their ${s.pct.toFixed(2)}% will need to be reassigned to the remaining shareholders before saving.`)) return;
+  pendingDeactivateIds.push(s.id);
+  modalShareholders.splice(i,1);
+  renderShareholderModalTable();
+}
+async function saveShareholderChanges(){
+  const total = Array.from(document.querySelectorAll('#shMgmtBody .sh-pct-input')).reduce((a,inp)=>a+(parseFloat(inp.value)||0),0);
+  if(Math.abs(total-100) > 0.01){
+    toast('Ownership percentages must sum to exactly 100.00% (currently '+total.toFixed(2)+'%)','error');
+    return;
+  }
+  if(pendingNewShareholderRows.some(r=>!r.name.trim())){
+    toast('Every new shareholder needs a name','error');
+    return;
+  }
+  try{
+    // Existing shareholders: patch each changed %.
+    const rows = document.querySelectorAll('#shMgmtBody tr[data-sh-id]');
+    for(const tr of rows){
+      const id = tr.getAttribute('data-sh-id');
+      const idx = parseInt(tr.getAttribute('data-sh-idx'),10);
+      const pctInput = tr.querySelector('.sh-pct-input');
+      const newPct = parseFloat(pctInput.value)||0;
+      if(id && Math.abs(newPct - modalShareholders[idx].pct) > 0.001){
+        await sbPatch(`shareholders?id=eq.${id}`, { ownership_pct: newPct });
+      }
+    }
+    // Deactivations.
+    for(const id of pendingDeactivateIds){
+      await sbPatch(`shareholders?id=eq.${id}`, { is_active: false });
+    }
+    // New shareholders.
+    if(pendingNewShareholderRows.length){
+      await sbPost('shareholders', pendingNewShareholderRows.map(r=>({ name:r.name.trim(), ownership_pct:r.pct, is_active:true })));
+    }
+    toast('Shareholder changes saved','success');
+  }catch(err){
+    console.error(err);
+    toast('Could not save shareholder changes: '+err.message,'error');
+    return;
+  }
+  pendingNewShareholderRows = [];
+  pendingDeactivateIds = [];
+  await refreshAll();
+  modalShareholders = shareholders.map(s=>({...s}));
+  renderShareholderModalTable();
+  renderMonth();
+  buildTrendChart();
 }
 
 /* ══ EXPORT DROPDOWN (Distribution History card) ═ */
@@ -1079,44 +1122,46 @@ async function submitRecordModal(e){
 }
 
 /* ══ SHAREHOLDER MODAL ═══════════════════════ */
-function openShareholderModal(){ renderShareholderModalTable(); document.getElementById('shModalOverlay').classList.add('show'); }
-function closeShareholderModal(){ document.getElementById('shModalOverlay').classList.remove('show'); }
-
-/* ══ OWNER INJECTION / WITHDRAWAL MODAL — writes capital_injections or
-   capital_withdrawals; a DB trigger on each mirrors the row into
-   cash_flow_entries (category 'financing') so it shows up in the cash
-   position immediately without ever touching Net Cash Profit. ══ */
-function openOwnerTxnModal(){
-  document.getElementById('otDate').value = new Date().toISOString().slice(0,10);
-  document.getElementById('otAmount').value = '';
-  document.getElementById('otNote').value = '';
-  const sel = document.getElementById('otShareholder');
-  sel.innerHTML = '<option value="">— Unspecified —</option>' + shareholders.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
-  document.getElementById('ownerTxnModalOverlay').classList.add('show');
+function openShareholderModal(){
+  modalShareholders = shareholders.map(s=>({...s}));
+  pendingNewShareholderRows = []; pendingDeactivateIds = [];
+  renderShareholderModalTable();
+  document.getElementById('shModalOverlay').classList.add('show');
 }
-function closeOwnerTxnModal(){ document.getElementById('ownerTxnModalOverlay').classList.remove('show'); }
-async function submitOwnerTxnModal(e){
-  e.preventDefault();
-  const type = document.getElementById('otType').value; // 'injection' | 'withdrawal'
-  const amount = parseFloat(document.getElementById('otAmount').value)||0;
-  if(amount <= 0){ toast('Enter an amount greater than zero','error'); return; }
-  const row = {
-    date: document.getElementById('otDate').value,
-    shareholder_name: document.getElementById('otShareholder').value || 'Unspecified',
-    amount, channel: document.getElementById('otChannel').value,
-    notes: document.getElementById('otNote').value || null
-  };
+function closeShareholderModal(){
+  document.getElementById('shModalOverlay').classList.remove('show');
+  pendingNewShareholderRows = []; pendingDeactivateIds = [];
+}
+
+/* ══ DISTRIBUTION SETTINGS MODAL — same business_settings row Settings >
+   Accounting edits (default_distribution_pct, rounding_mode). Rounding is
+   shown read-only here since it's an accounting-wide setting, not specific
+   to Distribution — changing it belongs in Settings, not duplicated here. ══ */
+let distSettingsRowId = null;
+async function openDistributionSettingsModal(){
+  document.getElementById('dsDefaultPct').value = defaultPct.toFixed(2);
+  document.getElementById('dsRounding').value = ROUNDING_UNIT===1 ? 'Whole Birr (1 ETB)' : '2 Decimal Places (0.01 ETB)';
   try{
-    await sbPost(type==='injection' ? 'capital_injections' : 'capital_withdrawals', [row]);
-    toast((type==='injection'?'Injection':'Withdrawal')+' of '+f(amount)+' ETB recorded','success');
+    const rows = await sbGet('business_settings?select=id&limit=1');
+    if(rows && rows[0]) distSettingsRowId = rows[0].id;
+  }catch(err){ console.log('business_settings id lookup failed:', err.message); }
+  document.getElementById('distSettingsModalOverlay').classList.add('show');
+}
+function closeDistributionSettingsModal(){ document.getElementById('distSettingsModalOverlay').classList.remove('show'); }
+async function submitDistributionSettingsModal(e){
+  e.preventDefault();
+  const pct = parseFloat(document.getElementById('dsDefaultPct').value)||0;
+  if(!distSettingsRowId){ toast('Could not find the business settings record to update','error'); return; }
+  try{
+    await sbPatch(`business_settings?id=eq.${distSettingsRowId}`, { default_distribution_pct: pct });
+    toast('Default Distribution % updated to '+pct.toFixed(2)+'%','success');
   }catch(err){
     console.error(err);
-    toast('Could not save owner transaction: '+err.message,'error');
+    toast('Could not save: '+err.message,'error');
     return;
   }
-  closeOwnerTxnModal();
+  closeDistributionSettingsModal();
   await refreshAll();
-  loadAllTimeSummary().then(renderSummary);
   renderMonth();
   buildTrendChart();
 }
@@ -1225,6 +1270,16 @@ function exportCSVFallback(month){
 }
 
 /* ══ EXPORT: PDF ═════════════════════════════ */
+// Was hardcoded 'Eyasu Mesfin (Owner)' in both PDF exports below regardless
+// of who actually generated the report — falsely attributing every export
+// to the same person no matter who was logged in. Now pulls the real
+// logged-in user (window.currentUser, set by app-state.js).
+function preparedByLabel(){
+  const u = window.currentUser;
+  if(!u || !u.name) return 'Unknown User';
+  const role = u.role ? u.role.charAt(0).toUpperCase()+u.role.slice(1) : '';
+  return role ? `${u.name} (${role})` : u.name;
+}
 function exportPDF(retryCount){
   retryCount = retryCount||0;
   if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
@@ -1255,7 +1310,7 @@ function exportPDF(retryCount){
     doc.setFontSize(9); doc.setTextColor(220,235,227);
     doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
     doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+    doc.text('Prepared by: '+preparedByLabel(), pageW-marginX, 56, {align:'right'});
   }
   function drawKpiStrip(y){
     const kpis=[
@@ -1384,7 +1439,7 @@ function exportFullPDF(retryCount){
     doc.setFontSize(9); doc.setTextColor(220,235,227);
     doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
     doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
+    doc.text('Prepared by: '+preparedByLabel(), pageW-marginX, 56, {align:'right'});
   }
   function drawFooter(){
     const pageCount = doc.internal.getNumberOfPages();
@@ -1513,9 +1568,19 @@ const TX={font:{family:'Nunito',size:11},color:'#9aada5'};
 
 function buildTrendChart(){
   if(typeof Chart === 'undefined') return;
-  const ML = history.map(h=>h.m);
-  const distVals = history.map(h=>Math.round(computeSplit(h.net,h.pct).distAmt));
-  const pctVals = history.map(h=>h.pct);
+  // The card header says "(Last 6 Months)" but this used to plot the ENTIRE
+  // history array — every month ever recorded, not just the last 6. That's
+  // not obvious yet with only a few months of real data, but it would only
+  // get more cluttered (and contradict the card's own label) every month
+  // going forward.
+  const recent = history.slice(-6);
+  const ML = recent.map(h=>h.m);
+  const distVals = recent.map(h=>Math.round(computeSplit(h.net,h.pct).distAmt));
+  const pctVals = recent.map(h=>h.pct);
+  // Was hardcoded to max:20 — if Distribution % (Settings > Distribution, or
+  // an in-month override) is ever set above 20%, the % line silently got
+  // clipped off the top of the chart instead of showing the real value.
+  const pctMax = Math.max(20, ...pctVals) + 5;
   if(window.distributionCharts && window.distributionCharts.chTrend){ window.distributionCharts.chTrend.destroy(); }
   const chTrend = new Chart(document.getElementById('cTrend').getContext('2d'),{
     data:{labels:ML,datasets:[
@@ -1528,7 +1593,7 @@ function buildTrendChart(){
       scales:{
         x:{grid:{display:false},ticks:TX},
         y:{position:'left',grid:{color:'#eef3f0',lineWidth:1},min:0,ticks:{...TX,callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}},
-        y1:{position:'right',grid:{display:false},min:0,max:20,ticks:{...TX,callback:v=>v+'%'}}
+        y1:{position:'right',grid:{display:false},min:0,max:pctMax,ticks:{...TX,callback:v=>v+'%'}}
       }},
     plugins:[{id:'hlt',afterRender(){hideL('ldTrend');}}]
   });
