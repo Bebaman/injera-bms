@@ -120,8 +120,14 @@
 .cmp-controls{display:flex;align-items:flex-end;gap:12px;padding:14px 20px;background:#f5f8f6;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .cmp-field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:150px}
 .cmp-field label{font-size:var(--fs-xs);font-weight:600;color:var(--tl)}
-.cmp-field select{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:var(--fs-sm);color:var(--td);background:#fff}
-.cmp-field select:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+.cmp-select-wrap{position:relative;display:flex;align-items:center}
+.cmp-select-ic{position:absolute;left:11px;width:15px;height:15px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.cmp-select-chev{position:absolute;right:12px;width:13px;height:13px;stroke:var(--tl);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;transition:transform .15s ease}
+.cmp-field select{appearance:none;-webkit-appearance:none;-moz-appearance:none;width:100%;padding:9px 32px 9px 34px;border-radius:9px;border:1.5px solid var(--border);font-size:var(--fs-sm);font-weight:600;color:var(--td);background:#fff;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.cmp-field select:hover{border-color:#a9c9b8}
+.cmp-field select:focus-visible{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(39,174,96,.16)}
+.cmp-field select:focus-visible ~ .cmp-select-chev{transform:rotate(180deg);stroke:var(--green)}
+.cmp-field select::-ms-expand{display:none}
 .cmp-run-btn{padding:9px 20px;border-radius:8px;border:none;background:var(--green);color:#fff;font-weight:700;font-size:var(--fs-sm);cursor:pointer;white-space:nowrap;transition:filter .15s}
 .cmp-run-btn:hover{filter:brightness(1.08)}
 .cmp-run-btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
@@ -311,11 +317,19 @@
     <div class="cmp-controls">
       <div class="cmp-field">
         <label for="cmpMonthA">Month A</label>
-        <select id="cmpMonthA"></select>
+        <div class="cmp-select-wrap">
+          <svg class="cmp-select-ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <select id="cmpMonthA"></select>
+          <svg class="cmp-select-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <div class="cmp-field">
         <label for="cmpMonthB">Month B</label>
-        <select id="cmpMonthB"></select>
+        <div class="cmp-select-wrap">
+          <svg class="cmp-select-ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <select id="cmpMonthB"></select>
+          <svg class="cmp-select-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <button class="cmp-run-btn" onclick="runMonthCompare()">Compare</button>
     </div>
