@@ -290,6 +290,10 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="qa-ico" style="background:#e0f2ee"><svg viewBox="0 0 24 24" style="stroke:#0d9b7a"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
               <span>Cash Flow Entries</span>
             </div>
+            <div class="qa-btn" onclick="openOwnerTxnModal()">
+              <div class="qa-ico" style="background:#dff6f4"><svg viewBox="0 0 24 24" style="stroke:#0d9b8a"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="19" y1="19" x2="5" y2="19"/></svg></div>
+              <span>Owner Injection / Withdrawal</span>
+            </div>
           </div>
         </div>
 
@@ -339,14 +343,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
                   </select>
                 </div>
                 <div class="ent-field" id="entTypeWrap" style="display:none">
-                  <label>Financing Type</label>
-                  <select id="entType">
-                    <option value="">Other financing</option>
-                    <option value="capital_injection">Owner capital injection</option>
-                    <option value="capital_withdrawal">Owner capital withdrawal</option>
-                    <option value="loan_disbursement">Loan received</option>
-                    <option value="profit_distribution">Profit distribution</option>
-                  </select>
+                  <div class="ent-hint" style="margin-top:0">
+                    For a capital injection, capital withdrawal, or profit distribution, use the <b>Distribution</b> page instead — for a loan, use the <b>Loans</b> page. Those already record it properly and it'll show up here automatically. This Regular Entry is only for financing activity that has no page of its own.
+                  </div>
                 </div>
               </div>
               <div class="ent-field"><label>Description</label><input type="text" id="entDescription" placeholder="What is this for?"></div>
@@ -376,6 +375,51 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             <table class="ent-list-tbl">
               <thead><tr><th>Date</th><th>Description</th><th>Account</th><th class="num">Amount</th><th></th></tr></thead>
               <tbody id="entListTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OWNER INJECTION / WITHDRAWAL MODAL (popup — writes capital_injections/capital_withdrawals
+         directly; a DB trigger mirrors each row into cash_flow_entries automatically) -->
+    <div class="modal-overlay no-print" id="ownerTxnModalOverlay" onclick="if(event.target===this) closeOwnerTxnModal()">
+      <div class="modal-box">
+        <div class="modal-hd">
+          <div class="modal-ttl">Owner Injection / Withdrawal</div>
+          <button class="modal-x" onclick="closeOwnerTxnModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="ent-tabs">
+            <button class="ent-tab active" id="otTabBtnAdd" onclick="switchOwnerTxnTab('add')">Add / Edit</button>
+            <button class="ent-tab" id="otTabBtnList" onclick="switchOwnerTxnTab('list')">History (<span id="otCount">0</span>)</button>
+          </div>
+
+          <!-- ADD / EDIT -->
+          <div id="otPaneAdd">
+            <div class="ent-row2">
+              <div class="ent-field"><label>Type</label>
+                <select id="otType"><option value="injection">Owner Injection (cash in)</option><option value="withdrawal">Owner Withdrawal / Draw (cash out)</option></select>
+              </div>
+              <div class="ent-field"><label>Date</label><input type="date" id="otDate"></div>
+            </div>
+            <div class="ent-row2">
+              <div class="ent-field"><label>Amount (ETB)</label><input type="number" id="otAmount" min="0.01" step="0.01" placeholder="0.00"></div>
+              <div class="ent-field"><label>Channel</label>
+                <select id="otChannel"><option value="cash">Cash</option><option value="bank">Bank Transfer</option><option value="mobile">Mobile Money</option></select>
+              </div>
+            </div>
+            <div class="ent-field"><label>Shareholder</label><select id="otShareholder"><option value="">— Unspecified —</option></select></div>
+            <div class="ent-field"><label>Note (optional)</label><input type="text" id="otNote" placeholder="e.g. Working capital top-up"></div>
+            <div class="ent-hint">This updates the cash balance for the transaction's month — it never affects Net Cash Profit or the Distribution split.</div>
+            <button class="ent-submit-btn" id="otSubmitBtn" onclick="submitOwnerTxn()">Save Transaction</button>
+          </div>
+
+          <!-- HISTORY -->
+          <div id="otPaneList" style="display:none">
+            <table class="ent-list-tbl">
+              <thead><tr><th>Date</th><th>Shareholder</th><th>Channel</th><th class="num">Amount</th><th></th></tr></thead>
+              <tbody id="otListTbody"></tbody>
             </table>
           </div>
         </div>
@@ -1301,6 +1345,139 @@ async function deleteEntryRow(id){
   }
 }
 
+/* ════════════════ OWNER INJECTION / WITHDRAWAL MODAL (popup) ════════════════
+   Moved here from the Distribution page — this is a cash movement (same family as
+   Transfers/Regular Entries above), not part of the profit-distribution calculation,
+   so it belongs with the other cash bookkeeping rather than on Distribution.
+   Writes straight to capital_injections / capital_withdrawals (the real tables) —
+   never to cash_flow_entries directly. A DB trigger on each mirrors the row into
+   cash_flow_entries automatically, which is what makes it show up on this statement
+   and in Distribution's Net Cash Profit reconciliation without entering it twice. */
+let shareholders = [];
+let editingOwnerTxn = null; // {id, kind:'Injection'|'Withdrawal'} while editing; null while creating new
+
+async function loadShareholders(){
+  try{
+    const rows = await sbGet('shareholders?select=id,name,is_active&order=name.asc');
+    shareholders = (rows||[]).filter(r=>r.is_active!==false);
+  } catch(err){ shareholders = []; }
+}
+
+function openOwnerTxnModal(row){
+  editingOwnerTxn = row ? { id: row.id, kind: row.kind } : null;
+  document.getElementById('ownerTxnModalOverlay').classList.add('open');
+  switchOwnerTxnTab('add');
+  document.getElementById('otType').value = row ? (row.kind==='Injection'?'injection':'withdrawal') : 'injection';
+  document.getElementById('otDate').value = row ? row.date : new Date().toISOString().slice(0,10);
+  document.getElementById('otAmount').value = row ? row.amount : '';
+  document.getElementById('otChannel').value = row ? (row.channel||'cash') : 'cash';
+  document.getElementById('otNote').value = row ? (row.notes||'') : '';
+  const sel = document.getElementById('otShareholder');
+  sel.innerHTML = '<option value="">— Unspecified —</option>' + shareholders.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  sel.value = row ? (row.shareholder_name||'') : '';
+  document.getElementById('otSubmitBtn').textContent = row ? 'Update Transaction' : 'Save Transaction';
+  refreshOwnerTxnList();
+}
+function closeOwnerTxnModal(){
+  document.getElementById('ownerTxnModalOverlay').classList.remove('open');
+  editingOwnerTxn = null;
+}
+function switchOwnerTxnTab(tab){
+  document.getElementById('otPaneAdd').style.display = tab==='add' ? '' : 'none';
+  document.getElementById('otPaneList').style.display = tab==='list' ? '' : 'none';
+  document.getElementById('otTabBtnAdd').classList.toggle('active', tab==='add');
+  document.getElementById('otTabBtnList').classList.toggle('active', tab==='list');
+  if(tab==='list') refreshOwnerTxnList();
+}
+
+async function submitOwnerTxn(){
+  const btn = document.getElementById('otSubmitBtn');
+  btn.disabled = true;
+  try{
+    const type = document.getElementById('otType').value; // 'injection' | 'withdrawal'
+    const amount = parseFloat(document.getElementById('otAmount').value) || 0;
+    if(amount <= 0) throw new Error('Enter an amount greater than 0');
+    const row = {
+      date: document.getElementById('otDate').value,
+      shareholder_name: document.getElementById('otShareholder').value || 'Unspecified',
+      amount, channel: document.getElementById('otChannel').value,
+      notes: document.getElementById('otNote').value || null
+    };
+    if(!row.date) throw new Error('Pick a date');
+
+    if(editingOwnerTxn){
+      // Switching type (injection <-> withdrawal) moves the row to the other table —
+      // delete from the original, insert into the new one — rather than an in-place update.
+      const targetTable = type==='injection' ? 'capital_injections' : 'capital_withdrawals';
+      const originalTable = editingOwnerTxn.kind==='Injection' ? 'capital_injections' : 'capital_withdrawals';
+      if(targetTable === originalTable){
+        await sbPatch(`${originalTable}?id=eq.${editingOwnerTxn.id}`, row);
+      } else {
+        await sbPost(targetTable, row);
+        await sbDelete(`${originalTable}?id=eq.${editingOwnerTxn.id}`);
+      }
+    } else {
+      await sbPost(type==='injection' ? 'capital_injections' : 'capital_withdrawals', row);
+    }
+    closeOwnerTxnModal();
+    notify(editingOwnerTxn ? 'Transaction updated' : (type==='injection'?'Injection':'Withdrawal')+' of '+fmt(amount)+' ETB recorded');
+    await loadAndRender();
+  } catch(err){
+    notify(err.message || 'Could not save transaction', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function refreshOwnerTxnList(){
+  const tbody = document.getElementById('otListTbody');
+  tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">Loading…</td></tr>`;
+  try{
+    let rows = [];
+    const inj = await sbGet('capital_injections?select=id,date,shareholder_name,amount,channel,notes&order=date.desc') || [];
+    rows = rows.concat(inj.map(r=>({...r, kind:'Injection'})));
+    const wd = await sbGet('capital_withdrawals?select=id,date,shareholder_name,amount,channel,notes&order=date.desc') || [];
+    rows = rows.concat(wd.map(r=>({...r, kind:'Withdrawal'})));
+    rows.sort((a,b)=> (a.date<b.date?1:-1));
+    document.getElementById('otCount').textContent = rows.length;
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">No owner injections or withdrawals recorded yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.date}${r.notes ? '<br><span style="color:var(--tl);font-size:10.5px">'+r.notes+'</span>' : ''}</td>
+        <td>${r.shareholder_name||'—'}</td>
+        <td>${CH_LABEL[r.channel]||r.channel}</td>
+        <td class="num"><span class="ent-tag ${r.kind==='Injection'?'in':'out'}">${r.kind}</span> ${fmt(r.amount)}</td>
+        <td style="white-space:nowrap">
+          <button class="ent-del-btn" style="color:var(--tm)" onclick='editOwnerTxn(${JSON.stringify(r).replace(/'/g,"&#39;")})'>Edit</button>
+          <button class="ent-del-btn" onclick="deleteOwnerTxn('${r.id}','${r.kind}')">Delete</button>
+        </td>
+      </tr>`).join('');
+  } catch(err){
+    tbody.innerHTML = `<tr><td colspan="5" class="ent-empty">Could not load history</td></tr>`;
+  }
+}
+
+function editOwnerTxn(row){
+  openOwnerTxnModal(row);
+  switchOwnerTxnTab('add');
+}
+
+async function deleteOwnerTxn(id, kind){
+  if(!confirm(kind+' will be permanently deleted, including its effect on that month\'s cash balance. Continue?')) return;
+  try{
+    const table = kind==='Injection' ? 'capital_injections' : 'capital_withdrawals';
+    await sbDelete(`${table}?id=eq.${id}`);
+    notify(kind+' deleted');
+    await refreshOwnerTxnList();
+    await loadAndRender();
+  } catch(err){
+    notify('Could not delete: ' + (err.message||''), 'error');
+  }
+}
+
 /* ════════════════ HEADER / MONTH PICKER WIRING ════════════════
    Sidebar, topbar, notif panel, user panel, export-menu toggling, toast,
    and sign-out are all handled by the shared sidebar.js/header.js/app-state.js
@@ -1348,6 +1525,7 @@ async function refreshForMonth(monthKey){
   });
 
   loadAndRender();
+  loadShareholders(); // for the Owner Injection/Withdrawal modal's shareholder dropdown — non-blocking
 })();
 </script>
 </body>
