@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/css/shared-shell.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed=true"></script>
 <style>
+input,select,textarea,button{box-sizing:border-box}
 h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
 
 /* ══ SETTINGS TABS ══════════════════════════════════ */
@@ -28,6 +29,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .card-bd{padding:4px 17px 18px}
 .settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
 .settings-grid.two{grid-template-columns:1.3fr 1fr}
+.settings-grid .span-2{grid-column:span 2}
 
 /* ══ FORM ═══════════════════════════════════════════ */
 .f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
@@ -35,9 +37,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .f-grp{display:flex;flex-direction:column;gap:5px}
 .f-grp label{font-size:11.5px;font-weight:700;color:var(--tm)}
 .f-grp .hint{font-size:10.5px;font-weight:500;color:var(--tl);margin-top:-1px}
-.f-grp input,.f-grp select,.f-grp textarea{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none;background:#fff;width:100%}
+.f-grp input,.f-grp select,.f-grp textarea,
+.bal-inp input,.thresh-inp input,.acct-inp input,.acct-inp select
+{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--td);outline:none;background:#fff;width:100%;box-sizing:border-box}
 .f-grp input:disabled{background:#f5f8f6;color:var(--tl);cursor:not-allowed}
-.f-grp input:focus,.f-grp select:focus,.f-grp textarea:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.12)}
+.f-grp input:focus,.f-grp select:focus,.f-grp textarea:focus,
+.bal-inp input:focus,.thresh-inp input:focus,.acct-inp input:focus,.acct-inp select:focus
+{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.12)}
 .f-grp textarea{resize:vertical;min-height:52px;font-family:'Nunito',sans-serif}
 .f-suffix{position:relative}
 .f-suffix input{padding-right:34px}
@@ -97,6 +103,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .thresh-hint{font-size:10.5px;color:var(--tl);margin-top:1px}
 .thresh-inp{width:100px;flex-shrink:0}
 .thresh-inp input{text-align:right}
+.thresh-grp-hd{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--tl);padding:14px 0 4px;margin-top:4px}
 
 .acct-row{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #f0f5f2}
 .acct-row:last-child{border-bottom:none}
@@ -167,6 +174,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 @media (max-width:900px){
   .settings-grid{grid-template-columns:1fr}
   .settings-grid.two{grid-template-columns:1fr}
+  .settings-grid .span-2{grid-column:span 1}
   .f-row{grid-template-columns:1fr}
   .qa-grid{grid-template-columns:repeat(2,1fr)}
   .set-tabs{gap:16px}
@@ -325,7 +333,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
         </div>
 
         <!-- Inventory Opening Balances -->
-        <div class="card" style="grid-column:span 2">
+        <div class="card span-2">
           <div class="card-hd"><div class="card-ttl">Inventory Opening Balances <span id="invObPeriodLbl" style="font-size:10.5px;color:var(--tl);font-weight:600"></span></div></div>
           <div class="card-bd">
             <div class="info-box" style="margin-bottom:12px">
@@ -342,7 +350,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           </div>
         </div>
         <!-- Milling / Production Configuration -->
-        <div class="card" style="grid-column:span 2">
+        <div class="card span-2">
           <div class="card-hd"><div class="card-ttl">Milling &amp; Production Configuration</div></div>
           <div class="card-bd">
             <div class="info-box" style="margin-bottom:12px">
@@ -429,6 +437,126 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
               <thead><tr><th>Alert Type</th><th>Push</th><th>Email</th><th>SMS</th></tr></thead>
               <tbody id="notifMatrixBody"></tbody>
             </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-grid" style="grid-template-columns:1fr;max-width:720px">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Alert Thresholds</div></div>
+          <div class="card-bd">
+            <div class="thresh-grp-hd" style="">Sales & Credit</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Low Sales Alert</div><div class="thresh-hint">Today's sales below this % of the daily average triggers an unusually-low-sales alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLowSales" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Strong Sales Notice</div><div class="thresh-hint">Today's sales above this % of the daily average triggers a strong-sales-day notice.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshHighSales" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Low Sales Check Start Day</div><div class="thresh-hint">Minimum day of month before the low-sales check runs, so early-month averages don't trigger false alerts.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLowSalesDay" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">day of month</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Large Sale Notice Multiplier</div><div class="thresh-hint">A single sale at this multiple of the average order size triggers a large-sale notice.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLargeSale" step="0.1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">×</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Credit Overdue — Critical</div><div class="thresh-hint">Days past payment terms at which an overdue customer balance is shown as critical instead of high.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshCustOverdue" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Inventory</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Expiring Stock Warning</div><div class="thresh-hint">Days before an inventory item's expiry date to start showing an expiring-stock alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshExpiry" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Usage Forecast Window</div><div class="thresh-hint">Lookback window used to compute average daily usage for inventory forecasting.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshInvWindow" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Reorder Lead Time</div><div class="thresh-hint">Days before the projected reorder point to start showing an “order soon” alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshReorderLead" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Purchasing</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Supplier Inactivity</div><div class="thresh-hint">Days since last purchase from a supplier before flagging them as possibly inactive.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshSupplierInactive" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Price Spike Alert</div><div class="thresh-hint">% above an item's rolling 3-purchase average unit price that triggers a price-spike alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshPriceSpike" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Production & Milling</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Milling Yield Target</div><div class="thresh-hint">Expected blend output as % of teff+rice input; runs below this trigger a low-yield alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshMillYield" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Production Target</div><div class="thresh-hint">Production efficiency below this % of monthly target triggers a below-target alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshProdTarget" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Cash & Loans</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Cash Running Low</div><div class="thresh-hint">Cash on hand below this % of monthly overhead triggers a cash-running-low alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshCashLow" step="1"></div>
+              <div class="bal-cur">%</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Loan Due Soon</div><div class="thresh-hint">Days before a loan payment is due to start showing a due-soon alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLoanDueSoon" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Loan Due — Critical</div><div class="thresh-hint">Days before due date at which the loan alert becomes critical instead of high priority.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshLoanCritical" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Payroll</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Payroll Not Processed</div><div class="thresh-hint">Day of month on/after which unpaid active workers trigger a payroll-not-processed alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshPayrollDay" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">day of month</div>
+            </div>
+            <div class="thresh-grp-hd" style="border-top:1px solid var(--border);">Security</div>
+            <div class="thresh-row">
+              <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Failed Login Alert</div><div class="thresh-hint">Number of failed logins from the same email within 24h that triggers a security alert.</div></div>
+              <div class="thresh-inp"><input type="number" id="threshFailedLogin" step="1"></div>
+              <div class="bal-cur" style="width:auto;white-space:nowrap">attempts</div>
+            </div>
+            <div class="info-box" style="background:#eef6fb;border-color:#cfe6f6;color:#1b6ea6">
+              <svg viewBox="0 0 24 24" style="stroke:#2563eb"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              These drive the Dashboard's automatic alerts and notifications across sales, inventory, purchasing, production, cash, payroll, and security.
             </div>
           </div>
         </div>
@@ -520,9 +648,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
               <div class="acct-txt"><div class="acct-lbl">VAT Rate (%)</div></div>
               <div class="acct-inp"><input type="number" id="acctVatRate" step="0.01" disabled></div>
             </div>
+            <div class="acct-row" id="vatRegNumRow" style="opacity:.45">
+              <div class="acct-txt"><div class="acct-lbl">VAT Registration Number</div></div>
+              <div class="acct-inp" style="width:170px"><input type="text" id="acctVatRegNum" disabled></div>
+            </div>
+            <div class="acct-row" id="vatRegDateRow" style="opacity:.45">
+              <div class="acct-txt"><div class="acct-lbl">VAT Registration Date</div></div>
+              <div class="acct-inp" style="width:170px"><input type="date" id="acctVatRegDate" disabled></div>
+            </div>
             <div class="acct-row">
               <div class="acct-txt"><div class="acct-lbl">Round Amounts To</div></div>
-              <div class="acct-inp" style="width:190px">
+              <div class="acct-inp" style="width:230px">
                 <select id="acctRounding">
                   <option>2 Decimal Places (0.01 ETB)</option>
                   <option>Whole Birr (1 ETB)</option>
@@ -802,6 +938,11 @@ function fmt(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:
 function fmt2(n){ return n!=null ? parseFloat(n).toFixed(2) : '0.00'; }
 function val(id){ const el=document.getElementById(id); return el ? el.value : ''; }
 function numVal(id){ const el=document.getElementById(id); return el ? (parseFloat(el.value)||0) : 0; }
+// For NOT NULL alert-threshold columns: an empty field on a first-time save should
+// behave like "no row existed yet" (i.e. the column's real DB default), not silently
+// submit 0 — 0 would make several of these alerts fire on every record (e.g. Failed
+// Login Alert=0, Large Sale Multiplier=0) instead of leaving them at a sane starting point.
+function numValOrDefault(id, dflt){ const el=document.getElementById(id); if(!el || el.value==='') return dflt; const v=parseFloat(el.value); return isNaN(v) ? dflt : v; }
 function setVal(id,v){ const el=document.getElementById(id); if(el && v!=null) el.value=v; }
 
 function getCurrentUser(){
@@ -1470,10 +1611,12 @@ async function saveInventoryOpeningBalances(btn){
 /* ════════════════ VAT FIELD TOGGLE ════════════════ */
 function toggleVatRateField(){
   const on = document.getElementById('acctVat').checked;
-  const row = document.getElementById('vatRateRow');
-  const inp = document.getElementById('acctVatRate');
-  row.style.opacity = on ? '1' : '.45';
-  inp.disabled = !on;
+  [['vatRateRow','acctVatRate'],['vatRegNumRow','acctVatRegNum'],['vatRegDateRow','acctVatRegDate']].forEach(([rowId,inpId])=>{
+    const row = document.getElementById(rowId);
+    const inp = document.getElementById(inpId);
+    row.style.opacity = on ? '1' : '.45';
+    inp.disabled = !on;
+  });
 }
 
 /* ════════════════ DEVICE (BROWSER-LOCAL) PREFERENCES ════════════════ */
@@ -1672,8 +1815,27 @@ async function loadFromSupabase(){
       setVal('threshLowStock', r.low_stock_threshold_pct);
       setVal('threshCredit', r.credit_limit_warning_pct);
       setVal('threshPetty', fmt2(r.petty_cash_daily_limit));
+      setVal('threshLowSales', r.low_sales_pct);
+      setVal('threshHighSales', r.high_sales_pct);
+      setVal('threshLowSalesDay', r.low_sales_min_day_of_month);
+      setVal('threshLargeSale', r.large_sale_multiplier);
+      setVal('threshCustOverdue', r.customer_overdue_critical_days);
+      setVal('threshExpiry', r.expiry_warning_days);
+      setVal('threshInvWindow', r.inventory_usage_window_days);
+      setVal('threshReorderLead', r.reorder_lead_days);
+      setVal('threshSupplierInactive', r.supplier_inactive_days);
+      setVal('threshPriceSpike', r.price_spike_pct);
+      setVal('threshMillYield', r.milling_yield_target_pct);
+      setVal('threshProdTarget', r.production_target_pct);
+      setVal('threshCashLow', r.cash_low_pct);
+      setVal('threshLoanDueSoon', r.loan_due_soon_days);
+      setVal('threshLoanCritical', r.loan_critical_days);
+      setVal('threshPayrollDay', r.payroll_alert_day);
+      setVal('threshFailedLogin', r.failed_login_threshold);
       setVal('acctBankFee', fmt2(r.bank_charge_default_pct));
       setVal('acctVatRate', fmt2(r.vat_rate_pct));
+      setVal('acctVatRegNum', r.vat_registration_number);
+      setVal('acctVatRegDate', r.vat_registration_date);
       document.getElementById('acctVat').checked = !!r.is_vat_registered;
       toggleVatRateField();
       document.getElementById('acctWac').checked = r.use_wac !== false;
@@ -1805,6 +1967,25 @@ async function saveBusinessSettings(btn){
     low_stock_threshold_pct: numVal('threshLowStock'),
     credit_limit_warning_pct: numVal('threshCredit'),
     petty_cash_daily_limit: numVal('threshPetty'),
+    low_sales_pct: numValOrDefault('threshLowSales', 35.00),
+    high_sales_pct: numValOrDefault('threshHighSales', 150.00),
+    low_sales_min_day_of_month: numValOrDefault('threshLowSalesDay', 3),
+    large_sale_multiplier: numValOrDefault('threshLargeSale', 3.00),
+    customer_overdue_critical_days: numValOrDefault('threshCustOverdue', 14),
+    expiry_warning_days: numValOrDefault('threshExpiry', 7),
+    inventory_usage_window_days: numValOrDefault('threshInvWindow', 60),
+    reorder_lead_days: numValOrDefault('threshReorderLead', 7),
+    supplier_inactive_days: numValOrDefault('threshSupplierInactive', 60),
+    price_spike_pct: numValOrDefault('threshPriceSpike', 15.00),
+    milling_yield_target_pct: numValOrDefault('threshMillYield', 90.00),
+    production_target_pct: numValOrDefault('threshProdTarget', 70.00),
+    cash_low_pct: numValOrDefault('threshCashLow', 15.00),
+    loan_due_soon_days: numValOrDefault('threshLoanDueSoon', 10),
+    loan_critical_days: numValOrDefault('threshLoanCritical', 3),
+    payroll_alert_day: numValOrDefault('threshPayrollDay', 25),
+    failed_login_threshold: numValOrDefault('threshFailedLogin', 3),
+    vat_registration_number: val('acctVatRegNum') || null,
+    vat_registration_date: val('acctVatRegDate') || null,
     bank_charge_default_pct: numVal('acctBankFee'),
     vat_rate_pct: numVal('acctVatRate'),
     is_vat_registered: document.getElementById('acctVat').checked,
