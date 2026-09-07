@@ -45,7 +45,6 @@ html{scroll-behavior:smooth}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes riseUp{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes spinIn{from{opacity:0;transform:rotate(-120deg) scale(.6)}to{opacity:1;transform:rotate(0deg) scale(1)}}
-@keyframes slideLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes overlayIn{from{opacity:0}to{opacity:1}}
 @keyframes spin360{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -57,8 +56,6 @@ html{scroll-behavior:smooth}
 /* ENTRY ANIMATIONS */
 .kc-anim{animation:riseUp .65s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d)*75ms)}
 .kc-ico.spin-ready{animation:spinIn .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--d)*75ms + .18s)}
-.sb-a{animation:slideLeft .4s ease both}
-.sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
 .card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
 .cst-main>.card:nth-child(1){animation-delay:.05s}
 .cst-side .card{animation-delay:.1s}
