@@ -808,12 +808,13 @@ function last6Months(ref){
 const priceMonths = last6Months(new Date()).map(m=>m.label);
 
 /* Header chrome (title/sidebar/month-picker/notification bell) is rendered
-   once real data has loaded — see init() at the bottom of this file — rather
-   than eagerly with a hardcoded 2026 month list and two fabricated sample
-   notifications ("Adama Grain Traders was added...", a fake price alert).
-   renderSuppliersHeader() builds the real config each time it's called:
-   months = the actual rolling 6-month window ending on today, and
-   notifications = computed live from real supplier/purchase data. */
+   once, immediately, the same way cashflow.html and the rest of the shared
+   shell do it — with notifications: [] as a placeholder — and the bell is
+   then updated in place via the shared refreshNotifications() global (from
+   header.js) once real data has loaded, instead of re-rendering the whole
+   header. Previously this call used a hardcoded 2026 month list and two
+   fabricated sample notifications ("Adama Grain Traders was added...", a
+   fake price alert) that never reflected real data. */
 function computeSupplierNotifications(){
   const notifications = [];
   const now = new Date();
@@ -830,7 +831,7 @@ function computeSupplierNotifications(){
     const curKey = months[months.length-1].key, prevKey = months[months.length-2].key;
     const itemNames = new Set(allPurchases.filter(p=>p.item_name).map(p=>p.item_name));
     itemNames.forEach(name=>{
-      const [curAvg, prevAvg] = monthlyAvgPriceForItem(name, null, [prevKey, curKey]);
+      const [prevAvg, curAvg] = monthlyAvgPriceForItem(name, null, [prevKey, curKey]);
       if(curAvg!=null && prevAvg!=null && prevAvg>0){
         const changePct = ((curAvg-prevAvg)/prevAvg)*100;
         if(changePct >= spikePct){
@@ -850,9 +851,10 @@ function renderSuppliersHeader(){
     months: months.map(m=>m.label),
     selectedMonth: months[months.length-1].label,
     onMonthChange: () => { renderAll(); },
-    notifications: computeSupplierNotifications()
+    notifications: [] // populated from live data once init() loads suppliers/purchases — see refreshNotifications(computeSupplierNotifications()) below
   });
 }
+renderSuppliersHeader();
 
 let selectedSupplierId = null;
 let curPage = 1;
@@ -2240,7 +2242,6 @@ async function init(){
   }catch(err){ console.log('business_settings unavailable, using default price_spike_pct:', err.message); }
   await loadSuppliersFromSupabase();
   await loadPurchasesFromSupabase();
-  renderSuppliersHeader();
   syncMonthLabels();
   renderKPIs();
   renderSupplierList();
@@ -2248,6 +2249,11 @@ async function init(){
   renderPriceTrend();
   renderRecentPurchases();
   renderPerformanceTable();
+  // Update the bell in place — see the comment above renderSuppliersHeader()
+  // for why this doesn't just call renderHeader() again.
+  if (typeof refreshNotifications === 'function') {
+    refreshNotifications(computeSupplierNotifications());
+  }
 }
 init();
 </script>
