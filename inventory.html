@@ -23,6 +23,7 @@ const db = createClient(
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:hidden;max-width:100%}
 h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
 
 /* ══ KPI ROW ════════════════════════════════════════ */
@@ -83,19 +84,19 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .results-footer{font-size:11.5px;color:var(--tl);font-weight:600;padding:10px 17px 14px}
 
 /* ══ QUICK ACTIONS PILL TOOLBAR ══════════════════════ */
-.qa-toolbar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04)}
+.qa-toolbar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04);max-width:100%}
 .qa-toolbar-label{background:#eaf6ef;color:#1d5c38;font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:8px;white-space:nowrap;font-family:'Quicksand',sans-serif}
 .qa-pill{display:flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--td);transition:background .12s,border-color .12s;white-space:nowrap}
 .qa-pill:hover{background:#f5fbf7;border-color:#52B788}
 .qa-pill svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 
 /* ══ SEARCH & FILTER BAR ═════════════════════════════ */
-.filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04)}
-.filter-search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 12px}
-.filter-search input{border:none;outline:none;font-size:12.5px;flex:1;font-family:'Nunito',sans-serif;color:var(--td);background:transparent}
+.filter-bar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,40,30,.04);max-width:100%}
+.filter-search{flex:1 1 200px;min-width:0;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+.filter-search input{border:none;outline:none;font-size:12.5px;flex:1;min-width:0;font-family:'Nunito',sans-serif;color:var(--td);background:transparent}
 .filter-search svg{width:14px;height:14px;stroke:var(--tl);fill:none;stroke-width:2;flex-shrink:0}
-.filter-sel{border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;font-family:'Nunito',sans-serif;cursor:pointer}
-.filter-date-btn{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;white-space:nowrap}
+.filter-sel{border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;font-family:'Nunito',sans-serif;cursor:pointer;flex-shrink:1;min-width:0;max-width:100%}
+.filter-date-btn{display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--td);background:#fff;white-space:nowrap;flex-shrink:0}
 .filter-date-btn svg{width:14px;height:14px;stroke:var(--tl);fill:none;stroke-width:2}
 .filter-more-btn{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--td);background:#fff;cursor:pointer;white-space:nowrap;transition:background .12s}
 .filter-more-btn:hover{background:var(--bg)}
