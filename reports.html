@@ -101,6 +101,17 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .tbl-sb tr:hover td{background:#f7fbf9}
 .tbl-sb .tot td{font-weight:700;background:#f7fbf9;border-top:1.5px solid var(--border);border-bottom:none;color:var(--td)}
 
+/* Monthly Report (Full Detail) key/value + itemized tables */
+.mtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.mtbl th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--tl);background:#f7fbf9;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.mtbl td{padding:8px 12px;border-bottom:1px solid #f0f5f2;color:var(--td)}
+.mtbl thead th:not(:first-child),.mtbl tbody td:not(:first-child){text-align:right;white-space:nowrap}
+.mtbl:not(:has(thead)) td:first-child{color:var(--tl);font-weight:600;width:60%}
+.mtbl:not(:has(thead)) td:last-child{text-align:right;font-weight:600}
+.mtbl tr:last-child td{border-bottom:none}
+.mtbl tr:hover td{background:#f7fbf9}
+.mtbl strong{color:var(--td)}
+
 /* ══ PILLS / CHIPS ═══════════════════════════════════ */
 .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
 .pill-done{background:#e5f5ed;color:#1a6b3c}
@@ -197,6 +208,9 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .exec-row{flex-direction:column}
   .exec-item{min-width:0}
   .card-hd{flex-wrap:wrap;gap:8px}
+  .mtbl{font-size:11.5px}
+  .mtbl th,.mtbl td{padding:7px 8px}
+  .mtbl:not(:has(thead)) td:first-child{width:auto}
 }
 @media (max-width:520px){
   /* Phones: shrink the P&L pivot table further and let it scroll horizontally */
@@ -205,6 +219,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .kc{min-width:160px}
   .leg{flex-wrap:wrap;gap:8px!important}
   .rpt-sel-grp label{font-size:9.5px}
+  .mtbl{font-size:10.5px}
+  .mtbl th,.mtbl td{padding:6px 6px}
 }
 
 /* ---- Detail modal (View Details links) ---- */
@@ -232,6 +248,16 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .dm-body{padding:14px}
   .dm-body table{font-size:10.5px}
   .dm-body th,.dm-body td{padding:6px 7px}
+}
+
+/* ---- Print / "Export PDF" (browser print-to-PDF) ---- */
+@media print{
+  #sidebar-root,.sb-overlay,.rpt-bar,.dm-overlay,button,select,.footer{display:none!important}
+  .content{padding:0!important}
+  .card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid}
+  body{background:#fff!important}
+  .kc{animation:none!important;box-shadow:none!important;border:1px solid #ddd}
+  .kpi-row{display:grid!important;grid-template-columns:repeat(3,1fr)!important;overflow:visible!important}
 }
 </style>
 </head>
@@ -606,7 +632,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/header.js"></script>
 <script>
 // This page's Supabase client previously created with only the publishable
-// anon key, and never authenticated — every one of this file's 31 db.from()
+// anon key, and never authenticated — every one of this file's 32 db.from()
 // calls ran with no logged-in user identity at all. Session wiring below
 // mirrors cashflow.html's own wireSession() pattern: created here (after
 // app-state.js loads, so loadSession() is available).
@@ -1185,6 +1211,7 @@ async function loadFromSupabase(){
     }
 
     toast('Reports refreshed with live data');
+    refreshHeaderNotifications();
   } catch(err){
     console.error('Reports live-data load failed:', err);
     toast('Could not load live report data — check connection');
@@ -1629,7 +1656,15 @@ function toggleYear(y){
 
 /* ════════════════ YEAR (RANGE) PICKER — driven by header.js month-picker ════════════════ */
 function onRangeChange(range){
-  toast('Range changed to ' + range);
+  const parts = String(range).split('-').map(s=>parseInt(s.trim(), 10));
+  const start = parts[0], end = parts[1];
+  if(isNaN(start) || isNaN(end)) return;
+  const inRange = YEARS_ALL.filter(y=>y>=start && y<=end);
+  if(!inRange.length) return; // no overlap with real data — ignore rather than show an empty report
+  selectedYears = new Set(inRange);
+  renderYearChips();
+  renderAll();
+  toast(`Showing ${start}–${end}`);
 }
 
 /* ════════════════ VIEW TOGGLE ════════════════ */
@@ -3046,11 +3081,57 @@ function doExport(kind){
     URL.revokeObjectURL(url);
     toast(`Exported ${cfg.label} to Excel (CSV)`);
   } else {
-    toast('Generating PDF — this may take a few seconds');
+    toast('Preparing PDF — choose "Save as PDF" in the print dialog');
+    setTimeout(()=>window.print(), 300);
   }
 }
 
 /* ════════════════ HEADER ════════════════ */
+/* Real notices computed from actual loaded data — replaces the previous
+   hardcoded fake array (invented dates/figures/margins). Called once data
+   has loaded; pushed to header.js only if it exposes an update hook, so
+   this never throws or fabricates anything if it doesn't. */
+function buildLiveNotifications(){
+  const notices = [];
+  const yearsWithData = YEARS_ALL.filter(y=>yearData[y] && yearData[y].months && yearData[y].months.length);
+  if(!yearsWithData.length) return notices;
+
+  const sorted = [...yearsWithData].sort((a,b)=>a-b);
+  const latest = sorted[sorted.length-1];
+
+  if(sorted.length>=2){
+    const g = growthPct('net', sorted);
+    if(g!=null){
+      notices.push({ type: g>=0?'g':'r',
+        title:`Net Profit ${g>=0?'Up':'Down'} ${Math.abs(g).toFixed(1)}% YoY`,
+        sub:`${latest} vs ${sorted[0]}`, time:'Live' });
+    }
+  }
+
+  if(topCustomers.length){
+    const top = topCustomers[0];
+    notices.push({ type:'b', title:`${top.name} is the Top Customer`,
+      sub:`${fmt0(top._total)} ETB in cumulative revenue across all years`, time:'Live' });
+  }
+
+  const t = yearTotals(latest);
+  if(t.rev>0){
+    notices.push({ type: t.margin>=15?'g':(t.margin>=0?'o':'r'),
+      title:`${latest} Net Margin: ${t.margin.toFixed(1)}%`,
+      sub: latest===Math.max(...YEARS_ALL) ? 'Year to date' : 'Full year', time:'Live' });
+  }
+
+  return notices.slice(0,4);
+}
+function refreshHeaderNotifications(){
+  const notices = buildLiveNotifications();
+  if(!notices.length) return;
+  try {
+    if(typeof window.setHeaderNotifications==='function') window.setHeaderNotifications(notices);
+    else if(typeof window.updateHeaderNotifications==='function') window.updateHeaderNotifications(notices);
+  } catch(e){ /* best-effort — never block report rendering on this */ }
+}
+
 renderHeader({
   title: 'Multi-Year Reporting',
   subtitle: 'Compare performance across years',
@@ -3061,12 +3142,15 @@ renderHeader({
   showExport: true,
   onExportPdf: () => doExport('pdf'),
   onExportXlsx: () => doExport('excel'),
-  notifications: [
-    { type:'g', title:'2025 Year-End Close Complete', sub:'Closing inventory balances carried forward as 2026 opening balances', time:'3 days ago · Jan 2, 2026' },
-    { type:'b', title:'Multi-Year Report Exported', sub:'4-Year YoY P&L Summary exported to Excel successfully', time:'5 hours ago · Jun 30, 2026' },
-    { type:'o', title:'Net Profit Margin Improved', sub:'2026 YTD margin of 21.4% is the highest on record', time:'Yesterday · Jun 29, 2026' },
-    { type:'g', title:'Addis Hotel Remains Top Customer', sub:'239,820.00 ETB in cumulative revenue across all years', time:'2 days ago · Jun 28, 2026' }
-  ]
+  // Notifications were previously 4 hardcoded fake entries (invented dates,
+  // invented ETB figures, invented margin %). No live notification feed is
+  // wired into this page yet — left empty rather than showing fabricated
+  // data. See buildLiveNotifications()/refreshHeaderNotifications() above:
+  // once loadFromSupabase() resolves, real notices (computed from actual
+  // yearData/topCustomers) are pushed in if header.js exposes an update
+  // hook (setHeaderNotifications/updateNotifications), same pattern other
+  // modules use for their bell notices.
+  notifications: []
 });
 
 /* ════════════════ INIT ════════════════
