@@ -344,7 +344,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
                 </div>
                 <div class="ent-field" id="entTypeWrap" style="display:none">
                   <div class="ent-hint" style="margin-top:0">
-                    For a capital injection, capital withdrawal, or profit distribution, use the <b>Distribution</b> page instead — for a loan, use the <b>Loans</b> page. Those already record it properly and it'll show up here automatically. This Regular Entry is only for financing activity that has no page of its own.
+                    For a capital injection or withdrawal, use the <b>Owner Injection / Withdrawal</b> button in Quick Actions instead — for a loan, use the <b>Loans</b> page, for a profit distribution use <b>Distribution</b>. Those already record it properly and it'll show up here automatically. This Regular Entry is only for financing activity that has no button or page of its own.
                   </div>
                 </div>
               </div>
@@ -1259,7 +1259,10 @@ async function submitRegularEntry(){
   const channel = document.getElementById('entChannel').value;
   const direction = document.getElementById('entDirection').value;
   const category = document.getElementById('entCategory').value;
-  const entry_type = category === 'financing' ? (document.getElementById('entType').value || null) : null;
+  // Financing entries no longer have a sub-type dropdown here (see entTypeWrap hint) —
+  // capital injection/withdrawal/loan/distribution all moved to their own buttons/pages,
+  // so anything reaching this form under Financing is genuinely "other financing" (null).
+  const entry_type = null;
   const description = document.getElementById('entDescription').value.trim();
 
   if(!date) throw new Error('Pick a date');
