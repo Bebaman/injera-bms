@@ -27,7 +27,7 @@ html,body{overflow-x:hidden;max-width:100%}
 h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
 
 /* ══ KPI ROW ════════════════════════════════════════ */
-.kpi-row{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px;margin-bottom:16px;padding-top:4px}
+.kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px;padding-top:4px}
 .kc{background:#fff;border-radius:12px;padding:16px 15px 14px;border:1px solid var(--border);box-shadow:var(--sh);position:relative}
 .kc-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:11px}
 .kc-ico svg{width:21px;height:21px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -56,7 +56,8 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .vall{font-size:12px;font-weight:600;color:#27ae60;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:3px}
 .vall svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 .rsel{border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--td);cursor:pointer;background:#fff;font-family:'Nunito',sans-serif;outline:none}
-.chart-box{padding:0 17px 16px}
+.chart-box{padding:0 17px 16px;flex:1;display:flex;flex-direction:column}
+.chart-box canvas{flex:1}
 .leg{display:flex;gap:16px;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--tm)}
 .leg-ln{display:inline-block;width:20px;height:2.5px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
@@ -269,7 +270,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 
 /* ── Tablet (≤1024px) — matches dashboard.html's breakpoint ── */
 @media (max-width:1024px){
-  .kpi-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}
   .qa-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   #invTableWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
@@ -277,7 +278,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 /* ── Small tablet / large phone (≤900px) ── */
 @media (max-width:900px){
   .content{padding:12px;max-width:100%;overflow-x:hidden}
-  .kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}
   .card{overflow:hidden;min-width:0;max-width:100%}
   .ph-body{grid-template-columns:1fr}
   .qa-toolbar,.filter-bar{padding:10px 12px}
@@ -446,7 +447,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option>This Month</option><option>Last 6 Months</option>
           </select>
         </div>
-        <div style="position:relative;min-height:250px;padding:10px 17px 17px;flex:1">
+        <div class="chart-box" style="flex:1">
           <canvas id="valueTrendChart"></canvas>
         </div>
       </div>
@@ -474,7 +475,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <div class="card-ttl">Stock Aging</div>
           <span style="font-size:11px;color:var(--tl);font-weight:500">By Days Since Last Purchase</span>
         </div>
-        <div style="position:relative;min-height:250px;padding:10px 17px 17px;flex:1">
+        <div class="chart-box" style="flex:1">
           <canvas id="stockAgingChart"></canvas>
         </div>
       </div>
@@ -524,7 +525,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
             <option value="Large Bags" data-unit="pcs">Large Bags</option>
           </select>
         </div>
-        <div style="position:relative;min-height:180px;padding:10px 17px 4px;flex:1">
+        <div class="chart-box" style="flex:1;min-height:180px">
           <canvas id="priceChart"></canvas>
         </div>
         <div class="ph-note" id="phNote" style="padding:6px 17px 14px">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
