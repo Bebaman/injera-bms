@@ -266,6 +266,18 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .kc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
 .exp-btn,.inv-tab,.qa-btn{transition:all .15s ease}
 
+/* ══ PROPORTIONAL SCALING ═════════════════════════════
+   Everything (text, icons, padding, gaps) shrinks together as the
+   screen narrows, rather than reflowing into a different layout.
+   zoom applies to the whole subtree uniformly — no px values need
+   to change individually. Chained with existing breakpoints below. */
+@media (max-width:1200px){ .main{zoom:0.92} }
+@media (max-width:1024px){ .main{zoom:0.85} }
+@media (max-width:900px){  .main{zoom:0.78} }
+@media (max-width:700px){  .main{zoom:0.7} }
+@media (max-width:480px){  .main{zoom:0.6} }
+@media (max-width:360px){  .main{zoom:0.52} }
+
 @media (max-width:900px){
   .content{padding:12px;max-width:100%;overflow-x:hidden}
   .kpi-row{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
