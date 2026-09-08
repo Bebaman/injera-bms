@@ -87,7 +87,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .bal-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .bal-ic svg{width:17px;height:17px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .bal-lbl{font-size:12.5px;font-weight:600;color:var(--td);flex:1}
-.bal-inp{width:130px;flex-shrink:0}
+.bal-inp{width:145px;flex-shrink:0}
 .bal-inp input{text-align:right}
 .bal-cur{font-size:11.5px;font-weight:700;color:var(--tl);width:30px;flex-shrink:0}
 .bal-total{display:flex;align-items:center;padding-top:12px;margin-top:4px;border-top:1.5px solid var(--border)}
@@ -101,7 +101,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .thresh-txt{flex:1;min-width:0}
 .thresh-lbl{font-size:12.5px;font-weight:600;color:var(--td)}
 .thresh-hint{font-size:10.5px;color:var(--tl);margin-top:1px}
-.thresh-inp{width:100px;flex-shrink:0}
+.thresh-inp{width:115px;flex-shrink:0}
 .thresh-inp input{text-align:right}
 .thresh-grp-hd{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--tl);padding:14px 0 4px;margin-top:4px}
 
@@ -110,7 +110,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .acct-txt{flex:1;min-width:0}
 .acct-lbl{font-size:12.5px;font-weight:600;color:var(--td)}
 .acct-hint{font-size:10.5px;color:var(--tl);margin-top:1px}
-.acct-inp{width:90px;flex-shrink:0}
+.acct-inp{width:118px;flex-shrink:0}
 .acct-inp input,.acct-inp select{text-align:right}
 
 /* ══ NOTIFICATION MATRIX ═══════════════════════════ */
@@ -658,9 +658,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             </div>
             <div class="acct-row">
               <div class="acct-txt"><div class="acct-lbl">Round Amounts To</div></div>
-              <div class="acct-inp" style="width:230px">
+              <div class="acct-inp" style="width:205px">
                 <select id="acctRounding">
-                  <option>2 Decimal Places (0.01 ETB)</option>
+                  <option>2 Decimals (0.01 ETB)</option>
                   <option>Whole Birr (1 ETB)</option>
                 </select>
               </div>
@@ -1839,7 +1839,7 @@ async function loadFromSupabase(){
       document.getElementById('acctVat').checked = !!r.is_vat_registered;
       toggleVatRateField();
       document.getElementById('acctWac').checked = r.use_wac !== false;
-      document.getElementById('acctRounding').value = r.rounding_mode === 'whole' ? 'Whole Birr (1 ETB)' : '2 Decimal Places (0.01 ETB)';
+      document.getElementById('acctRounding').value = r.rounding_mode === 'whole' ? 'Whole Birr (1 ETB)' : '2 Decimals (0.01 ETB)';
       millConfig = {
         teff_item_id: r.teff_item_id, rice_item_id: r.rice_item_id,
         blend_item_id: r.blend_item_id, mill_supplier_id: r.mill_supplier_id
