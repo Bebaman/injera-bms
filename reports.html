@@ -328,7 +328,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <label>&nbsp;</label>
           <span class="last-upd" id="lastUpdatedLbl">
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-            Last Updated: Jun 30, 2026 10:30 AM
+            <span id="lastUpdatedTxt">Loading…</span>
           </span>
         </div>
       </div>
@@ -366,7 +366,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         </div>
         <div class="info-note">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span id="yoyPartialNote">2026 data includes months up to May only.</span>
+          <span id="yoyPartialNote">Loading…</span>
         </div>
       </div>
 
@@ -459,7 +459,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <table class="tbl-sb" id="retentionTable" style="font-size:10.5px"></table>
         </div>
         <div class="info-note" style="border-top:none;padding-top:0">
-          <span>"New" / "Churned" rows are illustrative pending real roster-entry tracking.</span>
+          <span>"New" / "Churned" rows are based on each customer's real first/last sale period.</span>
         </div>
       </div>
     </div>
@@ -624,7 +624,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
     <div id="monthlySnapshotView" style="display:none"></div>
 
   </div><!-- /content -->
-  <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+  <footer class="footer">© <span id="footerYear">2026</span> Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
 </div>
 
 <script src="/js/app-state.js"></script>
@@ -637,6 +637,9 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 // mirrors cashflow.html's own wireSession() pattern: created here (after
 // app-state.js loads, so loadSession() is available).
 const { createClient } = supabase;
+if(!window.SB_URL || !window.SB_KEY){
+  throw new Error('Supabase configuration is missing (window.SB_URL/SB_KEY not set).');
+}
 const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
 (function wireSession(){
   const session = loadSession();
@@ -644,7 +647,7 @@ const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
     db.auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token
-    }).catch(()=>{});
+    }).catch(err=>{ console.error('Supabase session restore failed:', err); });
   }
 })();
 </script>
@@ -655,31 +658,46 @@ const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
    grouped by period (YYYY-MM) and year. This mirrors the year-end close
    architecture in Part 3.15 of the spec: comparisons only make sense once
    WAC has been reset per year, so all 4 years below are treated as CLOSED
-   except 2026, which is YTD through May. */
+   except the current year, which is YTD through the most recent month with data. */
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const YEARS_ALL = [2023,2024,2025,2026];
-const YEAR_COLOR = {2023:'#1d5c38', 2024:'#2563eb', 2025:'#f59e0b', 2026:'#e53935'};
+// CURRENT_YEAR drives every "(YTD)" label and closed-vs-open-year check in
+// this file — was previously hardcoded to 2026 in ~20 places, which would
+// have silently gone stale on Jan 1 of the following year.
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS_ALL = [2023,2024,2025,CURRENT_YEAR];
+const YEAR_COLOR = {2023:'#1d5c38', 2024:'#2563eb', 2025:'#f59e0b', [CURRENT_YEAR]:'#e53935'};
 
-// Fallback dataset — used until/unless Supabase aggregation succeeds.
-// Numbers match the reference Multi-Year Reporting screenshot exactly.
-// All of the below are populated live by loadFromSupabase() — see that
-// function for exactly which real tables/views back each one. Starting as
-// empty shells (not fabricated placeholder numbers) since the database may
-// genuinely have no data yet for some years/periods, and showing zero/blank
-// is more honest than showing a plausible-looking invented number.
+// Empty report state used before/unless Supabase aggregation succeeds. No
+// fabricated fallback numbers are used anywhere in this file — every figure
+// shown is either a real live number or a blank/zero, never an invented
+// placeholder. All of the below are populated live by loadFromSupabase() —
+// see that function for exactly which real tables/views back each one.
+function emptyYearData(){
+  return {
+    months: Array.from({length:12}, (_,i)=>({
+      m: MONTH_ABBR[i], hasData:false, rev:0, net:0, cogs:0, opex:0, interest:0,
+      gross:0, operatingProfit:0, injeraRev:0, derkoshRev:0,
+      injeraQty:0, derkoshQty:0, injeraAsp:null, derkoshAsp:null
+    })),
+    injera:0, derkosh:0, asp:null, derkoshAsp:null, injeraRev:0, derkoshRev:0, opex:0, interest:0
+  };
+}
 let yearData = {};
-let topCustomers = [];       // [{id, name, y2023..y2026}], populated from real sales
+YEARS_ALL.forEach(y=>{ yearData[y] = emptyYearData(); }); // seeded up front so the
+// very first renderAll() (fired by setView() before loadFromSupabase() has
+// resolved) has safe zeroed data instead of hitting yearData[y] === undefined.
+let topCustomers = [];       // [{id, name, y2023..yCURRENT_YEAR, firstPeriod, lastPeriod}], populated from real sales
 let custMonthlyReal = {};    // custMonthlyReal[customerId][period] = revenue, for custMonthly()
 let ingredientMonthly = {};  // ingredientMonthly[key][year] = [12 values or null], key in blend/corn/gomen/teff/rice
 let derkoshAsp = {};         // derkoshAsp[year] = avg ETB/kg for the year (annual); monthly handled via derkoshAspMonthly
 let derkoshAspMonthly = {};  // derkoshAspMonthly[year] = [12 values or null]
 let cogsComponentAmounts = {}; // cogsComponentAmounts[year] = {blend,corn,gomen,teff,rice,labor,fuel,packaging} in real ETB
-let churnExamples = [];      // computed from real first/last sale year per customer
-const COGS_COMPONENT_LABELS = {blend:'Injera Blend', corn:'Corn', gomen:'Gomen Zere', labor:'Labor', fuel:'Fuel/Energy', packaging:'Packaging'};
-const COGS_COMPONENT_COLORS = {blend:'#1d5c38', corn:'#2563eb', gomen:'#f59e0b', labor:'#8b5cf6', fuel:'#0891b2', packaging:'#9aada5'};
+let churnExamples = [];      // computed from real first/last sale period per customer
+const COGS_COMPONENT_LABELS = {blend:'Injera Blend', corn:'Corn', gomen:'Gomen Zere', teff:'Teff', rice:'Rice', labor:'Labor', fuel:'Fuel/Energy', packaging:'Packaging'};
+const COGS_COMPONENT_COLORS = {blend:'#1d5c38', corn:'#2563eb', gomen:'#f59e0b', teff:'#a16207', rice:'#0d9488', labor:'#8b5cf6', fuel:'#0891b2', packaging:'#9aada5'};
 
-let selectedYears = new Set([2023,2024,2025,2026]);
+let selectedYears = new Set(YEARS_ALL);
 let currentView = 'monthly'; // 'annual' | 'monthly'
 let currentReport = 'yoy_pl';
 let charts = {};
@@ -687,22 +705,35 @@ let charts = {};
 function fmt(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmt0(n){ return Math.round(Number(n)).toLocaleString('en-US'); }
 function marginOf(rev,net){ return rev>0 ? (net/rev*100) : 0; }
-function monthsInYear(y){ return yearData[y].months.length; }
-
-function yearTotals(y){
+// Chronological month count for the year (0-12) — used throughout as a
+// positional loop bound (i<monthsInYear(y)), so it must stay array-length
+// semantics, not a count of which months happen to have real data (a data
+// gap earlier in the year would otherwise misalign every later index).
+// Safe against yearData[y] being undefined because every year is pre-seeded
+// with emptyYearData() below and rebuilt the same way in loadFromSupabase().
+function monthsInYear(y){
   const d = yearData[y];
-  const rev = d.months.reduce((s,m)=>s+m.rev,0);
-  const net = d.months.reduce((s,m)=>s+m.net,0);
-  const cogs = d.months.reduce((s,m)=>s+(m.cogs||0),0);
-  return {rev, net, cogs, margin: marginOf(rev,net)};
+  if(!d || !Array.isArray(d.months)) return 0;
+  return d.months.length;
 }
 
-// Revenue share of a given month within its year — used to distribute
-// annual-only figures (production volumes, customer totals) into a
-// reasonable monthly estimate when the Monthly view is selected.
-function monthRevShare(year, i){
-  const t = yearTotals(year).rev;
-  return t>0 ? yearData[year].months[i].rev / t : 0;
+// Revenue → COGS → Gross Profit → OpEx → Operating Profit → Interest → Net,
+// all summed from real per-month figures computed in loadFromSupabase().
+// NOTE on COGS: monthly_pnl.total_cogs (via production_batch_costs /
+// derkosh_batch_costs) already has that period's full monthly_overhead
+// allocated into it — confirmed directly against the live view definitions.
+// Adding total_overhead on top of total_cogs (as the previous version of
+// this file did) double-counts overhead. COGS here is total_cogs alone.
+function yearTotals(y){
+  const d = yearData[y] || emptyYearData();
+  const rev = d.months.reduce((s,m)=>s+num(m.rev),0);
+  const cogs = d.months.reduce((s,m)=>s+num(m.cogs),0);
+  const opex = d.months.reduce((s,m)=>s+num(m.opex),0);
+  const interest = d.months.reduce((s,m)=>s+num(m.interest),0);
+  const gross = rev - cogs;
+  const operatingProfit = gross - opex;
+  const net = operatingProfit - interest;
+  return {rev, cogs, opex, interest, gross, operatingProfit, net, margin: marginOf(rev,net)};
 }
 
 /* ════════════════ METRIC REGISTRY ════════════════
@@ -740,8 +771,13 @@ function productRevenueSplit(y){
    Real component amounts (ETB), computed live in loadFromSupabase() from:
    blend/corn/gomen/teff/rice = consumption × that period's WAC; labor =
    payroll_detail; fuel = Electricity overhead; packaging = derkosh_batches
-   bag usage × WAC. Total is the sum of the parts themselves (not re-derived
-   from revenue), so this always reconciles with what's shown per component. */
+   bag usage × WAC. This total is the sum of the parts themselves (always
+   internally consistent), but is NOT guaranteed to equal monthly_pnl's
+   total_cogs field: payroll_detail (labor, here) is tracked separately from
+   monthly_overhead (which is what's actually allocated into total_cogs), so
+   the two totals can legitimately differ. renderCogsDecompChart labels this
+   "Decomposed COGS" rather than claiming it equals the P&L's official COGS,
+   and only calls out a match when the two happen to land within 0.01. */
 function cogsPctFor(y){
   const amt = cogsComponentAmounts[y] || {};
   const total = Object.values(amt).reduce((s,v)=>s+(v||0), 0);
@@ -765,14 +801,13 @@ function concentrationShare(y, n){
 }
 
 /* ---- Operating Expenses / Operating Profit ─────────────────────────
-   No separate opex/tax/interest layer is tracked in this dataset, so
-   Operating Expenses is modeled as the gap between Gross Profit and the
-   already-tracked Net Profit, and Operating Profit is set equal to Net
-   Profit — this keeps Revenue → COGS → Gross → OpEx → Net internally
-   consistent with real per-month net figures rather than inventing a
-   second, disconnected number. */
-function operatingExpensesOf(y){ return grossProfitOf(yearTotals(y).rev, yearTotals(y).cogs) - yearTotals(y).net; }
-function operatingProfitOf(y){ return yearTotals(y).net; }
+   Real fields from yearTotals(): opex is summed from monthly_pnl.total_opex
+   per month, operatingProfit = gross - opex. Previously this file modeled
+   OpEx as "Gross Profit minus Net Profit" (a residual, since no real opex
+   field was being read at all) — now that total_opex is read directly per
+   month in loadFromSupabase(), it's used as-is instead of reverse-engineered. */
+function operatingExpensesOf(y){ return yearTotals(y).opex; }
+function operatingProfitOf(y){ return yearTotals(y).operatingProfit; }
 
 const METRICS = {
   revenue: { label:'Revenue', unit:'ETB', decimals:0, color:'#1d5c38', icon:'money', cls:'ic-g',
@@ -797,13 +832,13 @@ const METRICS = {
     monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.rev>0 ? (cogsOf(r)/r.rev*100) : null; },
     annual:(y)=>{ const t=yearTotals(y); return t.rev>0 ? cogsOf(t)/t.rev*100 : 0; } },
   injera: { label:'Injera Produced', unit:'pcs', decimals:0, color:'#1d5c38', icon:'box', cls:'ic-b',
-    monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].injera*monthRevShare(y,i) : null,
+    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.hasData ? r.injeraQty : null; },
     annual:(y)=> yearData[y].injera },
   derkosh: { label:'Derkosh Produced', unit:'kg', decimals:0, color:'#f59e0b', icon:'clock', cls:'ic-o',
-    monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].derkosh*monthRevShare(y,i) : null,
+    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.hasData ? r.derkoshQty : null; },
     annual:(y)=> yearData[y].derkosh },
   asp: { label:'Avg. Selling Price (Injera)', unit:'ETB/pcs', decimals:2, color:'#2563eb', icon:'basket', cls:'ic-b',
-    monthly:(y,i)=> i<monthsInYear(y) ? yearData[y].asp : null,
+    monthly:(y,i)=>{ const r=yearData[y].months[i]; return r && r.hasData ? r.injeraAsp : null; },
     annual:(y)=> yearData[y].asp },
   derkoshAsp: { label:'Avg. Selling Price (Derkosh)', unit:'ETB/kg', decimals:2, color:'#f59e0b', icon:'basket', cls:'ic-o',
     monthly:(y,i)=> (i<monthsInYear(y) && derkoshAspMonthly[y] && derkoshAspMonthly[y][i]!=null) ? derkoshAspMonthly[y][i] : null,
@@ -1059,6 +1094,19 @@ async function loadFromSupabase(){
       db.from('inventory_items').select('id,name')
     ]);
 
+    // Supabase's client returns {data, error} — it does not throw on a failed
+    // query. Each of the previous `.data||[]` fallbacks below would have
+    // silently treated a genuine query failure (bad column, RLS block, network
+    // blip on one of the nine calls) exactly the same as "table legitimately
+    // has zero rows", masking real errors as empty data. Check every result.
+    const queryLabels = ['monthly_pnl','sales','production_batches','derkosh_batches',
+      'production_batch_materials','monthly_wac','payroll_detail','monthly_overhead','inventory_items'];
+    const results = [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes, wacRes, payrollRes, overheadRes, itemsRes];
+    const failed = results.map((r,i)=>({r,i})).filter(({r})=>r.error);
+    if(failed.length){
+      throw new Error('Query failed for: ' + failed.map(({r,i})=>`${queryLabels[i]} (${r.error.message})`).join('; '));
+    }
+
     const pnlByPeriod = Object.fromEntries((pnlRes.data||[]).map(r=>[r.period, r]));
     const payrollByPeriod = {};
     (payrollRes.data||[]).forEach(r=>{ payrollByPeriod[r.period] = (payrollByPeriod[r.period]||0) + num(r.gross_pay); });
@@ -1079,10 +1127,13 @@ async function loadFromSupabase(){
       const wac = (wacByItemPeriod[r.pkg_item_id] && wacByItemPeriod[r.pkg_item_id][r.period]) || 0;
       packagingCostByPeriod[r.period] = (packagingCostByPeriod[r.period]||0) + num(r.bags_used)*wac;
     });
-    // Blend/Corn/Gomen material cost per period: consumption × that period's WAC
-    const materialCostByPeriod = { blend:{}, corn:{}, gomen:{} };
+    // Blend/Corn/Gomen/Teff/Rice material cost per period: consumption × that period's WAC.
+    // Teff and Rice were previously declared in ingredientMonthly/METRICS (price tracking)
+    // but never actually included here, so their COGS-decomposition amounts were always 0.
+    const materialCostByPeriod = { blend:{}, corn:{}, gomen:{}, teff:{}, rice:{} };
     const materialKeyByItemId = {
-      [idByName['Injera Blend']]: 'blend', [idByName['Corn']]: 'corn', [idByName['Gomen Zere']]: 'gomen'
+      [idByName['Injera Blend']]: 'blend', [idByName['Corn']]: 'corn', [idByName['Gomen Zere']]: 'gomen',
+      [idByName['Teff']]: 'teff', [idByName['Rice']]: 'rice'
     };
     (prodMatRes.data||[]).forEach(r=>{
       const key = materialKeyByItemId[r.item_id];
@@ -1124,30 +1175,56 @@ async function loadFromSupabase(){
     YEARS_ALL.forEach(y=>{
       const nMonths = y < currentYear ? 12 : (y === currentYear ? today.getMonth()+1 : 0);
       const months = [];
-      let injeraRevYear=0, derkoshRevYear=0;
-      const compAmt = {blend:0,corn:0,gomen:0,labor:0,fuel:0,packaging:0};
+      const compAmt = {blend:0,corn:0,gomen:0,teff:0,rice:0,labor:0,fuel:0,packaging:0};
       const derkoshAspArr = [];
       Object.keys(ingredientMonthly).forEach(k=>{ ingredientMonthly[k][y] = []; });
 
       for(let i=0;i<nMonths;i++){
         const period = `${y}-${pad2(i+1)}`;
-        const pnl = pnlByPeriod[period] || {injera_revenue:0,derkosh_revenue:0,total_revenue:0,total_cogs:0,total_overhead:0,total_opex:0,interest_expense:0};
+        const pnl = pnlByPeriod[period];
         const labor = payrollByPeriod[period] || 0;
-        const cogs = num(pnl.total_cogs) + num(pnl.total_overhead) + labor;
-        const rev = num(pnl.total_revenue);
-        const net = rev - cogs - num(pnl.total_opex) - num(pnl.interest_expense);
-        months.push({ m: MONTH_ABBR[i], rev, net, cogs, injeraRev: num(pnl.injera_revenue), derkoshRev: num(pnl.derkosh_revenue) });
-        injeraRevYear += num(pnl.injera_revenue); derkoshRevYear += num(pnl.derkosh_revenue);
+        const iQty = injeraQtyByPeriod[period] || 0;
+        const dQty = derkoshKgByPeriod[period] || 0;
+        const iQtySold = injeraQtyByPeriodSales[period] || 0, iRevSold = injeraRevByPeriodSales[period] || 0;
+        const dQtySold = derkoshQtyByPeriodSales[period] || 0, dRevSold = derkoshRevByPeriodSales[period] || 0;
+        // A period "has data" if it's backed by real recorded activity anywhere
+        // (a monthly_pnl row, production, or sales) — not just because it's
+        // chronologically ≤ today. A past month nobody has entered data for
+        // yet stays excluded from monthsInYear()-driven averages/CAGR/etc.
+        const hasData = !!pnl || iQty>0 || dQty>0 || iQtySold>0 || dQtySold>0;
+        // COGS = monthly_pnl.total_cogs alone. Verified against the live
+        // production_batch_costs/derkosh_batch_costs view definitions: that
+        // field already has 100% of the period's monthly_overhead allocated
+        // into it (material_cost + overhead_cost + other_cost per batch), so
+        // adding total_overhead again double-counts overhead. payroll_detail
+        // is a separate table not referenced anywhere in the monthly_pnl view
+        // at all, so it's tracked only in the COGS decomposition (below), not
+        // added into this top-line figure.
+        const cogs = pnl ? num(pnl.total_cogs) : 0;
+        const rev = pnl ? num(pnl.total_revenue) : 0;
+        const opex = pnl ? num(pnl.total_opex) : 0;
+        const interest = pnl ? num(pnl.interest_expense) : 0;
+        const gross = rev - cogs;
+        const operatingProfit = gross - opex;
+        const net = operatingProfit - interest;
+        const injeraAsp = iQtySold>0 ? iRevSold/iQtySold : null;
+        const derkoshAspVal = dQtySold>0 ? dRevSold/dQtySold : null;
+        months.push({
+          m: MONTH_ABBR[i], hasData, rev, net, cogs, opex, interest, gross, operatingProfit,
+          injeraRev: pnl ? num(pnl.injera_revenue) : 0, derkoshRev: pnl ? num(pnl.derkosh_revenue) : 0,
+          injeraQty: iQty, derkoshQty: dQty, injeraAsp, derkoshAsp: derkoshAspVal
+        });
 
         compAmt.blend += materialCostByPeriod.blend[period] || 0;
         compAmt.corn += materialCostByPeriod.corn[period] || 0;
         compAmt.gomen += materialCostByPeriod.gomen[period] || 0;
+        compAmt.teff += materialCostByPeriod.teff[period] || 0;
+        compAmt.rice += materialCostByPeriod.rice[period] || 0;
         compAmt.labor += labor;
         compAmt.fuel += electricityByPeriod[period] || 0;
         compAmt.packaging += packagingCostByPeriod[period] || 0;
 
-        const dQty = derkoshQtyByPeriodSales[period]||0, dRev = derkoshRevByPeriodSales[period]||0;
-        derkoshAspArr[i] = dQty>0 ? dRev/dQty : null;
+        derkoshAspArr[i] = derkoshAspVal;
 
         Object.entries(ingredientKeyToItemId).forEach(([key,itemId])=>{
           const wac = itemId && wacByItemPeriod[itemId] ? wacByItemPeriod[itemId][period] : null;
@@ -1162,10 +1239,10 @@ async function loadFromSupabase(){
 
       yearData[y] = {
         months,
-        injera: Object.keys(injeraQtyByPeriod).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+injeraQtyByPeriod[p],0),
-        derkosh: Object.keys(derkoshKgByPeriod).filter(p=>p.startsWith(y+'-')).reduce((s,p)=>s+derkoshKgByPeriod[p],0),
+        injera: months.reduce((s,m)=>s+m.injeraQty,0),
+        derkosh: months.reduce((s,m)=>s+m.derkoshQty,0),
         asp: injeraQtyYear>0 ? injeraRevYearSales/injeraQtyYear : null,
-        injeraRev: injeraRevYear, derkoshRev: derkoshRevYear
+        injeraRev: months.reduce((s,m)=>s+m.injeraRev,0), derkoshRev: months.reduce((s,m)=>s+m.derkoshRev,0)
       };
       cogsComponentAmounts[y] = compAmt;
       derkoshAsp[y] = derkoshQtyYear>0 ? derkoshRevYearSales/derkoshQtyYear : null;
@@ -1191,7 +1268,8 @@ async function loadFromSupabase(){
     // Churn/new detection: years (among YEARS_ALL) where the company has any
     // sales at all define the tracked window; a customer is "new" if their
     // first tracked-year revenue isn't the earliest tracked year, "churned"
-    // if a later tracked year exists with zero revenue from them.
+    // if a later tracked year exists with zero revenue from them. Real data
+    // throughout — not illustrative placeholders.
     const yearsWithCompanyData = YEARS_ALL.filter(y=>allCustomers.some(c=>(c['y'+y]||0)>0));
     churnExamples = [];
     if(yearsWithCompanyData.length>1){
@@ -1210,13 +1288,18 @@ async function loadFromSupabase(){
                         ...churnedOnes.slice(0,2).map(c=>({...c, name:c.name+' (Churned)'}))];
     }
 
+    const lbl = document.getElementById('lastUpdatedTxt');
+    if(lbl) lbl.textContent = 'Last Updated: ' + today.toLocaleString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+
     toast('Reports refreshed with live data');
     refreshHeaderNotifications();
   } catch(err){
     console.error('Reports live-data load failed:', err);
     toast('Could not load live report data — check connection');
+    const lbl = document.getElementById('lastUpdatedTxt');
+    if(lbl) lbl.textContent = 'Last Updated: — (load failed)';
     // Leave empty shells in place rather than fabricating numbers.
-    YEARS_ALL.forEach(y=>{ if(!yearData[y]) yearData[y] = { months:[], injera:0, derkosh:0, asp:null, injeraRev:0, derkoshRev:0 }; });
+    YEARS_ALL.forEach(y=>{ if(!yearData[y]) yearData[y] = emptyYearData(); });
   }
   renderAll();
 }
@@ -1274,7 +1357,7 @@ async function loadMonthlySnapshot(){
 
   try {
     const prevPeriod = prevPeriodOf(snapshotPeriod);
-    const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshCostRes,
+    const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshBatchRes,
            prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
            stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes] = await Promise.all([
       db.from('monthly_pnl').select('*').eq('period', snapshotPeriod),
@@ -1284,8 +1367,8 @@ async function loadMonthlySnapshot(){
       db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date'),
       db.from('sales').select('date,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted',false).eq('period',snapshotPeriod),
       db.from('production_batch_costs').select('*').eq('period', snapshotPeriod),
-      db.from('derkosh_batch_costs').select('*').eq('period', snapshotPeriod),
-      db.from('production_batches').select('type').eq('is_deleted',false).eq('period',snapshotPeriod),
+      db.from('derkosh_batches').select('produced_kg').eq('is_deleted',false).eq('period', snapshotPeriod),
+      db.from('production_batches').select('type,injera_qty').eq('is_deleted',false).eq('period',snapshotPeriod),
       db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.period', snapshotPeriod).eq('production_batches.is_deleted', false),
       db.from('payroll_detail').select('gross_pay').eq('period', snapshotPeriod),
       db.from('monthly_overhead').select('amount,overhead_categories(name)').eq('period', snapshotPeriod),
@@ -1297,6 +1380,17 @@ async function loadMonthlySnapshot(){
       db.from('report_notes').select('*').eq('period', snapshotPeriod),
       db.from('batch_standards').select('*')
     ]);
+    const snapQueryLabels = ['monthly_pnl(current)','monthly_pnl(prev)','monthly_cash_flow','purchases','milling_conversions',
+      'sales','production_batch_costs','derkosh_batches','production_batches','production_batch_materials',
+      'payroll_detail','monthly_overhead','inventory_items','inventory_opening_balances','inventory_balance',
+      'stock_alerts','period_closes','report_notes','batch_standards'];
+    const snapResults = [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshBatchRes,
+      prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
+      stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes];
+    const snapFailed = snapResults.map((r,i)=>({r,i})).filter(({r})=>r.error);
+    if(snapFailed.length){
+      throw new Error('Query failed for: ' + snapFailed.map(({r,i})=>`${snapQueryLabels[i]} (${r.error.message})`).join('; '));
+    }
     renderMonthlySnapshot({
       pnl: pnlRes.data?.[0]||null,
       prevPnl: prevPnlRes.data?.[0]||null,
@@ -1305,7 +1399,7 @@ async function loadMonthlySnapshot(){
       millings: millRes.data||[],
       sales: salesRes.data||[],
       prodCosts: prodCostRes.data||[],
-      derkoshCosts: derkoshCostRes.data||[],
+      derkoshBatches: derkoshBatchRes.data||[],
       batchTypes: prodBatchRes.data||[],
       prodMaterials: prodMatRes.data||[],
       payroll: payrollRes.data||[],
@@ -1327,10 +1421,18 @@ async function loadMonthlySnapshot(){
 function renderMonthlySnapshot(d){
   const label = periodLabelFull(snapshotPeriod);
   const p = d.pnl || {};
-  const totalCogsIas2 = num(p.total_cogs)+num(p.total_overhead); // materials + overhead (labor not in this view — see Purchases/Payroll for that detail)
-  const netApprox = num(p.total_revenue) - totalCogsIas2 - num(p.total_opex) - num(p.interest_expense);
+  // total_cogs already has 100% of that period's overhead allocated into it
+  // (verified against the live production_batch_costs/derkosh_batch_costs
+  // view definitions — overhead_cost is folded into each batch's total_cost,
+  // and total_cogs sums those). total_overhead is the same overhead figure
+  // exposed again for breakdown purposes only — adding it here would double
+  // it. Labor/payroll is tracked via payroll_detail, which the monthly_pnl
+  // view never references at all, so it's shown in Purchases/Payroll detail
+  // below, not folded into this top-line COGS either.
+  const totalCogs = num(p.total_cogs);
+  const netApprox = num(p.total_revenue) - totalCogs - num(p.total_opex) - num(p.interest_expense);
   const rev = num(p.total_revenue);
-  const grossMargin = rev>0 ? (rev-totalCogsIas2)/rev*100 : null;
+  const grossMargin = rev>0 ? (rev-totalCogs)/rev*100 : null;
   const netMargin = rev>0 ? netApprox/rev*100 : null;
 
   const itemNameById = Object.fromEntries((d.items||[]).map(it=>[it.id, it.name]));
@@ -1344,8 +1446,8 @@ function renderMonthlySnapshot(d){
     else if(netMargin>=0) health = {label:'Thin Margins', cls:'ic-o', icon:'percent'};
     else health = {label:'Loss-Making', cls:'ic-r', icon:'trend'};
   }
-  const injeraProducedTotal = (d.prodCosts||[]).reduce((s,b)=>s+num(b.injera_qty),0);
-  const derkoshProducedTotal = (d.derkoshCosts||[]).reduce((s,b)=>s+num(b.produced_kg),0);
+  const injeraProducedTotal = (d.batchTypes||[]).reduce((s,b)=>s+num(b.injera_qty),0);
+  const derkoshProducedTotal = (d.derkoshBatches||[]).reduce((s,b)=>s+num(b.produced_kg),0);
   const execBullets = [];
   execBullets.push({icon:'clock', cls:'ic-c', html:`<b>Reporting period:</b> ${label}`});
   if(d.prevPnl){
@@ -1371,14 +1473,14 @@ function renderMonthlySnapshot(d){
       <tr><td>Injera Revenue</td><td>${fmt0(p.injera_revenue)}</td></tr>
       <tr><td>Derkosh Revenue</td><td>${fmt0(p.derkosh_revenue)}</td></tr>
       <tr><td><strong>Total Revenue</strong></td><td><strong>${fmt0(p.total_revenue)}</strong></td></tr>
-      <tr><td>Materials COGS (Injera Blend/Corn/Gomen Zere)</td><td>${fmt0(p.total_cogs)}</td></tr>
-      <tr><td>Overhead (Electricity/Water/Rent/Maintenance/Other)</td><td>${fmt0(p.total_overhead)}</td></tr>
-      <tr><td><strong>Gross Profit</strong></td><td><strong>${fmt0(rev-totalCogsIas2)}</strong></td></tr>
+      <tr><td>COGS (Materials + Production Overhead, per batch)</td><td>${fmt0(totalCogs)}</td></tr>
+      <tr><td style="padding-left:24px;color:var(--muted)">&nbsp;&nbsp;of which: Overhead (Electricity/Water/Rent/Maintenance/Other) — included above</td><td style="color:var(--muted)">${fmt0(p.total_overhead)}</td></tr>
+      <tr><td><strong>Gross Profit</strong></td><td><strong>${fmt0(rev-totalCogs)}</strong></td></tr>
       <tr><td>Operating Expenses</td><td>${fmt0(p.total_opex)}</td></tr>
       <tr><td>Finance Costs (Interest)</td><td>${fmt0(p.interest_expense)}</td></tr>
       <tr><td><strong>Net Profit (approx.)</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
     </tbody></table>
-    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into Materials COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown.</div>`;
+    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown. "Net Profit (approx.)" excludes bank charges, depreciation, and asset-disposal gains/losses, which aren't yet modeled in this report.</div>`;
 
   // ══ 3. CASH FLOW SUMMARY ══
   let cfHtml = '<div class="dm-note">No cash flow data for this month yet.</div>';
@@ -1470,20 +1572,22 @@ function renderMonthlySnapshot(d){
   const openingValue = (d.openingBal||[]).reduce((s,r)=>s+num(r.opening_value),0);
   const closingValue = (d.closingBal||[]).reduce((s,r)=>s+num(r.closing_value),0);
   const purchasesValue = (d.purchases||[]).filter(p=>p.type==='purchase').reduce((s,p)=>s+num(p.total_cost),0);
-  const consumptionValue = openingValue + purchasesValue - closingValue;
+  const inventoryValueChange = closingValue - openingValue;
   const lowStock = (d.stockAlerts||[]).filter(s=>s.low_stock);
   const invHtml = `
     <table class="mtbl"><tbody>
       <tr><td>Opening Inventory Value</td><td>${fmt0(openingValue)}</td></tr>
       <tr><td>Purchases (Materials)</td><td>${fmt0(purchasesValue)}</td></tr>
-      <tr><td>Consumption</td><td>${fmt0(consumptionValue)}</td></tr>
+      <tr><td>Inventory Value Change</td><td>${inventoryValueChange>=0?'+':''}${fmt0(inventoryValueChange)}</td></tr>
       <tr><td><strong>Closing Inventory Value</strong></td><td><strong>${fmt0(closingValue)}</strong></td></tr>
     </tbody></table>
+    <div class="dm-note">Inventory Value Change is Closing minus Opening — it isn't the same as consumption (this report has no inventory-movement ledger to separate consumption from shrinkage/waste/write-offs).</div>
     <div style="margin-top:12px">
       <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Low-Stock Items ${lowStock.length?`(${lowStock.length})`:''}</div>
       ${lowStock.length
         ? `<table class="mtbl"><tbody>${lowStock.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.closing_qty)} on hand (reorder at ${fmt(s.reorder_level)})</td></tr>`).join('')}</tbody></table>`
         : '<div class="dm-note">No items currently below reorder level.</div>'}
+      <div class="dm-note">Reflects current stock levels as of today, not historical stock for ${label} — the underlying data has no per-period history to look back on.</div>
     </div>`;
 
   // ══ 7. ITEMIZED PURCHASES ══
@@ -1535,7 +1639,7 @@ function renderMonthlySnapshot(d){
       <tr><td><strong>Other Operating Expenses</strong></td><td><strong>${fmt0(otherOpexTotal)}</strong></td></tr>
       ${Object.entries(opexByCat).map(([name,v])=>`<tr><td style="padding-left:24px;font-size:11.5px;color:var(--tl)">${name}</td><td style="font-size:11.5px;color:var(--tl)">${fmt0(v)}</td></tr>`).join('')}
     </tbody></table>
-    <div class="dm-note">Milling-related expense categories (Sifting Fees, Grinding Fees, Delivery In, Milling Material Transport) are excluded here since they're already folded into Materials COGS — see the P&amp;L note above and the Milling Conversions table.</div>`;
+    <div class="dm-note">Milling-related expense categories (Sifting Fees, Grinding Fees, Delivery In, Milling Material Transport) are excluded here since they're already folded into COGS — see the P&amp;L note above and the Milling Conversions table.</div>`;
 
   // ══ 10. KEY BUSINESS KPIS ══
   const totalProdCost = (d.prodCosts||[]).reduce((s,b)=>s+num(b.total_cost),0);
@@ -1544,7 +1648,7 @@ function renderMonthlySnapshot(d){
   const revenuePerInjera = injeraProducedTotal>0 ? num(p.injera_revenue)/injeraProducedTotal : null;
   const profitPerInjera = (costPerInjera!=null && revenuePerInjera!=null) ? revenuePerInjera-costPerInjera : null;
   const avgInventory = (openingValue+closingValue)/2;
-  const inventoryTurnover = avgInventory>0 ? totalCogsIas2/avgInventory : null;
+  const inventoryTurnover = avgInventory>0 ? totalCogs/avgInventory : null;
   const kpiRows = [
     ['Gross Margin', grossMargin!=null ? grossMargin.toFixed(1)+'%' : '—'],
     ['Net Margin', netMargin!=null ? netMargin.toFixed(1)+'%' : '—'],
@@ -1601,12 +1705,13 @@ function renderMonthlySnapshot(d){
 async function saveManagerComment(){
   const val = document.getElementById('mgrComment').value;
   try {
-    await db.from('report_notes').upsert({
+    const { error } = await db.from('report_notes').upsert({
       period: snapshotPeriod,
       manager_comment: val,
       updated_by: currentUserId(),
       updated_at: new Date().toISOString()
     }, { onConflict: 'period' });
+    if(error) throw error;
     toast('Comment saved');
   } catch(err){
     console.error('Save comment failed:', err);
@@ -1615,21 +1720,28 @@ async function saveManagerComment(){
 }
 
 async function approvePeriod(){
+  const uid = currentUserId();
+  if(!uid){
+    toast('Sign in required to approve a period');
+    return;
+  }
   try {
-    await db.from('period_closes').upsert({
+    const { error: e1 } = await db.from('period_closes').upsert({
       period: snapshotPeriod,
       closed_at: new Date().toISOString(),
-      closed_by: currentUserId(),
+      closed_by: uid,
       locked: true
     }, { onConflict: 'period' });
-    await db.from('report_notes').upsert({
+    if(e1) throw e1;
+    const { error: e2 } = await db.from('report_notes').upsert({
       period: snapshotPeriod,
       accountant_approved: true,
-      approved_by: currentUserId(),
+      approved_by: uid,
       approved_at: new Date().toISOString(),
-      updated_by: currentUserId(),
+      updated_by: uid,
       updated_at: new Date().toISOString()
     }, { onConflict: 'period' });
+    if(e2) throw e2;
     toast('Period marked as approved');
     loadMonthlySnapshot();
   } catch(err){
@@ -1812,11 +1924,12 @@ function renderCustomerKpis(years, view, monthIdx){
     return {name:c.name, total:sum, c};
   });
   const grandTotal = totals.reduce((s,t)=>s+t.total,0);
-  const top = totals.reduce((a,b)=> b.total>a.total?b:a, totals[0]);
+  const top = totals.length ? totals.reduce((a,b)=> b.total>a.total?b:a) : {name:'—', total:0, c:null};
   const companyRevAgg = kpiAggregate('revenue', years, view, monthIdx).value;
   const topShare = companyRevAgg>0 ? (top.total/companyRevAgg*100) : 0;
   const concentration = grandTotal>0 ? (top.total/grandTotal*100) : 0;
   const topGrowth = (()=>{
+    if(!top.c) return null;
     const sorted=[...years].sort((a,b)=>a-b);
     if(sorted.length<2) return null;
     const firstY=sorted[0], lastY=sorted[sorted.length-1];
@@ -1904,7 +2017,7 @@ function renderYoyPlPivotTable(years){
   const showCagr = fullYears.length>=2;
 
   let thead = '<thead><tr><th>Account</th>';
-  sorted.forEach(y=>{ thead += `<th>${y===2026 ? `2026 (YTD)<br><span style="font-weight:600;text-transform:none;font-size:9px">Jan\u2013${MONTH_ABBR[monthsInYear(y)-1]}</span>` : y}</th>`; });
+  sorted.forEach(y=>{ thead += `<th>${y===CURRENT_YEAR ? `${y} (YTD)<br><span style="font-weight:600;text-transform:none;font-size:9px">Jan\u2013${MONTH_ABBR[monthsInYear(y)-1]}</span>` : y}</th>`; });
   for(let i=1;i<sorted.length;i++){
     thead += `<th>YoY Change<br><span style="font-weight:600;text-transform:none;font-size:9px">(${sorted[i]}${monthsInYear(sorted[i])<12?' YTD':''} vs ${sorted[i-1]})</span></th>`;
   }
@@ -1960,9 +2073,9 @@ function renderYoyPlPivotTable(years){
   tbody += '</tbody>';
   table.innerHTML = thead + tbody;
 
-  const has2026Partial = sorted.includes(2026) && monthsInYear(2026)<12;
-  document.getElementById('yoyPartialNote').innerHTML = (has2026Partial
-    ? `2026 data includes January\u2013${MONTH_ABBR[monthsInYear(2026)-1]} only (YTD). `
+  const hasCurrentYearPartial = sorted.includes(CURRENT_YEAR) && monthsInYear(CURRENT_YEAR)<12;
+  document.getElementById('yoyPartialNote').innerHTML = (hasCurrentYearPartial
+    ? `${CURRENT_YEAR} data includes January\u2013${MONTH_ABBR[monthsInYear(CURRENT_YEAR)-1]} only (YTD). `
     : '') + `<span class="var-fav" style="font-weight:700">\u25CF</span> Best in Period &nbsp; <span class="var-unfav" style="font-weight:700">\u25CF</span> Lowest in Period` +
     (showCagr ? ` &nbsp; * CAGR calculated across full years only (${fullYears[0]}\u2013${fullYears[fullYears.length-1]}).` : '');
 }
@@ -2017,7 +2130,7 @@ function renderMainTable(){
 
     tbody = '<tbody>';
     years.forEach(y=>{
-      tbody += `<tr><td>${y===2026?'2026 (YTD)':y}</td>`;
+      tbody += `<tr><td>${yHead(y)}</td>`;
       cols.forEach(c=>{
         const v = view==='annual' ? METRICS[c].annual(y) : METRICS[c].monthly(y,monthIdx);
         tbody += `<td>${v==null?'-':formatMetric(c,v)}</td>`;
@@ -2029,9 +2142,9 @@ function renderMainTable(){
 
   table.innerHTML = thead + tbody;
 
-  const has2026Partial = years.includes(2026) && monthsInYear(2026) < 12;
-  document.getElementById('yoyPartialNote').textContent = has2026Partial
-    ? `2026 data includes months up to ${MONTH_ABBR[monthsInYear(2026)-1]} only.`
+  const hasCurrentYearPartial = years.includes(CURRENT_YEAR) && monthsInYear(CURRENT_YEAR) < 12;
+  document.getElementById('yoyPartialNote').textContent = hasCurrentYearPartial
+    ? `${CURRENT_YEAR} data includes months up to ${MONTH_ABBR[monthsInYear(CURRENT_YEAR)-1]} only.`
     : 'All selected years show full 12 months of data.';
 }
 
@@ -2044,36 +2157,28 @@ function renderCustomerMainTable(years, view, monthIdx){
   const table = document.getElementById('yoyTable');
   let thead = '<thead><tr><th>Customer</th>';
   const singleCol = view==='monthly' && monthIdx!==-1;
-  if(singleCol){ thead += `<th>${MONTH_ABBR[monthIdx]} Revenue</th>`; }
-  else { years.forEach(y=>{ thead += `<th>${y===2026?'2026 (YTD)':y} Revenue</th>`; }); }
+  if(singleCol){ years.forEach(y=>{ thead += `<th>${MONTH_ABBR[monthIdx]} ${y===CURRENT_YEAR?`${y} (YTD)`:y}</th>`; }); }
+  else { years.forEach(y=>{ thead += `<th>${y===CURRENT_YEAR?`${y} (YTD)`:y} Revenue</th>`; }); }
   thead += '</tr></thead>';
 
   let tbody = '<tbody>';
   const rowTotals = years.reduce((acc,y)=>{ acc[y]=0; return acc; }, {});
-  let grand = 0;
   topCustomers.forEach(c=>{
     tbody += `<tr><td>${c.name}</td>`;
-    if(singleCol){
-      const v = custMonthly(c, years[years.length-1] || YEARS_ALL[YEARS_ALL.length-1], monthIdx) || 0;
+    years.forEach(y=>{
+      const v = singleCol ? (custMonthly(c,y,monthIdx)||0) : custAnnual(c,y);
+      rowTotals[y]+=v;
       tbody += `<td>${fmt0(v)}</td>`;
-      grand += v;
-    } else {
-      years.forEach(y=>{
-        const v = custAnnual(c,y);
-        rowTotals[y]+=v; grand+=v;
-        tbody += `<td>${fmt0(v)}</td>`;
-      });
-    }
+    });
     tbody += '</tr>';
   });
   tbody += '<tr class="tot"><td>Total</td>';
-  if(singleCol){ tbody += `<td>${fmt0(grand)}</td>`; }
-  else { years.forEach(y=>{ tbody += `<td>${fmt0(rowTotals[y])}</td>`; }); }
+  years.forEach(y=>{ tbody += `<td>${fmt0(rowTotals[y])}</td>`; });
   tbody += '</tr></tbody>';
 
   table.innerHTML = thead + tbody;
   document.getElementById('yoyPartialNote').textContent = singleCol
-    ? `Showing real ${MONTH_ABBR[monthIdx]} revenue per customer.`
+    ? `Showing real ${MONTH_ABBR[monthIdx]} revenue per customer for each selected year.`
     : 'Customer totals are cumulative for each year shown; a customer may appear across multiple years.';
 }
 
@@ -2114,7 +2219,7 @@ function destroyChart(key){ if(charts[key]){ charts[key].destroy(); delete chart
 // this is what makes "Monthly view" meaningfully different from "Annual".
 function buildChartSeries(metricKeys, years, view, monthIdx){
   if(view==='annual' || monthIdx!==-1){
-    const labels = years.map(y=> y===2026 ? '2026 (YTD)' : String(y));
+    const labels = years.map(y=>yHead(y));
     const series = metricKeys.map(k=>({
       key:k, label:METRICS[k].label, color:METRICS[k].color,
       data: years.map(y=> view==='annual' ? METRICS[k].annual(y) : METRICS[k].monthly(y,monthIdx))
@@ -2123,7 +2228,7 @@ function buildChartSeries(metricKeys, years, view, monthIdx){
   }
   const k = metricKeys[0];
   const series = years.map(y=>({
-    key:String(y), label: y===2026?'2026 (YTD)':String(y), color: YEAR_COLOR[y],
+    key:String(y), label: yHead(y), color: YEAR_COLOR[y],
     data: MONTH_ABBR.map((mm,i)=> i<monthsInYear(y) ? METRICS[k].monthly(y,i) : null)
   }));
   return {labels:MONTH_ABBR, series, xIsYear:false};
@@ -2154,7 +2259,7 @@ function renderMainChart(){
     titleEl.textContent = (view==='monthly'&&monthIdx===-1) ? `Top Customers — Monthly (${years[years.length-1]||''})` : 'Top Customers by Revenue';
     let labels, datasets;
     if(view==='annual' || monthIdx!==-1){
-      labels = years.map(y=>y===2026?'2026 (YTD)':String(y));
+      labels = years.map(y=>yHead(y));
       datasets = top3.map((c,idx)=>({
         label:c.name, data: years.map(y=> view==='annual'?custAnnual(c,y):custMonthly(c,y,monthIdx)),
         backgroundColor:['#1d5c38','#2563eb','#f59e0b'][idx], borderRadius:3, barPercentage:0.65,
@@ -2212,10 +2317,11 @@ function renderSubChart(){
 
   if(cfg.special==='customers'){
     titleEl.textContent = 'Top Customer Share of Revenue';
+    if(!topCustomers.length){ drawSubChart(canvas, [], [], '#1d5c38', v=>v.toFixed(1)+'%'); return; }
     const top = topCustomers[0];
     let labels, data;
     if(view==='annual' || monthIdx!==-1){
-      labels = years.map(y=>y===2026?'2026 (YTD)':String(y));
+      labels = years.map(y=>yHead(y));
       data = years.map(y=>{
         const cv = view==='annual'?custAnnual(top,y):custMonthly(top,y,monthIdx);
         const rv = view==='annual'?METRICS.revenue.annual(y):METRICS.revenue.monthly(y,monthIdx);
@@ -2240,7 +2346,7 @@ function renderSubChart(){
     titleEl.textContent = '3-Month Rolling Average — ' + m.label;
     let labels, data;
     if(view==='annual' || monthIdx!==-1){
-      labels = years.map(y=>y===2026?'2026 (YTD)':String(y));
+      labels = years.map(y=>yHead(y));
       data = years.map(y=>{
         const mi = view==='annual' ? monthsInYear(y)-1 : monthIdx;
         return rollingAvg(ing, y, mi, 3);
@@ -2294,7 +2400,7 @@ function drawSubChart(canvas, labels, data, color, fmtFn){
 function buildRollingSeries(ing, window, years, view, monthIdx){
   const m = METRICS[ing];
   if(view==='annual' || monthIdx!==-1){
-    const labels = years.map(y=>y===2026?'2026 (YTD)':String(y));
+    const labels = years.map(y=>yHead(y));
     const data = years.map(y=>{
       const mi = view==='annual' ? monthsInYear(y)-1 : monthIdx;
       return rollingAvg(ing, y, mi, window);
@@ -2307,7 +2413,7 @@ function buildRollingSeries(ing, window, years, view, monthIdx){
 }
 
 /* ════════════════ NEW ANALYTICS WIDGETS (yoy_pl view) ════════════════ */
-function yoyYearLabels(years){ return years.map(y=>y===2026?'2026 (YTD)':String(y)); }
+function yoyYearLabels(years){ return years.map(y=>yHead(y)); }
 
 function updateExtraSectionsVisibility(){
   const isYoy = currentReport==='yoy_pl';
@@ -2348,9 +2454,23 @@ function renderProductMixChart(){
   const canvas = document.getElementById('productMixChart');
   if(!canvas || currentReport!=='yoy_pl') return;
   const years = selYears();
-  const labels = yoyYearLabels(years);
-  const injPct = years.map(y=>productRevenueSplit(y).injeraPct);
-  const derPct = years.map(y=>productRevenueSplit(y).derkoshPct);
+  let labels, injPct, derPct;
+  if(currentView==='monthly' && selMonthIdx()===-1){
+    labels = MONTH_ABBR;
+    const displayYear = years[years.length-1];
+    const monthMix = (i)=>{
+      const m = yearData[displayYear]?.months?.[i];
+      if(!m || !m.hasData) return {inj:null, der:null};
+      const total = num(m.injeraRev) + num(m.derkoshRev);
+      return total>0 ? {inj: num(m.injeraRev)/total*100, der: num(m.derkoshRev)/total*100} : {inj:0, der:0};
+    };
+    injPct = MONTH_ABBR.map((_,i)=>monthMix(i).inj);
+    derPct = MONTH_ABBR.map((_,i)=>monthMix(i).der);
+  } else {
+    labels = yoyYearLabels(years);
+    injPct = years.map(y=>productRevenueSplit(y).injeraPct);
+    derPct = years.map(y=>productRevenueSplit(y).derkoshPct);
+  }
   charts.mix = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels, datasets:[
@@ -2422,7 +2542,7 @@ function renderRetentionTable(){
 
   let thead = '<thead><tr><th>Customer</th>';
   years.forEach((y,idx)=>{
-    thead += `<th style="text-align:right">${y===2026?'2026 (YTD)':y}</th>`;
+    thead += `<th style="text-align:right">${yHead(y)}</th>`;
     if(idx>0) thead += `<th style="text-align:right">Change</th>`;
   });
   thead += '</tr></thead>';
@@ -2506,7 +2626,7 @@ function closeDetailModal(){
 }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDetailModal(); });
 
-function yHead(y){ return y===2026 ? '2026 (YTD)' : String(y); }
+function yHead(y){ return y===CURRENT_YEAR ? `${y} (YTD)` : String(y); }
 
 function showPerUnitDetail(){
   const years = selYears().slice().sort((a,b)=>a-b);
@@ -2536,16 +2656,18 @@ function showProductMixDetail(){
 function showCogsDecompDetail(){
   const years = selYears().slice().sort((a,b)=>a-b);
   const keys = Object.keys(COGS_COMPONENT_LABELS);
-  let thead = '<tr><th>Year</th><th>Total COGS (ETB)</th>' + keys.map(k=>`<th>${COGS_COMPONENT_LABELS[k]}</th>`).join('') + '</tr>';
+  let thead = '<tr><th>Year</th><th>Decomposed COGS (ETB)</th><th>Official P&amp;L COGS</th>' + keys.map(k=>`<th>${COGS_COMPONENT_LABELS[k]}</th>`).join('') + '</tr>';
   let rows = '';
   years.forEach(y=>{
     const c = cogsComponents(y);
     const pct = cogsPctFor(y);
-    rows += `<tr><td>${yHead(y)}</td><td>${fmt0(c.total)}</td>` +
+    const officialCogs = yearTotals(y).cogs;
+    const matches = Math.abs(c.total - officialCogs) < 0.01;
+    rows += `<tr><td>${yHead(y)}</td><td>${fmt0(c.total)}</td><td>${matches?'<span style="color:var(--tl)">matches</span>':fmt0(officialCogs)}</td>` +
       keys.map(k=>`<td>${fmt0(c.parts[k])} <span style="color:var(--tl);font-size:10px">(${pct[k].toFixed(1)}%)</span></td>`).join('') + '</tr>';
   });
   const html = `<table><thead>${thead}</thead><tbody>${rows}</tbody></table>
-    <div class="dm-note">Total COGS and every component below are real amounts: blend/corn/gomen/teff/rice from actual consumption × that period's weighted-average cost, labor from real payroll, fuel from Electricity overhead, packaging from real Derkosh bag usage.</div>`;
+    <div class="dm-note">Every component is a real amount: blend/corn/gomen/teff/rice from actual consumption × that period's weighted-average cost, labor from real payroll, fuel from Electricity overhead, packaging from real Derkosh bag usage. "Decomposed COGS" is the sum of those parts — it can legitimately differ from the "Official P&amp;L COGS" figure (monthly_pnl.total_cogs) because payroll is tracked separately from the overhead pool that actually feeds the official figure.</div>`;
   openDetailModal('COGS Decomposition — Detail', html);
 }
 
@@ -2587,7 +2709,7 @@ function showRetentionDetail(){
     tbody += '</tr>';
   });
   const html = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
-    <div class="dm-note">Top 10 customers are real, tracked revenue. "New in 2024" / "Churned 2025" are illustrative rows pending real roster-entry/exit tracking — swap these for genuine joiner/leaver detection once customer history spans enough periods to detect it.</div>`;
+    <div class="dm-note">Top 10 customers are real, tracked revenue. "New" / "Churned" rows are computed from each customer's actual first/last year with sales — not placeholders.</div>`;
   openDetailModal('Top Customer Retention / Churn — Detail (All Tracked Customers)', html);
 }
 
@@ -2623,7 +2745,7 @@ function renderBottomCharts(){
       const c = topCustomers[idx];
       const color = ['#1d5c38','#f59e0b','#2563eb'][idx];
       if(view==='annual' || monthIdx!==-1){
-        labels = years.map(y=>y===2026?'2026 (YTD)':String(y));
+        labels = years.map(y=>yHead(y));
         series = [{data: years.map(y=> view==='annual'?custAnnual(c,y):custMonthly(c,y,monthIdx)), color}];
       } else {
         const lastY = years[years.length-1] || YEARS_ALL[YEARS_ALL.length-1];
@@ -2755,7 +2877,7 @@ function renderCumulativeChart(){
     ? ('Running Average ' + m.label + ' (YTD)')
     : ('Cumulative ' + m.label + ' (YTD Pacing)');
   document.getElementById('cumulativeLegend').innerHTML = years.map(y=>
-    `<span><span class="leg-ln" style="background:${YEAR_COLOR[y]}"></span>${y===2026?'2026 (YTD)':y}</span>`
+    `<span><span class="leg-ln" style="background:${YEAR_COLOR[y]}"></span>${yHead(y)}</span>`
   ).join('');
 
   const canvas = document.getElementById('cumulativeChart');
@@ -2815,7 +2937,7 @@ function renderSeasonalityHeatmap(){
   MONTH_ABBR.forEach(mo=>{ html += `<th>${mo}</th>`; });
   html += '</tr></thead><tbody>';
   years.forEach(y=>{
-    html += `<tr><td>${y===2026?'2026 (YTD)':y}</td>`;
+    html += `<tr><td>${yHead(y)}</td>`;
     cells[y].forEach(v=>{
       html += v==null
         ? `<td class="hm-empty">-</td>`
@@ -2856,7 +2978,7 @@ function renderVarianceTable(){
     const deltaPct = prevVal ? delta/Math.abs(prevVal)*100 : null;
     const favorable = polarity*delta >= 0;
     rows += `<tr>
-      <td>${curY===2026?'2026 (YTD)':curY}${isPartial?' vs '+prevY+' (same '+nCur+'-mo period)':' vs '+prevY}</td>
+      <td>${yHead(curY)}${isPartial?' vs '+prevY+' (same '+nCur+'-mo period)':' vs '+prevY}</td>
       <td>${formatMetric(key,curVal)}</td>
       <td>${formatMetric(key,prevVal)}</td>
       <td class="${favorable?'var-fav':'var-unfav'}">${delta>=0?'+':''}${formatMetric(key,delta)}</td>
@@ -2901,7 +3023,7 @@ function renderExecutiveSummary(){
     const prevVal = nCur<12 ? partialValue(key,prev,nCur) : m.annual(prev);
     const deltaPct = prevVal ? (curVal-prevVal)/Math.abs(prevVal)*100 : null;
     if(deltaPct!=null){
-      bullets.push(`${last===2026?'2026 (YTD)':last} ${m.label.toLowerCase()} is ${deltaPct>=0?'up':'down'} ${Math.abs(deltaPct).toFixed(1)}% ${nCur<12?('compared to the same '+nCur+'-month period in'):'versus'} ${prev}.`);
+      bullets.push(`${yHead(last)} ${m.label.toLowerCase()} is ${deltaPct>=0?'up':'down'} ${Math.abs(deltaPct).toFixed(1)}% ${nCur<12?('compared to the same '+nCur+'-month period in'):'versus'} ${prev}.`);
     }
   }
 
@@ -2963,7 +3085,7 @@ function buildYoyPlExecSummary(sorted){
 
   let bestYear = sorted[0], bestVal = METRICS.net.annual(sorted[0]);
   sorted.forEach(y=>{ const v = METRICS.net.annual(y); if(v>bestVal){ bestVal=v; bestYear=y; } });
-  items.push({icon:'money', cls:'ic-g', html:`<b>${bestYear===2026?'2026 (YTD)':bestYear} recorded</b> the highest net profit`});
+  items.push({icon:'money', cls:'ic-g', html:`<b>${bestYear===CURRENT_YEAR?`${bestYear} (YTD)`:bestYear} recorded</b> the highest net profit`});
 
   let cogsFasterSince = null;
   for(let i=1;i<sorted.length;i++){
@@ -2971,10 +3093,11 @@ function buildYoyPlExecSummary(sorted){
     const n1 = monthsInYear(y1);
     const revPrev = n1<12 ? partialValue('revenue',y0,n1) : METRICS.revenue.annual(y0);
     const revCur = METRICS.revenue.annual(y1);
-    const revG = revPrev ? (revCur-revPrev)/Math.abs(revPrev)*100 : 0;
-    const cogsG = revG; // COGS is a flat % of revenue in this model, so it moves 1:1 with revenue growth
-    const compositeCogsG = (ingredientCompositeIndex(y1)/ingredientCompositeIndex(y0)-1)*100;
-    if(compositeCogsG > revG){ cogsFasterSince = y1; break; }
+    const cogsPrev = n1<12 ? partialValue('cogs',y0,n1) : METRICS.cogs.annual(y0);
+    const cogsCur = METRICS.cogs.annual(y1);
+    const revG = revPrev ? (revCur-revPrev)/Math.abs(revPrev)*100 : null;
+    const cogsG = cogsPrev ? (cogsCur-cogsPrev)/Math.abs(cogsPrev)*100 : null;
+    if(cogsG!=null && revG!=null && cogsG > revG){ cogsFasterSince = y1; break; }
   }
   items.push({icon:'trend', cls:'ic-r', html: cogsFasterSince
     ? `<b>COGS has increased</b> faster than revenue since ${cogsFasterSince}`
@@ -3002,24 +3125,17 @@ function buildYoyPlExecSummary(sorted){
 
 /* ════════════════ RENDER ALL ════════════════ */
 function renderAll(){
-  updateExtraSectionsVisibility();
-  renderMainTable();
-  renderKpiRow();
-  renderTopCustomers();
-  renderMainChart();
-  renderSubChart();
-  renderBottomCharts();
-  renderGrowthChart();
-  renderCumulativeChart();
-  renderSeasonalityHeatmap();
-  renderVarianceTable();
-  renderExecutiveSummary();
-  renderPerUnitEconomicsChart();
-  renderProductMixChart();
-  renderCogsDecompChart();
-  renderConcentrationChart();
-  renderRetentionTable();
-  renderIngredientForecastChart();
+  const steps = [
+    updateExtraSectionsVisibility, renderMainTable, renderKpiRow, renderTopCustomers,
+    renderMainChart, renderSubChart, renderBottomCharts, renderGrowthChart,
+    renderCumulativeChart, renderSeasonalityHeatmap, renderVarianceTable, renderExecutiveSummary,
+    renderPerUnitEconomicsChart, renderProductMixChart, renderCogsDecompChart,
+    renderConcentrationChart, renderRetentionTable, renderIngredientForecastChart
+  ];
+  steps.forEach(fn=>{
+    try { fn(); }
+    catch(err){ console.error(`renderAll: ${fn.name} failed:`, err); }
+  });
 }
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */
@@ -3048,27 +3164,54 @@ function runKpiAnimations(){
 function doExport(kind){
   const cfg = effectiveReportConfig();
   const years = selYears();
+  const monthIdx = selMonthIdx(); // -1 = "All Months"
   if(kind==='excel'){
     let csv = '';
     if(cfg.special==='customers'){
+      const singleCol = currentView==='monthly' && monthIdx!==-1;
       csv = 'Customer';
-      years.forEach(y=>{ csv += `,${y} Revenue`; });
+      if(singleCol){ years.forEach(y=>{ csv += `,${MONTH_ABBR[monthIdx]} ${y}`; }); }
+      else { years.forEach(y=>{ csv += `,${y} Revenue`; }); }
       csv += '\n';
       topCustomers.forEach(c=>{
         csv += c.name;
-        years.forEach(y=>{ csv += `,${custAnnual(c,y)}`; });
+        years.forEach(y=>{ csv += `,${singleCol ? (custMonthly(c,y,monthIdx)||0) : custAnnual(c,y)}`; });
         csv += '\n';
       });
-    } else {
+    } else if(currentView==='annual'){
+      // Annual view: one row per selected year, matching renderMainTable().
+      csv = 'Year';
+      const cols = cfg.tableMetrics;
+      cols.forEach(c=>{ csv += `,${METRICS[c].label}`; });
+      csv += '\n';
+      years.forEach(y=>{
+        csv += yHead(y);
+        cols.forEach(c=>{ const v = METRICS[c].annual(y); csv += `,${v!=null?Number(v).toFixed(2):''}`; });
+        csv += '\n';
+      });
+    } else if(monthIdx!==-1){
+      // Monthly view, one specific month selected: export just that month's row.
       csv = 'Month';
       const cols = cfg.tableMetrics;
-      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${y} ${METRICS[c].label}`; }); });
+      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${yHead(y)} ${METRICS[c].label}`; }); });
+      csv += '\n';
+      csv += MONTH_ABBR[monthIdx];
+      years.forEach(y=>{
+        const has = monthIdx<monthsInYear(y);
+        cols.forEach(c=>{ const v = has?METRICS[c].monthly(y,monthIdx):null; csv += `,${v!=null?Number(v).toFixed(2):''}`; });
+      });
+      csv += '\n';
+    } else {
+      // Monthly view, "All Months": full 12-month grid, matching renderMainTable().
+      csv = 'Month';
+      const cols = cfg.tableMetrics;
+      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${yHead(y)} ${METRICS[c].label}`; }); });
       csv += '\n';
       for(let i=0;i<12;i++){
         csv += MONTH_ABBR[i];
         years.forEach(y=>{
           const has = i<monthsInYear(y);
-          cols.forEach(c=>{ csv += `,${has?METRICS[c].monthly(y,i).toFixed(2):''}`; });
+          cols.forEach(c=>{ const v = has?METRICS[c].monthly(y,i):null; csv += `,${v!=null?Number(v).toFixed(2):''}`; });
         });
         csv += '\n';
       }
@@ -3136,8 +3279,8 @@ renderHeader({
   title: 'Multi-Year Reporting',
   subtitle: 'Compare performance across years',
   showMonthPicker: true,
-  months: ['2023 - 2026','2022 - 2025','2024 - 2026'],
-  selectedMonth: '2023 - 2026',
+  months: [`2023 - ${CURRENT_YEAR}`, `${CURRENT_YEAR-4} - ${CURRENT_YEAR-1}`, `${CURRENT_YEAR-2} - ${CURRENT_YEAR}`],
+  selectedMonth: `2023 - ${CURRENT_YEAR}`,
   onMonthChange: onRangeChange,
   showExport: true,
   onExportPdf: () => doExport('pdf'),
@@ -3152,6 +3295,9 @@ renderHeader({
   // modules use for their bell notices.
   notifications: []
 });
+
+const footerYearEl = document.getElementById('footerYear');
+if(footerYearEl) footerYearEl.textContent = CURRENT_YEAR;
 
 /* ════════════════ INIT ════════════════
    Chart.register must run before the first chart is created. */
