@@ -327,7 +327,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
         <span class="kc-lbl">Total Stock Value</span>
         <div class="kc-val"><span id="kpiValue" data-target="63214">0.00</span> <span class="u">ETB</span></div>
-        <div class="kc-chg up">▲ 4.2%<span class="vs">vs Apr 2026</span></div>
+        <div class="kc-chg up" id="kpiValueChg">▲ 0.0%<span class="vs">vs —</span></div>
       </div>
       <div class="kc">
         <div class="kc-ico ic-b"><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
@@ -405,7 +405,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <option value="LOW">Low Stock</option>
         <option value="REORDER">Reorder</option>
       </select>
-      <div class="filter-date-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>May 1 – 31, 2026</div>
+      <div class="filter-date-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span id="filterDateRange">Loading…</span></div>
       <div class="filter-more-btn" onclick="toggleMoreFilters()"><svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>More Filters</div>
       <div class="filter-gear" onclick="openTableSettingsModal()" title="Table Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
       <div class="more-filters-row" id="moreFiltersRow">
@@ -456,7 +456,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <!-- Inventory Valuation -->
       <div class="card">
         <div class="card-hd">
-          <div class="card-ttl">Inventory Value Distribution <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="valMonthLbl">(May 31, 2026)</span></div>
+          <div class="card-ttl">Inventory Value Distribution <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:2px" id="valMonthLbl"></span></div>
         </div>
         <div class="exp-bd">
           <div class="dnut">
@@ -518,18 +518,12 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl">Price History</div>
-          <select class="rsel" id="phItemSel" onchange="renderPriceHistory()" style="font-size:11px;padding:4px 8px">
-            <option value="Injera Blend" data-unit="kg" selected>Injera Blend</option>
-            <option value="Corn" data-unit="kg">Corn</option>
-            <option value="Gomen Zere" data-unit="kg">Gomen Zere</option>
-            <option value="Small Bags" data-unit="pcs">Small Bags</option>
-            <option value="Large Bags" data-unit="pcs">Large Bags</option>
-          </select>
+          <select class="rsel" id="phItemSel" onchange="renderPriceHistory()" style="font-size:11px;padding:4px 8px"></select>
         </div>
         <div class="chart-box" style="flex:1;min-height:180px">
           <canvas id="priceChart"></canvas>
         </div>
-        <div class="ph-note" id="phNote" style="padding:6px 17px 14px">Current WAC (May 2026): 916.67 ETB / kg <span style="color:#27ae60;font-weight:700">↑ 1.66%</span> vs Apr 2026</div>
+        <div class="ph-note" id="phNote" style="padding:6px 17px 14px">Loading price history…</div>
         <select class="rsel" id="phRangeSel" onchange="renderPriceHistory()" style="display:none"><option>Last 6 Months</option><option>Last 3 Months</option><option>This Year</option></select>
         <div style="overflow-y:auto;max-height:0;display:none"><table class="tbl-sb2"><thead><tr><th>Month</th><th id="phColHdr">WAC</th></tr></thead><tbody id="phTblBody"></tbody></table></div>
       </div>
@@ -575,23 +569,28 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script>
-/* ════════════════ DEMO DATA — matches May 2026 reference screenshot exactly ════════════════
-   inventory_items master fields per spec §14.3: name, unit, reorder_level, shelf_life_days.
-   Monthly movement figures (opening/purchased/used/closing/WAC/value) follow §3.3 Monthly View
-   formulas — computed server-side from purchases + production/derkosh usage in the live system.
-   Falls back to this snapshot whenever Supabase is unreachable or tables are still empty. */
+/* ════════════════ LIVE STATE (populated by loadFromSupabase) ════════════════
+   inventory_items master fields: name, unit, reorder_level, shelf_life_days.
+   Monthly movement figures (opening/purchased/used/closing/WAC/value) come from
+   the inventory_balance view, computed server-side from purchases, production/
+   milling usage, transfers, and adjustments. No fallback snapshot — if Supabase
+   is unreachable or a period has no data yet, these stay empty/zero rather than
+   showing fabricated numbers. */
 // Populated live by loadFromSupabase(). Starting empty rather than with
 // plausible-looking fabricated numbers — the database may genuinely have
 // no data yet for some items/periods, and blank is more honest than invented.
 let invItems = [];
 let recentPurchases = [];
 let recentUsageLog = [];
-let recentAdjustmentsLog = [];   // no real adjustments table yet (see loadFromSupabase note) — stays empty until built
+let recentAdjustmentsLog = [];   // populated live from inventory_adjustments in loadFromSupabase()
 let recentTransfersLog = [];
 let staticAlerts = [];           // replaced by buildStockLevelAlerts() below, kept as empty for getAllAlerts() compat
 let priceHistoryByItem = {};
 let inventoryValueTrendHistory = [];
 let warehousesList = [];         // [{id,name}] — populated live, used by Item Settings / Transfer dropdowns
+let suppliersList = [];          // [{id,name}] — populated live, used by Add Stock supplier dropdown
+let prevPeriodTotalValue = 0;    // total closing value for the period before currentPeriod — for the KPI % change badge
+let prevPeriodLabelStr = '';
 
 /* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
 function daysUntilExpiry(item){
@@ -670,6 +669,25 @@ function prevPeriodOf(period){
   const d = new Date(y, m-2, 1);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
+/* Shared month-label helpers — used by the KPI card, price history, table headers,
+   and every export so the displayed month always matches the picker instead of a
+   fixed string. */
+function periodLabel(pstr){
+  const [y,m] = pstr.split('-').map(Number);
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y;
+}
+function monthBounds(period){
+  const [y,m] = period.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const abbr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1];
+  return {
+    label: abbr+' '+y,
+    rangeStr: `${abbr} 1 – ${lastDay}, ${y}`,
+    firstStr: `${abbr} 1, ${y}`,
+    lastStr: `${abbr} ${lastDay}, ${y}`,
+    slug: `${abbr}_${y}`
+  };
+}
 let currentPeriod = periodFromLabel(CURRENT_MONTH_LABEL);
 function onMonthChange(m){
   document.getElementById('ovMonthLbl').textContent = '('+m+')';
@@ -729,6 +747,16 @@ function computeKpis(){
   document.getElementById('kpiExpiring').setAttribute('data-target', expiringCount);
   document.getElementById('kpiTurnover').setAttribute('data-target', annualTurnover.toFixed(1));
   document.getElementById('kpiDaysSupply').setAttribute('data-target', Math.round(avgDaysSupply));
+
+  const chgEl = document.getElementById('kpiValueChg');
+  if(chgEl){
+    let pct;
+    if(prevPeriodTotalValue>0) pct = (totalValue-prevPeriodTotalValue)/prevPeriodTotalValue*100;
+    else pct = totalValue>0 ? 100 : 0;
+    const isUp = pct>=0;
+    chgEl.className = 'kc-chg ' + (isUp?'up':'dn');
+    chgEl.innerHTML = (isUp?'▲':'▼') + ' ' + Math.abs(pct).toFixed(1) + '%<span class="vs">vs ' + (prevPeriodLabelStr||'—') + '</span>';
+  }
 }
 
 /* ════════════════ INVENTORY OVERVIEW TABLE ════════════════ */
@@ -838,7 +866,7 @@ function renderMonthlyTable(){
   document.getElementById('invTableWrap').innerHTML = `
     <table class="tbl-inv">
       <thead><tr>
-        <th>Item</th><th data-col="category">Category</th><th data-col="warehouse">Warehouse</th><th>Unit</th><th data-col="opening">Opening Stock<br>May 1, 2026</th><th data-col="purchased">Purchased<br>(This Month)</th>
+        <th>Item</th><th data-col="category">Category</th><th data-col="warehouse">Warehouse</th><th>Unit</th><th data-col="opening">Opening Stock<br>${monthBounds(currentPeriod).firstStr}</th><th data-col="purchased">Purchased<br>(This Month)</th>
         <th data-col="used">Used / Sold<br>(This Month)</th><th>Current Qty</th><th data-col="reserved">Reserved Qty</th><th data-col="available">Available Qty</th><th data-col="wac">Monthly WAC<br>(ETB / Unit)</th>
         <th data-col="value">Total Value<br>(ETB)</th><th data-col="reorder">Reorder</th><th data-col="dos">Days of Supply</th><th data-col="movement">Movement</th><th data-col="supplier">Supplier</th><th data-col="lastPurchase">Last Purchase</th><th>Status</th><th></th>
       </tr></thead>
@@ -973,25 +1001,52 @@ function renderValuationDonut(){
 
 /* ════════════════ PRICE HISTORY CHART ════════════════ */
 let priceChart;
+function populatePriceHistoryDropdown(items){
+  const sel = document.getElementById('phItemSel');
+  if(!sel) return;
+  const prevValue = sel.value;
+  const sorted = [...items].sort((a,b)=>a.name.localeCompare(b.name));
+  sel.innerHTML = sorted.map(it=>`<option value="${it.name}" data-unit="${it.unit}">${it.name}</option>`).join('');
+  if(sorted.some(it=>it.name===prevValue)) sel.value = prevValue;
+  else if(sorted.some(it=>it.name==='Injera Blend')) sel.value = 'Injera Blend';
+  else if(sorted.length) sel.value = sorted[0].name;
+}
 function renderPriceHistory(){
   const itemSel = document.getElementById('phItemSel');
+  if(!itemSel.options.length) return; // not populated yet
   const itemName = itemSel.value;
-  const unit = itemSel.selectedOptions[0].getAttribute('data-unit');
+  const unit = itemSel.selectedOptions[0].getAttribute('data-unit') || '';
   const rangeSel = document.getElementById('phRangeSel').value;
   const series = priceHistoryByItem[itemName];
+
+  document.getElementById('phColHdr').textContent = 'WAC (ETB/'+unit+')';
+
+  if(!series || !series.vals.some(v=>v>0)){
+    if(priceChart){ priceChart.destroy(); priceChart = null; }
+    document.getElementById('phTblBody').innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--tl)">No purchases recorded yet</td></tr>';
+    document.getElementById('phNote').innerHTML = `No price history recorded yet for <strong>${itemName}</strong> — the chart populates once purchases are logged.`;
+    const canvas = document.getElementById('priceChart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
 
   let months = series.months, vals = series.vals;
   if(rangeSel === 'Last 3 Months'){ months = months.slice(-3); vals = vals.slice(-3); }
 
-  document.getElementById('phColHdr').textContent = 'WAC (ETB/'+unit+')';
-  document.getElementById('phTblBody').innerHTML = months.map((m,i)=>`<tr><td>${m}</td><td>${fmt(vals[i])}</td></tr>`).join('');
+  document.getElementById('phTblBody').innerHTML = months.map((m,i)=>`<tr><td>${m}</td><td>${vals[i]>0?fmt(vals[i]):'—'}</td></tr>`).join('');
 
   const curr = vals[vals.length-1];
   const prev = vals.length>1 ? vals[vals.length-2] : curr;
-  const chg = prev>0 ? ((curr-prev)/prev*100) : 0;
-  const arrow = chg>=0 ? '▲' : '▼';
-  const color = chg>=0 ? '#27ae60' : '#e53935';
-  document.getElementById('phNote').innerHTML = `Current WAC (May 2026): <strong>${fmt(curr)} ETB / ${unit}</strong> <span style="color:${color};font-weight:700">${arrow} ${Math.abs(chg).toFixed(2)}%</span> vs Apr 2026`;
+  const currLabel = months[months.length-1], prevLabel = months.length>1 ? months[months.length-2] : currLabel;
+  if(curr<=0){
+    document.getElementById('phNote').innerHTML = `No purchases recorded for <strong>${currLabel}</strong> yet.`;
+  } else {
+    const chg = prev>0 ? ((curr-prev)/prev*100) : 0;
+    const arrow = chg>=0 ? '▲' : '▼';
+    const color = chg>=0 ? '#27ae60' : '#e53935';
+    document.getElementById('phNote').innerHTML = `Current WAC (${currLabel}): <strong>${fmt(curr)} ETB / ${unit}</strong> <span style="color:${color};font-weight:700">${arrow} ${Math.abs(chg).toFixed(2)}%</span> vs ${prevLabel}`;
+  }
 
   if(priceChart) priceChart.destroy();
   const ctx = document.getElementById('priceChart').getContext('2d');
@@ -1000,7 +1055,7 @@ function renderPriceHistory(){
     data:{ labels:months, datasets:[{
       label:'WAC (ETB/'+unit+')', data:vals, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,0.07)',
       borderWidth:2.5, pointBackgroundColor:'#27ae60', pointRadius:4, pointHoverRadius:6, fill:true, tension:0.35,
-      datalabels:{ align:'top',anchor:'end',offset:8,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>fmt(v)}
+      datalabels:{ align:'top',anchor:'end',offset:8,color:'#1a2e25',font:{family:'Nunito',size:10,weight:'700'},formatter:v=>v>0?fmt(v):''}
     }]},
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -1022,12 +1077,14 @@ function renderValueTrendChart(){
   const currentTotal = invItems.reduce((s,i)=>s+(i.value||0),0);
   let labels, vals;
   if(range==='Last 6 Months'){
-    labels = [...inventoryValueTrendHistory.map(h=>h.month), 'May 2026'];
+    labels = [...inventoryValueTrendHistory.map(h=>h.month), periodLabel(currentPeriod)];
     vals = [...inventoryValueTrendHistory.map(h=>h.value), currentTotal];
   } else {
-    const start = currentTotal*0.86;
-    labels = ['Week 1','Week 2','Week 3','Week 4 (Now)'];
-    vals = [start, start+(currentTotal-start)*0.35, start+(currentTotal-start)*0.68, currentTotal];
+    // "This Month" — only two real data points exist (opening balance and today's
+    // total); previously this interpolated four fake weekly points between them.
+    const openingValue = invItems.reduce((s,i)=> s + ((i.opening!=null && i.wac) ? i.opening*i.wac : 0), 0);
+    labels = ['Opening', periodLabel(currentPeriod)+' (Now)'];
+    vals = [openingValue, currentTotal];
   }
   if(valueTrendChart) valueTrendChart.destroy();
   const ctx = document.getElementById('valueTrendChart').getContext('2d');
@@ -1150,13 +1207,14 @@ function exportExcel(){
   const btn = document.getElementById('xlsLbl');
   const original = btn.textContent;
   btn.innerHTML = '<span class="spin"></span>';
+  const mb = monthBounds(currentPeriod);
   setTimeout(()=>{
     const rows = invItems.map(it=>{
       const dos = daysOfSupply(it);
       return {
         'Item': it.name, 'Unit': it.unit,
-        'Opening Stock (May 1, 2026)': it.opening ?? '', 'Purchased (This Month)': it.purchased ?? '',
-        'Used / Sold (This Month)': it.used ?? '', 'Closing Stock (May 31, 2026)': it.closing ?? '',
+        [`Opening Stock (${mb.firstStr})`]: it.opening ?? '', 'Purchased (This Month)': it.purchased ?? '',
+        'Used / Sold (This Month)': it.used ?? '', [`Closing Stock (${mb.lastStr})`]: it.closing ?? '',
         'Monthly WAC (ETB/Unit)': it.wac, 'Total Value (ETB)': it.value ?? '', 'Reorder Level': it.reorder,
         'Days of Supply': dos===null ? '' : Math.round(dos),
         'Movement': dos===null ? '' : (dos<20 ? 'FAST' : dos<=45 ? 'NORMAL' : 'SLOW-MOVING'),
@@ -1165,8 +1223,8 @@ function exportExcel(){
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Inventory May 2026');
-    XLSX.writeFile(wb, 'Inventory_May_2026.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, ('Inventory '+mb.label).slice(0,31));
+    XLSX.writeFile(wb, `Inventory_${mb.slug}.xlsx`);
     btn.textContent = original;
     showToast('Exported inventory to Excel');
   }, 500);
@@ -1177,11 +1235,12 @@ function exportPDF(){
   const btn = document.getElementById('pdfLbl');
   const original = btn.textContent;
   btn.innerHTML = '<span class="spin"></span>';
+  const mb = monthBounds(currentPeriod);
   setTimeout(()=>{
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'landscape' });
     doc.setFontSize(14);
-    doc.text('Mena Injera & Derkosh — Inventory Overview (May 2026)', 14, 15);
+    doc.text(`Mena Injera & Derkosh — Inventory Overview (${mb.label})`, 14, 15);
     doc.autoTable({
       startY: 22,
       head: [['Item','Unit','Opening','Purchased','Used/Sold','Closing','Monthly WAC','Total Value','Reorder','Days of Supply','Movement','Status']],
@@ -1192,7 +1251,7 @@ function exportPDF(){
       }),
       styles:{ fontSize:9 }, headStyles:{ fillColor:[29,92,56] }
     });
-    doc.save('Inventory_May_2026.pdf');
+    doc.save(`Inventory_${mb.slug}.pdf`);
     btn.textContent = original;
     showToast('Exported inventory to PDF');
   }, 500);
@@ -1249,10 +1308,10 @@ const icCheck = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></s
 
 /* ════════════════ 1. ADD STOCK ════════════════ */
 function openAddStockModal(){
+  const supplierOptions = (suppliersList||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
   const body = `
     <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-      Logs a new stock receipt. Closing balance and WAC update immediately, and this also syncs to your Purchases module.</div>
-    <div class="frm-hint" style="margin:-8px 0 14px">Full purchase details — VAT, invoice number, approval — should still be finalized in the Purchases module.</div>
+      Logs a new stock receipt directly into Purchases. Closing balance and WAC recalculate from this automatically.</div>
     <div class="frm-row">
       <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
         <select class="frm-sel" id="asItem">${itemOptionsHtml()}</select></div>
@@ -1267,10 +1326,17 @@ function openAddStockModal(){
         <input class="frm-in" type="number" min="0" step="0.01" id="asPrice" placeholder="e.g. 950.00">
         <div class="frm-err">Enter a valid unit price.</div></div>
     </div>
-    <div class="frm-grp"><label class="frm-lbl">Supplier</label>
-      <input class="frm-in" id="asSupplier" placeholder="e.g. Merkato Grain Traders"></div>
-    <div class="frm-grp"><label class="frm-lbl">Notes</label>
-      <textarea class="frm-txt" id="asNotes" placeholder="Optional — invoice #, delivery notes..."></textarea></div>
+    <div class="frm-row">
+      <div class="frm-grp" id="asSupplierGrp"><label class="frm-lbl">Supplier <span class="req">*</span></label>
+        <select class="frm-sel" id="asSupplier"><option value="">Select supplier…</option>${supplierOptions}</select>
+        <div class="frm-err">Select a supplier.</div></div>
+      <div class="frm-grp"><label class="frm-lbl">Payment Channel <span class="req">*</span></label>
+        <select class="frm-sel" id="asPaymentChannel">
+          <option value="cash">Cash</option>
+          <option value="bank">Bank</option>
+          <option value="mobile">Mobile Money</option>
+        </select></div>
+    </div>
   `;
   const footer = `
     <span class="modal-ft-note">Updates Monthly Overview, Valuation &amp; Price History</span>
@@ -1283,50 +1349,32 @@ async function submitAddStock(){
   const qty = parseFloat(document.getElementById('asQty').value);
   const price = parseFloat(document.getElementById('asPrice').value);
   const date = document.getElementById('asDate').value || todayInApp();
-  const supplier = document.getElementById('asSupplier').value.trim();
-  const notes = document.getElementById('asNotes').value.trim();
+  const supplierId = document.getElementById('asSupplier').value;
+  const paymentChannel = document.getElementById('asPaymentChannel').value;
   let valid = true;
   toggleFieldError('asQty', !(qty>0)); if(!(qty>0)) valid=false;
   toggleFieldError('asPrice', !(price>0)); if(!(price>0)) valid=false;
+  toggleFieldError('asSupplierGrp', !supplierId); if(!supplierId) valid=false;
   if(!valid) return;
 
   const item = invItems.find(i=>i.name===itemName);
   if(!item) return;
-  const existingValue = (item.closing||0)*(item.wac||0);
-  const newQty = (item.closing||0)+qty;
-  item.wac = +(newQty>0 ? (existingValue+qty*price)/newQty : price).toFixed(2);
-  item.purchased = +((item.purchased||0)+qty).toFixed(2);
-  item.closing = +newQty.toFixed(2);
-  item.value = +(item.closing*item.wac).toFixed(2);
-  recomputeStatus(item);
-  recentPurchases.unshift({ date, item:itemName, qty, unitPrice:price, total:+(qty*price).toFixed(2) });
-
-  renderAll();
-  closeModal();
-  showToast(`Added ${fmt(qty)} ${item.unit} of ${itemName} to stock`);
-
-  /* Best-effort sync into the Purchases module's `purchases` table so this receipt shows
-     up there too, not just in this page's local state. NOTE: column names below
-     (item_name, quantity, unit_price, total_cost, purchase_date, supplier, notes, source)
-     are a best guess — they haven't been confirmed against the real purchases table schema
-     (which per the schema audit also computes VAT via purchases_computed() and enforces an
-     approved-purchase lock trigger). If this insert fails due to column/constraint mismatch,
-     it fails silently here and the receipt still exists correctly in Inventory — but it means
-     the write to Purchases did NOT happen. Confirm the real schema to wire this precisely. */
+  const btn = document.querySelector('.btn-p');
+  if(btn) btn.disabled = true;
   try {
     const { error } = await db.from('purchases').insert({
-      item_name: itemName,
-      quantity: qty,
-      unit_price: price,
-      total_cost: +(qty*price).toFixed(2),
-      purchase_date: date,
-      supplier: supplier || null,
-      notes: notes || null,
-      source: 'inventory_quick_add'
+      date, type:'purchase', item_id:item.id, supplier_id:supplierId,
+      quantity:qty, unit_price:price, payment_channel:paymentChannel
     });
-    if(error) console.log('Purchases module sync skipped (schema mismatch?):', error.message);
+    if(error) throw error;
+    closeModal();
+    showToast(`Added ${fmt(qty)} ${item.unit} of ${itemName} to stock`);
+    await loadFromSupabase();
   } catch(err){
-    console.log('Purchases module sync unavailable:', err.message);
+    console.error('Add stock save failed:', err);
+    showToast('Could not save — check your connection and try again');
+  } finally {
+    if(btn) btn.disabled = false;
   }
 }
 
@@ -1362,7 +1410,7 @@ function updateUsageAvailable(){
   const el = document.getElementById('ruAvail');
   if(item && el) el.textContent = `Available: ${dash(item.closing)} ${item.unit}`;
 }
-function submitRecordUsage(){
+async function submitRecordUsage(){
   const itemName = document.getElementById('ruItem').value;
   const qty = parseFloat(document.getElementById('ruQty').value);
   const date = document.getElementById('ruDate').value || todayInApp();
@@ -1371,17 +1419,22 @@ function submitRecordUsage(){
   const bad = !(qty>0) || qty>available;
   toggleFieldError('ruQty', bad);
   if(bad || !item) return;
+  const note = document.getElementById('ruRef').value.trim() || null;
 
-  item.used = +((item.used||0)+qty).toFixed(2);
-  item.closing = +((item.closing||0)-qty).toFixed(2);
-  item.value = +(item.closing*(item.wac||0)).toFixed(2);
-  recomputeStatus(item);
-  const ruRef = document.getElementById('ruRef').value.trim();
-  recentUsageLog.unshift({ date, item:itemName, qty:`${fmt(qty)} ${item.unit}`, note: ruRef || 'Production usage' });
-
-  renderAll();
-  closeModal();
-  showToast(`Recorded ${fmt(qty)} ${item.unit} of ${itemName} used`);
+  const btn = document.querySelector('.btn-p');
+  if(btn) btn.disabled = true;
+  try {
+    const { error } = await db.from('inventory_usage_log').insert({ date, item_id:item.id, quantity:qty, note });
+    if(error) throw error;
+    closeModal();
+    showToast(`Recorded ${fmt(qty)} ${item.unit} of ${itemName} used`);
+    await loadFromSupabase();
+  } catch(err){
+    console.error('Record usage save failed:', err);
+    showToast('Could not save — check your connection and try again');
+  } finally {
+    if(btn) btn.disabled = false;
+  }
 }
 
 /* ════════════════ 3. ADJUST STOCK ════════════════ */
@@ -1420,25 +1473,36 @@ function updateAdjustCurrent(){
   const box = document.getElementById('adjCurrentBox');
   if(item && box) box.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Current system balance: <strong>${dash(item.closing)} ${item.unit}</strong>`;
 }
-function submitAdjustStock(){
+async function submitAdjustStock(){
   const itemName = document.getElementById('adjItem').value;
   const newQty = parseFloat(document.getElementById('adjQty').value);
   const reason = document.getElementById('adjReason').value;
+  const notes = document.getElementById('adjNotes').value.trim() || null;
   const item = invItems.find(i=>i.name===itemName);
   const bad = !(newQty>=0);
   toggleFieldError('adjQty', bad);
   if(bad || !item) return;
 
-  const diff = newQty - (item.closing||0);
-  item.closing = +newQty.toFixed(2);
-  item.value = +(item.closing*(item.wac||0)).toFixed(2);
-  recomputeStatus(item);
-  const dir = diff>0 ? `+${fmt(diff)}` : fmt(diff);
-  recentAdjustmentsLog.unshift({ date: todayInApp(), item:itemName, change:`${dir} ${item.unit}`, reason });
+  const diff = +(newQty - (item.closing||0)).toFixed(2);
+  if(diff===0){ closeModal(); showToast('New quantity matches the current balance — nothing to adjust'); return; }
 
-  renderAll();
-  closeModal();
-  showToast(`${itemName} adjusted (${dir} ${item.unit}) — ${reason}`);
+  const btn = document.querySelector('.btn-p');
+  if(btn) btn.disabled = true;
+  try {
+    const { error } = await db.from('inventory_adjustments').insert({
+      date: todayInApp(), item_id:item.id, quantity_change:diff, reason, notes
+    });
+    if(error) throw error;
+    const dir = diff>0 ? `+${fmt(diff)}` : fmt(diff);
+    closeModal();
+    showToast(`${itemName} adjusted (${dir} ${item.unit}) — ${reason}`);
+    await loadFromSupabase();
+  } catch(err){
+    console.error('Adjust stock save failed:', err);
+    showToast('Could not save — check your connection and try again');
+  } finally {
+    if(btn) btn.disabled = false;
+  }
 }
 
 /* ════════════════ 4. STOCK TRANSFER ════════════════ */
@@ -1625,7 +1689,8 @@ async function submitItemSettings(itemName){
 
   try {
     const { error } = await db.from('inventory_items').update({
-      reorder_level: reorder, category, warehouse_id: warehouseId, reserved_qty: reservedQty
+      reorder_level: reorder, category, warehouse_id: warehouseId, reserved_qty: reservedQty,
+      lead_time_days: leadTimeDays>=0 ? leadTimeDays : null, safety_stock_days: safetyStockDays>=0 ? safetyStockDays : null
     }).eq('id', item.id);
     if(error) throw error;
 
@@ -1661,7 +1726,7 @@ function openExpiryReportModal(){
   const footer = `
     <span class="modal-ft-note">${expiring.length} item${expiring.length===1?'':'s'} flagged</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Expiry Report', ['Item','Detail','Status'], ${JSON.stringify(expiring.map(a=>[a.title,a.text,a.pillText]))}, 'Expiry_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+    <button class="btn-p" onclick="exportReportPDF('Expiry Report', ['Item','Detail','Status'], ${JSON.stringify(expiring.map(a=>[a.title,a.text,a.pillText]))}, 'Expiry_Report')">${icCheck}Export PDF</button>`;
   openModal({ title:'Expiry Report', sub:'Items nearing their expiry date', iconClass:'ic-p', icon:icExpiry, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1680,7 +1745,7 @@ function openReorderReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} need attention</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Reorder Report', ['Item','Unit','Closing','Reorder Level','Days of Supply','Status'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Reorder_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+    <button class="btn-p" onclick="exportReportPDF('Reorder Report', ['Item','Unit','Closing','Reorder Level','Days of Supply','Status'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Reorder_Report')">${icCheck}Export PDF</button>`;
   openModal({ title:'Reorder Report', sub:'Items at or below reorder level', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1700,7 +1765,7 @@ function openOverstockReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} overstocked</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Overstock Report', ['Item','Unit','Closing','Reorder Level','Detail'], ${JSON.stringify(flagged.map(a=>{const it=invItems.find(i=>i.name===a.title);return [a.title,it.unit,fmt(it.closing),fmt(it.reorder),a.text];}))}, 'Overstock_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+    <button class="btn-p" onclick="exportReportPDF('Overstock Report', ['Item','Unit','Closing','Reorder Level','Detail'], ${JSON.stringify(flagged.map(a=>{const it=invItems.find(i=>i.name===a.title);return [a.title,it.unit,fmt(it.closing),fmt(it.reorder),a.text];}))}, 'Overstock_Report')">${icCheck}Export PDF</button>`;
   openModal({ title:'Overstock Report', sub:'Items well above reorder level', iconClass:'ic-c', icon:icBox, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1719,7 +1784,7 @@ function openSlowMovingReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} slow-moving</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Slow_Moving_Report_May_2026.pdf')">${icCheck}Export PDF</button>`;
+    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Slow_Moving_Report')">${icCheck}Export PDF</button>`;
   openModal({ title:'Slow Moving Report', sub:'Items with excess days of supply', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1752,7 +1817,7 @@ function openInventoryReportModal(){
       <tbody>${rows}</tbody>
     </table></div>`;
   const footer = `
-    <span class="modal-ft-note">Full snapshot — May 31, 2026</span>
+    <span class="modal-ft-note">Full snapshot — ${monthBounds(currentPeriod).lastStr}</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
     <button class="btn-s" onclick="exportExcel()">Export Excel</button>
     <button class="btn-p" onclick="exportPDF()">${icCheck}Export PDF</button>`;
@@ -1760,13 +1825,14 @@ function openInventoryReportModal(){
 }
 
 /* Small shared PDF export used by the report modals */
-function exportReportPDF(title, head, bodyRows, filename){
+function exportReportPDF(title, head, bodyRows, filenameBase){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape' });
   doc.setFontSize(14);
-  doc.text('Mena Injera & Derkosh — '+title+' (May 2026)', 14, 15);
+  const mb = monthBounds(currentPeriod);
+  doc.text('Mena Injera & Derkosh — '+title+' ('+mb.label+')', 14, 15);
   doc.autoTable({ startY:22, head:[head], body:bodyRows, styles:{fontSize:9}, headStyles:{fillColor:[29,92,56]} });
-  doc.save(filename);
+  doc.save(`${filenameBase}_${mb.slug}.pdf`);
   showToast('Exported '+title);
 }
 
@@ -1775,7 +1841,7 @@ let importParsedRows = null;
 function openImportModal(){
   const body = `
     <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-      Upload an Excel or CSV file with an "Item" column matching existing item names. Matching rows update Closing Stock, Reorder Level, and WAC.</div>
+      Upload an Excel or CSV file with an "Item" column matching existing item names. Matching rows update Closing Stock (logged as a stock adjustment) and Reorder Level.</div>
     <div class="dz" id="importDz" onclick="document.getElementById('importFile').click()"
       ondragover="event.preventDefault(); this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
@@ -1818,13 +1884,13 @@ function handleImportFile(file){
 }
 function renderImportPreview(filename, rows){
   const matched = rows.filter(r=>invItems.some(i=>i.name.toLowerCase()===String(r.Item||r.item||'').toLowerCase()));
-  const previewRows = rows.slice(0,5).map(r=>`<tr><td>${r.Item||r.item||'-'}</td><td>${r['Closing Stock']??r.Closing??'-'}</td><td>${r['Reorder Level']??r.Reorder??'-'}</td><td>${r['Monthly WAC']??r.WAC??'-'}</td></tr>`).join('');
+  const previewRows = rows.slice(0,5).map(r=>`<tr><td>${r.Item||r.item||'-'}</td><td>${r['Closing Stock']??r.Closing??'-'}</td><td>${r['Reorder Level']??r.Reorder??'-'}</td></tr>`).join('');
   document.getElementById('importPreviewWrap').innerHTML = `
     <div class="dz-file">${icUpload}${filename} — ${rows.length} row${rows.length===1?'':'s'} found, ${matched.length} match existing items
       <svg class="dz-file-x" viewBox="0 0 24 24" onclick="event.stopPropagation(); resetImport()"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </div>
     <div style="overflow-x:auto;margin-top:12px"><table class="mtbl">
-      <thead><tr><th>Item</th><th>Closing Stock</th><th>Reorder Level</th><th>Monthly WAC</th></tr></thead>
+      <thead><tr><th>Item</th><th>Closing Stock</th><th>Reorder Level</th></tr></thead>
       <tbody>${previewRows}</tbody>
     </table></div>
     ${rows.length>5 ? `<div class="frm-hint" style="margin-top:8px">+ ${rows.length-5} more row(s) not shown</div>` : ''}
@@ -1839,27 +1905,43 @@ function resetImport(){
   document.getElementById('importFooterNote').textContent = 'No file selected';
   document.getElementById('importConfirmBtn').disabled = true;
 }
-function confirmImport(){
+async function confirmImport(){
   if(!importParsedRows || !importParsedRows.length) return;
-  let updated = 0;
-  importParsedRows.forEach(r=>{
+  const btn = document.getElementById('importConfirmBtn');
+  if(btn) btn.disabled = true;
+  let updated = 0, failed = 0;
+  for(const r of importParsedRows){
     const name = r.Item || r.item;
-    if(!name) return;
+    if(!name) continue;
     const item = invItems.find(i=>i.name.toLowerCase()===String(name).toLowerCase());
-    if(!item) return;
-    const closing = r['Closing Stock'] ?? r.Closing;
-    const reorder = r['Reorder Level'] ?? r.Reorder;
-    const wac = r['Monthly WAC'] ?? r.WAC;
-    if(closing!=null && !isNaN(parseFloat(closing))) item.closing = parseFloat(closing);
-    if(reorder!=null && !isNaN(parseFloat(reorder))) item.reorder = parseFloat(reorder);
-    if(wac!=null && !isNaN(parseFloat(wac))) item.wac = parseFloat(wac);
-    item.value = (item.closing!=null && item.wac!=null) ? +(item.closing*item.wac).toFixed(2) : item.value;
-    recomputeStatus(item);
-    updated++;
-  });
-  renderAll();
+    if(!item) continue;
+    const closingRaw = r['Closing Stock'] ?? r.Closing;
+    const reorderRaw = r['Reorder Level'] ?? r.Reorder;
+    let rowOk = true;
+    try {
+      if(closingRaw!=null && !isNaN(parseFloat(closingRaw))){
+        const diff = +(parseFloat(closingRaw) - (item.closing||0)).toFixed(2);
+        if(diff!==0){
+          const { error } = await db.from('inventory_adjustments').insert({
+            date: todayInApp(), item_id:item.id, quantity_change:diff, reason:'Data Entry Correction',
+            notes:'Bulk import'
+          });
+          if(error) throw error;
+        }
+      }
+      if(reorderRaw!=null && !isNaN(parseFloat(reorderRaw))){
+        const { error } = await db.from('inventory_items').update({ reorder_level: parseFloat(reorderRaw) }).eq('id', item.id);
+        if(error) throw error;
+      }
+    } catch(err){
+      console.error('Import row failed for', name, err);
+      rowOk = false;
+    }
+    if(rowOk) updated++; else failed++;
+  }
   closeModal();
-  showToast(`Imported updates for ${updated} item${updated===1?'':'s'}`);
+  showToast(failed ? `Imported ${updated} item(s), ${failed} failed — check connection` : `Imported updates for ${updated} item${updated===1?'':'s'}`);
+  await loadFromSupabase();
 }
 
 /* Column visibility state for the Inventory Overview table — toggled via the gear icon */
@@ -1896,40 +1978,39 @@ function applyTableSettings(){
   showToast('Table columns updated');
 }
 
-/* ════════════════ SUPABASE LOAD (best-effort) ════════════════
-   Pulls inventory_items master data (name, unit, reorder_level, shelf_life_days) per
-   schema §14.3 to keep names/units/reorder levels in sync with the live database.
-   Monthly movement figures continue to use the local snapshot above until the
-   inventory_balance / price_history views (§6.5 / §6.6) are wired up for this page. */
 /* ════════════════ LIVE DATA LOAD ════════════════
-   Replaces the frozen May-2026 demo snapshot. Builds invItems/recentPurchases/
-   recentUsageLog/recentTransfersLog/priceHistoryByItem/warehousesList live.
-   Used = production batch consumption + milling conversion consumption (Teff/
-   Rice are consumed by milling, not production batches). recentAdjustmentsLog
-   stays empty — there's no real "manual stock adjustment" table in the schema
-   yet (see submitAdjustStock), so nothing fabricated is shown in its place. */
+   Builds invItems/recentPurchases/recentUsageLog/recentAdjustmentsLog/recentTransfersLog/
+   priceHistoryByItem/warehousesList/suppliersList entirely from Supabase — no local
+   fallback snapshot. Used = production batch consumption + milling conversion
+   consumption (Teff/Rice are consumed by milling, not production batches) + manual
+   usage log entries. Price history is read from the monthly_wac view rather than the
+   price_history table, since nothing writes to that table. */
 async function loadFromSupabase(){
   try {
     const period = currentPeriod;
     const prevPeriod = prevPeriodOf(period);
 
-    const [itemsRes, whRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes,
-           recentPurchRes, priceHistRes, transfersRes] = await Promise.all([
+    const [itemsRes, whRes, supRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes,
+           recentPurchRes, wacRes, transfersRes, usageLogRes, adjustRes] = await Promise.all([
       db.from('inventory_items').select('*').eq('is_active', true).order('name'),
       db.from('warehouses').select('id,name').order('name'),
+      db.from('suppliers').select('id,name').eq('is_active', true).order('name'),
       db.from('inventory_balance').select('*').eq('period', period),
       db.from('inventory_balance').select('*').eq('period', prevPeriod),
       db.from('purchases').select('item_id,quantity,total_cost,date').eq('type','purchase').eq('is_deleted',false).eq('period',period).in('approval_status',['auto_approved','approved']),
       db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted,date,batch_number)').eq('production_batches.is_deleted', false).eq('production_batches.period', period),
       db.from('milling_conversions').select('date,teff_qty,rice_qty,period').eq('period', period),
       db.from('purchases').select('date,quantity,unit_price,total_cost,inventory_items(name,unit),suppliers(name)').eq('type','purchase').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
-      db.from('price_history').select('*'),
-      db.from('inventory_transfers').select('date,quantity,item_id,inventory_items(name,unit),from:from_warehouse_id(name),to:to_warehouse_id(name)').eq('is_deleted',false).order('date',{ascending:false}).limit(8)
+      db.from('monthly_wac').select('item_id,period,wac_per_unit'),
+      db.from('inventory_transfers').select('date,quantity,item_id,inventory_items(name,unit),from:from_warehouse_id(name),to:to_warehouse_id(name)').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
+      db.from('inventory_usage_log').select('date,quantity,note,item_id,inventory_items(name,unit)').eq('is_deleted',false).eq('period',period).order('date',{ascending:false}).limit(8),
+      db.from('inventory_adjustments').select('date,quantity_change,reason,notes,item_id,inventory_items(name,unit)').eq('is_deleted',false).eq('period',period).order('date',{ascending:false}).limit(8)
     ]);
 
     const items = itemsRes.data || [];
     if(itemsRes.error || !items.length){ throw itemsRes.error || new Error('No active inventory items found'); }
     warehousesList = whRes.data || [];
+    suppliersList = supRes.data || [];
     const whNameById = Object.fromEntries(warehousesList.map(w=>[w.id, w.name]));
 
     const balCurByItem = Object.fromEntries((balCurRes.data||[]).map(r=>[r.item_id, r]));
@@ -1945,6 +2026,11 @@ async function loadFromSupabase(){
       if(teffItem) usedByItem[teffItem.id] = (usedByItem[teffItem.id]||0) + num(mc.teff_qty);
       if(riceItem) usedByItem[riceItem.id] = (usedByItem[riceItem.id]||0) + num(mc.rice_qty);
     });
+    // Manual usage entries (Record Usage quick action) also draw down stock and are
+    // already counted in the inventory_balance view's closing figure — include them
+    // here too so the "Used" column and turnover/days-of-supply math stay consistent
+    // with the closing balance instead of silently under-counting.
+    (usageLogRes.data||[]).forEach(u=>{ usedByItem[u.item_id] = (usedByItem[u.item_id]||0) + num(u.quantity); });
 
     // Most recent real purchase per item — used for both "Last Purchase Date" and the
     // display-only "Supplier" column (derived live, not a duplicated stored field).
@@ -1978,7 +2064,8 @@ async function loadFromSupabase(){
         opening, purchased, used, closing, wac, value, reorder,
         status:'OK',
         expiryDate: null,
-        leadTimeDays: 5, safetyStockDays: 2, // not in schema — reasonable defaults, editable but not persisted yet
+        leadTimeDays: row.lead_time_days!=null ? num(row.lead_time_days) : 5,
+        safetyStockDays: row.safety_stock_days!=null ? num(row.safety_stock_days) : 2,
         category: row.category || null,
         warehouse: row.warehouse_id ? (whNameById[row.warehouse_id] || null) : null,
         warehouseId: row.warehouse_id || null,
@@ -2016,9 +2103,22 @@ async function loadFromSupabase(){
       if(teffItem) millUsageRows.push({ date: mc.date, item:'Teff', qty: fmt(num(mc.teff_qty))+' kg', note:'Milling conversion' });
       if(riceItem) millUsageRows.push({ date: mc.date, item:'Rice', qty: fmt(num(mc.rice_qty))+' kg', note:'Milling conversion' });
     });
-    [...prodUsageRows, ...millUsageRows].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8).forEach(r=>recentUsageLog.push(r));
+    const manualUsageRows = (usageLogRes.data||[]).map(u=>({
+      date: u.date, item: u.inventory_items?.name || 'Unknown Item',
+      qty: fmt(num(u.quantity))+' '+(u.inventory_items?.unit||''),
+      note: u.note || 'Manual usage entry'
+    }));
+    [...prodUsageRows, ...millUsageRows, ...manualUsageRows].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8).forEach(r=>recentUsageLog.push(r));
 
-    recentAdjustmentsLog.length = 0; // no real adjustments table yet — stays empty rather than fabricated
+    recentAdjustmentsLog.length = 0;
+    (adjustRes.data||[]).forEach(a=>{
+      const chg = num(a.quantity_change);
+      recentAdjustmentsLog.push({
+        date: a.date, item: a.inventory_items?.name || 'Unknown Item',
+        change: (chg>0?'+':'')+fmt(chg)+' '+(a.inventory_items?.unit||''),
+        reason: a.reason || a.notes || 'Adjustment'
+      });
+    });
 
     recentTransfersLog.length = 0;
     (transfersRes.data||[]).forEach(t=>{
@@ -2029,24 +2129,25 @@ async function loadFromSupabase(){
       });
     });
 
-    // Price history — last 6 periods up to and including the selected period, per item
+    // Price history — last 6 periods up to and including the selected period, per item.
+    // Sourced from the monthly_wac view (live, computed straight from approved purchases)
+    // rather than the price_history table, which nothing ever writes to.
     const periods = [];
     let pk = period;
     for(let i=0;i<6;i++){ periods.unshift(pk); pk = prevPeriodOf(pk); }
-    const periodLabel = pstr => { const [y,m]=pstr.split('-').map(Number); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y; };
     priceHistoryByItem = {};
-    let runningValueHistory = [];
     items.forEach(row=>{
-      const rowsForItem = (priceHistRes.data||[]).filter(r=>r.item_id===row.id);
+      const rowsForItem = (wacRes.data||[]).filter(r=>r.item_id===row.id);
       const vals = periods.map(p=>{
-        const match = rowsForItem.filter(r=>r.period===p);
-        if(!match.length) return null;
-        return match.reduce((s,r)=>s+num(r.effective_price_per_unit),0)/match.length;
+        const match = rowsForItem.find(r=>r.period===p);
+        return match ? num(match.wac_per_unit) : null;
       });
-      if(vals.some(v=>v!=null)){
-        priceHistoryByItem[row.name] = { months: periods.map(periodLabel), vals: vals.map(v=>v==null?0:v) };
-      }
+      // Populate for every active item (not just ones with existing purchases) so the
+      // price history dropdown can list all of them and show an honest "no data yet"
+      // state instead of a blank crash for items that haven't been purchased.
+      priceHistoryByItem[row.name] = { months: periods.map(periodLabel), vals: vals.map(v=>v==null?0:v) };
     });
+    populatePriceHistoryDropdown(items);
 
     // Inventory value trend — total closing value per of the last 5 periods before
     // the selected one (the current point is always the live-computed total below).
@@ -2054,6 +2155,20 @@ async function loadFromSupabase(){
     const valueByPeriod = {};
     (balAllRes.data||[]).forEach(r=>{ valueByPeriod[r.period] = (valueByPeriod[r.period]||0) + num(r.closing_value); });
     inventoryValueTrendHistory = periods.slice(0,5).map(p=>({ month: periodLabel(p), value: valueByPeriod[p]||0 }));
+
+    // Previous-period total value, for the Total Stock Value KPI's % change badge.
+    prevPeriodTotalValue = items.reduce((s,row)=>{
+      const pb = balPrevByItem[row.id];
+      return s + (pb ? num(pb.closing_value) : 0);
+    }, 0);
+    prevPeriodLabelStr = periodLabel(prevPeriod);
+
+    // Month-dependent labels that appear outside the main table/charts.
+    const mb = monthBounds(period);
+    const filterRangeEl = document.getElementById('filterDateRange');
+    if(filterRangeEl) filterRangeEl.textContent = mb.rangeStr;
+    const valMonthEl = document.getElementById('valMonthLbl');
+    if(valMonthEl) valMonthEl.textContent = '('+mb.lastStr+')';
 
     showToast('Inventory loaded for '+periodLabel(period));
   } catch(err){
