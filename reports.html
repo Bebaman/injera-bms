@@ -694,10 +694,24 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 // mirrors cashflow.html's own wireSession() pattern: created here (after
 // app-state.js loads, so loadSession() is available).
 const { createClient } = supabase;
+let db;
 if(!window.SB_URL || !window.SB_KEY){
-  throw new Error('Supabase configuration is missing (window.SB_URL/SB_KEY not set).');
+  // Previously this threw synchronously here. Since this <script> block's
+  // completion is what defines `db`, that throw left `db` permanently
+  // undefined for the rest of the page — every db.from() call anywhere in
+  // this file (all 32+ of them) then failed with a confusing
+  // "ReferenceError: db is not defined" instead of a real, catchable error,
+  // and for the Monthly Snapshot panel specifically, that error wiped out
+  // its entire (fully JS-rendered) content including every section header.
+  // A stub client here keeps the failure mode a normal, catchable rejection
+  // that the page's existing try/catch blocks already know how to surface.
+  console.error('Supabase configuration is missing (window.SB_URL/SB_KEY not set).');
+  const configError = () => Promise.reject(new Error('Supabase configuration is missing — contact support'));
+  const stubBuilder = { select(){return this;}, eq(){return this;}, order(){return this;}, limit(){return this;}, then(_,reject){ configError().catch(reject); } };
+  db = { from(){ return stubBuilder; }, auth:{ setSession:configError, getSession:configError } };
+} else {
+  db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
 }
-const db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
 (function wireSession(){
   const session = loadSession();
   if(session && session.access_token){
@@ -1437,6 +1451,25 @@ function currentUserId(){
   try { return (window.AppState && AppState.currentUser && AppState.currentUser.id) || null; } catch(e){ return null; }
 }
 
+// Renders the 11 numbered section headers immediately, with lightweight
+// placeholder bodies. Unlike the standard report types — whose card headers
+// are static HTML that's already in the DOM before any JS runs — this whole
+// panel starts as an empty <div>, so if the data fetch below fails or throws
+// for ANY reason (bad Supabase config, network timeout, a query error), the
+// old code replaced the entire panel with one bare error line and every
+// header vanished. This shell renders first and stays up regardless of what
+// happens next, so the report always looks like a report, matching how the
+// other report types behave when their data hasn't loaded.
+function renderSnapshotShell(label){
+  const sections = [
+    '1. Executive Summary — '+label, '2. P&amp;L Summary', '3. Cash Flow Summary',
+    '4. Sales Summary', '5. Production Summary', '6. Inventory Summary',
+    '7. Itemized Purchases', '8. Milling Conversions', '9. Expense Breakdown',
+    '10. Key Business KPIs', '11. Notes &amp; Approvals'
+  ];
+  return sections.map(t=>`<div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">${t}</div></div><div class="card-bd"><div class="dm-note">Loading…</div></div></div>`).join('');
+}
+
 async function loadMonthlySnapshot(){
   const el = document.getElementById('monthlySnapshotView');
   if(!el){ console.error('monthlySnapshotView element not found in DOM'); return; }
@@ -1450,13 +1483,15 @@ async function loadMonthlySnapshot(){
       return;
     }
     const periodOptions = buildSnapshotPeriodOptions().map(p=>`<option value="${p}" ${p===snapshotPeriod?'selected':''}>${periodLabelFull(p)}</option>`).join('');
+    const shellLabel = periodLabelFull(snapshotPeriod);
     el.innerHTML = `
       <div class="rpt-bar" style="margin-bottom:16px">
         <div class="rpt-sel-grp"><label>Month</label>
           <select class="rpt-sel" id="snapshotMonthSel" onchange="snapshotPeriod=this.value;loadMonthlySnapshot()">${periodOptions}</select>
         </div>
       </div>
-      <div id="snapshotBody"><div class="card"><div class="card-bd">Loading…</div></div></div>
+      <div id="snapshotErrBanner"></div>
+      <div id="snapshotBody">${renderSnapshotShell(shellLabel)}</div>
     `;
 
     const prevPeriod = prevPeriodOf(snapshotPeriod);
@@ -1517,7 +1552,14 @@ async function loadMonthlySnapshot(){
     });
   } catch(err){
     console.error('Monthly snapshot load failed:', err);
-    el.innerHTML = `<div class="card"><div class="card-bd">Could not load this report — ${err && err.message ? err.message : 'check connection'}.</div></div>`;
+    const banner = document.getElementById('snapshotErrBanner');
+    const msg = `Could not load this report's data — ${err && err.message ? err.message : 'check connection'}. The section headers below are still shown; the numbers just haven't loaded.`;
+    if(banner){
+      banner.innerHTML = `<div class="card" style="margin-bottom:16px;border-color:#e53935"><div class="card-bd" style="color:#e53935">${msg}</div></div>`;
+    } else {
+      // Shell never got a chance to render (failed before that point) — fall back to the old behavior.
+      el.innerHTML = `<div class="card"><div class="card-bd">${msg}</div></div>`;
+    }
   }
 }
 
