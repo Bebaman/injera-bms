@@ -1025,29 +1025,26 @@ function renderPriceHistory(){
   const itemName = itemSel.value;
   const unit = itemSel.selectedOptions[0].getAttribute('data-unit') || '';
   const rangeSel = document.getElementById('phRangeSel').value;
-  const series = priceHistoryByItem[itemName];
+  const series = priceHistoryByItem[itemName] || { months: [], vals: [] };
 
   document.getElementById('phColHdr').textContent = 'WAC (ETB/'+unit+')';
 
-  if(!series || !series.vals.some(v=>v>0)){
-    if(priceChart){ priceChart.destroy(); priceChart = null; }
-    document.getElementById('phTblBody').innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--tl)">No purchases recorded yet</td></tr>';
-    document.getElementById('phNote').innerHTML = `No price history recorded yet for <strong>${itemName}</strong> — the chart populates once purchases are logged.`;
-    const canvas = document.getElementById('priceChart');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    return;
-  }
-
   let months = series.months, vals = series.vals;
   if(rangeSel === 'Last 3 Months'){ months = months.slice(-3); vals = vals.slice(-3); }
+  const hasData = vals.some(v=>v>0);
 
-  document.getElementById('phTblBody').innerHTML = months.map((m,i)=>`<tr><td>${m}</td><td>${vals[i]>0?fmt(vals[i]):'—'}</td></tr>`).join('');
+  document.getElementById('phTblBody').innerHTML = months.length
+    ? months.map((m,i)=>`<tr><td>${m}</td><td>${vals[i]>0?fmt(vals[i]):'—'}</td></tr>`).join('')
+    : '<tr><td colspan="2" style="text-align:center;color:var(--tl)">No purchases recorded yet</td></tr>';
 
-  const curr = vals[vals.length-1];
+  const curr = vals.length ? vals[vals.length-1] : 0;
   const prev = vals.length>1 ? vals[vals.length-2] : curr;
-  const currLabel = months[months.length-1], prevLabel = months.length>1 ? months[months.length-2] : currLabel;
-  if(curr<=0){
+  const currLabel = months.length ? months[months.length-1] : '';
+  const prevLabel = months.length>1 ? months[months.length-2] : currLabel;
+
+  if(!hasData){
+    document.getElementById('phNote').innerHTML = `No purchases recorded yet for <strong>${itemName}</strong> — the line will plot in real WAC as soon as purchases are logged.`;
+  } else if(curr<=0){
     document.getElementById('phNote').innerHTML = `No purchases recorded for <strong>${currLabel}</strong> yet.`;
   } else {
     const chg = prev>0 ? ((curr-prev)/prev*100) : 0;
@@ -1056,6 +1053,9 @@ function renderPriceHistory(){
     document.getElementById('phNote').innerHTML = `Current WAC (${currLabel}): <strong>${fmt(curr)} ETB / ${unit}</strong> <span style="color:${color};font-weight:700">${arrow} ${Math.abs(chg).toFixed(2)}%</span> vs ${prevLabel}`;
   }
 
+  // Chart always renders — a flat zero line when there's no data yet, same as the
+  // other charts on this page — rather than going blank, so the card layout stays
+  // consistent and it's visually obvious the feed is live, just waiting on data.
   if(priceChart) priceChart.destroy();
   const ctx = document.getElementById('priceChart').getContext('2d');
   priceChart = new Chart(ctx,{
@@ -1072,7 +1072,7 @@ function renderPriceHistory(){
       plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.y)+' ETB/'+unit}} },
       scales:{
         x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}},
-        y:{grid:{color:'#eef3f0',lineWidth:1},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'},beginAtZero:false}
+        y:{grid:{color:'#eef3f0',lineWidth:1},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'},beginAtZero:!hasData}
       }
     }
   });
