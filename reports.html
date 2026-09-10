@@ -499,6 +499,26 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <span>Actual Injera output vs. expected output from Batch Standards' target count for the batch types run — same method as the Monthly Snapshot's Production Efficiency line. A gap in the chart means no standard exists yet for that period's batch types.</span>
         </div>
       </div>
+
+      <div class="card" id="perUnitDerkoshCard">
+        <div class="card-hd">
+          <div class="card-ttl">
+            <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            Per-Unit Economics Trend (Derkosh)
+          </div>
+        </div>
+        <div class="leg" style="padding:0 17px;flex-wrap:wrap">
+          <span><span class="leg-ln" style="background:#f59e0b"></span>Revenue per kg</span>
+          <span><span class="leg-ln" style="background:#e53935"></span>Cost per kg</span>
+          <span><span class="leg-ln" style="background:#2563eb"></span>Profit per kg</span>
+        </div>
+        <div class="chart-box" style="height:250px;position:relative">
+          <canvas id="perUnitDerkoshChart"></canvas>
+        </div>
+        <div class="info-note" style="border-top:none;padding-top:0">
+          <span>ETB per kg. Real cost/unit = Derkosh's own COGS (monthly_pnl.derkosh_cogs) ÷ real kg produced — separate from Injera's cost, not a shared/blended figure.</span>
+        </div>
+      </div>
     </div>
 
     <!-- INGREDIENT COST TREND WITH FORECAST BAND (Ingredient Price History only): full width -->
@@ -513,7 +533,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <option value="corn">Corn</option>
           <option value="gomen">Gomen Zere</option>
             <option value="teff">Teff</option>
-            <option value="rice">Rice</option>
+            <option value="rice" selected>Rice</option>
         </select>
       </div>
       <div class="leg" style="padding:0 17px;flex-wrap:wrap">
@@ -791,7 +811,17 @@ function cogsOf(monthOrYearTotals){ return (monthOrYearTotals && monthOrYearTota
 function perUnitEconomics(y){
   const revPerUnit = yearData[y].asp || 0;
   const injeraQty = yearData[y].injera || 0;
-  const costPerUnit = injeraQty>0 ? yearTotals(y).cogs / injeraQty : 0;
+  const costPerUnit = injeraQty>0 ? (yearData[y].injeraCogs||0) / injeraQty : 0;
+  return { revPerUnit, costPerUnit, profitPerUnit: revPerUnit - costPerUnit };
+}
+// Derkosh equivalent of perUnitEconomics() above — previously didn't exist at
+// all, so Derkosh had no average selling price or profit-per-unit anywhere
+// in the report, only Injera. Uses Derkosh's own COGS (yearData[y].derkoshCogs,
+// from monthly_pnl.derkosh_cogs) against real Derkosh kg produced.
+function perUnitEconomicsDerkosh(y){
+  const revPerUnit = derkoshAsp[y] || 0;
+  const derkoshQty = yearData[y].derkosh || 0;
+  const costPerUnit = derkoshQty>0 ? (yearData[y].derkoshCogs||0) / derkoshQty : 0;
   return { revPerUnit, costPerUnit, profitPerUnit: revPerUnit - costPerUnit };
 }
 
@@ -1039,7 +1069,7 @@ const REPORTS = {
     kpis:[
       {metric:'cogs', label:'Total COGS'},
       {metric:'cogsPct', label:'Avg. COGS % of Revenue'},
-      {metric:'blend', label:'Avg. Injera Blend Price'},
+      {metric:'rice', label:'Avg. Rice Price'},
       {metric:'corn', label:'Avg. Corn Price'},
       {metric:'gross', label:'Total Gross Profit'},
       {custom:'growth', metric:'cogs', label:'COGS Growth'}
@@ -1049,24 +1079,24 @@ const REPORTS = {
     chartMetrics:['cogs'],
     chartTitle:'COGS Trend (All Years)',
     secondaryMetric:'cogsPct', secondaryTitle:'COGS % of Revenue Trend',
-    bottomMetrics:['blend','corn','gomen']
+    bottomMetrics:['rice','corn','teff']
   },
   price_history: {
     label:'Ingredient Price History',
     kpis:[
-      {metric:'blend', label:'Avg. Injera Blend Price'},
+      {metric:'rice', label:'Avg. Rice Price'},
       {metric:'corn', label:'Avg. Corn Price'},
-      {custom:'growth', metric:'blend', label:'Injera Blend Price Change'},
+      {custom:'growth', metric:'rice', label:'Rice Price Change'},
       {custom:'growth', metric:'corn', label:'Corn Price Change'},
-      {metric:'gomen', label:'Avg. Gomen Zere Price'},
+      {metric:'teff', label:'Avg. Teff Price'},
       {metric:'cogsPct', label:'Avg. COGS % of Revenue'}
     ],
-    tableMetrics:['blend','corn','gomen'],
+    tableMetrics:['rice','corn','teff'],
     tableTitle:'Ingredient Price Detail (ETB/kg)',
-    chartMetrics:['blend'],
-    chartTitle:'Injera Blend Price Trend (All Years)',
+    chartMetrics:['rice'],
+    chartTitle:'Rice Price Trend (All Years)',
     secondaryMetric:'corn', secondaryTitle:'Corn Price Trend',
-    bottomMetrics:['blend','corn','gomen']
+    bottomMetrics:['rice','corn','teff']
   },
   net_profit_grid: {
     label:'Annual Net Profit Summary',
@@ -1095,11 +1125,11 @@ const REPORTS = {
       {metric:'injera', label:'Total Injera Produced'},
       {metric:'derkosh', label:'Total Derkosh Produced'},
       {metric:'asp', label:'Avg. Selling Price (Injera)'},
+      {metric:'derkoshAsp', label:'Avg. Selling Price (Derkosh)'},
       {custom:'growth', metric:'injera', label:'Injera Volume Growth'},
-      {custom:'growth', metric:'derkosh', label:'Derkosh Volume Growth'},
-      {metric:'revenue', label:'Total Revenue'}
+      {custom:'growth', metric:'derkosh', label:'Derkosh Volume Growth'}
     ],
-    tableMetrics:['injera','derkosh','asp'],
+    tableMetrics:['injera','derkosh','asp','derkoshAsp'],
     tableTitle:'Annual Production Volume Detail',
     chartMetrics:['injera'],
     chartTitle:'Injera Production Trend (All Years)',
@@ -1399,25 +1429,26 @@ function currentUserId(){
 
 async function loadMonthlySnapshot(){
   const el = document.getElementById('monthlySnapshotView');
-  if(!snapshotPeriod){
-    const opts = buildSnapshotPeriodOptions();
-    snapshotPeriod = opts[0] || null;
-  }
-  if(!snapshotPeriod){
-    el.innerHTML = '<div class="card"><div class="card-bd">No periods available yet.</div></div>';
-    return;
-  }
-  const periodOptions = buildSnapshotPeriodOptions().map(p=>`<option value="${p}" ${p===snapshotPeriod?'selected':''}>${periodLabelFull(p)}</option>`).join('');
-  el.innerHTML = `
-    <div class="rpt-bar" style="margin-bottom:16px">
-      <div class="rpt-sel-grp"><label>Month</label>
-        <select class="rpt-sel" id="snapshotMonthSel" onchange="snapshotPeriod=this.value;loadMonthlySnapshot()">${periodOptions}</select>
-      </div>
-    </div>
-    <div id="snapshotBody"><div class="card"><div class="card-bd">Loading…</div></div></div>
-  `;
-
+  if(!el){ console.error('monthlySnapshotView element not found in DOM'); return; }
   try {
+    if(!snapshotPeriod){
+      const opts = buildSnapshotPeriodOptions();
+      snapshotPeriod = opts[0] || null;
+    }
+    if(!snapshotPeriod){
+      el.innerHTML = '<div class="card"><div class="card-bd">No periods available yet.</div></div>';
+      return;
+    }
+    const periodOptions = buildSnapshotPeriodOptions().map(p=>`<option value="${p}" ${p===snapshotPeriod?'selected':''}>${periodLabelFull(p)}</option>`).join('');
+    el.innerHTML = `
+      <div class="rpt-bar" style="margin-bottom:16px">
+        <div class="rpt-sel-grp"><label>Month</label>
+          <select class="rpt-sel" id="snapshotMonthSel" onchange="snapshotPeriod=this.value;loadMonthlySnapshot()">${periodOptions}</select>
+        </div>
+      </div>
+      <div id="snapshotBody"><div class="card"><div class="card-bd">Loading…</div></div></div>
+    `;
+
     const prevPeriod = prevPeriodOf(snapshotPeriod);
     const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshBatchRes,
            prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
@@ -1476,7 +1507,7 @@ async function loadMonthlySnapshot(){
     });
   } catch(err){
     console.error('Monthly snapshot load failed:', err);
-    document.getElementById('snapshotBody').innerHTML = '<div class="card"><div class="card-bd">Could not load — check connection.</div></div>';
+    el.innerHTML = `<div class="card"><div class="card-bd">Could not load this report — ${err && err.message ? err.message : 'check connection'}.</div></div>`;
   }
 }
 
@@ -2493,7 +2524,7 @@ function updateExtraSectionsVisibility(){
   // Per-Unit Economics + Product Mix: exclusive to Production Volume YoY
   const showProdExtras = currentReport==='prod_yoy';
   const topGrid = document.getElementById('perUnitCard') ? document.getElementById('perUnitCard').parentElement : null;
-  if(topGrid) topGrid.style.gridTemplateColumns = showProdExtras ? '1.35fr 1fr 1fr' : '1fr';
+  if(topGrid) topGrid.style.gridTemplateColumns = showProdExtras ? '1.8fr 0.85fr 0.85fr' : '1fr';
   ['perUnitCard','productMixCard'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = showProdExtras ? '' : 'none';
@@ -2510,7 +2541,7 @@ function updateExtraSectionsVisibility(){
   const cardVisibility = {
     cogsDecompCard: showCogsDecomp, cogsByProductCard: showCogsDecomp,
     concentrationCard: showCustAnalytics, retentionCard: showCustAnalytics,
-    yieldEfficiencyCard: showYield
+    yieldEfficiencyCard: showYield, perUnitDerkoshCard: showYield
   };
   let visibleCount = 0;
   Object.entries(cardVisibility).forEach(([id,show])=>{
@@ -2549,6 +2580,30 @@ function renderPerUnitEconomicsChart(){
       {label:'Revenue per Injera', data:rev, borderColor:'#1d5c38', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}},
       {label:'Cost per Injera', data:cost, borderColor:'#e53935', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}},
       {label:'Profit per Injera', data:profit, borderColor:'#2563eb', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:easeAnim,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toFixed(2)+' ETB'}} },
+      scales:{ x:{grid:{display:false}, ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}},
+               y:{grid:{color:'#eef3f0'}, beginAtZero:true, ticks:{font:{family:'Nunito',size:10},color:'#9aada5', callback:v=>v.toFixed(2)}} }
+    }
+  });
+}
+
+function renderPerUnitEconomicsDerkoshChart(){
+  destroyChart('perUnitDerkosh');
+  const canvas = document.getElementById('perUnitDerkoshChart');
+  if(!canvas || currentReport!=='prod_yoy') return;
+  const years = selYears();
+  const labels = yoyYearLabels(years);
+  const rev = years.map(y=>perUnitEconomicsDerkosh(y).revPerUnit);
+  const cost = years.map(y=>perUnitEconomicsDerkosh(y).costPerUnit);
+  const profit = years.map(y=>perUnitEconomicsDerkosh(y).profitPerUnit);
+  charts.perUnitDerkosh = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'Revenue per kg (Derkosh)', data:rev, borderColor:'#f59e0b', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}},
+      {label:'Cost per kg (Derkosh)', data:cost, borderColor:'#e53935', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}},
+      {label:'Profit per kg (Derkosh)', data:profit, borderColor:'#2563eb', backgroundColor:'transparent', borderWidth:2.5, pointRadius:4, tension:0.3, datalabels:{display:false}}
     ]},
     options:{ responsive:true, maintainAspectRatio:false, animation:easeAnim,
       plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toFixed(2)+' ETB'}} },
@@ -2766,7 +2821,7 @@ function renderIngredientForecastChart(){
   const canvas = document.getElementById('ingForecastChart');
   if(!canvas || currentReport!=='price_history') return;
   const sel = document.getElementById('ingForecastSel');
-  const ing = sel ? sel.value : 'blend';
+  const ing = sel ? sel.value : 'rice';
   const years = selYears().slice().sort((a,b)=>a-b);
 
   const labels = [];
@@ -3223,7 +3278,7 @@ function renderExecutiveSummary(){
     const riskLevel = share>35?'high':share>20?'moderate':'low';
     bullets.push(top ? `${top.name} accounts for ${share.toFixed(1)}% of top-10 customer revenue — ${riskLevel} customer concentration risk.` : 'No customer sales recorded yet for the selected period.');
   } else if(currentReport==='price_history'){
-    const ings = isIngredientFocused() ? [getIngredientFilter()] : ['blend','corn','gomen'];
+    const ings = isIngredientFocused() ? [getIngredientFilter()] : ['rice','corn','teff'];
     let flagged = false;
     ings.forEach(ing=>{
       const latest = latestDataPoint();
@@ -3317,7 +3372,7 @@ function renderAll(){
     updateExtraSectionsVisibility, renderMainTable, renderKpiRow, renderTopCustomers,
     renderMainChart, renderSubChart, renderBottomCharts, renderGrowthChart,
     renderCumulativeChart, renderSeasonalityHeatmap, renderVarianceTable, renderExecutiveSummary,
-    renderPerUnitEconomicsChart, renderProductMixChart, renderYieldEfficiencyChart,
+    renderPerUnitEconomicsChart, renderPerUnitEconomicsDerkoshChart, renderProductMixChart, renderYieldEfficiencyChart,
     renderCogsDecompChart, renderCogsByProductChart,
     renderConcentrationChart, renderRetentionTable, renderIngredientForecastChart
   ];
