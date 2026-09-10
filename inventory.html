@@ -394,10 +394,6 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       </select>
       <select class="filter-sel" id="filterWarehouse" onchange="onFilterChange()">
         <option value="">All Warehouses</option>
-        <option value="Main Store">Main Store</option>
-        <option value="Cold Storage">Cold Storage</option>
-        <option value="Packaging Area">Packaging Area</option>
-        <option value="Production Floor">Production Floor</option>
       </select>
       <select class="filter-sel" id="filterStatus" onchange="onFilterChange()">
         <option value="">All Status</option>
@@ -592,7 +588,7 @@ let suppliersList = [];          // [{id,name}] — populated live, used by Add 
 let prevPeriodTotalValue = 0;    // total closing value for the period before currentPeriod — for the KPI % change badge
 let prevPeriodLabelStr = '';
 
-/* Days between the app's simulated "today" and an item's expiryDate. Negative = already expired. */
+/* Days between today and an item's expiryDate. Negative = already expired. */
 function daysUntilExpiry(item){
   if(!item.expiryDate) return null;
   const ms = new Date(item.expiryDate+'T00:00:00') - new Date(todayInApp()+'T00:00:00');
@@ -733,8 +729,10 @@ function computeKpis(){
   const expiringCount = buildExpiryAlerts().filter(a=>a.pillText==='EXPIRING SOON').length;
 
   const usedValue = invItems.reduce((s,i)=> s + ((i.used && i.wac) ? i.used*i.wac : 0), 0);
-  const openingValue = invItems.reduce((s,i)=> s + ((i.opening!=null && i.wac) ? i.opening*i.wac : 0), 0);
-  const avgInvValue = (openingValue+totalValue)/2;
+  // Opening value = the exact prior period's closing value (already fetched precisely from
+  // the database), not opening_qty × this period's WAC — that approximation would be wrong
+  // whenever WAC shifted during the month.
+  const avgInvValue = (prevPeriodTotalValue+totalValue)/2;
   const monthlyTurnover = avgInvValue>0 ? usedValue/avgInvValue : 0;
   const annualTurnover = monthlyTurnover*12;
   const avgDaysSupply = monthlyTurnover>0 ? 30/monthlyTurnover : 0;
@@ -879,8 +877,8 @@ function renderMonthlyTable(){
 function renderAllTimeTable(){
   const items = applyFilters(invItems);
   let rows = items.map(it=>{
-    const totalIn = (it.opening||0)+(it.purchased||0);
-    const totalOut = it.used||0;
+    const totalIn = it.allTimeIn||0;
+    const totalOut = it.allTimeOut||0;
     const dos = daysOfSupply(it);
     const available = it.closing!=null ? Math.max(0, it.closing-(it.reservedQty||0)) : null;
     return `<tr>
@@ -974,8 +972,9 @@ function renderStockAlerts(){
 /* ════════════════ INVENTORY VALUATION DONUT ════════════════ */
 let valChart;
 function renderValuationDonut(){
-  const top5 = invItems.filter(i=>i.value!=null).slice(0,5);
-  const others = invItems.filter(i=>i.value!=null).slice(5).reduce((s,i)=>s+i.value,0);
+  const byValue = [...invItems].filter(i=>i.value!=null).sort((a,b)=>b.value-a.value);
+  const top5 = byValue.slice(0,5);
+  const others = byValue.slice(5).reduce((s,i)=>s+i.value,0);
   const labels = top5.map(i=>i.name).concat(others>0 ? ['Others'] : []);
   const data = top5.map(i=>i.value).concat(others>0 ? [others] : []);
   const colors = ['#27ae60','#f59e0b','#8b5cf6','#2563eb','#0d9b7a','#94a3b8'];
@@ -1010,6 +1009,15 @@ function populatePriceHistoryDropdown(items){
   if(sorted.some(it=>it.name===prevValue)) sel.value = prevValue;
   else if(sorted.some(it=>it.name==='Injera Blend')) sel.value = 'Injera Blend';
   else if(sorted.length) sel.value = sorted[0].name;
+}
+function populateWarehouseFilter(warehouses){
+  const sel = document.getElementById('filterWarehouse');
+  if(!sel) return;
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">All Warehouses</option>' +
+    warehouses.map(w=>`<option value="${w.name}">${w.name}</option>`).join('');
+  if(warehouses.some(w=>w.name===prevValue)) sel.value = prevValue;
+  else filterState.warehouse = ''; // previously-selected warehouse no longer exists — reset the filter
 }
 function renderPriceHistory(){
   const itemSel = document.getElementById('phItemSel');
@@ -1082,9 +1090,10 @@ function renderValueTrendChart(){
   } else {
     // "This Month" — only two real data points exist (opening balance and today's
     // total); previously this interpolated four fake weekly points between them.
-    const openingValue = invItems.reduce((s,i)=> s + ((i.opening!=null && i.wac) ? i.opening*i.wac : 0), 0);
+    // Opening value is the exact prior period's closing value (see computeKpis note) —
+    // not opening_qty × this period's WAC, which drifts whenever WAC changed mid-month.
     labels = ['Opening', periodLabel(currentPeriod)+' (Now)'];
-    vals = [openingValue, currentTotal];
+    vals = [prevPeriodTotalValue, currentTotal];
   }
   if(valueTrendChart) valueTrendChart.destroy();
   const ctx = document.getElementById('valueTrendChart').getContext('2d');
@@ -1287,8 +1296,8 @@ function toggleFieldError(inputId, hasError){
   const grp = document.getElementById(inputId).closest('.frm-grp');
   if(grp) grp.classList.toggle('err', hasError);
 }
-/* Two-tier status rule applied only to items edited via these modals, so untouched demo
-   rows keep their original values and only edited rows get a live-computed status. */
+/* Status thresholds: REORDER at ≤60% of reorder level, LOW at ≤100%, else OK.
+   Items with no reorder level set (0) stay OK — there's no threshold to compare against. */
 function recomputeStatus(item){
   if(item.closing===null || item.closing===undefined || !item.reorder){ return; }
   if(item.closing <= item.reorder*0.6) item.status = 'REORDER';
@@ -1587,7 +1596,7 @@ function suggestedReorder(item){
 function openItemSettingsModal(itemName){
   const item = invItems.find(i=>i.name===itemName);
   if(!item) return;
-  const hasExpiry = !!item.expiryDate;
+  const hasExpiry = item.shelfLifeDays!=null;
   const avgDaily = (item.used||0)/30;
   const suggested = suggestedReorder(item);
   const body = `
@@ -1613,7 +1622,7 @@ function openItemSettingsModal(itemName){
     <div class="frm-row" id="isLeadGrpRow">
       <div class="frm-grp" id="isLeadGrp"><label class="frm-lbl">Lead Time (days)</label>
         <input class="frm-in" type="number" min="0" step="1" id="isLead" value="${item.leadTimeDays ?? 5}" oninput="refreshSuggestedReorder('${item.name}')">
-        <div class="frm-hint">Days from placing an order to receiving stock. (Not yet persisted to the database — resets to default 5 next load.)</div></div>
+        <div class="frm-hint">Days from placing an order to receiving stock.</div></div>
       <div class="frm-grp" id="isSafetyGrp"><label class="frm-lbl">Safety Stock (days)</label>
         <input class="frm-in" type="number" min="0" step="1" id="isSafety" value="${item.safetyStockDays ?? 2}" oninput="refreshSuggestedReorder('${item.name}')">
         <div class="frm-hint">Buffer for demand spikes or delivery delays.</div></div>
@@ -1637,13 +1646,13 @@ function openItemSettingsModal(itemName){
     <div class="frm-grp">
       <label class="frm-lbl">
         <input type="checkbox" id="isHasExpiry" ${hasExpiry?'checked':''} onchange="document.getElementById('isExpiryGrp').style.display=this.checked?'block':'none'" style="margin-right:6px;vertical-align:-2px">
-        This item has an expiry date
+        This item has a shelf life
       </label>
     </div>
     <div class="frm-grp" id="isExpiryGrp" style="display:${hasExpiry?'block':'none'}">
-      <label class="frm-lbl">Expiry Date (current lot)</label>
-      <input class="frm-in" type="date" id="isExpiry" value="${item.expiryDate||''}">
-      <div class="frm-hint">Drives the "Expiring Soon" alert (fires within 7 days of this date).</div>
+      <label class="frm-lbl">Shelf Life (days from purchase)</label>
+      <input class="frm-in" type="number" min="1" step="1" id="isShelfLife" value="${item.shelfLifeDays||''}">
+      <div class="frm-hint">${item.expiryDate ? `Current lot (from last purchase on ${fmtDateLong(item.lastPurchaseDate)}) expires ${fmtDateLong(item.expiryDate)}.` : 'Expiry date is calculated automatically from the most recent purchase date once one is logged.'} Drives the "Expiring Soon" alert (fires within 7 days).</div>
     </div>
   `;
   const footer = `
@@ -1679,28 +1688,23 @@ async function submitItemSettings(itemName){
   const leadTimeDays = parseFloat(document.getElementById('isLead').value);
   const safetyStockDays = parseFloat(document.getElementById('isSafety').value);
   const hasExpiry = document.getElementById('isHasExpiry').checked;
-  const expiryVal = document.getElementById('isExpiry').value;
+  const shelfLifeVal = parseFloat(document.getElementById('isShelfLife').value);
   const category = document.getElementById('isCategory').value;
   const warehouseId = document.getElementById('isWarehouse').value;
   const reservedQty = parseFloat(document.getElementById('isReserved').value)||0;
-  const bad = !(reorder>=0) || !(reservedQty>=0);
-  toggleFieldError('isReorder', bad);
+  const bad = !(reorder>=0) || !(reservedQty>=0) || (hasExpiry && !(shelfLifeVal>0));
+  toggleFieldError('isReorder', !(reorder>=0));
+  toggleFieldError('isShelfLife', hasExpiry && !(shelfLifeVal>0));
   if(bad) return;
+  const shelfLifeDays = hasExpiry ? shelfLifeVal : null;
 
   try {
     const { error } = await db.from('inventory_items').update({
       reorder_level: reorder, category, warehouse_id: warehouseId, reserved_qty: reservedQty,
-      lead_time_days: leadTimeDays>=0 ? leadTimeDays : null, safety_stock_days: safetyStockDays>=0 ? safetyStockDays : null
+      lead_time_days: leadTimeDays>=0 ? leadTimeDays : null, safety_stock_days: safetyStockDays>=0 ? safetyStockDays : null,
+      shelf_life_days: shelfLifeDays
     }).eq('id', item.id);
     if(error) throw error;
-
-    item.reorder = +reorder.toFixed(2);
-    item.leadTimeDays = leadTimeDays>=0 ? leadTimeDays : item.leadTimeDays;
-    item.safetyStockDays = safetyStockDays>=0 ? safetyStockDays : item.safetyStockDays;
-    item.expiryDate = hasExpiry && expiryVal ? expiryVal : null;
-    item.category = category;
-    item.reservedQty = reservedQty;
-    recomputeStatus(item);
 
     closeModal();
     showToast(`Updated settings for ${item.name}`);
@@ -1784,7 +1788,7 @@ function openSlowMovingReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} slow-moving</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Slow_Moving_Report')">${icCheck}Export PDF</button>`;
+    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>{const d=daysOfSupply(i);return [i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(d),d<20?'FAST':d<=45?'NORMAL':'SLOW-MOVING'];}))}, 'Slow_Moving_Report')">${icCheck}Export PDF</button>`;
   openModal({ title:'Slow Moving Report', sub:'Items with excess days of supply', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1991,7 +1995,8 @@ async function loadFromSupabase(){
     const prevPeriod = prevPeriodOf(period);
 
     const [itemsRes, whRes, supRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes,
-           recentPurchRes, wacRes, transfersRes, usageLogRes, adjustRes] = await Promise.all([
+           recentPurchRes, wacRes, transfersRes, usageLogRes, adjustRes,
+           allPurchRes, allProdRes, allMillRes, allUsageRes, allAdjRes, allOpenRes] = await Promise.all([
       db.from('inventory_items').select('*').eq('is_active', true).order('name'),
       db.from('warehouses').select('id,name').order('name'),
       db.from('suppliers').select('id,name').eq('is_active', true).order('name'),
@@ -2004,12 +2009,21 @@ async function loadFromSupabase(){
       db.from('monthly_wac').select('item_id,period,wac_per_unit'),
       db.from('inventory_transfers').select('date,quantity,item_id,inventory_items(name,unit),from:from_warehouse_id(name),to:to_warehouse_id(name)').eq('is_deleted',false).order('date',{ascending:false}).limit(8),
       db.from('inventory_usage_log').select('date,quantity,note,item_id,inventory_items(name,unit)').eq('is_deleted',false).eq('period',period).order('date',{ascending:false}).limit(8),
-      db.from('inventory_adjustments').select('date,quantity_change,reason,notes,item_id,inventory_items(name,unit)').eq('is_deleted',false).eq('period',period).order('date',{ascending:false}).limit(8)
+      db.from('inventory_adjustments').select('date,quantity_change,reason,notes,item_id,inventory_items(name,unit)').eq('is_deleted',false).eq('period',period).order('date',{ascending:false}).limit(8),
+      // All-time (no period filter) — used only by the All-Time tab's Total In / Total Out
+      // columns, which must reflect everything since inception, not just this month.
+      db.from('purchases').select('item_id,quantity').eq('type','purchase').eq('is_deleted',false).in('approval_status',['auto_approved','approved']),
+      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(is_deleted)').eq('production_batches.is_deleted', false),
+      db.from('milling_conversions').select('teff_qty,rice_qty'),
+      db.from('inventory_usage_log').select('item_id,quantity').eq('is_deleted',false),
+      db.from('inventory_adjustments').select('item_id,quantity_change').eq('is_deleted',false),
+      db.from('inventory_opening_balances').select('item_id,opening_qty')
     ]);
 
     const items = itemsRes.data || [];
     if(itemsRes.error || !items.length){ throw itemsRes.error || new Error('No active inventory items found'); }
     warehousesList = whRes.data || [];
+    populateWarehouseFilter(warehousesList);
     suppliersList = supRes.data || [];
     const whNameById = Object.fromEntries(warehousesList.map(w=>[w.id, w.name]));
 
@@ -2031,6 +2045,24 @@ async function loadFromSupabase(){
     // here too so the "Used" column and turnover/days-of-supply math stay consistent
     // with the closing balance instead of silently under-counting.
     (usageLogRes.data||[]).forEach(u=>{ usedByItem[u.item_id] = (usedByItem[u.item_id]||0) + num(u.quantity); });
+
+    // All-time (no period filter) totals — feeds the All-Time tab's "Total In" / "Total
+    // Out" columns. Previously that tab just relabeled this month's opening+purchased/
+    // used figures as "(All-Time)", which was wrong for any month beyond the first.
+    const allTimeInByItem = {}, allTimeOutByItem = {};
+    (allOpenRes.data||[]).forEach(o=>{ allTimeInByItem[o.item_id] = (allTimeInByItem[o.item_id]||0) + num(o.opening_qty); });
+    (allPurchRes.data||[]).forEach(p=>{ allTimeInByItem[p.item_id] = (allTimeInByItem[p.item_id]||0) + num(p.quantity); });
+    (allProdRes.data||[]).forEach(m=>{ allTimeOutByItem[m.item_id] = (allTimeOutByItem[m.item_id]||0) + num(m.quantity_used); });
+    (allMillRes.data||[]).forEach(mc=>{
+      if(teffItem) allTimeOutByItem[teffItem.id] = (allTimeOutByItem[teffItem.id]||0) + num(mc.teff_qty);
+      if(riceItem) allTimeOutByItem[riceItem.id] = (allTimeOutByItem[riceItem.id]||0) + num(mc.rice_qty);
+    });
+    (allUsageRes.data||[]).forEach(u=>{ allTimeOutByItem[u.item_id] = (allTimeOutByItem[u.item_id]||0) + num(u.quantity); });
+    (allAdjRes.data||[]).forEach(a=>{
+      const chg = num(a.quantity_change);
+      if(chg>0) allTimeInByItem[a.item_id] = (allTimeInByItem[a.item_id]||0) + chg;
+      else allTimeOutByItem[a.item_id] = (allTimeOutByItem[a.item_id]||0) + Math.abs(chg);
+    });
 
     // Most recent real purchase per item — used for both "Last Purchase Date" and the
     // display-only "Supplier" column (derived live, not a duplicated stored field).
@@ -2071,7 +2103,10 @@ async function loadFromSupabase(){
         warehouseId: row.warehouse_id || null,
         reservedQty: num(row.reserved_qty),
         supplier: supplierByItem[row.id] || null,
-        lastPurchaseDate: lastPurchaseByItem[row.id] ? lastPurchaseByItem[row.id].date : null
+        lastPurchaseDate: lastPurchaseByItem[row.id] ? lastPurchaseByItem[row.id].date : null,
+        allTimeIn: allTimeInByItem[row.id] || 0,
+        allTimeOut: allTimeOutByItem[row.id] || 0,
+        shelfLifeDays: row.shelf_life_days!=null ? num(row.shelf_life_days) : null
       };
       if(row.shelf_life_days && item.lastPurchaseDate){
         const d = new Date(item.lastPurchaseDate+'T00:00:00');
