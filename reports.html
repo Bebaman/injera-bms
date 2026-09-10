@@ -1151,7 +1151,7 @@ async function loadFromSupabase(){
     const currentYear = today.getFullYear();
 
     const [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes,
-           wacRes, payrollRes, overheadRes, itemsRes, batchStdRes] = await Promise.all([
+           wacRes, payrollRes, overheadRes, itemsRes, batchStdRes] = await withTimeout(Promise.all([
       db.from('monthly_pnl').select('period,injera_revenue,derkosh_revenue,total_revenue,total_cogs,total_overhead,total_opex,interest_expense,injera_cogs,derkosh_cogs'),
       db.from('sales').select('date,period,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted', false),
       db.from('production_batches').select('period,injera_qty,type').eq('is_deleted', false),
@@ -1162,7 +1162,7 @@ async function loadFromSupabase(){
       db.from('monthly_overhead').select('period,amount,overhead_categories(name)'),
       db.from('inventory_items').select('id,name'),
       db.from('batch_standards').select('batch_type,target_injera_count') // reference table, not period-scoped — same standards apply to every period
-    ]);
+    ]), 20000, 'Reports data load');
 
     // Supabase's client returns {data, error} — it does not throw on a failed
     // query. Each of the previous `.data||[]` fallbacks below would have
@@ -1396,6 +1396,16 @@ async function loadFromSupabase(){
   renderAll();
 }
 function num(v){ return parseFloat(v)||0; }
+// Promise.all never settles if even one request hangs (no response, no
+// error — a real possibility on a flaky connection), which would leave a
+// "Loading…" card stuck forever with no error to catch. Races the real
+// work against a timeout so a hang becomes a visible, bounded failure.
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${ms/1000}s — check your connection`)), ms))
+  ]);
+}
 
 /* ════════════════ MONTHLY REPORT (FULL DETAIL) ════════════════
    Combines, for one selected month: the P&L summary (monthly_pnl), the Cash
@@ -1452,7 +1462,7 @@ async function loadMonthlySnapshot(){
     const prevPeriod = prevPeriodOf(snapshotPeriod);
     const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshBatchRes,
            prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
-           stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes] = await Promise.all([
+           stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes] = await withTimeout(Promise.all([
       db.from('monthly_pnl').select('*').eq('period', snapshotPeriod),
       db.from('monthly_pnl').select('*').eq('period', prevPeriod),
       db.from('monthly_cash_flow').select('*').eq('period', snapshotPeriod),
@@ -1472,7 +1482,7 @@ async function loadMonthlySnapshot(){
       db.from('period_closes').select('period,closed_at,locked,users(name)').eq('period', snapshotPeriod),
       db.from('report_notes').select('*').eq('period', snapshotPeriod),
       db.from('batch_standards').select('*')
-    ]);
+    ]), 20000, 'Monthly Snapshot data load');
     const snapQueryLabels = ['monthly_pnl(current)','monthly_pnl(prev)','monthly_cash_flow','purchases','milling_conversions',
       'sales','production_batch_costs','derkosh_batches','production_batches','production_batch_materials',
       'payroll_detail','monthly_overhead','inventory_items','inventory_opening_balances','inventory_balance',
@@ -1882,20 +1892,30 @@ function setView(v){
 }
 
 function onReportTypeChange(){
-  currentReport = document.getElementById('reportType').value;
-  document.getElementById('ingredientSelGrp').style.display = currentReport==='price_history' ? 'flex' : 'none';
-  const isSnapshot = currentReport==='monthly_snapshot';
-  document.getElementById('standardReportView').style.display = isSnapshot ? 'none' : '';
-  document.getElementById('monthlySnapshotView').style.display = isSnapshot ? '' : 'none';
-  // These controls (View toggle, Compare Years, Month filter) don't apply to a
-  // single-month full-detail report — hide them while it's active.
-  ['viewToggle','yearChips'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
-  });
-  document.getElementById('monthFilter').closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
-  if(isSnapshot){ loadMonthlySnapshot(); return; }
-  renderAll();
+  try {
+    currentReport = document.getElementById('reportType').value;
+    document.getElementById('ingredientSelGrp').style.display = currentReport==='price_history' ? 'flex' : 'none';
+    const isSnapshot = currentReport==='monthly_snapshot';
+    document.getElementById('standardReportView').style.display = isSnapshot ? 'none' : '';
+    document.getElementById('monthlySnapshotView').style.display = isSnapshot ? '' : 'none';
+    // These controls (View toggle, Compare Years, Month filter) don't apply to a
+    // single-month full-detail report — hide them while it's active.
+    ['viewToggle','yearChips'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
+    });
+    document.getElementById('monthFilter').closest('.rpt-sel-grp').style.display = isSnapshot ? 'none' : '';
+    if(isSnapshot){ loadMonthlySnapshot(); return; }
+    renderAll();
+  } catch(err){
+    console.error('onReportTypeChange failed:', err);
+    toast('Something went wrong switching reports — see console (F12) for details');
+    const snapEl = document.getElementById('monthlySnapshotView');
+    if(currentReport==='monthly_snapshot' && snapEl){
+      snapEl.style.display = '';
+      snapEl.innerHTML = `<div class="card"><div class="card-bd">Could not open this report — ${err && err.message ? err.message : 'unknown error'}.</div></div>`;
+    }
+  }
 }
 
 /* ════════════════ SELECTION HELPERS ════════════════ */
