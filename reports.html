@@ -349,10 +349,10 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <div class="exec-row" id="execSummary"></div>
     </div>
 
-    <!-- MAIN AREA: report table, plus Per-Unit Economics + Product Mix (Production Volume YoY only) -->
-    <div class="bot2" style="grid-template-columns:1.35fr 1fr 1fr;align-items:start;margin-bottom:20px">
+    <!-- MAIN AREA: report table (always full width, same as every other report tab) -->
+    <div class="bot2" style="grid-template-columns:1fr;align-items:start;margin-bottom:20px">
 
-      <!-- LEFT: YoY P&L Summary table -->
+      <!-- YoY P&L Summary table -->
       <div class="card">
         <div class="card-hd">
           <div class="card-ttl">
@@ -369,8 +369,12 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <span id="yoyPartialNote">Loading…</span>
         </div>
       </div>
+    </div>
 
-      <!-- MIDDLE: Per-Unit Economics Trend (Injera) -->
+    <!-- Per-Unit Economics + Product Mix: own row below the table, Production Volume YoY only -->
+    <div class="bot2" id="prodExtrasGrid" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px;display:none">
+
+      <!-- Per-Unit Economics Trend (Injera) -->
       <div class="card" id="perUnitCard">
         <div class="card-hd">
           <div class="card-ttl">
@@ -392,7 +396,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         </div>
       </div>
 
-      <!-- RIGHT: Product Mix Trend (Revenue %) -->
+      <!-- Product Mix Trend (Revenue %) -->
       <div class="card" id="productMixCard">
         <div class="card-hd">
           <div class="card-ttl">
@@ -2584,14 +2588,12 @@ function buildRollingSeries(ing, window, years, view, monthIdx){
 function yoyYearLabels(years){ return years.map(y=>yHead(y)); }
 
 function updateExtraSectionsVisibility(){
-  // Per-Unit Economics + Product Mix: exclusive to Production Volume YoY
+  // Per-Unit Economics + Product Mix: exclusive to Production Volume YoY.
+  // These live in their own row below the table now, so the table itself
+  // stays full-width on every report type, including Production Volume YoY.
   const showProdExtras = currentReport==='prod_yoy';
-  const topGrid = document.getElementById('perUnitCard') ? document.getElementById('perUnitCard').parentElement : null;
-  if(topGrid) topGrid.style.gridTemplateColumns = showProdExtras ? '1.8fr 0.85fr 0.85fr' : '1fr';
-  ['perUnitCard','productMixCard'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.style.display = showProdExtras ? '' : 'none';
-  });
+  const prodExtrasGrid = document.getElementById('prodExtrasGrid');
+  if(prodExtrasGrid) prodExtrasGrid.style.display = showProdExtras ? '' : 'none';
 
   // Modeled-analytics row: each report type shows only its own card(s) here.
   // COGS Trend: COGS Decomposition + COGS by Product (2). Customer Revenue
