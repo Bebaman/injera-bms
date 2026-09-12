@@ -9,7 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- xlsx (SheetJS) removed — report-engine.js now handles Excel via ExcelJS, loaded on demand -->
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
@@ -282,7 +283,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="qa-ico" style="background:#fdeaea"><svg viewBox="0 0 24 24" style="stroke:#e5484d"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
               <span>Export Cash Flow (PDF)</span>
             </div>
-            <div class="qa-btn" onclick="exportPdf()">
+            <div class="qa-btn" onclick="exportCsv()">
+              <div class="qa-ico" style="background:#eaf1fb"><svg viewBox="0 0 24 24" style="stroke:#2E86DE"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="13" y2="18"/></svg></div>
+              <span>Export Cash Flow (CSV)</span>
+            </div>
+            <div class="qa-btn" onclick="printStatement()">
               <div class="qa-ico" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></div>
               <span>Print Statement</span>
             </div>
@@ -432,6 +437,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* Session wiring only — the raw supabase-js client this page used to keep
    for its own db.from(...) query-builder calls (see fetchPeriodData() below)
@@ -1091,94 +1097,254 @@ async function loadAndRender(){
   window._lastCF = cf;
 }
 
-/* ════════════════ EXPORT ════════════════ */
-function csvField(v){ const s = String(v ?? ''); if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"'; return s; }
-function csvRow(fields){ return fields.map(csvField).join(',') + '\r\n'; }
+/* ════════════════ EXPORT (report-engine.js) ════════════════
+   Replaces the old manual CSV builder + SheetJS Excel export + browser-print
+   "PDF". All three (PDF/Excel/CSV) now come from one ReportData object built
+   below, handed to the shared ReportEngine (report-engine.js).
 
-function flattenForExport(cf){
-  const mk = RAW.period;
+   "Print Statement" (the on-screen table via window.print) is intentionally
+   kept separate — see printStatement() — since it used to be wired to the
+   same function as "Export Cash Flow (PDF)", which meant the PDF quick-action
+   button was actually just opening the browser print dialog instead of
+   producing our branded PDF. Fixed below: the two buttons now do genuinely
+   different things. */
+
+// Best-effort "who's logged in" — app-state.js may or may not expose this
+// depending on version; tried defensively so a missing global never throws.
+function getGeneratedByName(){
+  try{
+    if(window.AppState && window.AppState.currentUser) return window.AppState.currentUser.name || window.AppState.currentUser.full_name || '';
+    if(window.currentUser) return window.currentUser.name || window.currentUser.full_name || '';
+    if(typeof getCurrentUser === 'function'){ const u = getCurrentUser(); return (u && (u.name||u.full_name)) || ''; }
+  } catch(e){ /* ignore — falls through to '' */ }
+  return '';
+}
+
+// Gross inflow/outflow across every section (Operating + Investing + Financing +
+// Transfers). otherFinancing is the one already-netted catch-all bucket in
+// computeCashFlow() (unknown entry_type), so its +/- split here is an
+// approximation of the true gross — everything else is exact.
+function computeGrossFlows(cf){
+  const distOut = Object.values(cf.distributions).reduce((s,d)=> s + rowTotal(d), 0);
+  const otherFinNet = rowTotal(cf.otherFinancing);
+  const inflow = rowTotal(cf.totalOperatingReceipts) + rowTotal(cf.equipSales) + rowTotal(cf.capitalInjection) +
+    rowTotal(cf.loanReceived) + Math.max(otherFinNet, 0) + rowTotal(cf.transferIn);
+  const outflow = rowTotal(cf.totalOperatingPayments) + rowTotal(cf.equipPurchases) + rowTotal(cf.capitalWithdrawal) +
+    rowTotal(cf.loanPrincipal) + rowTotal(cf.loanInterest) + distOut + Math.max(-otherFinNet, 0) + rowTotal(cf.transferOut);
+  return { inflow, outflow };
+}
+
+// Last N months of net cash movement, oldest→newest, for the trend line chart.
+// Reuses the same fetchPeriodData/resolveOpeningBalance/computeCashFlow path as
+// the rest of the page, so it benefits from the same PERIOD_CACHE/RESOLVED_OPENING_CACHE.
+async function getNetMovementTrend(period, months){
+  months = months || 6;
+  const keys = [];
+  let k = period;
+  for(let i=0;i<months;i++){ keys.unshift(k); k = prevMonthKey(k); }
+  const labels = [], values = [];
+  for(const mk of keys){
+    try{
+      const data = await fetchPeriodData(mk);
+      const opening = await resolveOpeningBalance(mk);
+      const cfM = computeCashFlow({ ...data, openingBalance: opening });
+      labels.push(monthLabel(mk));
+      values.push(Number(rowTotal(cfM.netMovement).toFixed(2)));
+    } catch(e){
+      labels.push(monthLabel(mk));
+      values.push(0);
+    }
+  }
+  return { labels, values };
+}
+
+// Collapses the on-screen 3-channel (cash/bank/mobile) statement into the
+// 2-column Particulars/Amount shape used in the PDF/Excel summary table —
+// same sections, same conditionals as renderCashFlowTable() above, just totaled.
+function buildSummaryTableRows(cf){
   const rows = [];
-  const push = (label, o) => rows.push([label, (o.cash!==undefined?Number(o.cash||0).toFixed(2):''), (o.bank!==undefined?Number(o.bank||0).toFixed(2):''), (o.mobile!==undefined?Number(o.mobile||0).toFixed(2):''), Number(rowTotal(o)).toFixed(2)]);
-  rows.push(['Mena Injera & Derkosh — Cash Flow Statement','','','','']);
-  rows.push([monthLabel(mk) + ' · IAS 7 Direct Method','','','','']);
-  rows.push(['','','','','']);
-  rows.push(['Particulars','Cash on Hand','Bank Account','Mobile Money','Total']);
-  rows.push(['A. OPENING CASH BALANCE','','','','']);
-  push('Cash on Hand', {cash:cf.opening.cash});
-  push('Bank Account', {bank:cf.opening.bank});
-  push('Mobile Money', {mobile:cf.opening.mobile});
-  push('Total Opening Balance', cf.opening);
-  rows.push(['B. OPERATING ACTIVITIES — RECEIPTS','','','','']);
-  push('Cash Sales — Injera', {cash:cf.cashSalesInjera.cash});
-  push('Cash Sales — Derkosh', {cash:cf.cashSalesDerkosh.cash});
-  push('Bank Sales & Collections', {bank:cf.salesByChannel.bank});
-  push('Mobile Money Sales & Collections', {mobile:cf.salesByChannel.mobile});
-  push('Collections from Credit Customers', cf.creditCollected);
-  push('Other Cash Income', cf.otherCashIncome);
-  push('Total Operating Receipts', cf.totalOperatingReceipts);
-  rows.push(['B. OPERATING ACTIVITIES — PAYMENTS','','','','']);
-  push('Raw Materials Purchases', negate(cf.rawMaterials));
-  push('Packaging Purchases', negate(cf.packaging));
-  push('Labor / Wages Paid', negate(cf.laborWages));
-  push('Rent', negate(cf.rent));
-  push('Electricity', negate(cf.electricity));
-  push('Water', negate(cf.water));
-  push('Maintenance & Repairs', negate(cf.maintenance));
-  push('Delivery Out & Transport', negate(cf.deliveryOut));
-  push('Marketing', negate(cf.marketing));
-  push('Bank Charges', negate(cf.bankCharges));
-  push('Petty Cash Expenses', {cash: -cf.pettyCashOut.cash});
-  push('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.otherCashOut)));
-  push('Total Operating Payments', negate(cf.totalOperatingPayments));
-  push('Net Cash from Operating Activities', cf.netOperating);
-  rows.push(['C. INVESTING ACTIVITIES','','','','']);
-  push('Equipment Purchase', negate(cf.equipPurchases));
-  if(rowTotal(cf.equipSales)!==0) push('Equipment Sale / Disposal', cf.equipSales);
-  push('Net Cash from Investing Activities', cf.netInvesting);
-  rows.push(['D. FINANCING ACTIVITIES','','','','']);
-  if(rowTotal(cf.capitalInjection)!==0) push('Owner Capital Injection', cf.capitalInjection);
-  if(rowTotal(cf.capitalWithdrawal)!==0) push('Owner Capital Withdrawal', negate(cf.capitalWithdrawal));
-  if(rowTotal(cf.loanReceived)!==0) push('Loan Received', cf.loanReceived);
-  if(rowTotal(cf.loanPrincipal)!==0) push('Loan Repayment — Principal', negate(cf.loanPrincipal));
-  if(rowTotal(cf.loanInterest)!==0) push('Loan Repayment — Interest', negate(cf.loanInterest));
-  Object.entries(cf.distributions).forEach(([label,o])=>{ if(rowTotal(o)!==0) push(label, negate(o)); });
-  if(rowTotal(cf.otherFinancing)!==0) push('Other Financing Activity', cf.otherFinancing);
-  push('Net Cash from Financing Activities', cf.netFinancing);
-  rows.push(['E. TRANSFERS BETWEEN ACCOUNTS','','','','']);
-  if(rowTotal(cf.transferIn)!==0 || rowTotal(cf.transferOut)!==0) push('Transfers Between Accounts', cf.netTransfers);
-  rows.push(['NET CASH MOVEMENT (B + C + D + E)', Number(cf.netMovement.cash).toFixed(2), Number(cf.netMovement.bank).toFixed(2), Number(cf.netMovement.mobile).toFixed(2), Number(rowTotal(cf.netMovement)).toFixed(2)]);
-  push('CLOSING CASH BALANCE (A + Net Movement)', cf.closing);
+  rows.push(['A. OPENING CASH BALANCE', '']);
+  rows.push(['Cash on Hand', fmtSigned(cf.opening.cash)]);
+  rows.push(['Bank Account', fmtSigned(cf.opening.bank)]);
+  rows.push(['Mobile Money', fmtSigned(cf.opening.mobile)]);
+  rows.push(['Total Opening Balance', fmtSigned(rowTotal(cf.opening))]);
+
+  rows.push(['B. OPERATING ACTIVITIES', '']);
+  rows.push(['Cash Receipts', '']);
+  rows.push(['Cash Sales — Injera', fmtSigned(cf.cashSalesInjera.cash)]);
+  rows.push(['Cash Sales — Derkosh', fmtSigned(cf.cashSalesDerkosh.cash)]);
+  rows.push(['Bank Sales & Collections', fmtSigned(cf.salesByChannel.bank)]);
+  rows.push(['Mobile Money Sales & Collections', fmtSigned(cf.salesByChannel.mobile)]);
+  rows.push(['Collections from Credit Customers', fmtSigned(rowTotal(cf.creditCollected))]);
+  rows.push(['Other Cash Income', fmtSigned(rowTotal(cf.otherCashIncome))]);
+  rows.push(['Total Operating Receipts', fmtSigned(rowTotal(cf.totalOperatingReceipts))]);
+  rows.push(['Cash Payments', '']);
+  rows.push(['Raw Materials Purchases', fmtSigned(-rowTotal(cf.rawMaterials))]);
+  rows.push(['Packaging Purchases', fmtSigned(-rowTotal(cf.packaging))]);
+  rows.push(['Labor / Wages Paid', fmtSigned(-rowTotal(cf.laborWages))]);
+  rows.push(['Rent', fmtSigned(-rowTotal(cf.rent))]);
+  rows.push(['Electricity', fmtSigned(-rowTotal(cf.electricity))]);
+  rows.push(['Water', fmtSigned(-rowTotal(cf.water))]);
+  rows.push(['Maintenance & Repairs', fmtSigned(-rowTotal(cf.maintenance))]);
+  rows.push(['Delivery Out & Transport', fmtSigned(-rowTotal(cf.deliveryOut))]);
+  rows.push(['Marketing', fmtSigned(-rowTotal(cf.marketing))]);
+  rows.push(['Bank Charges', fmtSigned(-rowTotal(cf.bankCharges))]);
+  rows.push(['Petty Cash Expenses', fmtSigned(-cf.pettyCashOut.cash)]);
+  rows.push(['Other Operating Expenses', fmtSigned(-rowTotal(addChan(cf.otherOverhead, cf.otherCashOut)))]);
+  rows.push(['Total Operating Payments', fmtSigned(-rowTotal(cf.totalOperatingPayments))]);
+  rows.push(['Net Cash from Operating Activities', fmtSigned(rowTotal(cf.netOperating))]);
+
+  rows.push(['C. INVESTING ACTIVITIES', '']);
+  rows.push(['Equipment Purchase', fmtSigned(-rowTotal(cf.equipPurchases))]);
+  if(rowTotal(cf.equipSales)!==0) rows.push(['Equipment Sale / Disposal', fmtSigned(rowTotal(cf.equipSales))]);
+  rows.push(['Net Cash from Investing Activities', fmtSigned(rowTotal(cf.netInvesting))]);
+
+  rows.push(['D. FINANCING ACTIVITIES', '']);
+  if(rowTotal(cf.capitalInjection)!==0) rows.push(['Owner Capital Injection', fmtSigned(rowTotal(cf.capitalInjection))]);
+  if(rowTotal(cf.capitalWithdrawal)!==0) rows.push(['Owner Capital Withdrawal', fmtSigned(-rowTotal(cf.capitalWithdrawal))]);
+  if(rowTotal(cf.loanReceived)!==0) rows.push(['Loan Received', fmtSigned(rowTotal(cf.loanReceived))]);
+  if(rowTotal(cf.loanPrincipal)!==0) rows.push(['Loan Repayment — Principal', fmtSigned(-rowTotal(cf.loanPrincipal))]);
+  if(rowTotal(cf.loanInterest)!==0) rows.push(['Loan Repayment — Interest', fmtSigned(-rowTotal(cf.loanInterest))]);
+  Object.entries(cf.distributions).forEach(([label,o])=>{ if(rowTotal(o)!==0) rows.push([label, fmtSigned(-rowTotal(o))]); });
+  if(rowTotal(cf.otherFinancing)!==0) rows.push(['Other Financing Activity', fmtSigned(rowTotal(cf.otherFinancing))]);
+  const hasFinancing = Object.keys(cf.distributions).length>0 || rowTotal(cf.capitalInjection)!==0 || rowTotal(cf.capitalWithdrawal)!==0 ||
+    rowTotal(cf.loanReceived)!==0 || rowTotal(cf.loanPrincipal)!==0 || rowTotal(cf.loanInterest)!==0 || rowTotal(cf.otherFinancing)!==0;
+  if(!hasFinancing) rows.push(['No financing activity this month', '']);
+  rows.push(['Net Cash from Financing Activities', fmtSigned(rowTotal(cf.netFinancing))]);
+
+  rows.push(['E. TRANSFERS BETWEEN ACCOUNTS', '']);
+  if(rowTotal(cf.transferIn)!==0 || rowTotal(cf.transferOut)!==0){
+    rows.push(['Transfers Between Accounts', fmtSigned(rowTotal(cf.netTransfers))]);
+  } else {
+    rows.push(['No transfers this month', '']);
+  }
+  rows.push(['NET CASH MOVEMENT (B + C + D + E)', fmtSigned(rowTotal(cf.netMovement))]);
   return rows;
 }
 
-function doExportCsv(){
-  const cf = window._lastCF || computeCashFlow();
-  const rows = flattenForExport(cf);
-  let csv = '';
-  rows.forEach(r=> csv += csvRow(r));
-  const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `cashflow_${RAW.period}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  notify('Exported Cash Flow Statement to CSV');
+// Assembles the one ReportData object that report-engine.js turns into the
+// PDF, Excel, and CSV — see the schema documented at the top of that file.
+async function buildReportData(cf){
+  const { inflow, outflow } = computeGrossFlows(cf);
+  const netMovement = rowTotal(cf.netMovement);
+  const closing = rowTotal(cf.closing);
+
+  const trend = await getNetMovementTrend(RAW.period, 6);
+
+  let pct = null;
+  try{
+    const prevData = await fetchPeriodData(RAW.prevPeriod);
+    const prevOpening = await resolveOpeningBalance(RAW.prevPeriod);
+    const prevCf = computeCashFlow({ ...prevData, openingBalance: prevOpening });
+    const prevNet = rowTotal(prevCf.netMovement);
+    if(prevNet !== 0) pct = ((netMovement - prevNet) / Math.abs(prevNet)) * 100;
+  } catch(e){ /* no prior period on record — leave pct as null */ }
+
+  const opTotal = rowTotal(cf.netOperating), invTotal = rowTotal(cf.netInvesting), finTotal = rowTotal(cf.netFinancing);
+  const bridgeLabels = ['Opening Balance','Operating Activities','Investing Activities','Financing Activities','Closing Balance'];
+  const bridgeValues = [rowTotal(cf.opening), opTotal, invTotal, finTotal, closing];
+  const bridgeColors = bridgeValues.map(v => v < 0 ? '#C0392B' : '#2D6A4F');
+
+  const insights = [
+    {
+      icon: opTotal < 0 ? 'trendDown' : 'trendUp', color: opTotal < 0 ? '#C0392B' : '#2D6A4F',
+      text: opTotal < 0 ? `Operating activities used cash of ${fmt(Math.abs(opTotal))} ETB` : `Operating activities generated cash of ${fmt(opTotal)} ETB`
+    },
+    {
+      icon: 'exchange', color: '#E67E22',
+      text: invTotal < 0 ? `Investing activities used cash of ${fmt(Math.abs(invTotal))} ETB` : `Investing activities provided cash of ${fmt(invTotal)} ETB`
+    },
+    {
+      icon: 'exchange', color: '#2E86DE',
+      text: finTotal < 0 ? `Financing activities used cash of ${fmt(Math.abs(finTotal))} ETB` : `Financing activities provided cash of ${fmt(finTotal)} ETB`
+    },
+    pct !== null ? {
+      icon: 'percent', color: '#8E44AD',
+      text: `Cash ${pct < 0 ? 'decreased' : 'increased'} by ${Math.abs(pct).toFixed(2)}% compared to ${monthLabel(RAW.prevPeriod)}`
+    } : {
+      icon: 'percent', color: '#8E44AD',
+      text: `No ${monthLabel(RAW.prevPeriod)} data available for comparison`
+    },
+    { icon: 'safe', color: '#2D6A4F', text: `Closing cash balance is ${fmt(closing)} ETB` }
+  ];
+
+  return {
+    module: 'Cash Flow',
+    title: 'Cash Flow Report',
+    period: monthLabel(RAW.period),
+    currency: 'ETB',
+    generatedBy: getGeneratedByName() || '-',
+    generatedAt: new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }),
+    kpis: [
+      { icon:'wallet', label:'OPENING CASH BALANCE', value: fmtSigned(rowTotal(cf.opening)), unit:'ETB', color:'#2D6A4F' },
+      { icon:'arrowDown', label:'TOTAL CASH INFLOW', value: fmt(inflow), unit:'ETB', color:'#2E86DE' },
+      { icon:'arrowUp', label:'TOTAL CASH OUTFLOW', value: fmt(outflow), unit:'ETB', color:'#C0392B' },
+      { icon:'exchange', label:'NET CASH FLOW', value: fmtSigned(netMovement), unit:'ETB', color:'#E67E22' },
+      { icon:'safe', label:'CLOSING CASH BALANCE', value: fmtSigned(closing), unit:'ETB', color:'#2D6A4F' },
+      { icon:'percent', label:'CASH FLOW CHANGE', value: pct!==null ? (pct>=0?'+':'')+pct.toFixed(2)+'%' : 'N/A', unit: 'vs '+monthLabel(RAW.prevPeriod), color:'#8E44AD' }
+    ],
+    charts: [
+      { type:'bar', title:'Cash Inflow vs Outflow (ETB)', labels:['Total Inflow','Total Outflow'], values:[inflow, outflow], colors:['#2D6A4F','#C0392B'] },
+      { type:'line', title:'Net Cash Flow Trend (Last 6 Months)', labels: trend.labels, values: trend.values },
+      { type:'doughnut', title:'Cash Flow by Activities (ETB)', labels:['Operating Activities','Investing Activities','Financing Activities'],
+        values:[Math.abs(opTotal)||0.0001, Math.abs(invTotal)||0.0001, Math.abs(finTotal)||0.0001], colors:['#27ae60','#f59e0b','#2563eb'] },
+      { type:'bar', title:'Cash Flow Bridge (ETB)', labels: bridgeLabels, values: bridgeValues, colors: bridgeColors }
+    ],
+    tables: [
+      { title:'CASH FLOW STATEMENT (SUMMARY)', columns:['Particulars','Amount (ETB)'], rows: buildSummaryTableRows(cf),
+        totalsRow: ['CLOSING CASH BALANCE (A + Net Movement)', fmtSigned(closing)] }
+      // NOTE: a second itemized "Major Cash Transactions" table (date/description/
+      // activity type/inflow/outflow) is intentionally not included yet — building
+      // it means merging RAW.sales/creditPayments/purchases/payroll/pettyCash/
+      // cfEntries/loanRepayments into one dated list, and I don't actually know the
+      // date column name on each of those tables (sale_date? date? created_at?) from
+      // the code alone. Tell me those column names and I'll add it as tables[1].
+    ],
+    insights
+  };
 }
 
-function exportExcel(){
-  if(typeof XLSX==='undefined'){ notify('Excel library did not load — check your connection and try again', 'error'); return; }
-  const cf = window._lastCF || computeCashFlow();
-  const rows = flattenForExport(cf);
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:34},{wch:15},{wch:15},{wch:15},{wch:15}];
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Cash Flow');
-  XLSX.writeFile(wb, `cashflow_${RAW.period}.xlsx`);
-  notify('Exported Cash Flow Statement to Excel');
+async function exportPdf(){
+  try{
+    notify('Generating PDF…');
+    const cf = window._lastCF || computeCashFlow();
+    const reportData = await buildReportData(cf);
+    await ReportEngine.generatePDF(reportData, { type:'detailed' });
+    notify('Exported Cash Flow Statement to PDF');
+  } catch(err){
+    notify('Could not generate PDF: ' + (err.message||''), 'error');
+  }
 }
 
-function exportPdf(){
+async function exportExcel(){
+  try{
+    notify('Generating Excel…');
+    const cf = window._lastCF || computeCashFlow();
+    const reportData = await buildReportData(cf);
+    await ReportEngine.generateExcel(reportData);
+    notify('Exported Cash Flow Statement to Excel');
+  } catch(err){
+    notify('Could not generate Excel file: ' + (err.message||''), 'error');
+  }
+}
+
+async function exportCsv(){
+  try{
+    const cf = window._lastCF || computeCashFlow();
+    const reportData = await buildReportData(cf);
+    ReportEngine.generateCSV(reportData);
+    notify('Exported Cash Flow Statement to CSV');
+  } catch(err){
+    notify('Could not generate CSV: ' + (err.message||''), 'error');
+  }
+}
+
+// The literal browser print dialog for the on-screen statement — kept separate
+// from exportPdf() above. Previously both "Export Cash Flow (PDF)" AND "Print
+// Statement" called this same function, so the PDF quick-action was silently
+// just opening the print dialog instead of producing a real file. Now only the
+// "Print Statement" button (see the qa-btn below) calls this.
+function printStatement(){
   const now = new Date();
   document.getElementById('printHeaderGenerated').textContent =
     'Generated ' + now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) +
