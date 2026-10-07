@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Distribution — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -28,9 +32,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -357,8 +358,8 @@ button{font-family:inherit}
               <div class="btn-tool" id="expBtn" role="button" tabindex="0" onclick="toggleExpDrop(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleExpDrop(event);}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke-width:3;stroke-linecap:round;margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
                 <div class="export-drop" id="expDrop">
                   <button onclick="event.stopPropagation();closeExpDrop();exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
-                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as PDF</button>
-                  <button onclick="event.stopPropagation();closeExpDrop();exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (with chart)</button>
+                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF('summary')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Summary PDF (1 page)</button>
+                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (detailed)</button>
                 </div>
               </div>
             </div>
@@ -430,13 +431,13 @@ button{font-family:inherit}
               <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg></div>
               <span class="qa-lbl">Distribution Report (Excel)</span>
             </div>
-            <div class="qa-item" onclick="exportPDF()">
+            <div class="qa-item" onclick="exportPDF('summary')">
               <div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <span class="qa-lbl">Distribution PDF</span>
+              <span class="qa-lbl">Summary PDF (1 page)</span>
             </div>
-            <div class="qa-item" onclick="exportFullPDF()">
+            <div class="qa-item" onclick="exportPDF()">
               <div class="qa-ic ic-p"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
-              <span class="qa-lbl">Distribute Profit Report</span>
+              <span class="qa-lbl">Distribution Report (PDF)</span>
             </div>
             <div class="qa-item" onclick="openShareholderModal()">
               <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
@@ -592,6 +593,7 @@ button{font-family:inherit}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ══ STATE ═══════════════════════════════════════════
    This page is now a live view over the real backend:
@@ -671,14 +673,15 @@ async function loadMonthlyCashFlow(){
 // owner's own injections/withdrawals (never blend them into Net Cash Profit).
 async function loadOwnerActivity(period){
   let injections = 0, withdrawals = 0;
+  const injectionList = [];
   try{
-    const rows = await sbGet(`cash_flow_entries?select=entry_type,amount&period=eq.${period}&entry_type=in.(capital_injection,capital_withdrawal)`);
+    const rows = await sbGet(`cash_flow_entries?select=entry_type,amount,date,description&period=eq.${period}&entry_type=in.(capital_injection,capital_withdrawal)&order=date.asc`);
     (rows||[]).forEach(r=>{
       const amt = n(r.amount);
-      if(r.entry_type==='capital_injection') injections += amt; else if(r.entry_type==='capital_withdrawal') withdrawals += amt;
+      if(r.entry_type==='capital_injection'){ injections += amt; injectionList.push({ date: r.date, owner: r.description || '', amount: amt }); } else if(r.entry_type==='capital_withdrawal') withdrawals += amt;
     });
   }catch(err){ console.log('cash_flow_entries load failed for '+period+':', err.message); }
-  return { injections, withdrawals };
+  return { injections, withdrawals, injectionList };
 }
 
 // Already-recorded-and-paid distributions, via the monthly_profit_distribution view
@@ -690,7 +693,7 @@ async function loadDistributionRecord(period){
       return {
         pct: n(rows[0].distribution_pct), net: n(rows[0].net_cash_profit),
         distAmt: n(rows[0].distributable_amount), retained: n(rows[0].retained_amount),
-        shares: rows.map(r=>({ name: r.shareholder_name, pct: n(r.ownership_pct_applied), amount: n(r.shareholder_amount), status: r.payment_status==='PAID'?'Paid':'Unpaid' }))
+        shares: rows.map(r=>({ name: r.shareholder_name, pct: n(r.ownership_pct_applied), amount: n(r.shareholder_amount), status: r.payment_status==='PAID'?'Paid':'Unpaid', date: r.payment_date || null }))
       };
     }
   }catch(err){ console.log('monthly_profit_distribution load failed for '+period+':', err.message); }
@@ -711,19 +714,20 @@ async function buildHistory(){
   for(const key of periods){
     const b = cashByPeriod[key];
     const hasOpeningBalance = !!b;
-    const { injections, withdrawals } = await loadOwnerActivity(key);
+    const { injections, withdrawals, injectionList } = await loadOwnerActivity(key);
     const distRec = await loadDistributionRecord(key);
     const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected - b.opPayments - b.payroll - b.pettyCash) : 0;
     rows.push({
       key, m: periodLabel(key), hasOpeningBalance,
       cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected) : 0,
       cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash) : 0,
-      net, injections, withdrawals,
+      net, injections, withdrawals, injectionList,
       openCash: hasOpeningBalance ? b.opening : null,
       closeCash: hasOpeningBalance ? b.closing : null,
       pct: distRec ? distRec.pct : defaultPct,
       recorded: !!distRec,
       recordedShares: distRec ? distRec.shares : null,
+      recordedNet: distRec ? distRec.net : null,
       recordedDistAmt: distRec ? distRec.distAmt : null,
       recordedRetained: distRec ? distRec.retained : null
     });
@@ -1158,387 +1162,145 @@ async function submitDistributionSettingsModal(e){
   buildTrendChart();
 }
 
-/* ══ EXPORT EXCEL (real .xlsx via SheetJS, styled like Derkosh) ── */
-function exportExcel(retryCount){
-  retryCount = retryCount || 0;
-  const month = history[curIdx].m.replace(' ','_');
-  if(typeof XLSX === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportExcel(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing Excel file…','info');
-      return;
-    }
-    exportCSVFallback(month);
-    return;
-  }
-  try{
-    const hdr=['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status'];
-    const data=[hdr];
-    let rowsForXlsx=[];
-    for(let i=history.length-1;i>=0;i--){
-      const h=history[i]; if(!h.recorded && h.net===0) continue;
-      const sp=getDisplaySplit(h);
-      rowsForXlsx.push([h.m, h.net, h.pct/100, sp.distAmt, sp.distAmt, sp.retained, h.recorded?'Paid':'Preview']);
-    }
-    rowsForXlsx.forEach(r=>data.push(r));
-    const totalRowIdx = data.length; // 0-indexed position the TOTAL row will occupy
-    const totNet = rowsForXlsx.reduce((a,r)=>a+r[1],0);
-    const totDist = rowsForXlsx.reduce((a,r)=>a+r[3],0);
-    const totRet = rowsForXlsx.reduce((a,r)=>a+r[5],0);
-    data.push(['TOTAL', totNet, '—', totDist, totDist, totRet, 'Paid']);
-
-    const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:12},{wch:20},{wch:14},{wch:22},{wch:22},{wch:20},{wch:10}];
-    ws['!rows']=[{hpt:22}];
-    ws['!freeze']={xSplit:0,ySplit:1};
-
-    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
-    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-    const moneyCols=[1,3,4,5]; // ETB columns -> currency-style 2 decimals
-    const pctCols=[2];
-
-    for(let r=0;r<data.length;r++){
-      for(let c=0;c<hdr.length;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]) continue;
-        const isHeader=r===0;
-        const isTotal=r===totalRowIdx;
-        let numFmt;
-        if(!isHeader && moneyCols.includes(c)) numFmt='#,##0.00';
-        if(!isHeader && pctCols.includes(c) && r!==totalRowIdx) numFmt='0.00%';
-        ws[addr].s={
-          font:{ bold:isHeader||isTotal, color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')}, sz:10 },
-          fill:{fgColor:{rgb:isHeader?'1D6B42':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))}},
-          alignment:{vertical:'center',horizontal:(c===0||c===6)?'left':'right'},
-          border:borderAll
-        };
-        if(numFmt) ws[addr].z=numFmt;
-      }
-    }
-
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Distribution History');
-
-    // Second sheet: Cash Position & Owner Activity for the selected month — this is what
-    // ties the distribution back to the real ledger (sales+purchases) and Settings' opening cash.
-    const rec = history[curIdx];
-    const cpHdr=['Metric','Amount (ETB)'];
-    const cpData=[cpHdr,
-      ['Opening Cash', rec.openCash],['Cash In (Sales)', rec.cashIn],['Cash Out (Purchases/Expenses)', rec.cashOut],
-      ['Net Cash Profit', rec.net],['Owner Injections', rec.injections],['Owner Withdrawals', rec.withdrawals],
-      ['Closing Cash', rec.closeCash]];
-    const wsCp = XLSX.utils.aoa_to_sheet(cpData);
-    wsCp['!cols']=[{wch:32},{wch:18}];
-    XLSX.utils.book_append_sheet(wb, wsCp, 'Cash Position');
-
-    XLSX.writeFile(wb,'Distribution_Report_'+month+'.xlsx');
-    toast('Downloaded Distribution_Report_'+month+'.xlsx ✓','success');
-  } catch(err){
-    console.error('Excel export failed:', err);
-    exportCSVFallback(month);
-  }
-}
-function csvField(v){
-  const s=String(v);
-  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
-  return s;
-}
-function exportCSVFallback(month){
-  const hdr=['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status'];
-  const lines=[hdr.map(csvField).join(',')];
-  let totNet=0, totDist=0, totRet=0;
-  for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(!h.recorded && h.net===0) continue;
-    const sp=getDisplaySplit(h);
-    lines.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(sp.distAmt), f(sp.distAmt), f(sp.retained), h.recorded?'Paid':'Preview'].map(csvField).join(','));
-    totNet+=h.net; totDist+=sp.distAmt; totRet+=sp.retained;
-  }
-  lines.push(['TOTAL', f(totNet), '—', f(totDist), f(totDist), f(totRet), 'Paid'].map(csvField).join(','));
-  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download='Distribution_Report_'+month+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  toast('Excel engine unavailable — downloaded as CSV instead','info');
-}
-
-/* ══ EXPORT: PDF ═════════════════════════════ */
-// Was hardcoded 'Eyasu Mesfin (Owner)' in both PDF exports below regardless
-// of who actually generated the report — falsely attributing every export
-// to the same person no matter who was logged in. Now pulls the real
-// logged-in user (window.currentUser, set by app-state.js).
-function preparedByLabel(){
-  const u = window.currentUser;
-  if(!u || !u.name) return 'Unknown User';
-  const role = u.role ? u.role.charAt(0).toUpperCase()+u.role.slice(1) : '';
-  return role ? `${u.name} (${role})` : u.name;
-}
-function exportPDF(retryCount){
-  retryCount = retryCount||0;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount<6){ setTimeout(()=>exportPDF(retryCount+1),400); if(retryCount===0) toast('Preparing PDF…','info'); return; }
-    toast('Could not load the PDF engine. Check your connection and try again.','error'); return;
-  }
-  try{
-  const { jsPDF } = window.jspdf;
+/* ═══════ EXPORT (report-engine.js) ═══════
+   presets.profit() builds the PDF and Excel for the month selected in the header picker.
+   The old SheetJS / jsPDF / CSV exporters were removed. The report carries the cash in / out for the month,
+   the BMS's own distributable-amount steps, the shareholder split, and the distribution record. A second
+   table lists every month on record, so the report keeps the history the old Excel export had. */
+function buildProfitReportData(){
   const rec = history[curIdx];
-  const sp = getDisplaySplit(rec);
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
-  const green=[39,174,96], deepGreen=[16,39,26], darkGreen=[22,52,36];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
+  const disp = getDisplaySplit(rec);
+  const session = window.currentUser || {};
+  const hasCash = rec.hasOpeningBalance;
+  const shares = disp.shares || [];
+  const pctTxt = v => (Number.isInteger(v) ? String(v) : v.toFixed(2)) + '%';
+  const input = {
+    period: rec.m,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})
+  };
 
-  function drawHeader(){
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-    doc.setFillColor(255,255,255); doc.roundedRect(marginX,18,38,38,9,9,'F');
-    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('MI', marginX+19, 42, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text('Distribution Report', marginX+52, 34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: '+preparedByLabel(), pageW-marginX, 56, {align:'right'});
+  // No opening cash balance for the month and nothing recorded: there is nothing real to report yet
+  if(!hasCash && !rec.recorded){
+    input.status = 'empty';
+    input.emptyMessage = 'No opening cash balance has been set for ' + rec.m + ', so cash figures and the profit distribution cannot be calculated yet.';
+    return ReportEngine.presets.profit(input);
   }
-  function drawKpiStrip(y){
-    const kpis=[
-      {lbl:'NET CASH PROFIT', val:f(rec.net), unit:'ETB'},
-      {lbl:'DISTRIBUTION %', val:rec.pct.toFixed(2), unit:'%'},
-      {lbl:'DISTRIBUTABLE AMOUNT', val:f(sp.distAmt), unit:'ETB'},
-      {lbl:'RETAINED IN BUSINESS', val:f(sp.retained), unit:'ETB'}
-    ];
-    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=52;
-    kpis.forEach((k,i)=>{
-      const x=marginX+i*(cardW+gap);
-      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
-      doc.text(k.lbl, x+10, y+17, {charSpace:0.3});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-      doc.text(k.val, x+10, y+38);
-      const valW=doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...textMid);
-      doc.text(k.unit, x+10+valW+4, y+38);
+
+  const net = hasCash ? rec.net : rec.recordedNet;
+  input.netCashProfit = net;
+  input.distributable = disp.distAmt;
+  if(hasCash){
+    input.trend = [{ label: rec.m, cashIn: rec.cashIn, cashOut: rec.cashOut }];
+    input.closingCash = rec.closeCash;
+  }
+  input.ownerInjections = rec.injections;
+  if(rec.injectionList && rec.injectionList.length) input.injections = rec.injectionList;
+
+  const prev = curIdx > 0 ? history[curIdx - 1] : null;
+  if(prev && (prev.hasOpeningBalance || prev.recorded)){
+    input.previousDistributable = getDisplaySplit(prev).distAmt;
+    input.previousInjections = prev.injections;
+    input.previousLabel = prev.m;
+  }
+
+  input.shareholders = shares.map(x => ({ name: x.name, sharePct: x.pct }));
+  input.distributions = rec.recorded
+    ? shares.map(x => ({ date: x.date || undefined, shareholder: x.name, pct: x.pct, amount: x.amount, status: x.status }))
+    : [];
+
+  // The BMS's own steps, as the Distribution page shows them
+  const calc = [];
+  if(hasCash){
+    calc.push({ label: 'Cash received (sales receipts and A/R collected)', amount: rec.cashIn });
+    calc.push({ label: 'Less: operating, payroll and petty cash payments', amount: -rec.cashOut });
+    calc.push({ label: 'Net cash profit', amount: rec.net, kind: 'subtotal' });
+  } else {
+    calc.push({ label: 'Net cash profit', amount: net, kind: 'subtotal', note: 'As recorded with the distribution' });
+  }
+  calc.push({ label: 'Distribution % applied to net cash profit: ' + pctTxt(rec.pct), kind: 'note' });
+  calc.push({ label: 'Distributable amount', amount: disp.distAmt, kind: 'total',
+              note: rec.recorded ? 'Recorded distribution' : 'Preview from the current ownership %; not yet recorded' });
+  calc.push({ label: 'Retained in the business', amount: disp.retained });
+  if(hasCash){
+    if(rec.openCash !== null && rec.openCash !== undefined) calc.push({ label: 'Opening cash balance', amount: rec.openCash });
+    calc.push({ label: 'Closing cash balance', amount: rec.closeCash });
+  }
+  if(rec.withdrawals) calc.push({ label: 'Owner withdrawals in the month (for reference)', amount: rec.withdrawals, note: 'Shown separately; not part of net cash profit' });
+  input.calculation = calc;
+
+  const notes = [];
+  if(!rec.recorded) notes.push('The distribution for ' + rec.m + ' is a preview from the current ownership percentages. It becomes final once it is recorded on the Distribution page.');
+  if(!hasCash) notes.push('No opening cash balance is set for ' + rec.m + ', so cash in, cash out and closing cash are not available for this month.');
+  if(notes.length) input.footer = { notes };
+
+  const base = ReportEngine.presets.profit(input);
+
+  // ---- every month on record (the old Excel's history sheet), plus a trend of the last six ----
+  const rows = [];
+  let sNet = 0, sDist = 0, sRet = 0;
+  history.forEach(h => {
+    if(!h.recorded && !h.hasOpeningBalance) return;
+    const d = getDisplaySplit(h);
+    const hn = h.hasOpeningBalance ? h.net : (h.recordedNet || 0);
+    if(!h.recorded && hn === 0) return;
+    sNet += roundAmt(hn); sDist += roundAmt(d.distAmt); sRet += roundAmt(d.retained);
+    rows.push([h.m, f(hn), pctTxt(h.pct), f(d.distAmt), f(d.retained), h.recorded ? 'Recorded' : 'Preview']);
+  });
+  if(rows.length > 1){
+    base.tables = base.tables || [];
+    base.tables.push({
+      title: 'Distribution History by Month', sheetName: 'History',
+      columns: ['Month', 'Net Cash Profit (ETB)', 'Distribution %', 'Distributable (ETB)', 'Retained (ETB)', 'Status'],
+      rows,
+      columnAlign: [null, 'right', 'right', 'right', 'right', null],
+      totalsRow: ['TOTAL', f(sNet), '', f(sDist), f(sRet), '']
     });
-    return y+cardH;
-  }
-  drawHeader();
-  let y = drawKpiStrip(94) + 20;
-
-  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.text('Shareholder Distribution — '+rec.m, marginX, y);
-  y += 8;
-  doc.autoTable({
-    head:[['Shareholder','Ownership %','Amount (ETB)','Status']],
-    body:sp.shares.map(s=>[s.name,s.pct.toFixed(2)+'%',f(s.amount),s.status||'Paid']),
-    foot:[['Total','100.00%',f(sp.distAmt),sp.recorded?'Paid':'Preview']],
-    startY:y+8, margin:{left:marginX,right:marginX},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  let cashY = doc.lastAutoTable.finalY + 24;
-  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.text('Cash Position — '+rec.m, marginX, cashY);
-  doc.autoTable({
-    head:[['Opening Cash','Cash In','Cash Out','Owner Injections','Owner Withdrawals','Closing Cash']],
-    body:[[f(rec.openCash), f(rec.cashIn), f(rec.cashOut), f(rec.injections), f(rec.withdrawals), f(rec.closeCash)]],
-    startY:cashY+8, margin:{left:marginX,right:marginX},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle',halign:'right'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'right'}
-  });
-
-  let y2 = doc.lastAutoTable.finalY + 24;
-  doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-  doc.text('Distribution History', marginX, y2);
-  const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
-  const histBody=[];
-  for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(!h.recorded && h.net===0) continue;
-    const s2=getDisplaySplit(h);
-    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), h.recorded?'Paid':'Preview']);
-  }
-  doc.autoTable({
-    head:histHead, body:histBody, startY:y2+8, margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i=1;i<=pageCount;i++){
-    doc.setPage(i);
-    doc.setDrawColor(...border);
-    doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-    doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
-    doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
-  }
-  doc.save('Distribution_Report_'+rec.m.replace(' ','_')+'.pdf');
-  toast('Downloaded Distribution_Report_'+rec.m.replace(' ','_')+'.pdf ✓','success');
-  } catch(err){
-    console.error('PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
-  }
-}
-
-/* ══ EXPORT FULL PDF WITH CHART (landscape, multi-page) ══════════════
-   A richer companion to exportPDF() above — same data, but also captures
-   the Distribution Trend Chart.js canvas as an image and lays everything
-   out across full landscape pages (KPIs + chart on page 1, shareholder
-   table on page 2, full history table on page 3). */
-function exportFullPDF(retryCount){
-  retryCount = retryCount || 0;
-  const chartReady = window.distributionCharts && window.distributionCharts.chTrend;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartReady){
-    if(retryCount < 8){
-      setTimeout(()=>exportFullPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing full report PDF…','info');
-      return;
+    const recent = history.filter(h => h.recorded || h.hasOpeningBalance).slice(-6);
+    if(recent.length > 1){
+      base.charts = base.charts || [];
+      base.charts.push({
+        type: 'bar', title: 'Distribution Trend', subtitle: 'Distributable amount (ETB) and distribution %, last ' + recent.length + ' months',
+        labels: recent.map(h => h.m),
+        series: [
+          { label: 'Distributable (ETB)', values: recent.map(h => Math.round(getDisplaySplit(h).distAmt)) },
+          { label: 'Distribution %', type: 'line', axis: 'right', values: recent.map(h => h.pct) }
+        ]
+      });
     }
-    toast('Could not load the PDF/chart engine. Check your connection and try again.','error');
-    return;
   }
+  return base;
+}
+function _profitEngineReady(){
+  if(typeof ReportEngine === 'undefined'){ toast('Report engine did not load \u2014 refresh the page and try again','err'); return false; }
+  return true;
+}
+// type: 'detailed' (default) = full report; 'summary' = the one-page summary
+async function exportPDF(type){
+  if(!_profitEngineReady()) return;
   try{
-  const { jsPDF } = window.jspdf;
-  const rec = history[curIdx];
-  const sp = getDisplaySplit(rec);
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
-
-  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-  function drawHeader(subtitle){
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-    doc.setFillColor(255,255,255);
-    doc.roundedRect(marginX,18,38,38,9,9,'F');
-    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('MI', marginX+19, 42, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text('Distribution Full Report'+(subtitle?' — '+subtitle:''), marginX+52, 34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Period: '+rec.m, pageW-marginX, 30, {align:'right'});
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: '+preparedByLabel(), pageW-marginX, 56, {align:'right'});
-  }
-  function drawFooter(){
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
-      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
-    }
-  }
-  function drawKpiStrip(y){
-    const kpis=[
-      {lbl:'NET CASH PROFIT', val:f(rec.net), unit:'ETB'},
-      {lbl:'DISTRIBUTION %', val:rec.pct.toFixed(2), unit:'%'},
-      {lbl:'DISTRIBUTABLE AMOUNT', val:f(sp.distAmt), unit:'ETB'},
-      {lbl:'RETAINED IN BUSINESS', val:f(sp.retained), unit:'ETB'}
-    ];
-    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
-    kpis.forEach((k,i)=>{
-      const x=marginX+i*(cardW+gap);
-      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.text(k.lbl, x+10, y+15, {charSpace:0.3});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
-      doc.text(k.val, x+10, y+34);
-      const valW=doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
-      doc.text(k.unit, x+10+valW+4, y+34);
-    });
-    return y+cardH;
-  }
-  function drawChartTile(img,x,y,w,h,title){
-    doc.setFillColor(255,255,255); doc.setDrawColor(...border);
-    doc.roundedRect(x,y,w,h,7,7,'FD');
-    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-    doc.text(title, x+12, y+18);
-    const imgPad=10, imgY=y+26;
-    const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
-    try{ doc.addImage(img, 'PNG', x+imgPad, imgY, imgW, imgH, undefined, 'FAST'); }catch(e){ /* skip tile if capture failed */ }
-  }
-
-  /* ---- PAGE 1: KPI strip + Distribution Trend chart ---- */
-  drawHeader();
-  const kpiBottom = drawKpiStrip(94);
-  const gY = kpiBottom+18;
-  const imgTrend = window.distributionCharts.chTrend.toBase64Image();
-  drawChartTile(imgTrend, marginX, gY, pageW-marginX*2, pageH-gY-40, 'Distribution Trend (Last 6 Months)');
-
-  /* ---- PAGE 2: Shareholder distribution table ---- */
-  doc.addPage();
-  drawHeader('Shareholder Distribution');
-  doc.autoTable({
-    head:[['Shareholder','Ownership %','Amount (ETB)','Status']],
-    body:sp.shares.map(s=>[s.name,s.pct.toFixed(2)+'%',f(s.amount),s.status||'Paid']),
-    foot:[['Total','100.00%',f(sp.distAmt),sp.recorded?'Paid':'Preview']],
-    startY:94, margin:{left:marginX,right:marginX},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  /* ---- PAGE 2b: Cash Position & Owner Activity ---- */
-  doc.addPage();
-  drawHeader('Cash Position & Owner Activity');
-  doc.autoTable({
-    head:[['Metric','Amount (ETB)']],
-    body:[
-      ['Opening Cash', f(rec.openCash)],['Cash In (Sales)', f(rec.cashIn)],['Cash Out (Purchases/Expenses)', f(rec.cashOut)],
-      ['Net Cash Profit', f(rec.net)],['Owner Injections', f(rec.injections)],['Owner Withdrawals', f(rec.withdrawals)],
-      ['Closing Cash', f(rec.closeCash)]
-    ],
-    startY:94, margin:{left:marginX,right:marginX},
-    styles:{font:'helvetica',fontSize:9.5,cellPadding:8,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  /* ---- PAGE 3: Full distribution history table ---- */
-  doc.addPage();
-  drawHeader('Distribution History');
-  const histHead=[['Month','Net Cash Profit (ETB)','Distribution %','Distributable Amount (ETB)','Distributed Amount (ETB)','Retained Amount (ETB)','Status']];
-  const histBody=[];
-  for(let i=history.length-1;i>=0;i--){
-    const h=history[i]; if(!h.recorded && h.net===0) continue;
-    const s2=getDisplaySplit(h);
-    histBody.push([h.m, f(h.net), h.pct.toFixed(2)+'%', f(s2.distAmt), f(s2.distAmt), f(s2.retained), h.recorded?'Paid':'Preview']);
-  }
-  doc.autoTable({
-    head:histHead, body:histBody, startY:94, margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  drawFooter();
-  const safeMonth = rec.m.replace(' ','_');
-  doc.save('Distribution_Full_Report_'+safeMonth+'.pdf');
-  toast('Downloaded Distribution_Full_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
-    console.error('Full PDF export failed:', err);
-    toast('Full report PDF export failed — please try again','error');
+    toast('Generating PDF\u2026','info');
+    await ReportEngine.generatePDF(buildProfitReportData(),{type: type === 'summary' ? 'summary' : 'detailed'});
+    toast('Distribution report PDF downloaded \u2713','ok');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    toast('Could not generate PDF: '+(err.message||'please try again'),'err');
   }
 }
+async function exportExcel(){
+  if(!_profitEngineReady()) return;
+  try{
+    toast('Generating Excel\u2026','info');
+    await ReportEngine.generateExcel(buildProfitReportData());
+    toast('Distribution report Excel downloaded \u2713','ok');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'),'err');
+  }
+}
+
 
 /* ══ CHART ═══════════════════════════════════
    Built after buildHistory() resolves, since the trend data now comes
@@ -1614,6 +1376,9 @@ async function initPage(){
       curIdx = idx;
       renderMonth();
     },
+    showExport: true,
+    onExportPdf: () => exportPDF(),
+    onExportXlsx: () => exportExcel(),
     notifications: []
   });
 

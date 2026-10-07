@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Dashboard — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -30,9 +34,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js'"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js'"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
@@ -688,16 +689,23 @@
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
+// Month picker: the 12 months ending with the current month (was hard-coded Jan-Jul 2026, so newer months were unreachable).
+const DASH_MONTHS = (function(){
+  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], out=[], now=new Date();
+  for(let i=11;i>=0;i--){ const x=new Date(now.getFullYear(), now.getMonth()-i, 1); out.push(names[x.getMonth()]+' '+x.getFullYear()); }
+  return out;
+})();
 renderHeader({
   title: 'Dashboard',
   subtitle: 'Overview of your business',
   showMonthPicker: true,
-  months: ['Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026','Jul 2026'],
-  selectedMonth: 'Jul 2026',
+  months: DASH_MONTHS,
+  selectedMonth: DASH_MONTHS[DASH_MONTHS.length-1],
   onMonthChange: () => { refreshDashboard(); },
   showExport: true,
-  onExportPdf: () => exportPDF(),
+  onExportPdf: () => exportPdf(),
   onExportXlsx: () => exportExcel(),
   notifications: [], // populated from live data by refreshDashboard() -> refreshNotifications(), see below
   onViewAllNotifications: () => openAlertsModal()
@@ -1660,7 +1668,9 @@ async function refreshDashboard(){
       top5, top5Total, custTotal, typeEntries, TYPE_LABELS, TYPE_COLORS, activeAccounts, avgOrder, totalCustomers,
       inventoryLevels, flourUsed, injeraBaked, batchesCompleted, derkoshPacked, mfgEfficiency,
       salesTodayTotal, expenseTodayTotal, injeraTodayTotal, netProfitToday,
-      loanSummaryRows, loanTotalOutstanding, budgetTiles, healthOverall, healthPillars, healthLabel, alerts, notices
+      loanSummaryRows, loanTotalOutstanding, budgetTiles, healthOverall, healthPillars, healthLabel, alerts, notices,
+      injeraRevenue: salesRows.filter(r=>r.product_type==='injera').reduce((t,r)=>t+num(r.revenue),0),
+      derkoshRevenue: salesRows.filter(r=>r.product_type==='derkosh').reduce((t,r)=>t+num(r.revenue),0)
     };
     renderKpis();
     renderAlerts();
@@ -2332,459 +2342,94 @@ function ensureShowMoreDataBuilt(){
   if(!showMoreRendered){ triggerSecondaryAnimation(); showMoreRendered = true; }
 }
 
-function getDashboardData(){
-  ensureShowMoreDataBuilt();
+// ══════════════════════════════════════════════════════════
+// ── EXPORT (report-engine.js) ───────────────────────────────
+// ══════════════════════════════════════════════════════════
+// presets.dashboard() builds the PDF and Excel from the same figures the page
+// already computed (LAST). The old html2canvas screenshot PDF, the DOM-scraping
+// getDashboardData() and the SheetJS workbook were removed.
+function buildDashboardReportData(){
+  const d = LAST;
   const period = document.getElementById('msel')?.value || 'Current Period';
-  const session = loadSession() || {};
+  const session = (typeof loadSession === 'function' ? loadSession() : null) || {};
+  const prevLabel = (typeof periodToLabel === 'function' && d.prevP) ? periodToLabel(d.prevP) : 'last month';
 
-  const kpis = Array.from(document.querySelectorAll('.kpi-row .kc')).map(kc => {
-    const cnt = kc.querySelector('.cnt');
-    return {
-      label: kc.querySelector('.kc-lbl')?.textContent.trim() || '',
-      value: cnt ? parseFloat(cnt.dataset.target) : 0,
-      unit: kc.querySelector('.u')?.textContent.trim() || '',
-      change: kc.querySelector('.kc-chg')?.textContent.trim().replace(/\s+/g,' ') || ''
-    };
-  });
+  const lowItems = (d.inventoryLevels || []).filter(i => i.status === 'low').length;
+  const overBudget = (d.budgetTiles || []).filter(b => b.status === 'over').length;
+  const nearBudget = (d.budgetTiles || []).filter(b => b.status === 'warn').length;
+  const healthStatus = d.healthOverall >= 60 ? 'OK' : d.healthOverall >= 40 ? 'Watch' : 'Alert';
 
-  const expenseTotal = document.querySelector('.dnut-lbl strong')?.textContent.replace(/\s+/g,' ').trim() || '';
-  const expenses = Array.from(document.querySelectorAll('.bot .exp-leg .exp-r')).map(r => ({
-    name: r.querySelector('.exp-n')?.textContent.trim() || '',
-    value: r.querySelector('.exp-v')?.textContent.trim() || '',
-    pct: r.querySelector('.exp-p')?.textContent.trim() || '',
-    color: r.querySelector('.exp-d')?.style.background || ''
-  }));
+  const modules = [
+    { name:'Sales',           metric:'Total Revenue',          value:d.curD.revenue,    previous:d.prevD.revenue },
+    { name:'Profit',          metric:'Net Profit',             value:d.curD.netProfit,  previous:d.prevD.netProfit },
+    { name:'Customers',       metric:'Outstanding A/R',        value:d.arCur,           previous:d.arPrev, lowerIsBetter:true },
+    { name:'Cash',            metric:'Cash Balance',           value:d.cashTotalCur,    previous:d.cashTotalPrev },
+    { name:'Derkosh',         metric:'Derkosh Stock',          value:d.derkoshStockCur, previous:d.derkoshStockPrev, unit:'kg' },
+    { name:'Production',      metric:'Injera Baked',           value:d.injeraBaked,     unit:'pcs' },
+    { name:'Inventory',       metric:'Items Needing Reorder',  value:lowItems + (lowItems === 1 ? ' item' : ' items'), unit:'', status: lowItems ? 'Alert' : 'OK' },
+    { name:'Loans',           metric:'Loans Outstanding',      value:d.loanTotalOutstanding },
+    { name:'Budget',          metric:'Lines Over Budget',      value:overBudget + (overBudget === 1 ? ' line' : ' lines'), unit:'', status: overBudget ? 'Alert' : (nearBudget ? 'Watch' : 'OK') },
+    { name:'Business Health', metric:'Health Score',           value:d.healthOverall + ' / 100', unit:'', status:healthStatus }
+  ];
 
-  const topCustomers = Array.from(document.querySelectorAll('.bot table.tbl tbody tr')).map(tr => {
-    const tds = tr.querySelectorAll('td');
-    return { name: tds[0]?.textContent.trim()||'', revenue: tds[1]?.textContent.trim()||'', pct: tds[2]?.textContent.trim()||'', isTotal: tr.classList.contains('tot') };
-  });
-
-  const inventory = Array.from(document.querySelectorAll('.inv-list2 .inv-item')).map(it => ({
-    name: it.querySelector('.inv-name')?.textContent.trim() || '',
-    qty: it.querySelector('.inv-qty-val')?.textContent.replace(/\s+/g,' ').trim() || '',
-    status: it.querySelector('.inv-tag')?.textContent.trim() || '',
-    recommendation: it.querySelector('.inv-recommendation')?.textContent.trim() || ''
-  }));
-
-  const cashPosition = Array.from(document.querySelectorAll('.cf-list .cf-row')).map(r => ({
-    label: r.querySelector('.cf-lbl')?.textContent.trim() || '',
-    amount: r.querySelector('.cf-amt')?.textContent.trim() || ''
-  }));
-  const cashTotal = document.querySelector('.cf-total-amt')?.textContent.trim() || '';
-
-  const loans = Array.from(document.querySelectorAll('.loan-list .loan-card')).map(l => ({
-    name: l.querySelector('h5')?.textContent.trim() || '',
-    type: l.querySelector('p')?.textContent.trim() || '',
-    due: l.querySelector('.loan-due-tag')?.textContent.trim() || '',
-    paid: l.querySelector('.loan-paid')?.textContent.trim() || '',
-    remaining: l.querySelector('.loan-remain')?.textContent.trim() || ''
-  }));
-  const loanTotal = document.querySelector('.loan-total-amt')?.textContent.trim() || '';
-
-  const budgets = Array.from(document.querySelectorAll('.bud-tiles .bud-tile')).map(t => ({
-    name: t.querySelector('.bud-tile-lbl')?.textContent.trim() || '',
-    spent: t.querySelector('.bud-tile-val')?.textContent.trim() || '',
-    status: t.querySelector('.bud-badge')?.textContent.trim() || '',
-    sub: Array.from(t.querySelectorAll('.bud-tile-sub span')).map(s=>s.textContent.trim()).join(' · ')
-  }));
-
-  const health = {
-    score: document.getElementById('healthNum')?.textContent.trim() || '',
-    pillars: Array.from(document.querySelectorAll('.health-pillar')).map(p => ({
-      name: p.querySelector('.health-pillar-nm')?.textContent.trim() || '',
-      score: p.querySelector('.health-pillar-sc')?.textContent.trim() || ''
+  const input = {
+    period,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }),
+    previousLabel: prevLabel,
+    derkoshUnit: 'kg',
+    totals: {
+      revenue: d.curD.revenue, netProfit: d.curD.netProfit, grossProfit: d.curD.grossProfit,
+      cashBalance: d.cashTotalCur, outstanding: d.arCur, derkoshStock: d.derkoshStockCur
+    },
+    previous: {
+      revenue: d.prevD.revenue, netProfit: d.prevD.netProfit, grossProfit: d.prevD.grossProfit,
+      cashBalance: d.cashTotalPrev, outstanding: d.arPrev, derkoshStock: d.derkoshStockPrev
+    },
+    expenses: (d.expenseEntries || []).map(([name, amount]) => ({ name, amount })),
+    modules,
+    injeraRevenue: d.injeraRevenue,
+    derkoshRevenue: d.derkoshRevenue,
+    alerts: (d.alerts || []).slice(0, 10).map(a => ({
+      module: a.module || 'General',
+      issue: a.title,
+      detail: a.sub,
+      tone: a.priority === 'critical' ? 'bad' : 'warn'
     }))
   };
-
-  const manufacturing = Array.from(document.querySelectorAll('.mfg-rows .mfg-row')).map(r => ({
-    label: r.querySelector('.mfg-lbl')?.textContent.trim() || '',
-    value: r.querySelector('.mfg-val')?.textContent.trim() || ''
-  }));
-  const mfgEfficiency = document.querySelector('.mfg-eff-pct')?.textContent.trim() || '';
-
-  const customerTypes = Array.from(document.querySelectorAll('.donut-sm-wrap .exp-leg .exp-r')).map(r => ({
-    name: r.querySelector('.exp-n')?.textContent.trim() || '',
-    pct: r.querySelector('.exp-p')?.textContent.trim() || ''
-  }));
-
-  const dailyPerf = Array.from(document.querySelectorAll('.daily-grid .daily-item')).map(d => ({
-    label: d.querySelector('.daily-item-lbl')?.textContent.trim() || '',
-    value: d.querySelector('.daily-item-val')?.textContent.trim() || '',
-    sub: d.querySelector('.daily-item-sub')?.textContent.trim() || ''
-  }));
-
-  const revChartImg = window.Chart?.getChart('revChart')?.toBase64Image() || null;
-  const expChartImg = window.Chart?.getChart('expChart')?.toBase64Image() || null;
-
-  return { period, preparedBy: session.name || '', preparedRole: session.role || '', generatedAt: new Date(),
-    kpis, expenseTotal, expenses, topCustomers, inventory, cashPosition, cashTotal, loans, loanTotal,
-    budgets, health, manufacturing, mfgEfficiency, customerTypes, dailyPerf, revChartImg, expChartImg };
+  // trailing revenue trend (filled by renderRevenueChart); left out until it has loaded
+  if (fullLabels.length > 1 && fullLabels.length === fullRevenue.length) {
+    input.revenueTrend = fullLabels.map((label, i) => ({ label, amount: fullRevenue[i] }));
+  }
+  if (!d.curD.revenue && !d.curD.netProfit && !(d.expenseEntries || []).length) {
+    input.status = 'empty';
+    input.emptyMessage = 'No dashboard figures recorded for ' + period + '.';
+  }
+  return ReportEngine.presets.dashboard(input);
 }
 
-function fmtNum(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-
-// A4 LANDSCAPE, built at 1754 x 1240 CSS px and captured at scale:3.5 (see
-// renderPdfPage below), so the final raster is 6139 x 4340 — roughly 525dpi,
-// well past what a laser/inkjet printer or a zoomed-in PDF viewer can resolve.
-const PDF_PAGE_W = 1754, PDF_PAGE_H = 1240;
-
-function pdfCard(title, innerHtml, extra=''){
-  return `<div style="background:#fff;border:1px solid #e3ece7;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;${extra}">
-    <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;color:#16261e;margin-bottom:10px;flex-shrink:0">${title}</div>
-    <div style="flex:1;min-height:0">${innerHtml}</div>
-  </div>`;
-}
-function pdfStatusChip(s){
-  const positive = s.includes('▲')||/ok|track/i.test(s);
-  const negative = s.includes('▼')||/low|over/i.test(s);
-  const bg = positive?'#e9f9ef':negative?'#fdecea':'#fff4e0';
-  const fg = positive?'#1a6b3c':negative?'#c0392b':'#b06d0a';
-  return `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${bg};color:${fg};white-space:nowrap">${s}</span>`;
-}
-function pdfPageWrap(){
-  const el = document.createElement('div');
-  Object.assign(el.style, {
-    position:'fixed', left:'-99999px', top:'0',
-    width:PDF_PAGE_W+'px', height:PDF_PAGE_H+'px',
-    background:'#ffffff', fontFamily:"'Nunito',sans-serif", color:'#16261e',
-    padding:'22px 28px', boxSizing:'border-box', display:'flex', flexDirection:'column'
-  });
-  document.body.appendChild(el);
-  return el;
-}
-function pdfHeader(d, pageTitle){
-  return `
-    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #1e6240;padding-bottom:10px;margin-bottom:14px;flex-shrink:0">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(145deg,#f7b03a,#e8891a);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Quicksand',sans-serif;font-weight:800;font-size:16px;flex-shrink:0">M</div>
-        <div>
-          <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:16px;color:#16261e;line-height:1.15">Mena Injera &amp; Derkosh</div>
-          <div style="font-size:11px;color:#5e7268;font-weight:600">${pageTitle}</div>
-        </div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:13px;color:#1e6240">${d.period}</div>
-        <div style="font-size:9.5px;color:#94a89f">Generated ${d.generatedAt.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>
-      </div>
-    </div>`;
-}
-function pdfFooter(d){
-  return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e3ece7;display:flex;justify-content:space-between;font-size:9.5px;color:#94a89f;flex-shrink:0">
-    <span>Mena Injera &amp; Derkosh Business Management System · Confidential — for internal use only</span>
-    <span>${d.preparedBy ? `Prepared by ${d.preparedBy}${d.preparedRole?' · '+d.preparedRole:''}` : ''}</span>
-  </div>`;
-}
-
-// ── Dedicated high-resolution charts for print (not the small on-screen canvases) ──
-// Sourced from the SAME live series feeding the on-screen chart + real expense legend data
-// scraped from the DOM (which is itself populated from Supabase) — nothing hardcoded.
-function renderExportCharts(d){
-  const holder = document.createElement('div');
-  Object.assign(holder.style,{position:'fixed',left:'-99999px',top:'0'});
-  document.body.appendChild(holder);
-
-  const rangeSel = document.getElementById('rangeSel')?.value || '6';
-  const n = rangeSel === 'ytd' ? fullLabels.length : (parseInt(rangeSel,10) || 6);
-  const labels = fullLabels.slice(-n), rev = fullRevenue.slice(-n), prof = fullProfit.slice(-n);
-
-  // Sized 2.35:1 to match the wide card it will sit in — object-fit:contain
-  // on the <img> keeps it from ever stretching regardless of card size.
-  const revCanvas = document.createElement('canvas');
-  revCanvas.width = 1880; revCanvas.height = 800;
-  holder.appendChild(revCanvas);
-  const revChart = new Chart(revCanvas.getContext('2d'), {
-    type:'line',
-    data:{
-      labels,
-      datasets:[
-        {label:'Revenue (ETB)', data:rev, borderColor:'#27ae60', backgroundColor:'rgba(39,174,96,.1)', borderWidth:5, pointBackgroundColor:'#27ae60', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:8, fill:true, tension:.35,
-          datalabels:{align:'top',anchor:'end',offset:10,color:'#16261e',font:{family:'Nunito',size:21,weight:'700'},formatter:v=>v.toLocaleString()}},
-        {label:'Net Profit (ETB)', data:prof, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.14)', borderWidth:5, pointBackgroundColor:'#f59e0b', pointBorderColor:'#fff', pointBorderWidth:3, pointRadius:8, fill:true, tension:.35,
-          datalabels:{align:'bottom',anchor:'start',offset:10,color:'#9a7b0a',font:{family:'Nunito',size:21,weight:'700'},formatter:v=>v.toLocaleString()}}
-      ]
-    },
-    options:{
-      responsive:false, animation:false,
-      layout:{padding:{top:40,right:24,bottom:5,left:5}},
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{grid:{display:false},ticks:{font:{family:'Nunito',size:20,weight:'600'},color:'#5e7268'}},
-        y:{grid:{color:'#eef3f0',lineWidth:2},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:18},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
-      }
-    }
-  });
-  const revImg = revCanvas.toDataURL('image/png',1);
-  revChart.destroy();
-
-  const expLabels = d.expenses.map(e=>e.name);
-  const expValues = d.expenses.map(e=>parseFloat(String(e.value).replace(/,/g,'')) || 0);
-  const expColors = d.expenses.map(e=>e.color || '#94a3b8');
-  const expCanvas = document.createElement('canvas');
-  expCanvas.width = 760; expCanvas.height = 760;
-  holder.appendChild(expCanvas);
-  const expChart = new Chart(expCanvas.getContext('2d'), {
-    type:'doughnut',
-    data:{labels:expLabels, datasets:[{data:expValues, backgroundColor:expColors, borderWidth:5, borderColor:'#fff'}]},
-    options:{responsive:false,cutout:'64%',animation:false,plugins:{legend:{display:false},datalabels:{display:false}}}
-  });
-  const expImg = expCanvas.toDataURL('image/png',1);
-  expChart.destroy();
-
-  document.body.removeChild(holder);
-  return { revImg, expImg };
-}
-
-function buildPdfPage1(d, charts){
-  const el = pdfPageWrap();
-
-  const custTable = `
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9px;text-align:left"><th style="padding:3px 0">Customer</th><th style="text-align:right">Revenue</th><th style="text-align:right">%</th></tr></thead>
-      <tbody>${d.topCustomers.map(c=>`<tr style="${c.isTotal?'font-weight:800;border-top:2px solid #e3ece7':'border-top:1px solid #f2f6f4'}"><td style="padding:4px 0">${c.name}</td><td style="text-align:right">${c.revenue}</td><td style="text-align:right;color:#5e7268">${c.pct}</td></tr>`).join('')}</tbody>
-    </table>`;
-
-  const invTable = `
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr style="color:#94a89f;text-transform:uppercase;font-size:9px;text-align:left"><th style="padding:3px 0">Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Status</th><th style="text-align:right">Recommendation</th></tr></thead>
-      <tbody>${d.inventory.map(i=>`<tr style="border-top:1px solid #f2f6f4"><td style="padding:4px 0;font-weight:600">${i.name}</td><td style="text-align:right;color:#5e7268">${i.qty}</td><td style="text-align:right">${pdfStatusChip(i.status)}</td><td style="text-align:right;color:#5e7268;font-size:9.5px">${i.recommendation}</td></tr>`).join('')}</tbody>
-    </table>`;
-
-  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 1 of 2') + `
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:10px;flex-shrink:0">
-      ${d.kpis.map(k=>`
-        <div style="background:#f7fbf9;border:1px solid #e3ece7;border-radius:10px;padding:14px 14px 12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px">
-          <div style="font-size:10.5px;color:#5e7268;font-weight:700;text-transform:uppercase;letter-spacing:.3px">${k.label}</div>
-          <div>
-            <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:23px;color:#16261e;line-height:1.15">${fmtNum(k.value)} <span style="font-size:10.5px;font-weight:600;color:#5e7268">${k.unit}</span></div>
-          </div>
-          <div style="font-size:10.5px;font-weight:700;color:${k.change.includes('▲')?'#1a6b3c':k.change.includes('▼')?'#c0392b':'#94a89f'}">${k.change}</div>
-        </div>`).join('')}
-    </div>
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-bottom:10px;flex:1.3;min-height:0">
-      ${pdfCard('Revenue Overview', `<img src="${charts.revImg}" style="width:100%;height:100%;object-fit:contain">`)}
-      ${pdfCard(`Expense Breakdown — Total ${d.expenseTotal.replace(/\s+/g,' ')}`, `
-        <div style="display:flex;align-items:center;gap:14px;height:100%">
-          <img src="${charts.expImg}" style="width:130px;height:130px;flex-shrink:0">
-          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-            ${d.expenses.map(e=>`<div style="display:flex;align-items:center;gap:7px;font-size:13px"><span style="width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0"></span><span style="flex:1;color:#16261e;font-weight:600">${e.name}</span><span style="color:#16261e;font-weight:600">${e.value}</span><span style="color:#16261e;font-weight:800;width:42px;text-align:right">${e.pct}</span></div>`).join('')}
-          </div>
-        </div>`)}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1.15;min-height:0">
-      ${pdfCard('Top Customers', custTable)}
-      ${pdfCard('Inventory Status', invTable)}
-    </div>
-  ` + pdfFooter(d);
-  return el;
-}
-
-function buildPdfPage2(d, insightsList){
-  const el = pdfPageWrap();
-
-  const cashLoans = `
-    <div style="display:flex;flex-direction:column;height:100%">
-      <div>${d.cashPosition.map(c=>`<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0"><span>${c.label}</span><span style="font-weight:700">${c.amount}</span></div>`).join('')}</div>
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;padding:6px 0;margin-bottom:8px;border-top:1px solid #e3ece7;border-bottom:1px solid #e3ece7">Total Cash<span>${d.cashTotal}</span></div>
-      <div style="flex:1">${d.loans.length ? d.loans.map(l=>`
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f2f6f4">
-          <div><div style="font-weight:700;font-size:11.5px">${l.name}</div><div style="font-size:10px;color:#94a89f">${l.due}</div></div>
-          <div style="text-align:right;font-size:11px;color:#5e7268">${l.remaining}</div>
-        </div>`).join('') : '<div style="font-size:11.5px;color:#94a89f;padding:4px 0">No active loans</div>'}</div>
-      ${d.loans.length ? `<div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;padding-top:6px;border-top:1px solid #e3ece7">Total Outstanding<span>${d.loanTotal}</span></div>` : ''}
-    </div>`;
-
-  const mfgContent = `
-    ${d.manufacturing.map(m=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #f2f6f4"><span>${m.label}</span><span style="font-weight:700">${m.value}</span></div>`).join('')}
-    <div style="display:flex;justify-content:space-between;font-size:12px;padding:8px 0 0;margin-top:4px"><span style="font-weight:700">Production Efficiency</span><span style="font-weight:800;color:#1e6240">${d.mfgEfficiency}</span></div>`;
-
-  const budgetContent = `
-    <div style="display:flex;flex-direction:column;gap:7px">
-      ${d.budgets.length ? d.budgets.map(b=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#f7fbf9;border-radius:8px">
-          <span style="font-weight:700;font-size:11.5px">${b.name}</span>
-          <span style="font-size:10.5px;color:#5e7268;margin-right:8px">${b.spent}</span>
-          ${pdfStatusChip(b.status)}
-        </div>`).join('') : '<div style="font-size:11.5px;color:#94a89f">No budget lines set for this period</div>'}
-    </div>`;
-
-  const healthContent = `
-    <div style="display:flex;align-items:center;gap:22px;height:100%">
-      <div style="text-align:center;flex-shrink:0;padding-right:18px;border-right:1px solid #e3ece7">
-        <div style="font-family:'Quicksand',sans-serif;font-weight:800;font-size:34px;color:#1e6240;line-height:1">${d.health.score}</div>
-        <div style="font-size:10.5px;color:#94a89f;font-weight:700">out of 100</div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:7px">
-        ${d.health.pillars.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#5e7268;font-weight:600">${p.name}</span><span style="font-weight:800">${p.score}</span></div>`).join('')}
-      </div>
-    </div>`;
-
-  // Business Intelligence — the same live insights shown on-screen (max 6, to fit the page cleanly)
-  const AI_COLORS = { positive:{bg:'#eef9f2',fg:'#1a6b3c'}, warning:{bg:'#fff8ed',fg:'#b06d0a'}, critical:{bg:'#fdedee',fg:'#c0392b'}, neutral:{bg:'#f6faf7',fg:'#5e7268'} };
-  const aiContent = insightsList.length ? `
-    <div style="display:flex;flex-direction:column;gap:6px">
-      ${insightsList.slice(0,6).map(ins=>{
-        const c = AI_COLORS[ins.type] || AI_COLORS.neutral;
-        const text = ins.html.replace(/<\/?strong>/g,'');
-        return `<div style="display:flex;gap:8px;padding:7px 10px;background:${c.bg};border-radius:8px;font-size:10.5px;line-height:1.4;color:#16261e"><span style="flex-shrink:0">${ins.emoji}</span><span>${text}</span></div>`;
-      }).join('')}
-    </div>` : '<div style="font-size:11.5px;color:#94a89f">Open Business Intelligence on the dashboard to generate insights.</div>';
-
-  el.innerHTML = pdfHeader(d, 'Business Management System — Monthly Summary · Page 2 of 2') + `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:10px;margin-bottom:10px;flex:1;min-height:0">
-      ${pdfCard('Cash &amp; Loans', cashLoans)}
-      ${pdfCard('Manufacturing', mfgContent)}
-      ${pdfCard('Business Health', healthContent)}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:10px;flex:1.05;min-height:0">
-      ${pdfCard('Budget vs Actual', budgetContent)}
-      ${pdfCard('Business Intelligence', aiContent)}
-    </div>
-  ` + pdfFooter(d);
-  return el;
-}
-
-function waitForImages(el){
-  const imgs = Array.from(el.querySelectorAll('img'));
-  return Promise.all(imgs.map(img => img.complete ? Promise.resolve() :
-    new Promise(res => { img.onload = res; img.onerror = res; })));
-}
-
-async function renderPdfPage(el){
-  await waitForImages(el);
-  await new Promise(r => setTimeout(r, 40));
-  const canvas = await html2canvas(el, { scale: 3.5, width: PDF_PAGE_W, height: PDF_PAGE_H, backgroundColor: '#ffffff', useCORS: true });
-  document.body.removeChild(el);
-  return canvas;
-}
-
-async function exportPDF(){
-  // header.js's exportPdfBtn handler already calls closeExportMenu() before invoking this
+async function _dashExport(kind){
+  if (!LAST) { alert('The dashboard is still loading — please try again in a moment.'); return; }
+  if (typeof ReportEngine === 'undefined') { alert('The report engine did not load. Refresh the page and try again.'); return; }
   const loading = document.getElementById('exportLoading');
-  const loadingText = document.getElementById('exportLoadingText');
+  document.getElementById('exportLoadingText').textContent = kind === 'pdf' ? 'Building your PDF report…' : 'Building your Excel workbook…';
   loading.classList.add('show');
-  loadingText.textContent = 'Building your PDF report…';
-
   try{
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
-    const data = getDashboardData();
-    const charts = renderExportCharts(data);
-    const insightsList = LAST ? buildAIInsights() : [];
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-
-    // Page 1 — KPIs, revenue chart, expense breakdown, top customers, inventory
-    const page1 = buildPdfPage1(data, charts);
-    const canvas1 = await renderPdfPage(page1);
-    pdf.addImage(canvas1.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
-
-    // Page 2 — cash & loans, manufacturing, business health, budget vs actual, business intelligence
-    pdf.addPage('a4', 'landscape');
-    const page2 = buildPdfPage2(data, insightsList);
-    const canvas2 = await renderPdfPage(page2);
-    pdf.addImage(canvas2.toDataURL('image/png'), 'PNG', 0, 0, pageW, pageH, undefined, 'FAST');
-
-    pdf.save(`Mena-Injera-Dashboard-${data.period.replace(/\s+/g,'-')}.pdf`);
+    const data = buildDashboardReportData();
+    if (kind === 'pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    else await ReportEngine.generateExcel(data);
   }catch(err){
-    console.error('PDF export failed', err);
-    alert('Something went wrong generating the PDF. Please try again.');
+    console.error(kind.toUpperCase() + ' export failed', err);
+    alert('Could not generate the ' + (kind === 'pdf' ? 'PDF' : 'Excel file') + ': ' + (err.message || 'please try again.'));
   }finally{
     loading.classList.remove('show');
   }
 }
-
-// ══════════════════════════════════════════════════════════
-// ── EXPORT: Excel workbook ──────────────────────────────────
-// ══════════════════════════════════════════════════════════
-function exportExcel(){
-  // header.js's exportXlsBtn handler already calls closeExportMenu() before invoking this
-  const loading = document.getElementById('exportLoading');
-  document.getElementById('exportLoadingText').textContent = 'Building your Excel workbook…';
-  loading.classList.add('show');
-
-  try{
-    const d = getDashboardData();
-    const wb = XLSX.utils.book_new();
-
-    const summarySheet = XLSX.utils.aoa_to_sheet([
-      ['Mena Injera & Derkosh — Dashboard Export'],
-      ['Period', d.period],
-      ['Generated', d.generatedAt.toLocaleString('en-US')],
-      ['Prepared By', d.preparedBy + (d.preparedRole?` (${d.preparedRole})`:'')],
-      [],
-      ['KPI', 'Value', 'Unit', 'Change vs Prior Month'],
-      ...d.kpis.map(k => [k.label, k.value, k.unit, k.change.replace(/[▲▼]/g,'').trim()])
-    ]);
-    XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Expense Category','Amount (ETB)','% of Total'],
-      ...d.expenses.map(e=>[e.name, e.value, e.pct])
-    ]), 'Expense Breakdown');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Customer','Revenue (ETB)','% of Total'],
-      ...d.topCustomers.map(c=>[c.name, c.revenue, c.pct])
-    ]), 'Top Customers');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Item','Quantity','Status','Recommendation'],
-      ...d.inventory.map(i=>[i.name, i.qty, i.status, i.recommendation])
-    ]), 'Inventory');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Account','Amount'],
-      ...d.cashPosition.map(c=>[c.label, c.amount]),
-      ['Total Cash', d.cashTotal]
-    ]), 'Cash Position');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Loan','Type','Due','Paid','Remaining'],
-      ...d.loans.map(l=>[l.name, l.type, l.due, l.paid, l.remaining]),
-      ['Total Outstanding','','','', d.loanTotal]
-    ]), 'Loans');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Category','Spent','Status','Detail'],
-      ...d.budgets.map(b=>[b.name, b.spent, b.status, b.sub])
-    ]), 'Budget vs Actual');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Business Health Score', d.health.score],
-      [],
-      ['Pillar','Score'],
-      ...d.health.pillars.map(p=>[p.name, p.score])
-    ]), 'Business Health');
-
-    const insightsForExcel = LAST ? buildAIInsights() : [];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Business Intelligence — Automated Insights from Live Data'],
-      ['Type', 'Insight'],
-      ...(insightsForExcel.length
-        ? insightsForExcel.map(ins => [ins.type, ins.html.replace(/<\/?strong>/g,'').replace(/<[^>]+>/g,'')])
-        : [['neutral', 'Open Business Intelligence on the dashboard to generate insights, then re-export.']])
-    ]), 'Business Intelligence');
-
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-      ['Manufacturing Metric','Value'],
-      ...d.manufacturing.map(m=>[m.label, m.value]),
-      ['Production Efficiency', d.mfgEfficiency],
-      [],
-      ["Today's Performance",''],
-      ...d.dailyPerf.map(p=>[p.label, p.value + ' ' + p.sub])
-    ]), 'Production');
-
-    XLSX.writeFile(wb, `Mena-Injera-Dashboard-${d.period.replace(/\s+/g,'-')}.xlsx`);
-  }catch(err){
-    console.error('Excel export failed', err);
-    alert('Something went wrong generating the Excel file. Please try again.');
-  }finally{
-    loading.classList.remove('show');
-  }
-}
+function exportPdf(){ return _dashExport('pdf'); }
+function exportExcel(){ return _dashExport('xlsx'); }
 
 // exportPdfBtn/exportXlsBtn clicks are now wired via renderHeader()'s onExportPdf/onExportXlsx config
 </script>

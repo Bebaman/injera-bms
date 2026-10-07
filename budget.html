@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Budget vs Actual — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 html{scroll-behavior:smooth}
@@ -226,8 +227,8 @@ button{font-family:inherit}
           <div class="qa-grid">
             <div class="qa-btn" onclick="openManualBudget()"><div class="qa-ic g"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div><span>Edit Budget</span></div>
             <div class="qa-btn" onclick="openAiSuggestion()"><div class="qa-ic p"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div><span>AI Budget Suggestion</span></div>
-            <div class="qa-btn" onclick="exportCSV()"><div class="qa-ic xl"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="19"/><line x1="15" y1="13" x2="9" y2="19"/></svg></div><span>Export Report<br>(Excel)</span></div>
-            <div class="qa-btn" onclick="exportPDF()"><div class="qa-ic pdf"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="13" y2="18"/></svg></div><span>Export Report<br>(PDF)</span></div>
+            <div class="qa-btn" onclick="exportExcel()"><div class="qa-ic xl"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="19"/><line x1="15" y1="13" x2="9" y2="19"/></svg></div><span>Export Report<br>(Excel)</span></div>
+            <div class="qa-btn" onclick="exportPdf()"><div class="qa-ic pdf"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="13" y2="18"/></svg></div><span>Export Report<br>(PDF)</span></div>
           </div>
         </div>
       </div>
@@ -292,6 +293,7 @@ button{font-family:inherit}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ══════════════════════ SUPABASE ══════════════════════
    sb()/sbWrite() now delegate to the shared sbGet/sbPost/sbPatch in
@@ -776,213 +778,87 @@ async function openTrendModal(){
 }
 function closeTrendModal(){document.getElementById('trendOverlay').classList.remove('show');}
 
-/* ══════════════════════ EXPORTS (use the currently rendered CUR) ══════════════════════ */
-function tableToAoA(){
+/* ══════════════════════ EXPORT (report-engine.js) ══════════════════════
+   One ReportData object (presets.budget) feeds PDF and Excel. The page owns the
+   numbers (CUR / computeMonth); the engine owns the layout. The old SheetJS /
+   hand-drawn jsPDF exporters that lived here were removed. */
+async function buildBudgetReportData(){
   const cur=CUR;
-  const rows=[['Particulars','Budget '+MONTHS[curMonthIdx],'Actual '+MONTHS[curMonthIdx],'Variance ETB','Variance %','Status']];
-  function push(it,label){
-    const row=cur.rows[it.key];const v=row.actual-row.budget,vp=variancePct(row);
-    rows.push([label,row.budget,row.actual,v,vp.toFixed(1)+'%',statusText(v,it.group)]);
+  const periodLbl=MONTHS[curMonthIdx];
+  const prevIdx=curMonthIdx>0?curMonthIdx-1:null;
+  const prev=prevIdx!==null?await computeMonth(PERIODS[prevIdx].key):null;
+  const prevLbl=prevIdx!==null?MONTHS[prevIdx]:'Prior Month';
+
+  const line=it=>{
+    const r=cur.rows[it.key];
+    const o={label:it.label,budget:r.budget,actual:r.actual};
+    if(prev){o.previousBudget=prev.rows[it.key].budget;o.previousActual=prev.rows[it.key].actual;}
+    return o;
+  };
+  const sec=(title,type,group)=>({title,type,lines:ITEMS.filter(i=>i.group===group).map(line)});
+  const sections=[
+    sec('Revenue','income','revenue'),
+    sec('Cost of Goods Sold','expense','cogs'),
+    sec('Operating Expenses','expense','opex'),
+    sec('Interest Expense','expense','interest')
+  ];
+
+  // month-by-month total expenses (COGS + operating + interest): last 6 months that have a budget
+  const monthly=[];
+  const from=Math.max(0,curMonthIdx-5);
+  for(let k=from;k<=curMonthIdx;k++){
+    try{
+      const m=k===curMonthIdx?cur:await computeMonth(PERIODS[k].key);
+      if(!m.meta.hasBudget) continue;
+      monthly.push({label:MONTHS[k],budget:m.totCogsB+m.totOpexB+m.intB,actual:m.totCogsA+m.totOpexA+m.intA});
+    }catch(e){ /* a month that failed to load is simply left out */ }
   }
-  function statusText(v,group){
-    if(Math.abs(v)<=0.5)return'On Target';
-    if(group==='revenue')return v>0?'Beat':'Miss';
-    return v>0?'Over':'Under';
+
+  const anyFigure=ITEMS.some(it=>cur.rows[it.key].budget||cur.rows[it.key].actual);
+  const data={
+    period:periodLbl,
+    currency:'ETB',
+    generatedBy:(typeof OWNER!=='undefined'&&OWNER&&OWNER.name)||undefined,
+    generatedAt:new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    sections,
+    previousLabel:prevLbl,
+    monthly:monthly.length>1?monthly:undefined,
+    monthlyKind:'expense',
+    monthlyTitle:'Total expenses'
+  };
+  if(!anyFigure){ data.status='empty'; data.emptyMessage='No budget or actual figures recorded for '+periodLbl+'.'; }
+  if(!cur.meta.hasBudget && anyFigure){
+    data.footer={notes:['No budget has been set for '+periodLbl+'; variances are measured against zero.']};
   }
-  rows.push(['REVENUE','','','','','']);
-  ITEMS.filter(i=>i.group==='revenue').forEach(it=>push(it,it.label));
-  rows.push(['Total Revenue',cur.totRevB,cur.totRevA,cur.totRevA-cur.totRevB,(cur.totRevB?((cur.totRevA-cur.totRevB)/cur.totRevB*100).toFixed(1):'0')+'%','']);
-  rows.push(['COST OF GOODS SOLD','','','','','']);
-  ITEMS.filter(i=>i.group==='cogs').forEach(it=>push(it,it.label));
-  rows.push(['Total COGS',cur.totCogsB,cur.totCogsA,cur.totCogsA-cur.totCogsB,(cur.totCogsB?((cur.totCogsA-cur.totCogsB)/cur.totCogsB*100).toFixed(1):'0')+'%','']);
-  rows.push(['Gross Profit',cur.gpB,cur.gpA,cur.gpA-cur.gpB,'','']);
-  rows.push(['Gross Margin %',cur.gmB.toFixed(1)+'%',cur.gmA.toFixed(1)+'%','','','']);
-  rows.push(['OPERATING EXPENSES','','','','','']);
-  ITEMS.filter(i=>i.group==='opex').forEach(it=>push(it,it.label));
-  rows.push(['Total Operating Expenses',cur.totOpexB,cur.totOpexA,cur.totOpexA-cur.totOpexB,(cur.totOpexB?((cur.totOpexA-cur.totOpexB)/cur.totOpexB*100).toFixed(1):'0')+'%','']);
-  push(ITEMS.find(i=>i.key==='interest'),'Interest Expense (Loan)');
-  rows.push(['NET PROFIT',cur.npB,cur.npA,cur.npA-cur.npB,(cur.npB?((cur.npA-cur.npB)/cur.npB*100).toFixed(1):'0')+'%','']);
-  return rows;
+  return ReportEngine.presets.budget(data);
 }
-/* ══ EXPORT EXCEL (real .xlsx via SheetJS) ══ */
-function exportCSV(retryCount){
-  if(!CUR){toast('Data is still loading — try again in a moment','info');return;}
-  retryCount=retryCount||0;
-  const month=MONTHS[curMonthIdx].replace(' ','_');
-  if(typeof XLSX==='undefined'){
-    if(retryCount<6){
-      setTimeout(()=>exportCSV(retryCount+1),400);
-      if(retryCount===0)toast('Preparing Excel file…','info');
-      return;
-    }
-    exportCSVFallback(month);
-    return;
-  }
+function _bvaReady(){
+  if(!CUR){ toast('Data is still loading — try again in a moment','info'); return false; }
+  if(typeof ReportEngine==='undefined'){ toast('Report engine did not load — refresh the page and try again','error'); return false; }
+  return true;
+}
+async function exportPdf(){
+  if(!_bvaReady()) return;
   try{
-    const aoa=tableToAoA();
-    const sectionRows=new Set();const totalRows=new Set();const npRowIdx=aoa.length-1;
-    aoa.forEach((r,i)=>{if(r[1]===''&&r[2]===''&&r[0]===r[0].toUpperCase()&&r[0].length>3)sectionRows.add(i);});
-    ['Total Revenue','Total COGS','Gross Profit','Total Operating Expenses'].forEach(lbl=>{
-      const i=aoa.findIndex(r=>r[0]===lbl);if(i>=0)totalRows.add(i);
-    });
-    const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:28},{wch:16},{wch:16},{wch:14},{wch:12},{wch:12}];
-    ws['!rows']=[{hpt:22}];
-    ws['!freeze']={xSplit:0,ySplit:1};
-    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
-    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-    const moneyCols=[1,2,3];
-    for(let r=0;r<aoa.length;r++){
-      for(let c=0;c<aoa[0].length;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr])continue;
-        const isHeader=r===0,isSection=sectionRows.has(r),isTotal=totalRows.has(r),isNP=r===npRowIdx;
-        let numFmt;
-        if(!isHeader&&!isSection&&moneyCols.includes(c)&&typeof aoa[r][c]==='number')numFmt='#,##0.00;(#,##0.00)';
-        ws[addr].s={
-          font:{bold:isHeader||isSection||isTotal||isNP,color:{rgb:isHeader?'FFFFFF':(isNP?'124D2B':isSection?'19733F':(isTotal?'1D6B42':'16261E'))},sz:isHeader?10:10},
-          fill:{fgColor:{rgb:isHeader?'1D6B42':(isNP?'E3F6EC':(isSection?'EEF8F1':(isTotal?'F6FAF7':(r%2===0?'FFFFFF':'F7FBF9'))))}},
-          alignment:{vertical:'center',horizontal:(c===0)?'left':'right'},
-          border:borderAll
-        };
-        if(numFmt)ws[addr].z=numFmt;
-      }
-    }
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Budget vs Actual');
-    XLSX.writeFile(wb,'Budget_vs_Actual_'+month+'.xlsx');
-    toast('Downloaded Budget_vs_Actual_'+month+'.xlsx ✓','success');
-  }catch(err){
-    console.error('Excel export failed:',err);
-    exportCSVFallback(month);
-  }
-}
-function csvField(v){
-  const s=String(v);
-  if(/[",\n]/.test(s))return'"'+s.replace(/"/g,'""')+'"';
-  return s;
-}
-function exportCSVFallback(month){
-  const aoa=tableToAoA();
-  const lines=aoa.map(r=>r.map(csvField).join(','));
-  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download='Budget_vs_Actual_'+month+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  toast('Excel engine unavailable — downloaded as CSV instead','info');
-}
-
-/* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ══ */
-function exportPDF(retryCount){
-  if(!CUR){toast('Data is still loading — try again in a moment','info');return;}
-  retryCount=retryCount||0;
-  if(typeof window.jspdf==='undefined'||typeof window.jspdf.jsPDF==='undefined'){
-    if(retryCount<6){
-      setTimeout(()=>exportPDF(retryCount+1),400);
-      if(retryCount===0)toast('Preparing PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
-  try{
-    const {jsPDF}=window.jspdf;
-    const month=MONTHS[curMonthIdx];
-    const cur=CUR;
-    const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
-    const pageW=doc.internal.pageSize.getWidth();
-    const pageH=doc.internal.pageSize.getHeight();
-    const marginX=32;
-    const green=[39,174,96],darkGreen=[22,52,36],deepGreen=[16,39,26],textDark=[22,38,30],textMid=[94,114,104],border=[227,236,231],rowAlt=[244,249,246];
-
-    function drawHeader(){
-      doc.setFillColor(...deepGreen);doc.rect(0,0,pageW,74,'F');
-      doc.setFillColor(...green);doc.rect(0,70,pageW,4,'F');
-      doc.setFillColor(255,255,255);doc.roundedRect(marginX,18,38,38,9,9,'F');
-      doc.setTextColor(...deepGreen);doc.setFont('helvetica','bold');doc.setFontSize(15);
-      doc.text('MI',marginX+19,42,{align:'center'});
-      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(17);
-      doc.text('Budget vs Actual Statement',marginX+52,34);
-      doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(200,225,212);
-      doc.text('Mena Injera & Derkosh — Business Management System',marginX+52,49);
-      doc.setFontSize(9);doc.setTextColor(220,235,227);
-      doc.text('Period: '+month,pageW-marginX,30,{align:'right'});
-      doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),pageW-marginX,43,{align:'right'});
-      doc.text('Prepared by: '+(OWNER?OWNER.name:'—'),pageW-marginX,56,{align:'right'});
-    }
-
-    function drawKpiStrip(y){
-      const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
-      const kpis=[
-        {lbl:'BUDGETED NET PROFIT',val:f0(cur.npB),unit:'ETB'},
-        {lbl:'ACTUAL NET PROFIT',val:f0(cur.npA),unit:'ETB'},
-        {lbl:'VARIANCE',val:f0(v),unit:'ETB'},
-        {lbl:'VARIANCE %',val:vp.toFixed(1),unit:'%'},
-        {lbl:'TOTAL REVENUE',val:f0(cur.totRevA),unit:'ETB'},
-        {lbl:'GROSS MARGIN %',val:cur.gmA.toFixed(1),unit:'%'}
-      ];
-      const gap=10;const cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length;const cardH=52;
-      kpis.forEach((k,i)=>{
-        const x=marginX+i*(cardW+gap);
-        doc.setFillColor(...rowAlt);doc.setDrawColor(...border);
-        doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-        doc.setTextColor(...textMid);doc.setFont('helvetica','bold');doc.setFontSize(6.6);
-        doc.text(k.lbl,x+10,y+16,{charSpace:0.2});
-        doc.setTextColor(...darkGreen);doc.setFont('helvetica','bold');doc.setFontSize(14);
-        doc.text(k.val,x+10,y+36);
-        const valW=doc.getTextWidth(k.val);
-        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...textMid);
-        doc.text(k.unit,x+10+valW+4,y+36);
-      });
-      return y+cardH;
-    }
-
-    drawHeader();
-    const kpiBottom=drawKpiStrip(94);
-
-    const aoa=tableToAoA();
-    const head=[aoa[0]];
-    const body=aoa.slice(1);
-
-    doc.autoTable({
-      head,body,
-      startY:kpiBottom+18,
-      margin:{left:marginX,right:marginX,bottom:46},
-      styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-      alternateRowStyles:{fillColor:[249,251,250]},
-      columnStyles:{0:{fontStyle:'bold'}},
-      didParseCell:function(data){
-        if(data.section!=='body')return;
-        const label=data.row.raw[0]||'';
-        const isSection=/^[A-Z ]+$/.test(label)&&label.length>3&&data.row.raw[1]==='';
-        const isTotal=['Total Revenue','Total COGS','Gross Profit','Gross Margin %','Total Operating Expenses'].includes(label);
-        const isNP=label==='NET PROFIT';
-        if(isSection){data.cell.styles.fillColor=[238,248,241];data.cell.styles.textColor=[25,115,63];data.cell.styles.fontStyle='bold';}
-        if(isTotal){data.cell.styles.fillColor=[246,250,247];data.cell.styles.fontStyle='bold';data.cell.styles.textColor=darkGreen;}
-        if(isNP){data.cell.styles.fillColor=[227,246,236];data.cell.styles.fontStyle='bold';data.cell.styles.textColor=[18,77,43];data.cell.styles.fontSize=9;}
-      },
-      didDrawPage:function(){
-        if(doc.internal.getCurrentPageInfo().pageNumber>1)drawHeader();
-      }
-    });
-
-    const pageCount=doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX,pageH-34,pageW-marginX,pageH-34);
-      doc.setFont('helvetica','normal');doc.setFontSize(7.6);doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential',marginX,pageH-20);
-      doc.text('Page '+i+' of '+pageCount,pageW-marginX,pageH-20,{align:'right'});
-    }
-
-    const safeMonth=month.replace(' ','_');
-    doc.save('Budget_vs_Actual_'+safeMonth+'.pdf');
-    toast('Downloaded Budget_vs_Actual_'+safeMonth+'.pdf ✓','success');
+    toast('Generating PDF…','info');
+    const data=await buildBudgetReportData();
+    await ReportEngine.generatePDF(data,{type:'detailed'});
+    toast('Budget vs Actual PDF downloaded ✓','success');
   }catch(err){
     console.error('PDF export failed:',err);
-    toast('PDF export failed — please try again','error');
+    toast('Could not generate PDF: '+(err.message||'please try again'),'error');
+  }
+}
+async function exportExcel(){
+  if(!_bvaReady()) return;
+  try{
+    toast('Generating Excel…','info');
+    const data=await buildBudgetReportData();
+    await ReportEngine.generateExcel(data);
+    toast('Budget vs Actual Excel downloaded ✓','success');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'),'error');
   }
 }
 
@@ -1025,8 +901,8 @@ function buildNotifications(cur){
       selectedMonth:MONTHS[curMonthIdx],
       onMonthChange:onMonthChange,
       showExport:true,
-      onExportPdf:exportPDF,
-      onExportXlsx:exportCSV,
+      onExportPdf:exportPdf,
+      onExportXlsx:exportExcel,
       notifications:buildNotifications(cur)
     });
     await renderTable();
@@ -1040,8 +916,8 @@ function buildNotifications(cur){
       selectedMonth:MONTHS[curMonthIdx],
       onMonthChange:onMonthChange,
       showExport:true,
-      onExportPdf:exportPDF,
-      onExportXlsx:exportCSV,
+      onExportPdf:exportPdf,
+      onExportXlsx:exportExcel,
       notifications:[]
     });
     toast('Could not connect to the database — check your network settings','error');

@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Sales — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -29,9 +33,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -301,8 +302,8 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
           <div class="btn-row">
             <button class="btn-prim" onclick="openSaleModal(event)"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Sale</button>
             <button class="btn-sec" onclick="exportExcel(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export Excel</button>
-            <button class="btn-sec" onclick="exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 9 9"/></svg>Export PDF</button>
-            <button class="btn-sec" id="exportPageBtn" onclick="exportFullPagePDF(event)" title="Exports the whole dashboard, including charts, as one PDF"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Export Page (PDF)</button>
+            <button class="btn-sec" onclick="exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 9 9"/></svg>Export PDF (Detailed)</button>
+            <button class="btn-sec" id="exportPageBtn" onclick="exportPDF(event,'summary')" title="One-page summary PDF with the charts, key figures and top customers"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Summary PDF</button>
             <button class="btn-sec" id="filterBtn" onclick="toggleFilter(event)"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
           </div>
         </div>
@@ -523,7 +524,7 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
   <div class="modal" style="width:400px">
     <div class="modal-hd"><h3>Sales Reports</h3><div class="modal-x" onclick="closeReportsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
     <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
-      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export this month as PDF</a>
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export this month as PDF (detailed)</a>
       <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportExcel(event)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M16 3v18M3 9h18M3 15h18"/></svg>Export this month as Excel</a>
       <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" href="reports.html"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Open Multi-Year Reports module</a>
     </div>
@@ -546,6 +547,7 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
 //  STATE
@@ -619,7 +621,7 @@ function periodEndDate(period){
   const lastDay = new Date(y, m, 0).getDate(); // day 0 of next month = last day of this month
   return `${period}-${String(lastDay).padStart(2,'0')}`;
 }
-async function buildMonthList(){
+async function buildSalesMonths(){
   const today = new Date();
   // Floor: always show at least the last 6 months, even with zero sales
   // recorded yet — otherwise a brand-new/empty month range collapses to a
@@ -723,7 +725,7 @@ function buildSalesNotifications(){
 }
 
 async function initHeaderAndData(){
-  MONTHS = await buildMonthList();
+  MONTHS = await buildSalesMonths();
   currentPeriod = MONTHS[MONTHS.length - 1].key; // real current month, not a hardcoded stale default
   const selectedLabel = (MONTHS.find(m => m.key === currentPeriod) || MONTHS[MONTHS.length-1]).label;
   document.getElementById('txnPeriodLabel').textContent = `(${selectedLabel})`; // was left at its hardcoded "(May 2026)" HTML default until the first onMonthChange fired — now matches the real selected month from the start
@@ -739,6 +741,9 @@ async function initHeaderAndData(){
       salesPage = 1;
       loadAll();
     },
+    showExport: true,
+    onExportPdf: () => exportPDF(),
+    onExportXlsx: () => exportExcel(),
     notifications: [] // populated live by buildSalesNotifications() once real data loads — see below
   });
   loadAll();
@@ -1750,523 +1755,97 @@ function viewAll(e, section) {
 // ═══════════════════════════════════════════════════
 //  PDF EXPORT — full styled printable report
 // ═══════════════════════════════════════════════════
-function exportPDF(e) {
-  if (e) ripple(e);
-  const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
-
-  // Build totals
-  const total  = allSales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const cash   = allSales.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const credit = allSales.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const ar     = currentTotalAR();
-  const injRev = allSales.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const drkRev = allSales.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-
-  // Build table rows HTML
-  const rows = allSales.map(r => `
-    <tr>
-      <td>${fmtDate(r.date)}</td>
-      <td>${r.product}</td>
-      <td>${esc(r.customers?.name||'—')}</td>
-      <td>${r.customers?.customer_type||'—'}</td>
-      <td>${(r.quantity||0).toLocaleString()}</td>
-      <td>${r.product==='Injera'?'pcs':'kg'}</td>
-      <td><span class="pmtag">${r.payment_method}</span></td>
-      <td>${fmt(r.unit_price)}</td>
-      <td><strong>${fmt(r.revenue)}</strong></td>
-      <td>${r.settled_date?fmtDate(r.settled_date):'—'}</td>
-    </tr>`).join('');
-
-  const vatOn   = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
-  const vatAmt  = vatOn ? total * (VAT_RATE_PCT/100) : 0;
-  const vatLine = vatOn ? `<tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Output VAT (${VAT_RATE_PCT}%)</td><td><strong style="color:#19733f">${fmt(vatAmt)} ETB</strong></td><td></td></tr>
-  <tr class="vat-sum"><td colspan="8" style="text-align:right;font-weight:700;color:#19733f">Total inc. VAT</td><td><strong style="color:#19733f">${fmt(total+vatAmt)} ETB</strong></td><td></td></tr>` : '';
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Sales Report — ${period}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1a2e25;background:#fff;padding:24px}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #27ae60;margin-bottom:18px}
-  .logo-area h1{font-size:17px;font-weight:800;color:#1a2e25;letter-spacing:.3px}
-  .logo-area p{font-size:10px;color:#9aada5;margin-top:2px}
-  .report-info{text-align:right}
-  .report-info h2{font-size:13px;font-weight:700;color:#1a2e25}
-  .report-info p{font-size:10px;color:#9aada5;margin-top:2px}
-  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-  .kpi{background:#f7fbf9;border:1px solid #e0eae5;border-radius:8px;padding:10px 12px}
-  .kpi label{font-size:9px;font-weight:700;color:#9aada5;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
-  .kpi strong{font-size:14px;font-weight:800;color:#1a2e25}
-  .kpi .sub{font-size:9.5px;color:#5a6e65;margin-top:2px}
-  .section-title{font-size:11px;font-weight:800;color:#1a2e25;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e0eae5}
-  table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:10px}
-  th{padding:6px 8px;text-align:left;font-size:9px;font-weight:800;color:#9aada5;background:#f7fbf9;border-bottom:1.5px solid #e0eae5;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
-  td{padding:7px 8px;border-bottom:1px solid #f0f5f2;color:#1a2e25}
-  tr:hover td{background:#f7fbf9}
-  tr.tot td{font-weight:800;background:#f0f5f2;border-top:1.5px solid #e0eae5;border-bottom:none}
-  tr.tot td:first-child{color:#19733f}
-  tr.vat-sum td{background:#eaf6f0;border-top:none}
-  .pmtag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:#e5f5ed;color:#19733f}
-  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
-  .box{background:#f7fbf9;border:1px solid #e0eae5;border-radius:8px;padding:12px}
-  .box h4{font-size:10px;font-weight:800;color:#1a2e25;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
-  .box-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f5f2;font-size:10px}
-  .box-row:last-child{border-bottom:none;font-weight:800;color:#19733f;padding-top:5px}
-  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
-  .footer-pdf{text-align:center;font-size:9px;color:#9aada5;padding-top:12px;border-top:1px solid #e0eae5;margin-top:4px}
-  ${vatOn ? '.vat-notice{background:#eaf6f0;border:1px solid #b5ddc5;border-radius:6px;padding:7px 12px;font-size:9.5px;font-weight:700;color:#19733f;margin-bottom:14px}' : ''}
-  @media print{body{padding:0}@page{margin:16mm;size:A4 landscape}}
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo-area">
-    <h1>MENA INJERA &amp; DERKOSH</h1>
-    <p>Business Management System v37</p>
-  </div>
-  <div class="report-info">
-    <h2>Sales Report — ${period}</h2>
-    <p>Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</p>
-    <p>${allSales.length} transactions</p>
-  </div>
-</div>
-
-${vatOn ? `<div class="vat-notice">VAT REGISTERED — Output VAT at 15% included in totals below</div>` : ''}
-
-<div class="kpi-grid">
-  <div class="kpi"><label>Total Revenue</label><strong>${fmt(total)} ETB</strong><div class="sub">All payment methods</div></div>
-  <div class="kpi"><label>Cash Sales</label><strong>${fmt(cash)} ETB</strong><div class="sub">${total?((cash/total)*100).toFixed(1):0}% of total</div></div>
-  <div class="kpi"><label>Credit Sales</label><strong>${fmt(credit)} ETB</strong><div class="sub">${total?((credit/total)*100).toFixed(1):0}% of total</div></div>
-  <div class="kpi"><label>Outstanding A/R</label><strong>${fmt(ar)} ETB</strong><div class="sub">Unsettled credit</div></div>
-</div>
-
-<div class="section-title">Sales Transactions</div>
-<table>
-  <thead><tr><th>Date</th><th>Product</th><th>Customer</th><th>Type</th><th>Qty</th><th>Unit</th><th>Payment</th><th>Unit Price</th><th>Revenue (ETB)</th><th>Settled</th></tr></thead>
-  <tbody>
-    ${rows}
-    <tr class="tot"><td>TOTAL</td><td></td><td></td><td></td><td>${allSales.reduce((s,r)=>s+(r.quantity||0),0).toLocaleString()}</td><td></td><td></td><td></td><td>${fmt(total)} ETB</td><td></td></tr>
-    ${vatLine}
-  </tbody>
-</table>
-
-<div class="split">
-  <div class="box">
-    <h4>Revenue by Product</h4>
-    <div class="box-row"><span><span class="dot" style="background:#27ae60"></span>Injera</span><span>${fmt(injRev)} ETB &nbsp;${total?((injRev/total)*100).toFixed(1):0}%</span></div>
-    <div class="box-row"><span><span class="dot" style="background:#f59e0b"></span>Derkosh</span><span>${fmt(drkRev)} ETB &nbsp;${total?((drkRev/total)*100).toFixed(1):0}%</span></div>
-    <div class="box-row"><span>TOTAL</span><span>${fmt(total)} ETB</span></div>
-  </div>
-  <div class="box">
-    <h4>Revenue by Payment Method</h4>
-    ${['Cash','Credit','Bank Transfer','Mobile Money'].map(m => {
-        const v = allSales.filter(r=>r.payment_method===m).reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-        return `<div class="box-row"><span>${m}</span><span>${fmt(v)} ETB &nbsp;${total?((v/total)*100).toFixed(1):0}%</span></div>`;
-      }).join('')}
-    <div class="box-row"><span>TOTAL</span><span>${fmt(total)} ETB</span></div>
-  </div>
-</div>
-
-<div class="footer-pdf">© 2026 Mena Injera &amp; Derkosh Business Management System v37 — Confidential</div>
-</body></html>`;
-
-  // Open print dialog in a new window
-  const win = window.open('', '_blank', 'width=1100,height=800,menubar=no,toolbar=no');
-  win.document.write(html);
-  win.document.close();
-  win.onload = function() {
-    win.focus();
-    win.print();
-  };
-  showToast('PDF report opened — use Print → Save as PDF', 'ok', 3500);
-}
+//  EXPORT (report-engine.js)
+//  presets.sales() builds the PDF and Excel from the rows this page already holds (allSales).
+//  The old SheetJS / hand-drawn jsPDF / print-window exporters were removed.
+//  The engine's detailed report carries the charts, daily breakdown, product / payment / customer
+//  tables and the credit & A/R detail; the summary PDF is the one-page version.
 // ═══════════════════════════════════════════════════
-//  EXPORT — FULL PAGE AS PDF (visual snapshot incl. charts)
-// ═══════════════════════════════════════════════════
-// Renders a crisp, correctly-proportioned clone of a live Chart.js chart at high
-// resolution for PDF embedding — avoids the pixelation/stretching you get from
-// grabbing the small on-screen canvas directly.
-async function renderHiResChartImage(sourceChart, boxW, boxH, scale, fontScale) {
-  scale = scale || 4;
-  fontScale = fontScale || 1;
-  const w = Math.max(1, Math.round(boxW * scale));
-  const h = Math.max(1, Math.round(boxH * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  canvas.style.position = 'fixed'; canvas.style.left = '-99999px'; canvas.style.top = '0';
-  document.body.appendChild(canvas);
-  let tempChart = null;
-  try {
-    const baseOptions = Object.assign({}, sourceChart.config.options, {
-      responsive: false, maintainAspectRatio: false, animation: false, devicePixelRatio: 1
-    });
-    let clonedData = sourceChart.config.data;
-    if (fontScale !== 1) {
-      // Scale axis tick labels — otherwise fixed-pixel fonts shrink to near-invisible
-      // once this image is rendered large then scaled back down to fit the PDF box.
-      if (baseOptions.scales) {
-        const scaledScales = {};
-        Object.keys(baseOptions.scales).forEach(axis => {
-          const orig = sourceChart.config.options.scales[axis] || {};
-          scaledScales[axis] = Object.assign({}, orig, {
-            ticks: Object.assign({}, orig.ticks, {
-              font: Object.assign({}, orig.ticks?.font, { size: (orig.ticks?.font?.size || 11) * fontScale })
-            })
-          });
-        });
-        baseOptions.scales = scaledScales;
-      }
-      // Scale in-chart data-point labels the same way
-      if (clonedData.datasets) {
-        clonedData = { labels: clonedData.labels, datasets: clonedData.datasets.map(ds => {
-          if (!ds.datalabels) return ds;
-          return Object.assign({}, ds, { datalabels: Object.assign({}, ds.datalabels, {
-            font: Object.assign({}, ds.datalabels.font, { size: (ds.datalabels.font?.size || 10) * fontScale })
-          })});
-        })};
-      }
-    }
-    tempChart = new Chart(canvas, {
-      type: sourceChart.config.type,
-      data: clonedData,
-      options: baseOptions,
-      plugins: sourceChart.config.plugins || []
-    });
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    return canvas.toDataURL('image/png', 1.0);
-  } finally {
-    if (tempChart) tempChart.destroy();
-    canvas.remove();
-  }
-}
+async function buildSalesReportData(){
+  const sel = MONTHS.find(m => m.key === currentPeriod);
+  const periodText = sel ? sel.label : currentPeriod;
+  const session = (typeof loadSession === 'function' ? loadSession() : null) || window.currentUser || {};
 
-async function exportFullPagePDF(e, retryCount) {
-  if (e) ripple(e);
-  retryCount = retryCount || 0;
-  const chartsReady = prodChart && pmChart && trendChart && idChart;
-  if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartsReady) {
-    if (retryCount < 8) { setTimeout(() => exportFullPagePDF(null, retryCount+1), 400); if (retryCount===0) showToast('Preparing full report PDF…', 'info'); return; }
-    showToast('Could not load the PDF/chart engine. Check your connection and try again.', 'err');
-    return;
-  }
-  const btn = document.getElementById('exportPageBtn');
-  const original = btn.innerHTML;
-  btn.innerHTML = 'Generating…';
-  btn.disabled = true;
-  closeAllDrops();
+  // last month's total, for the "vs last month" comparison on the first card
+  let previousTotal, previousLabel;
+  try{
+    const prev = await loadPreviousPeriodTotals();
+    if(prev && prev.totals && prev.totals.total > 0){ previousTotal = prev.totals.total; previousLabel = prev.label; }
+  }catch(e){ /* no prior month on record — the comparison is simply left out */ }
 
-  try {
-    const { jsPDF } = window.jspdf;
-    const preparedByLabel = await getCurrentUserLabel();
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const marginX = 32;
-    const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
-
-    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-    const dataset = filteredSales.length ? filteredSales : allSales;
-    const totalRev   = dataset.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    const cashRev    = dataset.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    const creditRev  = dataset.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    const injPrice   = avg(dataset.filter(r=>r.product==='Injera').map(r=>parseFloat(r.unit_price||0)));
-    const drkPrice   = avg(dataset.filter(r=>r.product==='Derkosh').map(r=>parseFloat(r.unit_price||0)));
-    const outstandingAR = dataset.filter(r=>r.payment_method==='Credit'&&!r.settled_date).reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-
-    function drawHeader(subtitle) {
-      doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-      doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-      doc.setFillColor(255,255,255);
-      doc.roundedRect(marginX,18,38,38,9,9,'F');
-      doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-      doc.text('MI', marginX+19, 42, {align:'center'});
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-      doc.text('Sales Overview'+(subtitle?' — '+subtitle:''), marginX+52, 34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-      doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-      doc.setFontSize(9); doc.setTextColor(220,235,227);
-      doc.text('Period: '+period, pageW-marginX, 30, {align:'right'});
-      doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-      doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
-    }
-    function drawFooter() {
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i=1;i<=pageCount;i++) {
-        doc.setPage(i);
-        doc.setDrawColor(...border);
-        doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
-        doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-        doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
-        doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
-      }
-    }
-    function drawKpiStrip(y) {
-      const kpis = [
-        {lbl:'TOTAL REVENUE',   val:fmt(totalRev),      unit:'ETB'},
-        {lbl:'CASH SALES',      val:fmt(cashRev),       unit:'ETB'},
-        {lbl:'CREDIT SALES',    val:fmt(creditRev),     unit:'ETB'},
-        {lbl:'AVG PRICE INJERA',val:fmt(injPrice),      unit:'ETB'},
-        {lbl:'AVG PRICE DERKOSH',val:fmt(drkPrice),     unit:'ETB'},
-        {lbl:'OUTSTANDING A/R', val:fmt(outstandingAR), unit:'ETB'},
-      ];
-      const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
-      kpis.forEach((k,i) => {
-        const x = marginX + i*(cardW+gap);
-        doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-        doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-        doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.6);
-        doc.text(k.lbl, x+9, y+15, {charSpace:0.2});
-        doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
-        doc.text(k.val, x+9, y+34);
-        const valW = doc.getTextWidth(k.val);
-        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...textMid);
-        doc.text(k.unit, x+9+valW+4, y+34);
-      });
-      return y+cardH;
-    }
-    function hex2rgb(hex) {
-      const h = hex.replace('#','');
-      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
-    }
-    async function drawChartTile(sourceChart, x, y, w, h, title) {
-      doc.setFillColor(255,255,255); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,w,h,7,7,'FD');
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-      doc.text(title, x+12, y+18);
-      const imgPad=10, imgY=y+26;
-      const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
-      try {
-        const img = await renderHiResChartImage(sourceChart, imgW, imgH, 4, 5.5);
-        doc.addImage(img, 'PNG', x+imgPad, imgY, imgW, imgH, undefined, 'FAST');
-      } catch(err) { console.error('chart tile render failed', err); }
-    }
-    async function drawDonutTile(x, y, w, h, title, chart, segments) {
-      doc.setFillColor(255,255,255); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,w,h,7,7,'FD');
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-      doc.text(title, x+12, y+18);
-      const pad=14, top=y+30;
-      const ringSize = Math.min(h-(top-y)-pad, w*0.4);
-      const ringX = x+pad, ringY = top + ((h-(top-y)-pad-ringSize)/2);
-      try {
-        const img = await renderHiResChartImage(chart, ringSize, ringSize, 4);
-        doc.addImage(img, 'PNG', ringX, ringY, ringSize, ringSize, undefined, 'FAST');
-      } catch(err) { console.error('donut render failed', err); }
-      const total = segments.reduce((s,seg)=>s+seg.value,0);
-      const cx = ringX+ringSize/2, cy = ringY+ringSize/2;
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.2);
-      doc.text('TOTAL REVENUE', cx, cy-5, {align:'center', charSpace:0.2});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(8.8);
-      doc.text(fmt(total), cx, cy+6, {align:'center'});
-      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...textMid);
-      doc.text('ETB', cx, cy+14, {align:'center'});
-      let ly = ringY + Math.max(0, (ringSize - segments.length*28)/2) + 4;
-      const legX = ringX+ringSize+18;
-      segments.forEach(seg => {
-        doc.setFillColor(...seg.colorRgb);
-        doc.roundedRect(legX, ly, 8, 8, 2, 2, 'F');
-        doc.setTextColor(...textDark); doc.setFont('helvetica','bold'); doc.setFontSize(8.2);
-        doc.text(seg.name, legX+13, ly+7);
-        const pct = total ? ((seg.value/total)*100).toFixed(1)+'%' : '0%';
-        doc.setFont('helvetica','normal'); doc.setFontSize(7.3); doc.setTextColor(...textMid);
-        doc.text(fmt(seg.value)+' ETB  ·  '+pct, legX+13, ly+18);
-        ly += 28;
-      });
-    }
-    const tableTheme = {
-      styles:{font:'helvetica',fontSize:8.6,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.8,halign:'left'},
-      footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.6,lineWidth:{top:1.2},lineColor:[200,224,210]},
-      alternateRowStyles:{fillColor:[249,251,250]},
+  const vatOn = !!(document.getElementById('vatToggle') && document.getElementById('vatToggle').checked);
+  let vatTotal = 0, netTotal = 0;
+  const sales = allSales.map(r => {
+    const rev = parseFloat(r.revenue || 0);
+    const isCredit = r.payment_method === 'Credit';
+    const vatRate = r.vat_rate_pct != null ? parseFloat(r.vat_rate_pct) : (vatOn ? VAT_RATE_PCT : 0);
+    vatTotal += rev * (vatRate / 100); netTotal += rev;
+    const row = {
+      date: r.date,
+      customer: r.customers && r.customers.name ? r.customers.name : '',
+      product: r.product || '',
+      quantity: r.quantity,
+      unitPrice: parseFloat(r.unit_price || 0),
+      amount: rev,
+      paymentMethod: r.payment_method || ''
     };
+    // A credit sale is open until it is settled (same rule the page uses on its A/R table)
+    if(isCredit){ row.balance = r.settled_date ? 0 : rev; row.status = r.settled_date ? 'paid' : 'unpaid'; }
+    return row;
+  });
 
-    // ── PAGE 1: KPI strip + 2x2 chart grid ──
-    drawHeader();
-    const kpiBottom = drawKpiStrip(94);
-    const gY = kpiBottom+16, gGap=14;
-    const tileW = (pageW-marginX*2-gGap)/2;
-    const tileH = (pageH-gY-30-gGap)/2;
+  const notes = ['Negative values are shown with a minus sign.',
+    'Outstanding A/R in this report is this month\u2019s credit sales that are not yet settled. The customer balance on the Sales page (' +
+      fmt(currentTotalAR()) + ' ETB) is the running total and also includes earlier months.'];
+  if(vatTotal > 0) notes.push('Output VAT of ' + fmt(vatTotal) + ' ETB is not included in the sales figures; total including VAT is ' + fmt(netTotal + vatTotal) + ' ETB.');
 
-    const injRev = dataset.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    const drkRev = dataset.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    const pmMapExp = {};
-    dataset.forEach(r => { pmMapExp[r.payment_method] = (pmMapExp[r.payment_method]||0) + parseFloat(r.revenue||0); });
-    const pmColorsExp = {'Cash':'#27ae60','Credit':'#2563eb','Bank Transfer':'#8b5cf6','Mobile Money':'#f59e0b'};
-
-    await drawDonutTile(marginX, gY, tileW, tileH, 'Sales by Product (This Month)', prodChart, [
-      {name:'Injera',  value:injRev, colorRgb:hex2rgb('#27ae60')},
-      {name:'Derkosh', value:drkRev, colorRgb:hex2rgb('#f59e0b')},
-    ]);
-    await drawDonutTile(marginX+tileW+gGap, gY, tileW, tileH, 'Sales by Payment Method (This Month)', pmChart,
-      Object.keys(pmMapExp).map(k => ({name:k, value:pmMapExp[k], colorRgb:hex2rgb(pmColorsExp[k]||'#94a3b8')}))
-    );
-    await drawChartTile(trendChart, marginX,            gY+tileH+gGap, tileW, tileH, 'Revenue Trend (Last 6 Months)');
-    await drawChartTile(idChart,    marginX+tileW+gGap, gY+tileH+gGap, tileW, tileH, 'Injera vs Derkosh (Last 6 Months)');
-
-    // ── PAGE 2: Sales Transactions ──
-    doc.addPage();
-    drawHeader('Sales Transactions');
-    const txHead = [['Date','Product','Customer','Customer Type','Qty','Unit','Payment Method','Unit Price (ETB)','Revenue (ETB)','Settled Date']];
-    const txBody = dataset.map(r => [
-      fmtDate(r.date), r.product, r.customers?.name||'—', r.customers?.customer_type||'—',
-      (r.quantity||0).toLocaleString(), r.product==='Injera'?'pcs':'kg', r.payment_method,
-      fmt(r.unit_price), fmt(r.revenue), r.settled_date?fmtDate(r.settled_date):'—'
-    ]);
-    const txFoot = [['TOTAL','—','—','—', dataset.reduce((s,r)=>s+(r.quantity||0),0).toLocaleString(), '—','—','—', fmt(totalRev), '—']];
-    doc.autoTable({ head:txHead, body:txBody, foot:txFoot, startY:94, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme, columnStyles:{0:{fontStyle:'bold'},8:{textColor:[27,150,80],fontStyle:'bold'}} });
-
-    // ── PAGE 3: Customer Profitability Summary ──
-    doc.addPage();
-    drawHeader('Customer Profitability Summary');
-    const profHead = [['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Payment Type','Outstanding (ETB)','Days to Pay (Avg)']];
-    const profBody = profitFullSorted.map(([id,d]) => {
-      const avgDays = d.days && d.days.length ? Math.round(d.days.reduce((a,b)=>a+b,0)/d.days.length) : 0;
-      return [d.name, fmt(d.rev), d.orders, fmt(d.rev/d.orders), d.pm, fmt(d.outstanding), avgDays];
-    });
-    doc.autoTable({ head:profHead, body:profBody, startY:94, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme, columnStyles:{0:{fontStyle:'bold'}} });
-
-    // ── PAGE 4: Credit Collections + Outstanding A/R ──
-    doc.addPage();
-    drawHeader('Credit Collections & Outstanding A/R');
-    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Recent Credit Collections', marginX, 92);
-    const collHead = [['Date','Customer','Amount (ETB)','Payment Method']];
-    const collBody = collectionsFull.map(r => [fmtDate(r.settled_date), r.name, fmt(r.revenue), r.method]);
-    const collTotal = collectionsFull.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-    doc.autoTable({ head:collHead, body:collBody, foot:[['TOTAL','—',fmt(collTotal),'—']], startY:100, margin:{left:marginX,right:marginX}, ...tableTheme });
-
-    const arStartY = (doc.lastAutoTable?.finalY || 100) + 30;
-    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Outstanding Accounts Receivable', marginX, arStartY);
-    const arHead = [['Customer','Outstanding (ETB)','Overdue (Days)','Credit Limit (ETB)']];
-    const arBody = arFullRows.map(([id,d]) => {
-      const days = d.date ? daysSinceLocal(d.date) : '—';
-      return [d.name, fmt(d.outstanding), days, fmt(d.limit)];
-    });
-    const arTotal = arFullRows.reduce((s,[,d])=>s+d.outstanding,0);
-    doc.autoTable({ head:arHead, body:arBody, foot:[['TOTAL',fmt(arTotal),'—','—']], startY:arStartY+8, margin:{left:marginX,right:marginX,bottom:44}, ...tableTheme });
-
-    drawFooter();
-    const safeMonth = period.replace(' ','_');
-    doc.save('Sales_Overview_Full_Report_'+safeMonth+'.pdf');
-    showToast('Full report PDF downloaded', 'ok');
-  } catch (err) {
-    console.error('Full PDF export failed:', err);
-    showToast('Full report PDF export failed — please try again', 'err');
-  } finally {
-    btn.innerHTML = original;
-    btn.disabled = false;
+  const input = {
+    period: periodText,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    asOf: new Date().toISOString().slice(0,10),
+    sales,
+    footer: { notes }
+  };
+  if(previousTotal !== undefined){ input.previousTotal = previousTotal; input.previousLabel = previousLabel; }
+  if(!allSales.length){
+    input.status = 'empty';
+    input.emptyMessage = 'No sales recorded for ' + periodText + '.';
+  }
+  return ReportEngine.presets.sales(input);
+}
+function _salesEngineReady(){
+  if(typeof ReportEngine === 'undefined'){ showToast('Report engine did not load \u2014 refresh the page and try again','err'); return false; }
+  return true;
+}
+// type: 'detailed' (default) = full report with every table; 'summary' = the one-page summary
+async function exportPDF(e, type){
+  if(e && typeof ripple === 'function') ripple(e);
+  if(!_salesEngineReady()) return;
+  try{
+    showToast('Generating PDF\u2026','info');
+    const data = await buildSalesReportData();
+    await ReportEngine.generatePDF(data,{type: type || 'detailed'});
+    showToast('Sales report PDF downloaded \u2713','ok');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    showToast('Could not generate PDF: '+(err.message||'please try again'),'err');
   }
 }
-function exportExcel(e) {
-  if (e) ripple(e);
-
-  if (typeof XLSX === 'undefined') {
-    showToast('Excel library loading — try again in a moment', 'info');
-    return;
+async function exportExcel(e){
+  if(e && typeof ripple === 'function') ripple(e);
+  if(!_salesEngineReady()) return;
+  try{
+    showToast('Generating Excel\u2026','info');
+    const data = await buildSalesReportData();
+    await ReportEngine.generateExcel(data);
+    showToast('Sales report Excel downloaded \u2713','ok');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    showToast('Could not generate Excel file: '+(err.message||'please try again'),'err');
   }
-
-  const period = document.getElementById('msel').options[document.getElementById('msel').selectedIndex].text;
-
-  // ── Sheet 1: Sales Transactions ──
-  const txnHeaders = ['Date','Product','Customer','Customer Type','Qty','Unit','Payment Method','Unit Price (ETB)','Revenue (ETB)','VAT Rate (%)','VAT Amount (ETB)','Total inc. VAT (ETB)','Settled Date'];
-  const exportVatOn = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
-  const txnRows = allSales.map(r => {
-    const rev      = parseFloat(r.revenue || 0);
-    const vatRate  = r.vat_rate_pct != null ? parseFloat(r.vat_rate_pct) : (exportVatOn ? VAT_RATE_PCT : 0);
-    const vatAmt   = rev * (vatRate / 100);
-    return [
-      r.date ? fmtDate(r.date) : '—',
-      r.product,
-      r.customers?.name || '—',
-      r.customers?.customer_type || '—',
-      r.quantity || 0,
-      r.product === 'Injera' ? 'pcs' : 'kg',
-      r.payment_method,
-      parseFloat(r.unit_price || 0),
-      rev,
-      vatRate,
-      vatAmt,
-      rev + vatAmt,
-      r.settled_date ? fmtDate(r.settled_date) : '—',
-    ];
-  });
-  // Add totals row
-  const totalQty = allSales.reduce((s,r) => s + (r.quantity||0), 0);
-  const totalRev = allSales.reduce((s,r) => s + parseFloat(r.revenue||0), 0);
-  txnRows.push(['TOTAL','','','',totalQty,'','','',totalRev,'']);
-
-  const txnSheet = XLSX.utils.aoa_to_sheet([txnHeaders, ...txnRows]);
-
-  // Style column widths
-  txnSheet['!cols'] = [
-    {wch:14},{wch:10},{wch:18},{wch:14},{wch:8},{wch:6},
-    {wch:16},{wch:14},{wch:16},{wch:12},{wch:16},{wch:18},{wch:14}
-  ];
-
-  // ── Sheet 2: KPI Summary ──
-  const total   = allSales.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const cash    = allSales.filter(r=>r.payment_method==='Cash').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const credit  = allSales.filter(r=>r.payment_method==='Credit').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const bank    = allSales.filter(r=>r.payment_method==='Bank Transfer').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const mobile  = allSales.filter(r=>r.payment_method==='Mobile Money').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const injRev  = allSales.filter(r=>r.product==='Injera').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const drkRev  = allSales.filter(r=>r.product==='Derkosh').reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-  const ar      = currentTotalAR();
-
-  const summaryData = [
-    ['Mena Injera & Derkosh — Sales Summary', period],
-    [],
-    ['KPI', 'Value (ETB)'],
-    ['Total Revenue', total],
-    ['Cash Sales', cash],
-    ['Credit Sales', credit],
-    ['Bank Transfer Sales', bank],
-    ['Mobile Money Sales', mobile],
-    [],
-    ['Product Breakdown', ''],
-    ['Injera Revenue', injRev],
-    ['Derkosh Revenue', drkRev],
-    [],
-    ['Outstanding A/R', ar],
-    ['Total Transactions', allSales.length],
-  ];
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  summarySheet['!cols'] = [{wch:28},{wch:18}];
-
-  // ── Sheet 3: Customer Profitability ──
-  // Grouped by customer_id (not name) — two customers sharing a name would
-  // otherwise silently overwrite each other's row in this export.
-  const profMap = {};
-  allSales.forEach(r => {
-    const id = r.customer_id || 'unknown';
-    if (!profMap[id]) profMap[id] = {name:r.customers?.name||'Unknown', rev:0,orders:0,outstanding:0};
-    profMap[id].rev    += parseFloat(r.revenue||0);
-    profMap[id].orders += 1;
-    if (r.payment_method==='Credit'&&!r.settled_date) profMap[id].outstanding += parseFloat(r.revenue||0);
-  });
-  const profHeaders = ['Customer','Revenue (ETB)','Total Orders','Avg Order (ETB)','Outstanding A/R (ETB)'];
-  const profRows = Object.values(profMap)
-    .sort((a,b)=>b.rev-a.rev)
-    .map(d => [d.name, d.rev, d.orders, d.rev/d.orders, d.outstanding]);
-  const profSheet = XLSX.utils.aoa_to_sheet([profHeaders, ...profRows]);
-  profSheet['!cols'] = [{wch:18},{wch:16},{wch:14},{wch:16},{wch:18}];
-
-  // ── Build workbook ──
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, txnSheet,     'Sales Transactions');
-  XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
-  XLSX.utils.book_append_sheet(wb, profSheet,    'Customer Profitability');
-
-  // ── Download ──
-  const filename = `Sales_${period.replace(' ','_')}_Mena_Injera.xlsx`;
-  XLSX.writeFile(wb, filename);
-  showToast(`Downloaded ${filename}`, 'ok');
 }
 document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', ev => { if(ev.target===bg){bg.classList.remove('open');document.body.style.overflow='';} }));
 

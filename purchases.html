@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Purchases — Mena Injera & Derkosh BMS</title>
 <!-- Shared shell: app-state.js's earlyAuthCheck() runs immediately on load (same
      blocking-redirect position the old inline guard used to occupy), and exposes
@@ -13,12 +17,12 @@
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // This page's Supabase client (and the raw @supabase/supabase-js CDN script
 // above it) have been removed — every db.from(...) call below now goes
@@ -401,70 +405,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 @media (max-width:480px){
   .kc{min-width:160px}
 }
-} /* close @media (max-width:900px) — was missing, which had been silently nesting
-     everything below (including the entire @media print block) inside the 900px
-     query, so PDF export formatting only applied when the window was also ≤900px. */
+} /* close @media (max-width:900px) */
 
-/* ═══════════════════════════════════════════════════════════════════
-   PRINT / PDF EXPORT
-   Triggered by window.print() from exportPdf(). Browser "Save as PDF"
-   captures live-rendered content (Chart.js canvases, computed KPIs,
-   dynamically built tables) exactly as shown on screen — a real export
-   of the report, not a static template.
-   ═══════════════════════════════════════════════════════════════════ */
-.print-header{ display:none }
-@media print{
-  @page{ size: A4 portrait; margin: 12mm 10mm; }
-  html,body{ background:#fff !important; overflow:visible !important; height:auto !important; }
-  body{ display:block !important; font-size:11px !important; }
-
-  /* Hide all interactive chrome — sidebar, topbar, panels, modals, row actions,
-     pagination, filters, settings widgets, buttons. Only report content remains. */
-  .sb, .sb-overlay, .topbar, .notif-panel, .user-panel,
-  .modal-overlay, .pg, .filter-panel, .filter-btn, .btn-new, .act-dots,
-  .no-print, #activeFilterChips, .row-menu{ display:none !important; }
-
-  .main{ margin-left:0 !important; }
-  .content{ padding:0 !important; }
-
-  .print-header{
-    display:block !important; text-align:center;
-    border-bottom:2px solid #1d5c38; padding-bottom:12px; margin-bottom:16px;
-  }
-  .print-header h1{ font-size:19px; color:#163a26; margin:0 0 3px; font-weight:800; }
-  .print-header p{ font-size:11.5px; color:#556; margin:0 0 7px; font-weight:600; }
-  .print-header .ph-meta{ display:flex; justify-content:center; gap:18px; font-size:10px; color:#778; font-weight:700; }
-
-  /* Cards: crisp borders instead of shadows, avoid splitting mid-card across pages */
-  .card{ box-shadow:none !important; border:1px solid #d7e3dc !important; break-inside:avoid; margin-bottom:10px; animation:none !important; }
-  .kpi-row{ grid-template-columns:repeat(3,1fr) !important; gap:8px !important; margin-bottom:12px !important; }
-  .kc{ break-inside:avoid; box-shadow:none !important; border:1px solid #d7e3dc !important; }
-  .bot2{ display:block !important; }
-  .bot2 > div{ width:100% !important; }
-  .bot2 > div[style*="grid-template-columns:1.4fr 1fr"]{ display:block !important; }
-  .donut-row{ grid-template-columns:1fr 1fr !important; gap:8px !important; }
-
-  /* Table: show every filtered row (pagination is bypassed by exportPdf before printing),
-     drop the Actions column since row-menu actions mean nothing on paper. */
-  .tbl-pl th:last-child, .tbl-pl td:last-child{ display:none !important; }
-  .tbl-pl{ font-size:9.5px !important; }
-  .tbl-pl th, .tbl-pl td{ padding:5px 6px !important; }
-  .tbl-pl tr{ break-inside:avoid; }
-  .tbl-pl .col-deliv, .tbl-pl .col-unit-price, .tbl-pl .col-type,
-  .tbl-pl .col-channel, .tbl-pl .col-unit, .tbl-pl .col-proc{ display:table-cell !important; }
-
-  /* Donut charts: on-screen they're pinned to 110px via inline style, but print gets more
-     room — let them grow up to their full 220px drawing-buffer resolution so they're crisp
-     on paper instead of a tiny 110px circle. Chart.js draws to <canvas>, which prints as a
-     raster image at whatever box size the canvas element occupies. */
-  #typeChart, #chanChart{ width:150px !important; height:150px !important; }
-  canvas{ max-width:100% !important; }
-  .chart-box > div[style*="min-height:260px"]{ min-height:0 !important; height:190px !important; }
-  .rsel{ display:none !important; }
-
-  a[onclick]{ text-decoration:none !important; }
-  .exp-trigger, .exp-wrap, .bell, .stat-pill, .uchip{ display:none !important; }
-}
 </style>
 </head>
 <body>
@@ -476,18 +418,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   <!-- CONTENT -->
   <div class="content">
 
-    <!-- PRINT-ONLY REPORT HEADER — hidden on screen (.print-header{display:none}),
-         shown only inside @media print. Built dynamically by exportPdf() so the month,
-         row count, and generated-at timestamp are always current. -->
-    <div class="print-header" id="printHeader">
-      <h1>Mena Injera &amp; Derkosh — Purchase &amp; Expense Report</h1>
-      <p id="printHeaderMonth"></p>
-      <div class="ph-meta">
-        <span id="printHeaderRows">0 rows</span>
-        <span id="printHeaderGenerated">Generated —</span>
-        <span>Amounts in ETB</span>
-      </div>
-    </div>
 
     <!-- KPI ROW -->
     <div class="kpi-row" id="kpiRow">
@@ -1077,137 +1007,83 @@ function extendMonthOptions(n){
 let monthUserSelected = false;
 function onMonthChange(){ monthUserSelected = true; renderCharts(); renderSummaryCards(); renderTable(); }
 
-/* ════════════════ EXPORT (demo) ════════════════ */
-function csvField(v){
-  const s = String(v ?? '');
-  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
-  return s;
-}
-function csvRow(fields){ return fields.map(csvField).join(',') + '\r\n'; }
-
-function doExport(){
-  const rows = getFilteredPurchases();
-  if(!rows.length){ showToast('No rows match the current filters — nothing to export'); return; }
+/* ════════════════ EXPORT (report-engine.js) ════════════════
+   presets.purchases() builds the PDF and Excel from the month's ledger this page already holds.
+   The old CSV / SheetJS / print-to-PDF exporters (and the print-only stylesheet) were removed.
+   The report covers the whole selected month, so its totals tie to the KPI cards at the top of the page.
+   Asset purchases are capital items and are not part of those KPI totals, so they are left out of the
+   ledger and named in the report's notes instead. */
+function buildPurchasesReportData(){
   const mk = getMonthKey();
-  const now = new Date();
-
-  let csv = '';
-  csv += csvRow(['Mena Injera & Derkosh — Purchases & Expenses']);
-  csv += csvRow([monthLabel(mk) + ' (filtered view)']);
-  csv += csvRow(['Generated', now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})]);
-  csv += csvRow(['Rows', rows.length]);
-  csv += '\r\n';
-
-  csv += csvRow(['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']);
-  let grandTotal = 0;
-  rows.forEach(p=>{
-    const total = rowTotal(p);
-    grandTotal += total;
-    csv += csvRow([fmtDate(p.date), p.supplier, p.type, p.category, p.description, p.qty, p.unit,
-      Number(p.unitPrice).toFixed(2),
-      total.toFixed(2), p.channel, p.status]);
-  });
-  csv += '\r\n';
-  csv += csvRow(['', '', '', '', '', '', '', '', 'TOTAL', grandTotal.toFixed(2), '', '']);
-
-  const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `purchases_${mk}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Exported '+rows.length+' rows to CSV');
-}
-
-/* ════════════════ EXCEL EXPORT (.xlsx, 2 sheets) ════════════════ */
-function exportExcel(){
-  if(typeof XLSX==='undefined'){ showToast('Excel library did not load — check your connection and try again'); return; }
-  const rows = getFilteredPurchases();
-  if(!rows.length){ showToast('No rows match the current filters — nothing to export'); return; }
-  const mk = getMonthKey();
+  const session = (typeof loadSession === 'function' ? loadSession() : null) || window.currentUser || {};
   const monthRows = getMonthPurchases(mk);
+  const counted = monthRows.filter(p => p.type !== 'Asset Purchase');
+  const assets = monthRows.filter(p => p.type === 'Asset Purchase');
 
-  const rawMaterials = monthRows.filter(p=>p.type==='Purchase').reduce((s,p)=>s+rowTotal(p),0);
-  const opEx = monthRows.filter(p=>p.type==='Expense').reduce((s,p)=>s+rowTotal(p),0);
-  const byCat = {};
-  monthRows.forEach(p=>{ byCat[p.category] = (byCat[p.category]||0) + rowTotal(p); });
-  const bySupplier = {};
-  monthRows.forEach(p=>{ bySupplier[p.supplier] = (bySupplier[p.supplier]||0) + rowTotal(p); });
+  const ledger = counted.map(p => ({
+    date: p.date,
+    supplier: p.supplier || '',
+    category: p.category || '',
+    description: p.description || '',
+    cost: rowTotal(p),
+    type: p.type === 'Expense' ? 'operating' : 'raw',
+    status: p.status || ''
+  }));
 
-  const sumData = [
-    ['Mena Injera & Derkosh — Purchases & Expenses Summary'],
-    [monthLabel(mk)],
-    [],
-    ['Total Purchases', rawMaterials + opEx],
-    ['Raw Materials (Purchases)', rawMaterials],
-    ['Operating Expenses', opEx],
-    ['Transaction Count', monthRows.length],
-    [],
-    ['Spend by Category', 'Amount (ETB)'],
-  ];
-  Object.entries(byCat).sort((a,b)=>b[1]-a[1]).forEach(([cat,val])=>sumData.push([cat, val]));
-  sumData.push([]);
-  sumData.push(['Top Suppliers', 'Amount (ETB)']);
-  Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([sup,val])=>sumData.push([sup, val]));
-  const ws1 = XLSX.utils.aoa_to_sheet(sumData);
-  ws1['!cols'] = [{wch:32},{wch:16}];
-  ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:1}},{s:{r:1,c:0},e:{r:1,c:1}}];
+  const prevKey = prevMonthKey(mk);
+  const prevRows = getMonthPurchases(prevKey).filter(p => p.type !== 'Asset Purchase');
+  const previousTotal = prevRows.reduce((t,p) => t + rowTotal(p), 0);
 
-  const txData = [['Date','Supplier','Type','Category','Description','Qty','Unit','Unit Price (ETB)','Total Cost (ETB)','Channel','Status']];
-  let grandTotal = 0;
-  rows.forEach(p=>{
-    const total = rowTotal(p);
-    grandTotal += total;
-    txData.push([fmtDate(p.date), p.supplier, p.type, p.category, p.description, Number(p.qty), p.unit,
-      Number(p.unitPrice), total, p.channel, p.status]);
-  });
-  txData.push([]);
-  txData.push(['','','','','','','','TOTAL', grandTotal,'','']);
-  const ws2 = XLSX.utils.aoa_to_sheet(txData);
-  ws2['!cols'] = [{wch:11},{wch:20},{wch:9},{wch:16},{wch:24},{wch:7},{wch:6},{wch:13},{wch:13},{wch:12},{wch:11}];
+  const notes = ['Negative values are shown with a minus sign.'];
+  if(assets.length){
+    const assetTotal = assets.reduce((t,p) => t + rowTotal(p), 0);
+    notes.push(assets.length + (assets.length === 1 ? ' asset purchase' : ' asset purchases') + ' (' + fmt(assetTotal) +
+      ' ETB) ' + (assets.length === 1 ? 'is' : 'are') + ' capital items and not included in the totals above, matching the Purchases page.');
+  }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
-  XLSX.utils.book_append_sheet(wb, ws2, 'Transactions');
-  XLSX.writeFile(wb, `purchases_${mk}.xlsx`);
-  showToast('Exported '+rows.length+' rows to Excel workbook');
+  const input = {
+    period: monthLabel(mk),
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    ledger,
+    approvalThreshold: EXPENSE_APPROVAL_THRESHOLD,
+    footer: { notes }
+  };
+  if(previousTotal > 0){ input.previousTotal = previousTotal; input.previousLabel = monthLabel(prevKey); }
+  if(!ledger.length){
+    input.status = 'empty';
+    input.emptyMessage = 'No purchases or expenses recorded for ' + monthLabel(mk) + '.';
+  }
+  return ReportEngine.presets.purchases(input);
 }
-
-/* ════════════════ PDF EXPORT (print-to-PDF of the whole dashboard) ════════════════ */
-let _pdfPrevPerPage = null, _pdfPrevPage = null;
-function exportPdf(){
-  _pdfPrevPerPage = state.perPage;
-  _pdfPrevPage = state.page;
-  const filteredCount = getFilteredPurchases().length;
-  state.perPage = Math.max(filteredCount, 1);
-  state.page = 1;
-  renderTable();
-
-  const mk = getMonthKey();
-  document.getElementById('printHeaderMonth').textContent = monthLabel(mk) + ' · Purchases & Expenses';
-  const now = new Date();
-  document.getElementById('printHeaderGenerated').textContent =
-    'Generated ' + now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) +
-    ' ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  document.getElementById('printHeaderRows').textContent =
-    filteredCount + (filteredCount===1 ? ' row' : ' rows') + (filteredCount !== getMonthPurchases(mk).length ? ' (filtered)' : '');
-
-  setTimeout(()=>{
-    if(trendChart) trendChart.resize();
-    window.print();
-  }, 80);
+function _purchasesEngineReady(){
+  if(typeof ReportEngine === 'undefined'){ showToast('Report engine did not load \u2014 refresh the page and try again'); return false; }
+  return true;
 }
-window.addEventListener('beforeprint', ()=>{
-  if(trendChart) trendChart.resize();
-});
-window.addEventListener('afterprint', ()=>{
-  if(_pdfPrevPerPage === null) return;
-  state.perPage = _pdfPrevPerPage;
-  state.page = _pdfPrevPage;
-  _pdfPrevPerPage = null; _pdfPrevPage = null;
-  renderTable();
-  if(trendChart) setTimeout(()=>trendChart.resize(), 50);
-});
+async function exportPdf(){
+  if(!_purchasesEngineReady()) return;
+  try{
+    showToast('Generating PDF\u2026');
+    await ReportEngine.generatePDF(buildPurchasesReportData(),{type:'detailed'});
+    showToast('Purchases report PDF downloaded \u2713');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    showToast('Could not generate PDF: '+(err.message||'please try again'));
+  }
+}
+async function exportExcel(){
+  if(!_purchasesEngineReady()) return;
+  try{
+    showToast('Generating Excel\u2026');
+    await ReportEngine.generateExcel(buildPurchasesReportData());
+    showToast('Purchases report Excel downloaded \u2713');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    showToast('Could not generate Excel file: '+(err.message||'please try again'));
+  }
+}
 
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */

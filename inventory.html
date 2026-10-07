@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Inventory — Mena Injera &amp; Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,9 +14,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SheetJS is kept ONLY to read the uploaded file in "Import Inventory". Exports (PDF / Excel / CSV) all go through report-engine.js. -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script>
 const { createClient } = supabase;
 const db = createClient(
@@ -417,6 +420,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
         <div class="exp-btns">
           <div class="exp-btn xls" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="xlsLbl">Export (Excel)</span></div>
           <div class="exp-btn pdf" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="pdfLbl">Export (PDF)</span></div>
+          <div class="exp-btn xls" onclick="exportCSV()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span id="csvLbl">Export (CSV)</span></div>
         </div>
       </div>
 
@@ -564,6 +568,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ════════════════ LIVE STATE (populated by loadFromSupabase) ════════════════
    inventory_items master fields: name, unit, reorder_level, shelf_life_days.
@@ -582,6 +587,7 @@ let recentAdjustmentsLog = [];   // populated live from inventory_adjustments in
 let recentTransfersLog = [];
 let staticAlerts = [];           // replaced by buildStockLevelAlerts() below, kept as empty for getAllAlerts() compat
 let priceHistoryByItem = {};
+let priceHistoryPeriods = [];       // period keys (YYYY-MM) behind priceHistoryByItem[*].vals — used by the report engine
 let inventoryValueTrendHistory = [];
 let warehousesList = [];         // [{id,name}] — populated live, used by Item Settings / Transfer dropdowns
 let suppliersList = [];          // [{id,name}] — populated live, used by Add Stock supplier dropdown
@@ -1194,6 +1200,7 @@ function openExportMenuModal(){
     <div style="display:flex;gap:10px">
       <button class="btn-p" style="flex:1;justify-content:center" onclick="closeModal();exportExcel()">${icCheck}Excel (.xlsx)</button>
       <button class="btn-p" style="flex:1;justify-content:center" onclick="closeModal();exportPDF()">${icCheck}PDF</button>
+      <button class="btn-p" style="flex:1;justify-content:center" onclick="closeModal();exportCSV()">${icCheck}CSV</button>
     </div>`;
   const footer = `<button class="btn-s" onclick="closeModal()">Cancel</button>`;
   openModal({ title:'Export Inventory', sub:'Choose a format', iconClass:'ic-g', icon:icExportDown, bodyHtml:body, footerHtml:footer });
@@ -1211,60 +1218,97 @@ function openReportsHubModal(){
   openModal({ title:'Reports', sub:'Pick a report to view', iconClass:'ic-t', icon:icReport, bodyHtml:body, footerHtml:footer });
 }
 
-/* ════════════════ EXPORT — EXCEL (SheetJS) ════════════════ */
-function exportExcel(){
-  const btn = document.getElementById('xlsLbl');
-  const original = btn.textContent;
-  btn.innerHTML = '<span class="spin"></span>';
-  const mb = monthBounds(currentPeriod);
-  setTimeout(()=>{
-    const rows = invItems.map(it=>{
-      const dos = daysOfSupply(it);
-      return {
-        'Item': it.name, 'Unit': it.unit,
-        [`Opening Stock (${mb.firstStr})`]: it.opening ?? '', 'Purchased (This Month)': it.purchased ?? '',
-        'Used / Sold (This Month)': it.used ?? '', [`Closing Stock (${mb.lastStr})`]: it.closing ?? '',
-        'Monthly WAC (ETB/Unit)': it.wac, 'Total Value (ETB)': it.value ?? '', 'Reorder Level': it.reorder,
-        'Days of Supply': dos===null ? '' : Math.round(dos),
-        'Movement': dos===null ? '' : (dos<20 ? 'FAST' : dos<=45 ? 'NORMAL' : 'SLOW-MOVING'),
-        'Status': it.status
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, ('Inventory '+mb.label).slice(0,31));
-    XLSX.writeFile(wb, `Inventory_${mb.slug}.xlsx`);
-    btn.textContent = original;
-    showToast('Exported inventory to Excel');
-  }, 500);
+/* ════════════════ EXPORTS (report-engine.js) ════════════════
+   The SheetJS sheet and the jsPDF table were removed. PDF / Excel / CSV for the Inventory
+   Overview now come from ReportEngine.presets.inventory(), fed with the figures this page
+   already holds (invItems, price history) plus this month's adjustments. */
+function getGeneratedByName(){
+  try{
+    if(window.AppState && window.AppState.currentUser) return window.AppState.currentUser.name || window.AppState.currentUser.full_name || '';
+    if(window.currentUser) return window.currentUser.name || window.currentUser.full_name || '';
+    if(typeof getCurrentUser === 'function'){ const u = getCurrentUser(); return (u && (u.name||u.full_name)) || ''; }
+    if(typeof loadSession === 'function'){ const s = loadSession(); if(s) return s.name || s.full_name || s.username || ''; }
+  } catch(e){ /* fall through */ }
+  return '';
 }
-
-/* ════════════════ EXPORT — PDF (jsPDF + autotable) ════════════════ */
-function exportPDF(){
-  const btn = document.getElementById('pdfLbl');
-  const original = btn.textContent;
-  btn.innerHTML = '<span class="spin"></span>';
-  const mb = monthBounds(currentPeriod);
-  setTimeout(()=>{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:'landscape' });
-    doc.setFontSize(14);
-    doc.text(`Mena Injera & Derkosh — Inventory Overview (${mb.label})`, 14, 15);
-    doc.autoTable({
-      startY: 22,
-      head: [['Item','Unit','Opening','Purchased','Used/Sold','Closing','Monthly WAC','Total Value','Reorder','Days of Supply','Movement','Status']],
-      body: invItems.map(it=>{
-        const dos = daysOfSupply(it);
-        const move = dos===null ? '-' : (dos<20 ? 'FAST' : dos<=45 ? 'NORMAL' : 'SLOW-MOVING');
-        return [it.name, it.unit, dash(it.opening), dash(it.purchased), dash(it.used), dash(it.closing), fmt(it.wac), dash(it.value), fmt(it.reorder), daysOfSupplyLabel(dos), move, it.status];
-      }),
-      styles:{ fontSize:9 }, headStyles:{ fillColor:[29,92,56] }
-    });
-    doc.save(`Inventory_${mb.slug}.pdf`);
-    btn.textContent = original;
-    showToast('Exported inventory to PDF');
-  }, 500);
+function nowStampLabel(){
+  return new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
 }
+// This month's adjustments per item. The page itself only loads the latest 8 for its activity feed,
+// so the report asks for the whole month. If it fails the report is still produced, just without them.
+async function fetchPeriodAdjustments(){
+  try{
+    const res = await db.from('inventory_adjustments').select('item_id,quantity_change')
+      .eq('is_deleted',false).eq('period',currentPeriod);
+    if(res.error) throw res.error;
+    const by = {};
+    (res.data||[]).forEach(a=>{ by[a.item_id] = (by[a.item_id]||0) + num(a.quantity_change); });
+    return by;
+  }catch(e){ console.warn('Could not load adjustments for the report:', e); return null; }
+}
+async function buildInventoryReportData(){
+  const mb = monthBounds(currentPeriod);
+  const adjByItem = await fetchPeriodAdjustments();
+  // An item with no balance record at all (closing = null) has nothing to report.
+  const withBalance = invItems.filter(it=>it.closing!==null && it.closing!==undefined);
+  const items = withBalance.map(it=>{
+    const out = it.closing<=0 && it.reorder>0;
+    return {
+      name: it.name, unit: it.unit, category: it.category || undefined,
+      closing: it.closing,
+      reorderLevel: it.reorder>0 ? it.reorder : undefined,
+      dailyUsage: it.used>0 ? it.used/30 : undefined,        // same 30-day basis as the page's "Days of Supply"
+      expiryDate: it.expiryDate || undefined,
+      unitCost: it.wac, value: it.value ?? undefined,
+      opening: it.opening ?? undefined, received: it.purchased, used: it.used,
+      adjustments: adjByItem ? (adjByItem[it.id]||0) : undefined,
+      // use the page's own thresholds (REORDER <= 60% of reorder level, LOW <= reorder level)
+      status: out ? 'Out of Stock' : it.status==='REORDER' ? 'Reorder Now' : it.status==='LOW' ? 'Low Stock' : 'OK'
+    };
+  });
+  const priceHistory = [];
+  Object.keys(priceHistoryByItem).forEach(name=>{
+    (priceHistoryByItem[name].vals||[]).forEach((v,k)=>{
+      if(v>0 && priceHistoryPeriods[k]) priceHistory.push({ date: priceHistoryPeriods[k]+'-01', item: name, price: v });
+    });
+  });
+  const input = {
+    period: mb.label,
+    currency: 'ETB',
+    generatedBy: getGeneratedByName() || undefined,
+    generatedAt: nowStampLabel(),
+    asOf: todayInApp(),
+    expiringDays: 7,                 // the page flags expiry within 7 days
+    items, priceHistory
+  };
+  if(!items.length){ input.status='empty'; input.emptyMessage = `No inventory balances were found for ${mb.label}.`; }
+  const data = ReportEngine.presets.inventory(input);
+  const skipped = invItems.length - withBalance.length;
+  if(skipped>0) data.notes = (data.notes||[]).concat([`${skipped} item${skipped===1?' has':'s have'} no stock balance for ${mb.label} and ${skipped===1?'is':'are'} left out.`]);
+  if(adjByItem===null) data.notes = (data.notes||[]).concat(['This month\'s adjustments could not be loaded, so the stock-movement table may show differences that adjustments explain.']);
+  return data;
+}
+async function runInventoryExport(kind){
+  if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
+  const lbl = document.getElementById(kind==='pdf' ? 'pdfLbl' : kind==='xlsx' ? 'xlsLbl' : 'csvLbl');
+  const original = lbl ? lbl.textContent : '';
+  if(lbl) lbl.innerHTML = '<span class="spin"></span>';
+  try{
+    const data = await buildInventoryReportData();
+    if(kind==='pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    else if(kind==='xlsx') await ReportEngine.generateExcel(data);
+    else ReportEngine.generateCSV(data);
+    showToast(kind==='pdf' ? 'Exported inventory to PDF' : kind==='xlsx' ? 'Exported inventory to Excel' : 'Exported inventory to CSV');
+  }catch(err){
+    console.error('Inventory export failed:', err);
+    showToast('Export failed: '+(err.message||'unknown error'));
+  }finally{
+    if(lbl) lbl.textContent = original;
+  }
+}
+function exportExcel(){ return runInventoryExport('xlsx'); }
+function exportPDF(){   return runInventoryExport('pdf');  }
+function exportCSV(){   return runInventoryExport('csv');  }
 
 /* ════════════════ MODAL ENGINE ════════════════ */
 function openModal({title, sub, icon, iconClass, bodyHtml, footerHtml, wide}){
@@ -1730,7 +1774,8 @@ function openExpiryReportModal(){
   const footer = `
     <span class="modal-ft-note">${expiring.length} item${expiring.length===1?'':'s'} flagged</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Expiry Report', ['Item','Detail','Status'], ${JSON.stringify(expiring.map(a=>[a.title,a.text,a.pillText]))}, 'Expiry_Report')">${icCheck}Export PDF</button>`;
+    <button class="btn-s" onclick="exportSubReport('expiry','xlsx')">Export Excel</button>
+    <button class="btn-p" onclick="exportSubReport('expiry','pdf')">${icCheck}Export PDF</button>`;
   openModal({ title:'Expiry Report', sub:'Items nearing their expiry date', iconClass:'ic-p', icon:icExpiry, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1749,7 +1794,8 @@ function openReorderReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} need attention</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Reorder Report', ['Item','Unit','Closing','Reorder Level','Days of Supply','Status'], ${JSON.stringify(flagged.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]))}, 'Reorder_Report')">${icCheck}Export PDF</button>`;
+    <button class="btn-s" onclick="exportSubReport('reorder','xlsx')">Export Excel</button>
+    <button class="btn-p" onclick="exportSubReport('reorder','pdf')">${icCheck}Export PDF</button>`;
   openModal({ title:'Reorder Report', sub:'Items at or below reorder level', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1769,7 +1815,8 @@ function openOverstockReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} overstocked</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Overstock Report', ['Item','Unit','Closing','Reorder Level','Detail'], ${JSON.stringify(flagged.map(a=>{const it=invItems.find(i=>i.name===a.title);return [a.title,it.unit,fmt(it.closing),fmt(it.reorder),a.text];}))}, 'Overstock_Report')">${icCheck}Export PDF</button>`;
+    <button class="btn-s" onclick="exportSubReport('overstock','xlsx')">Export Excel</button>
+    <button class="btn-p" onclick="exportSubReport('overstock','pdf')">${icCheck}Export PDF</button>`;
   openModal({ title:'Overstock Report', sub:'Items well above reorder level', iconClass:'ic-c', icon:icBox, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1788,7 +1835,8 @@ function openSlowMovingReportModal(){
   const footer = `
     <span class="modal-ft-note">${flagged.length} item${flagged.length===1?'':'s'} slow-moving</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
-    <button class="btn-p" onclick="exportReportPDF('Slow Moving Report', ['Item','Unit','Closing','Days of Supply','Movement'], ${JSON.stringify(flagged.map(i=>{const d=daysOfSupply(i);return [i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(d),d<20?'FAST':d<=45?'NORMAL':'SLOW-MOVING'];}))}, 'Slow_Moving_Report')">${icCheck}Export PDF</button>`;
+    <button class="btn-s" onclick="exportSubReport('slow','xlsx')">Export Excel</button>
+    <button class="btn-p" onclick="exportSubReport('slow','pdf')">${icCheck}Export PDF</button>`;
   openModal({ title:'Slow Moving Report', sub:'Items with excess days of supply', iconClass:'ic-r', icon:icReorder, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
@@ -1823,21 +1871,68 @@ function openInventoryReportModal(){
   const footer = `
     <span class="modal-ft-note">Full snapshot — ${monthBounds(currentPeriod).lastStr}</span>
     <button class="btn-s" onclick="closeModal()">Close</button>
+    <button class="btn-s" onclick="exportCSV()">Export CSV</button>
     <button class="btn-s" onclick="exportExcel()">Export Excel</button>
     <button class="btn-p" onclick="exportPDF()">${icCheck}Export PDF</button>`;
   openModal({ title:'Inventory Report', sub:'Full current inventory snapshot', iconClass:'ic-t', icon:icReport, bodyHtml:body, footerHtml:footer, wide:true });
 }
 
-/* Small shared PDF export used by the report modals */
-function exportReportPDF(title, head, bodyRows, filenameBase){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'landscape' });
-  doc.setFontSize(14);
-  const mb = monthBounds(currentPeriod);
-  doc.text('Mena Injera & Derkosh — '+title+' ('+mb.label+')', 14, 15);
-  doc.autoTable({ startY:22, head:[head], body:bodyRows, styles:{fontSize:9}, headStyles:{fillColor:[29,92,56]} });
-  doc.save(`${filenameBase}_${mb.slug}.pdf`);
-  showToast('Exported '+title);
+/* Report modals (Expiry / Reorder / Overstock / Slow-Moving) — exported through report-engine.js.
+   The rows are rebuilt from invItems when the button is pressed. (They used to be serialised into the
+   button's onclick attribute, whose own quotes broke the HTML, so those buttons never worked.) */
+function subReportSpec(kind){
+  if(kind==='expiry'){
+    const a = buildExpiryAlerts();
+    return { title:'Expiry Report', note:'Items expired or expiring within 7 days.',
+      head:['Item','Detail','Status'], rows:a.map(x=>[x.title,x.text,x.pillText]) };
+  }
+  if(kind==='reorder'){
+    const f = invItems.filter(i=>i.status==='LOW'||i.status==='REORDER');
+    return { title:'Reorder Report', note:'Items at or below their reorder level.',
+      head:['Item','Unit','Closing','Reorder Level','Days of Supply','Status'],
+      rows:f.map(i=>[i.name,i.unit,dash(i.closing),fmt(i.reorder),daysOfSupplyLabel(daysOfSupply(i)),i.status]) };
+  }
+  if(kind==='overstock'){
+    const f = buildOverstockAlerts();
+    return { title:'Overstock Report', note:'Items holding at least 1.5 times their reorder level.',
+      head:['Item','Unit','Closing','Reorder Level','Detail'],
+      rows:f.map(a=>{ const it=invItems.find(i=>i.name===a.title)||{}; return [a.title,it.unit||'',fmt(it.closing),fmt(it.reorder),a.text]; }) };
+  }
+  const f = invItems.filter(i=>{ const d=daysOfSupply(i); return d!==null && d>45; });
+  return { title:'Slow Moving Report', note:'Items with more than 45 days of supply on hand.',
+    head:['Item','Unit','Closing','Days of Supply','Movement'],
+    rows:f.map(i=>{ const d=daysOfSupply(i); return [i.name,i.unit,fmt(i.closing),daysOfSupplyLabel(d),d<20?'FAST':d<=45?'NORMAL':'SLOW-MOVING']; }) };
+}
+async function exportSubReport(kind, format){
+  if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
+  try{
+    const spec = subReportSpec(kind);
+    const mb = monthBounds(currentPeriod);
+    const n = spec.rows.length;
+    const data = {
+      module: 'Inventory',
+      title: spec.title,
+      period: mb.label,
+      currency: 'ETB',
+      generatedBy: getGeneratedByName() || undefined,
+      generatedAt: nowStampLabel(),
+      kpis: [
+        { label:'Items listed', value:String(n), unit: n===1?'item':'items', color: n? '#C0392B':'#1D5C38' },
+        { label:'Items tracked', value:String(invItems.length), unit:'items', color:'#2E86DE' }
+      ],
+      charts: [],
+      insights: [{ label:'Scope', color:'#2E86DE', text: `${spec.note} Stock as at ${mb.lastStr}.` }],
+      tables: [{ title: spec.title, columns: spec.head, rows: spec.rows.map(r=>r.map(c=>String(c===null||c===undefined?'':c))),
+                 emptyMessage: 'Nothing to report right now.', reconcile:false }]
+    };
+    if(!n){ data.status='empty'; data.emptyMessage = `${spec.title}: nothing to report for ${mb.label}.`; }
+    if(format==='xlsx') await ReportEngine.generateExcel(data);
+    else await ReportEngine.generatePDF(data, { type:'summary' });
+    showToast('Exported '+spec.title);
+  }catch(err){
+    console.error('Sub-report export failed:', err);
+    showToast('Export failed: '+(err.message||'unknown error'));
+  }
 }
 
 /* ════════════════ 8. IMPORT INVENTORY ════════════════ */
@@ -2171,6 +2266,7 @@ async function loadFromSupabase(){
     let pk = period;
     for(let i=0;i<6;i++){ periods.unshift(pk); pk = prevPeriodOf(pk); }
     priceHistoryByItem = {};
+    priceHistoryPeriods = periods.slice();
     items.forEach(row=>{
       const rowsForItem = (wacRes.data||[]).filter(r=>r.item_id===row.id);
       const vals = periods.map(p=>{

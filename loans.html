@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Loans — Mena Injera &amp; Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!-- jsPDF removed: report-engine.js loads jsPDF / AutoTable / ExcelJS on demand -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const { createClient } = supabase;
@@ -340,7 +344,7 @@ html,body{overflow-x:hidden;max-width:100%}
             </div>
             <div class="qa-btn" onclick="exportAllLoans()">
               <div class="qa-ic" style="background:#f3e8fd"><svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
-              <span>Export All Loans</span>
+              <span>Loan Register (CSV)</span>
             </div>
           </div>
         </div>
@@ -539,6 +543,7 @@ html,body{overflow-x:hidden;max-width:100%}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ════════════════ REFERENCE DATE (real "today", used for overdue/upcoming calcs) ════════════════ */
 const _now = new Date();
@@ -1275,80 +1280,103 @@ function openLoanDetails(){
 }
 function closeDetailsModal(){ document.getElementById('detailsModalOverlay').classList.remove('show'); }
 
-/* ════════════════ EXPORTS ════════════════ */
-function exportAllLoans(){
-  let csv = 'Lender,Principal (ETB),Interest Rate (%),Term (Months),Disbursement Date,Monthly Payment (ETB),Outstanding Balance (ETB),Status\n';
-  loans.forEach(l=>{
-    csv += [l.lender, l.principal.toFixed(2), l.rate.toFixed(2), l.term, fmtDate(l.disbDate), l.monthlyPayment.toFixed(2), l.status==='Paid Off'?'0.00':l.outstanding.toFixed(2), l.status].join(',') + '\n';
-  });
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const ymd = TODAY.getFullYear()+'-'+String(TODAY.getMonth()+1).padStart(2,'0')+'-'+String(TODAY.getDate()).padStart(2,'0');
-  a.href = url; a.download = 'loans_register_'+ymd+'.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Exported '+loans.length+' loans to CSV');
+/* ════════════════ EXPORTS (report-engine.js) ════════════════
+   The hand-built CSV "Excel" export and the plain-text jsPDF report were removed.
+   Every export (PDF / Excel / CSV) now comes from ReportEngine.presets.loans(),
+   fed with the figures this page already holds (loans + scheduleByLoan). The engine
+   owns layout, KPIs, insights, the detailed tables and the reconciliation checks. */
+function isoLocal(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function exportLoanReportExcel(){
-  let csv = 'Lender,Principal (ETB),Interest Rate (%),Term (Months),Disbursement Date,Monthly Payment (ETB),Outstanding Balance (ETB),Status\n';
-  loans.forEach(l=>{
-    csv += [l.lender, l.principal.toFixed(2), l.rate.toFixed(2), l.term, fmtDate(l.disbDate), l.monthlyPayment.toFixed(2), l.status==='Paid Off'?'0.00':l.outstanding.toFixed(2), l.status].join(',') + '\n';
-  });
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'loan_report.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Loan Report (Excel/CSV) downloaded');
-}
-function exportLoanReportPdf(){
+// Best-effort "who is logged in" — app-state.js may or may not expose it, so never throw.
+function getGeneratedByName(){
   try{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Mena Injera & Derkosh — Loan Report', 14, 18);
-    doc.setFontSize(10);
-    doc.text('Generated: ' + new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), 14, 25);
-
-    let y = 38;
-    doc.setFontSize(12);
-    doc.text('Loan Register', 14, y); y+=8;
-    doc.setFontSize(9);
-    loans.forEach(l=>{
-      const line = `${l.lender} — Principal ${fmt(l.principal)} ETB — ${l.rate.toFixed(2)}% / ${l.term}mo — Monthly ${fmt(l.monthlyPayment)} ETB — Outstanding ${l.status==='Paid Off'?'0.00':fmt(l.outstanding)} ETB — ${l.status}`;
-      doc.text(line, 14, y);
-      y += 7;
+    if(window.AppState && window.AppState.currentUser) return window.AppState.currentUser.name || window.AppState.currentUser.full_name || '';
+    if(window.currentUser) return window.currentUser.name || window.currentUser.full_name || '';
+    if(typeof getCurrentUser === 'function'){ const u = getCurrentUser(); return (u && (u.name||u.full_name)) || ''; }
+    if(typeof loadSession === 'function'){ const s = loadSession(); if(s) return s.name || s.full_name || s.username || ''; }
+  } catch(e){ /* fall through */ }
+  return '';
+}
+function buildLoansReportData(){
+  const asOf = isoLocal(TODAY);
+  const schedule = [];
+  const loanInputs = loans.map(loan=>{
+    const raw = scheduleByLoan[loan.id] || [];
+    const rows = scheduleRows(loan);               // same order / length as raw
+    const paidOff = loan.statusRaw === 'paid_off';
+    let interestPaid = 0;
+    raw.forEach((r, idx)=>{
+      const isPaid = r.status === 'paid';
+      if(isPaid) interestPaid += parseFloat(r.interest_portion)||0;
+      // A loan marked Paid Off keeps its unpaid schedule rows in the DB; they are not owed any more.
+      if(paidOff && !isPaid) return;
+      schedule.push({
+        lender: loan.lender,
+        dueDate: r.due_date,
+        principal: rows[idx].principal,
+        interest: rows[idx].interest,
+        balanceAfter: rows[idx].balance,
+        paid: isPaid,
+        paidDate: r.actual_payment_date || undefined,
+        status: rows[idx].status                     // Paid / Overdue (after grace) / Upcoming / Scheduled
+      });
     });
+    return {
+      lender: loan.lender,
+      principal: loan.principal,
+      rate: loan.rate,
+      termMonths: loan.term,
+      outstanding: paidOff ? 0 : loan.outstanding,
+      interestPaid
+    };
+  });
 
-    y += 6;
-    doc.setFontSize(12);
-    doc.text('Loan Summary', 14, y); y+=8;
-    doc.setFontSize(9);
-    const active = loans.filter(l=>l.status==='Active');
-    const paidOff = loans.filter(l=>l.status==='Paid Off');
-    const totalPrincipal = active.reduce((s,l)=>s+l.principal,0);
-    const totalOutstanding = active.reduce((s,l)=>s+l.outstanding,0);
-    const totalMonthly = active.reduce((s,l)=>s+l.monthlyPayment,0);
-    const cum = getCumulativeTotals();
-    [
-      `Total Principal Borrowed: ${fmt(totalPrincipal)} ETB`,
-      `Total Outstanding Balance: ${fmt(totalOutstanding)} ETB`,
-      `Total Interest Paid (To Date): ${fmt(cum.interestPaid)} ETB`,
-      `Total Principal Repaid (To Date): ${fmt(cum.principalRepaid)} ETB`,
-      `Monthly Payments (All Loans): ${fmt(totalMonthly)} ETB`,
-      `Active Loans: ${active.length}`,
-      `Paid Off Loans: ${paidOff.length}`
-    ].forEach(line=>{ doc.text(line, 14, y); y+=7; });
+  const lateFees = [];
+  loans.forEach(loan=>{
+    scheduleRows(loan).forEach(r=>{ if(r.status==='Overdue' && r.lateFee>0) lateFees.push({ lender:loan.lender, fee:r.lateFee }); });
+  });
+  const notes = [];
+  if(lateFees.length){
+    const tot = lateFees.reduce((s,x)=>s+x.fee,0);
+    notes.push(`Estimated late fees on ${lateFees.length} overdue instalment${lateFees.length===1?'':'s'}: ${fmt(tot)} ETB. They are not included in the instalment amounts above.`);
+  }
+  notes.push('Overdue means past the due date plus the loan\'s grace period.');
 
-    doc.save('loan_report.pdf');
-    showToast('Loan Report (PDF) downloaded');
+  const hasDefault = loans.some(l=>l.statusRaw==='defaulted');
+  if(hasDefault) notes.push(`Defaulted loans: ${loans.filter(l=>l.statusRaw==='defaulted').map(l=>l.lender).join(', ')}.`);
+
+  const input = {
+    period: 'As of ' + asOf,
+    currency: 'ETB',
+    generatedBy: getGeneratedByName() || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    asOf,
+    loans: loanInputs,
+    schedule
+  };
+  if(!loans.length){ input.status = 'empty'; input.emptyMessage = 'No loans have been recorded yet.'; }
+  const data = ReportEngine.presets.loans(input);
+  if(notes.length) data.notes = (data.notes||[]).concat(notes);
+  return data;
+}
+async function runLoanExport(kind){
+  if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
+  try{
+    showToast(kind==='pdf' ? 'Generating PDF…' : kind==='xlsx' ? 'Generating Excel…' : 'Preparing CSV…');
+    const data = buildLoansReportData();
+    if(kind==='pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    else if(kind==='xlsx') await ReportEngine.generateExcel(data);
+    else ReportEngine.generateCSV(data, { tableIndex:0 });   // table 0 = the Loan Register
+    showToast(kind==='pdf' ? 'Loan Report (PDF) downloaded' : kind==='xlsx' ? 'Loan Report (Excel) downloaded' : 'Loan register (CSV) downloaded');
   } catch(err){
-    console.log('PDF export failed:', err.message);
-    showToast('PDF export failed — try Export (CSV) instead');
+    console.error('Loan export failed:', err);
+    showToast('Export failed: '+(err.message||'unknown error'));
   }
 }
+function exportLoanReportPdf(){   return runLoanExport('pdf');  }
+function exportLoanReportExcel(){ return runLoanExport('xlsx'); }
+function exportAllLoans(){        return runLoanExport('csv');  }
 
 /* ════════════════ HEADER NOTIFICATIONS (derived from real data, not mock) ════════════════ */
 function computeLoanNotifications(){
@@ -1377,7 +1405,6 @@ function lastSixMonthLabels(){
   return arr;
 }
 function refreshHeaderNotifications(){
-  const months = lastSixMonthLabels();
   // The duplicate-header workaround that used to live here is no longer
   // needed — header.js's renderHeader() now keeps id="header-root" on its
   // replacement <header> element on every call, so repeat calls (like this
@@ -1386,9 +1413,7 @@ function refreshHeaderNotifications(){
   renderHeader({
     title: 'Loans',
     subtitle: 'Manage loans, repayment schedules and balances',
-    showMonthPicker: true,
-    months,
-    selectedMonth: months[months.length-1],
+    showMonthPicker: false,   // loans are reported as of today, not per month
     showExport: true,
     onExportPdf: exportLoanReportPdf,
     onExportXlsx: exportLoanReportExcel,

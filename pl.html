@@ -3,14 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>P&amp;L Statement — Mena Injera &amp; Derkosh BMS</title>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -83,6 +84,7 @@
 .qa-b svg{width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 .qa-b:hover svg{transform:scale(1.15)}
 .qa-b-wide{grid-column:1/-1;flex-direction:row;justify-content:center}
+.qa-b-span2{grid-column:span 2;flex-direction:row;justify-content:center}
 
 /* ══ Month Comparison modal ═══════════════════════════════
    Palette pulled directly from this app's own PDF statement header
@@ -292,10 +294,11 @@
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
           <div class="qa-g">
-            <div class="qa-b" onclick="exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Export P&amp;L<br>(Excel)</div>
-            <div class="qa-b" onclick="exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export P&amp;L<br>(PDF)</div>
+            <div class="qa-b" onclick="exportPdf('summary')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>P&amp;L Summary<br>(PDF)</div>
+            <div class="qa-b" onclick="exportPdf('detailed')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Detailed Report<br>(PDF)</div>
+            <div class="qa-b" onclick="exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Full Report<br>(Excel)</div>
             <div class="qa-b" onclick="printStatement()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print<br>Statement</div>
-            <div class="qa-b qa-b-wide" onclick="openMonthCompare()"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Compare Months</div>
+            <div class="qa-b qa-b-span2" onclick="openMonthCompare()"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Compare Months</div>
           </div>
         </div>
       </div>
@@ -351,6 +354,7 @@
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 // ── SUPABASE CONFIG & HELPERS ────────────────────────────
@@ -775,7 +779,7 @@ async function refreshPL(){
   const prev = calcFigures(prevData);
   const ytd = calcFigures(ytdData);
 
-  LAST = {cur, ytd, period};
+  LAST = {cur, prev, ytd, period, prevOk: prevData.ok};
   renderTable(cur, ytd);
   renderProfitSummary(cur, prev);
   renderYTD(ytd);
@@ -789,218 +793,158 @@ async function refreshPL(){
   }
 }
 
-// ── Quick Actions: Excel / PDF / Print ───────────────────
-function exportExcel(retryCount){
-  retryCount = retryCount || 0;
-  if(!LAST){ toast('Statement is still loading — try again in a moment','info'); return; }
-  if(typeof XLSX === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportExcel(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing Excel file…','info');
-      return;
+// ══ EXPORT (report-engine.js) ═══════════════════════════
+// presets.pl() builds the PDF (summary or detailed) and the Excel file from the
+// figures this page already calculates (calcFigures / deriveTotals). The old
+// jsPDF / SheetJS exporters were removed; the engine loads what it needs itself.
+// The engine only formats: every number below comes from `cur`, `prev`, `ytd`.
+//
+// NOTE: the engine's statement follows IAS 7/2 groupings where "operating expenses"
+// also holds finance cost, so Interest Expense (Loan) is passed inside `opex`.
+// Net profit is identical to the on-screen statement; only the Operating Expenses
+// subtotal differs (it equals the "Total Expenses" card on this page).
+const HISTORY_MONTHS = 5; // earlier months drawn on the detailed PDF trend charts
+
+function _isEmptyFigures(f){
+  return !f || (f.totalRevenue===0 && f.totalCOGS===0 && f.totalOpex===0 && f.interestExpense===0);
+}
+
+// Earlier months for the trend charts, oldest first. The month straight before the
+// selected one is already loaded (LAST.prev); the rest are fetched with the same
+// fetchPeriodSet()/calcFigures() as the table, so they cannot disagree with it.
+// A month that fails to load ends the run (no gaps, nothing shown as zero).
+async function loadPLHistory(period, prev, prevOk){
+  const keys = [];
+  for(let k=HISTORY_MONTHS; k>=2; k--) keys.push(shiftPeriod(period, -k));
+  const fetched = await Promise.all(keys.map(async k=>{
+    try{
+      const d = await fetchPeriodSet(`period=eq.${k}`, k, periodToDueDateRange(k,k));
+      return d.ok ? calcFigures(d) : null;
+    }catch(e){ return null; }
+  }));
+  const seq = keys.map((k,idx)=>({period:k, f:fetched[idx]}));
+  seq.push({period:shiftPeriod(period,-1), f:prevOk ? prev : null});
+
+  let run = [];
+  seq.forEach(m=>{
+    if(!m.f){ run = []; return; }
+    if(!run.length && _isEmptyFigures(m.f)) return; // skip months before the business had records
+    run.push(m);
+  });
+  return run.map(m=>({
+    label: MONTH_NAMES[parseInt(m.period.split('-')[1],10)-1],
+    revenue: m.f.totalRevenue,
+    grossProfit: m.f.grossProfit,
+    netProfit: m.f.netProfit
+  }));
+}
+
+async function buildPLReportData(){
+  const {cur, prev, ytd, period, prevOk} = LAST;
+  const monthLbl = periodToLabel(period);
+  const session = (typeof loadSession==='function' ? loadSession() : null) || {};
+  const mi = parseInt(period.split('-')[1],10);
+
+  const line = (label, key) => ({label, month:cur[key], ytd:ytd[key]});
+  const input = {
+    period: monthLbl,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    monthLabel: monthLbl,
+    monthShort: MONTH_NAMES[mi-1],
+    ytdLabel: `YTD ${MONTH_NAMES[0]}-${monthLbl}`,
+    revenue: [
+      line('Injera Sales','injeraRevenue'),
+      line('Derkosh Sales','derkoshRevenue')
+    ],
+    cogs: [
+      line('Injera Blend','injeraBlend'),
+      line('Corn','corn'),
+      line('Gomen Zere','gomenZere'),
+      line('Packaging (Small & Large Bags)','packaging'),
+      line('Labor / Wages','labor'),
+      line('Electricity','electricity'),
+      line('Water','water'),
+      line('Rent','rent'),
+      line('Maintenance','maintenance'),
+      line('Other Overhead','otherOverhead')
+    ],
+    opex: [
+      line('Delivery Out & Transport','deliveryOut'),
+      line('Marketing','marketing'),
+      line('Other Operating Expenses','otherOperatingExpenses'),
+      line('Interest Expense (Loan)','interestExpense')
+    ],
+    footer: {
+      notes: [
+        'Negative values are shown with a minus sign.',
+        'Interest expense on loans is included under operating expenses in this report. The on-screen statement lists it below Total Operating Expenses; net profit is the same.'
+      ]
     }
-    toast('Could not load the Excel engine. Check your connection and try again.','error');
-    return;
+  };
+
+  // last month's totals -> enables the comparisons (left out when there is no prior data)
+  if(prevOk && !_isEmptyFigures(prev)){
+    input.previous = {revenue:prev.totalRevenue, grossProfit:prev.grossProfit, netProfit:prev.netProfit};
+    input.previousLabel = periodToLabel(PREV_PERIOD);
   }
+
+  // earlier months -> trend charts on the detailed PDF
   try{
-    const {cur, ytd, period} = LAST;
-    const monthLbl = periodToLabel(period);
-    const plRows = buildPLRows(cur, ytd);
+    const history = await loadPLHistory(period, prev, prevOk);
+    if(history.length) input.history = history;
+  }catch(e){ console.error('P&L history could not be loaded — trend charts left out.', e); }
 
-    const aoa = [
-      ['Mena Injera & Derkosh — Profit & Loss Statement','','','',''],
-      [document.getElementById('plDateLbl').textContent,'','','',''],
-      ['','','','',''],
-      ['Particulars', `This Month (${monthLbl})`, '% of Revenue', `Year to Date (${monthLbl})`, '% of Revenue']
-    ];
-    const rowTypes = ['title','sub','blank','header'];
-    plRows.forEach(r=>{
-      if(r.type==='section'){ aoa.push([r.label.toUpperCase(),'','','','']); rowTypes.push('section'); }
-      else if(r.type==='spacer'){ aoa.push(['','','','','']); rowTypes.push('blank'); }
-      else if(r.type==='pctonly'){ aoa.push([r.label, r.curPct.toFixed(1)+'%','', r.ytdPct.toFixed(1)+'%','']); rowTypes.push(r.cls==='pl-net'?'net':'gross'); }
-      else{
-        aoa.push([r.label, Number(r.curV.toFixed(2)), pctOf(r.curV,cur.totalRevenue).toFixed(1)+'%', Number(r.ytdV.toFixed(2)), pctOf(r.ytdV,ytd.totalRevenue).toFixed(1)+'%']);
-        rowTypes.push(r.type==='total' ? (r.cls==='pl-net'?'net':'total') : 'row');
-      }
+  if(_isEmptyFigures(cur) && _isEmptyFigures(ytd)){
+    input.status = 'empty';
+    input.emptyMessage = 'No P&L entries recorded for '+monthLbl+'.';
+  }
+  return ReportEngine.presets.pl(input);
+}
+
+function _plReady(){
+  if(!LAST){ toast('Statement is still loading — try again in a moment','info'); return false; }
+  if(typeof ReportEngine==='undefined'){ toast('Report engine did not load — refresh the page and try again','error'); return false; }
+  return true;
+}
+
+async function _runPLExport(busyText, fn){
+  const loading = document.getElementById('exportLoading');
+  const txt = document.getElementById('exportLoadingText');
+  if(txt) txt.textContent = busyText;
+  if(loading) loading.classList.add('show');
+  try{ await fn(); }
+  finally{ if(loading) loading.classList.remove('show'); }
+}
+
+async function exportPdf(type){
+  if(!_plReady()) return;
+  const kind = type==='summary' ? 'summary' : 'detailed';
+  try{
+    await _runPLExport(kind==='summary' ? 'Building your P&L summary…' : 'Building your detailed P&L report…', async ()=>{
+      const data = await buildPLReportData();
+      await ReportEngine.generatePDF(data,{type:kind});
     });
-
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{wch:34},{wch:17},{wch:13},{wch:17},{wch:13}];
-    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}, {s:{r:1,c:0},e:{r:1,c:4}}];
-    ws['!freeze'] = {xSplit:0, ySplit:4};
-
-    const thinBorder = {style:'thin', color:{rgb:'D8E6DE'}};
-    const borderAll = {top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-
-    for(let r=0;r<aoa.length;r++){
-      const type = rowTypes[r];
-      for(let c=0;c<5;c++){
-        const addr = XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]) ws[addr] = {t:'s', v:''};
-        let fill='FFFFFF', font={bold:false,color:{rgb:'16261E'},sz:10}, halign=(c===0?'left':'right');
-        if(type==='title'){ font={bold:true,color:{rgb:'16261E'},sz:14}; halign='left'; }
-        else if(type==='sub'){ font={bold:false,color:{rgb:'5E7268'},sz:10}; halign='left'; }
-        else if(type==='header'){ fill='1D6B42'; font={bold:true,color:{rgb:'FFFFFF'},sz:10}; }
-        else if(type==='section'){ fill='DFF3E8'; font={bold:true,color:{rgb:'1E8A4F'},sz:10.5}; halign='left'; }
-        else if(type==='total'||type==='gross'){ fill='EAF7F0'; font={bold:true,color:{rgb:'19733F'},sz:10}; }
-        else if(type==='net'){ fill='EAF7F0'; font={bold:true,color:{rgb:'19733F'},sz:11}; }
-        else if(type==='row'){ fill = (r%2===0)?'FFFFFF':'F7FBF9'; }
-        const hasBorder = !(type==='blank'||type==='title'||type==='sub');
-        ws[addr].s = { font, fill:{fgColor:{rgb:fill}}, alignment:{vertical:'center', horizontal: c===0?'left':halign}, border: hasBorder?borderAll:undefined };
-        if((type==='row'||type==='total'||type==='gross'||type==='net') && (c===1||c===3) && typeof ws[addr].v === 'number') ws[addr].z = '#,##0.00';
-      }
-    }
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'P&L Statement');
-    XLSX.writeFile(wb, `Mena-Injera-PL-${period}.xlsx`);
-    toast(`Downloaded Mena-Injera-PL-${period}.xlsx ✓`,'success');
-  } catch(err){
-    console.error('Excel export failed:', err);
-    toast('Excel export failed — please try again','error');
+    toast(`P&L ${kind} PDF downloaded ✓`,'success');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    toast('Could not generate PDF: '+(err.message||'please try again'),'error');
   }
 }
 
-async function exportPDF(retryCount){
-  retryCount = retryCount || 0;
-  if(!LAST){ toast('Statement is still loading — try again in a moment','info'); return; }
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
-  const loading = document.getElementById('exportLoading');
-  document.getElementById('exportLoadingText').textContent = 'Building your PDF statement…';
-  loading.classList.add('show');
+async function exportExcel(){
+  if(!_plReady()) return;
   try{
-    const { jsPDF } = window.jspdf;
-    const {cur, ytd, period} = LAST;
-    const monthLbl = periodToLabel(period);
-    const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const marginX = 32;
-
-    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-    // No fake fallback name: if there's no logged-in session, we simply
-    // don't print a "Prepared by" line rather than attributing the export
-    // to a fabricated person.
-    const session = loadSession();
-    const preparedBy = (session && session.name)
-      ? `${session.name}${session.role ? ` (${session.role.charAt(0).toUpperCase()+session.role.slice(1)})` : ''}`
-      : '';
-
-    function drawHeader(){
-      doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-      doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-      doc.setFillColor(255,255,255); doc.roundedRect(marginX,18,38,38,9,9,'F');
-      doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-      doc.text('MI', marginX+19, 42, {align:'center'});
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-      doc.text('Profit & Loss Statement', marginX+52, 34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-      doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-      doc.setFontSize(9); doc.setTextColor(220,235,227);
-      doc.text('Period: '+monthLbl, pageW-marginX, 30, {align:'right'});
-      doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-      if(preparedBy) doc.text('Prepared by: '+preparedBy, pageW-marginX, 56, {align:'right'});
-    }
-
-    function drawKpiStrip(y){
-      const kpis=[
-        {lbl:'TOTAL REVENUE', val:fmtETB(cur.totalRevenue), unit:'ETB'},
-        {lbl:'GROSS PROFIT', val:fmtETB(cur.grossProfit), unit:'ETB'},
-        {lbl:'GROSS MARGIN', val:cur.grossMargin.toFixed(1), unit:'%'},
-        {lbl:'TOTAL EXPENSES', val:fmtETB(cur.totalExpensesCard), unit:'ETB'},
-        {lbl:'NET PROFIT', val:fmtETB(cur.netProfit), unit:'ETB'},
-        {lbl:'NET MARGIN', val:cur.netMargin.toFixed(1), unit:'%'}
-      ];
-      const gap=10; const cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length; const cardH=52;
-      kpis.forEach((k,i)=>{
-        const x=marginX+i*(cardW+gap);
-        doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-        doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-        doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(6.6);
-        doc.text(k.lbl, x+9, y+16, {charSpace:0.2});
-        doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
-        doc.text(k.val, x+9, y+36);
-        const valW=doc.getTextWidth(k.val);
-        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
-        doc.text(k.unit, x+9+valW+3, y+36);
-      });
-      return y+cardH;
-    }
-
-    drawHeader();
-    const kpiBottom = drawKpiStrip(94);
-
-    const plRows = buildPLRows(cur, ytd);
-    const head = [[ 'Particulars', `This Month\n${monthLbl}`, '% of Rev', `Year to Date\n${monthLbl}`, '% of Rev' ]];
-    const body = [];
-    const rowMeta = [];
-    plRows.forEach(r=>{
-      if(r.type==='section'){ body.push([{content:r.label.toUpperCase(), colSpan:5}]); rowMeta.push('section'); }
-      else if(r.type==='spacer'){ body.push([{content:'', colSpan:5}]); rowMeta.push('spacer'); }
-      else if(r.type==='pctonly'){ body.push([r.label, r.curPct.toFixed(1)+'%','', r.ytdPct.toFixed(1)+'%','']); rowMeta.push(r.cls==='pl-net'?'net':'gross'); }
-      else{
-        const curPct = pctOf(r.curV, cur.totalRevenue), ytdPct = pctOf(r.ytdV, ytd.totalRevenue);
-        body.push([r.label, fmtETB(r.curV), curPct.toFixed(1)+'%', fmtETB(r.ytdV), ytdPct.toFixed(1)+'%']);
-        rowMeta.push(r.type==='total' ? (r.cls==='pl-net'?'net':'total') : 'row');
-      }
+    await _runPLExport('Building your Excel report…', async ()=>{
+      const data = await buildPLReportData();
+      await ReportEngine.generateExcel(data);
     });
-
-    doc.autoTable({
-      head, body,
-      startY: kpiBottom+18,
-      margin:{left:marginX, right:marginX, bottom:46},
-      styles:{font:'helvetica', fontSize:8.3, cellPadding:6, textColor:textDark, lineColor:border, lineWidth:0.6, valign:'middle'},
-      headStyles:{fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7.8, halign:'left'},
-      columnStyles:{0:{cellWidth:190}, 1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'}},
-      alternateRowStyles:{fillColor:[249,251,250]},
-      didParseCell: function(data){
-        if(data.section !== 'body') return;
-        const meta = rowMeta[data.row.index];
-        if(meta==='section'){
-          data.cell.styles.fillColor=[223,243,232]; data.cell.styles.textColor=[30,138,79];
-          data.cell.styles.fontStyle='bold'; data.cell.styles.fontSize=8;
-        } else if(meta==='total' || meta==='gross'){
-          data.cell.styles.fillColor=[234,247,240]; data.cell.styles.fontStyle='bold';
-          if(data.column.index!==0) data.cell.styles.textColor=[25,115,63];
-        } else if(meta==='net'){
-          data.cell.styles.fillColor=[234,247,240]; data.cell.styles.fontStyle='bold'; data.cell.styles.fontSize=9.2;
-          if(data.column.index!==0) data.cell.styles.textColor=[25,115,63];
-        } else if(meta==='spacer'){
-          data.cell.styles.fillColor=[255,255,255]; data.cell.styles.lineWidth=0;
-        }
-      },
-      didDrawPage: function(){
-        if(doc.internal.getCurrentPageInfo().pageNumber>1) drawHeader();
-      }
-    });
-
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
-      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
-    }
-
-    doc.save(`Mena-Injera-PL-${period}.pdf`);
-    toast(`Downloaded Mena-Injera-PL-${period}.pdf ✓`,'success');
+    toast('P&L Excel downloaded ✓','success');
   }catch(err){
-    console.error('PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
-  }finally{
-    loading.classList.remove('show');
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'),'error');
   }
 }
 
@@ -1275,6 +1219,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         months: keys.map(k => periodToLabel(k)),
         selectedMonth: periodToLabel(initialKey),
         onMonthChange: () => refreshPL(),
+        showExport: true,
+        onExportPdf: () => exportPdf('detailed'),
+        onExportXlsx: exportExcel,
         notifications
       });
     } else {

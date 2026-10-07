@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Multi-Year Reporting — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -250,15 +254,6 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .dm-body th,.dm-body td{padding:6px 7px}
 }
 
-/* ---- Print / "Export PDF" (browser print-to-PDF) ---- */
-@media print{
-  #sidebar-root,.sb-overlay,.rpt-bar,.dm-overlay,button,select,.footer{display:none!important}
-  .content{padding:0!important}
-  .card{box-shadow:none!important;border:1px solid #ddd!important;break-inside:avoid}
-  body{background:#fff!important}
-  .kc{animation:none!important;box-shadow:none!important;border:1px solid #ddd}
-  .kpi-row{display:grid!important;grid-template-columns:repeat(3,1fr)!important;overflow:visible!important}
-}
 </style>
 </head>
 <body>
@@ -692,6 +687,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 // This page's Supabase client previously created with only the publishable
 // anon key, and never authenticated — every one of this file's 32 db.from()
@@ -1569,6 +1565,7 @@ async function loadMonthlySnapshot(){
 }
 
 function renderMonthlySnapshot(d){
+  window._lastSnapshotData = d;   // kept so the export can build that month's profit and loss
   const label = periodLabelFull(snapshotPeriod);
   const p = d.pnl || {};
   // total_cogs already has 100% of that period's overhead allocated into it
@@ -3470,71 +3467,184 @@ function runKpiAnimations(){
 }
 
 /* ════════════════ EXPORT ════════════════ */
-function doExport(kind){
-  const cfg = effectiveReportConfig();
-  const years = selYears();
-  const monthIdx = selMonthIdx(); // -1 = "All Months"
-  if(kind==='excel'){
-    let csv = '';
-    if(cfg.special==='customers'){
-      const singleCol = currentView==='monthly' && monthIdx!==-1;
-      csv = 'Customer';
-      if(singleCol){ years.forEach(y=>{ csv += `,${MONTH_ABBR[monthIdx]} ${y}`; }); }
-      else { years.forEach(y=>{ csv += `,${y} Revenue`; }); }
-      csv += '\n';
-      topCustomers.forEach(c=>{
-        csv += c.name;
-        years.forEach(y=>{ csv += `,${singleCol ? (custMonthly(c,y,monthIdx)||0) : custAnnual(c,y)}`; });
-        csv += '\n';
-      });
-    } else if(currentView==='annual'){
-      // Annual view: one row per selected year, matching renderMainTable().
-      csv = 'Year';
-      const cols = cfg.tableMetrics;
-      cols.forEach(c=>{ csv += `,${METRICS[c].label}`; });
-      csv += '\n';
-      years.forEach(y=>{
-        csv += yHead(y);
-        cols.forEach(c=>{ const v = METRICS[c].annual(y); csv += `,${v!=null?Number(v).toFixed(2):''}`; });
-        csv += '\n';
-      });
-    } else if(monthIdx!==-1){
-      // Monthly view, one specific month selected: export just that month's row.
-      csv = 'Month';
-      const cols = cfg.tableMetrics;
-      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${yHead(y)} ${METRICS[c].label}`; }); });
-      csv += '\n';
-      csv += MONTH_ABBR[monthIdx];
-      years.forEach(y=>{
-        const has = monthIdx<monthsInYear(y);
-        cols.forEach(c=>{ const v = has?METRICS[c].monthly(y,monthIdx):null; csv += `,${v!=null?Number(v).toFixed(2):''}`; });
-      });
-      csv += '\n';
-    } else {
-      // Monthly view, "All Months": full 12-month grid, matching renderMainTable().
-      csv = 'Month';
-      const cols = cfg.tableMetrics;
-      years.forEach(y=>{ cols.forEach(c=>{ csv += `,${yHead(y)} ${METRICS[c].label}`; }); });
-      csv += '\n';
-      for(let i=0;i<12;i++){
-        csv += MONTH_ABBR[i];
-        years.forEach(y=>{
-          const has = i<monthsInYear(y);
-          cols.forEach(c=>{ const v = has?METRICS[c].monthly(y,i):null; csv += `,${v!=null?Number(v).toFixed(2):''}`; });
-        });
-        csv += '\n';
-      }
-    }
-    const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `multi_year_${currentReport}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast(`Exported ${cfg.label} to Excel (CSV)`);
-  } else {
-    toast('Preparing PDF — choose "Save as PDF" in the print dialog');
-    setTimeout(()=>window.print(), 300);
+/* ═══════ EXPORT (report-engine.js) ═══════
+   presets.multiyear() lays out the figures this page already computes for the years selected in the header
+   range picker (P&L by year, revenue, COGS, margins, product mix, unit economics, customers, ingredient
+   prices, seasonality, variance, executive summary). The old CSV download and the browser print-to-PDF
+   were removed. When the "Monthly Report (Full Detail)" view is open, the export is that month's profit and
+   loss (presets.pl) instead; its cash flow, purchases, production and inventory sections stay on screen. */
+function buildMultiYearReportData(){
+  const session = window.currentUser || {};
+  const all = selYears().slice().sort((a,b)=>a-b);
+  const years = all.filter(y => yearData[y] && yearData[y].months.some(m => m.hasData));
+  const base = {
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})
+  };
+  if(!years.length){
+    return ReportEngine.presets.multiyear(Object.assign(base,{
+      period: all.length ? all.join(', ') : 'No years selected', status: 'empty',
+      emptyMessage: 'No yearly figures are on record for the selected years.'
+    }));
+  }
+
+  const yrs = years.map(y => {
+    const yt = yearTotals(y), d = yearData[y], n = monthsInYear(y), partial = n < 12;
+    const split = productRevenueSplit(y);
+    const o = { year: y, label: yHead(y), months: n, partial,
+      revenue: yt.rev, cogs: yt.cogs, netProfit: yt.net, grossProfit: yt.gross,
+      opex: yt.opex + yt.interest };            // finance costs sit with operating expenses, so net = gross - opex
+    if(d.injera) o.injera = d.injera;
+    if(d.derkosh) o.derkosh = d.derkosh;
+    if(d.asp != null) o.asp = d.asp;
+    if(derkoshAsp[y] != null) o.derkoshAsp = derkoshAsp[y];
+    if(split.injeraRev || split.derkoshRev){ o.injeraRev = split.injeraRev; o.derkoshRev = split.derkoshRev; }
+    if(d.injera > 0){ const pe = perUnitEconomics(y); o.costPerInjera = pe.costPerUnit; o.profitPerInjera = pe.profitPerUnit; }
+    if(d.derkosh > 0){ const pd = perUnitEconomicsDerkosh(y); o.derkoshCostPerKg = pd.costPerUnit; o.derkoshProfitPerKg = pd.profitPerUnit; }
+    const cc = cogsComponentAmounts[y];
+    if(cc && Object.values(cc).some(v => v > 0)) o.cogsComponents = Object.assign({}, cc);
+    if(yt.rev > 0 && topCustomers.length) o.concentration = { top1: concentrationShare(y,1), top3: concentrationShare(y,3), top10: concentrationShare(y,10) };
+    if(partial && yearData[y-1]) o.likeForLike = { revenue: partialValue('revenue',y-1,n), cogs: partialValue('cogs',y-1,n), netProfit: partialValue('net',y-1,n) };
+    return o;
+  });
+
+  const partialYr = yrs.find(y => y.partial);
+  let period = years.length > 1 ? years[0] + ' \u2013 ' + years[years.length-1] : String(years[0]);
+  if(partialYr) period += years.length > 1 ? ' (' + partialYr.year + ' YTD)' : ' (YTD)';
+
+  // customers
+  const topC = topCustomers.map(c => {
+    const by = {}; let tot = 0;
+    years.forEach(y => { const v = custAnnual(c,y); if(v > 0){ by[y] = v; tot += v; } });
+    return tot > 0 ? { name: c.name, byYear: by } : null;
+  }).filter(Boolean);
+  const seen = new Set();
+  const retention = [...topCustomers.slice(0,3), ...churnExamples].filter(c => c && c.name && !seen.has(c.name) && seen.add(c.name)).map(c => {
+    const by = {}; years.forEach(y => { const v = c['y'+y]; if(v != null) by[y] = v; });
+    return { name: c.name, byYear: by };
+  });
+
+  // ingredient prices (yearly average of the monthly WAC) and the rolling-average forecast
+  const ingredients = ['blend','corn','gomen','teff','rice'].map(k => {
+    const by = {}; years.forEach(y => { const v = ingredientAnnual(k,y); if(v != null) by[y] = v; });
+    return Object.keys(by).length ? { name: METRICS[k].label.replace(/ Price$/,''), byYear: by } : null;
+  }).filter(Boolean);
+  let forecast;
+  try{
+    const sel = document.getElementById('ingForecastSel');
+    const ing = (sel && METRICS[sel.value]) ? sel.value : 'rice';
+    const labels = [], actual = [], avg3 = [], avg6 = [];
+    years.forEach(y => { for(let i=0;i<monthsInYear(y);i++){
+      labels.push(MONTH_ABBR[i] + ' ' + String(y).slice(2));
+      actual.push(METRICS[ing].monthly(y,i)); avg3.push(rollingAvg(ing,y,i,3)); avg6.push(rollingAvg(ing,y,i,6));
+    }});
+    forecast = { name: METRICS[ing].label.replace(/ Price$/,''), labels, actual, avg3, avg6 };
+  }catch(e){ forecast = undefined; }
+
+  // seasonality + variance for the metric the page is showing
+  let pk = 'revenue';
+  try{ pk = primaryMetricKey() || 'revenue'; }catch(e){}
+  if(!METRICS[pk]) pk = 'revenue';
+  const pm = METRICS[pk], pol = METRIC_POLARITY[pk] || 1;
+  const seasonality = { metric: pm.label, decimals: pm.decimals,
+    rows: years.map(y => ({ year: y, label: yHead(y),
+      values: Array.from({length:12},(_,i)=> i < monthsInYear(y) ? pm.monthly(y,i) : null) })) };
+  const vrows = [];
+  for(let i=1;i<years.length;i++){
+    const curY = years[i], prevY = years[i-1], nCur = monthsInYear(curY), isPartial = nCur < 12;
+    const curVal = pm.annual(curY), prevVal = isPartial ? partialValue(pk,prevY,nCur) : pm.annual(prevY);
+    const delta = (curVal != null && prevVal != null) ? curVal - prevVal : null;
+    if(delta == null) continue;
+    vrows.push({ period: yHead(curY) + (isPartial ? ' vs ' + prevY + ' (same ' + nCur + '-month period)' : ' vs ' + prevY),
+      actual: curVal, prior: prevVal, variance: delta,
+      variancePct: prevVal ? delta/Math.abs(prevVal)*100 : undefined, favorable: pol*delta >= 0 });
+  }
+
+  // the page's own executive summary, as it is on screen right now
+  const insights = Array.from(document.querySelectorAll('#execSummary .ei-txt'))
+    .map(e => e.textContent.replace(/\s+/g,' ').trim()).filter(t => t && !/^Select at least one year/.test(t));
+
+  const notes = [];
+  const interest = years.reduce((t,y) => t + yearTotals(y).interest, 0);
+  if(interest > 0) notes.push('Operating expenses include finance costs (interest) of ' + fmt0(interest) + ' ETB, so net profit equals gross profit less operating expenses.');
+  if(yrs.some(y => y.cogsComponents)) notes.push('COGS components are built up from ingredient consumption, labour, fuel and packaging, so their total can differ from the COGS in the profit and loss. They are shown side by side and are not reconciled to each other.');
+  if(partialYr) notes.push(partialYr.label + ' covers ' + partialYr.months + ' months; its year-over-year changes compare the same months of the previous year.');
+  const skipped = all.filter(y => !years.includes(y));
+  if(skipped.length) notes.push('No data is on record for ' + skipped.join(', ') + ', so ' + (skipped.length === 1 ? 'that year is' : 'those years are') + ' left out.');
+
+  const input = Object.assign(base, {
+    period, years: yrs, componentLabels: COGS_COMPONENT_LABELS,
+    topCustomers: topC, retention, ingredients, ingredientUnit: 'ETB/kg',
+    seasonality, footer: { notes }
+  });
+  if(forecast) input.ingredientForecast = forecast;
+  if(vrows.length) input.variance = { metric: pm.label, decimals: pm.decimals, rows: vrows };
+  if(insights.length) input.insights = insights;
+
+  const data = ReportEngine.presets.multiyear(input);
+  // the page states that decomposed COGS need not equal the P&L's COGS, so that is not a reconciliation failure
+  data.checks = (data.checks || []).filter(c => !/COGS components vs\. total COGS/.test(String(c.label)));
+  return data;
+}
+
+// "Monthly Report (Full Detail)" view -> that month's profit and loss
+function buildMonthlyPnlReportData(){
+  const session = window.currentUser || {};
+  const d = window._lastSnapshotData;
+  const label = periodLabelFull(snapshotPeriod);
+  const base = {
+    period: label, currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})
+  };
+  if(!d || !d.pnl) return ReportEngine.presets.pl(Object.assign(base,{ status: 'empty', emptyMessage: 'No sales recorded for ' + label + ' yet.' }));
+  const p = d.pnl;
+  const input = Object.assign(base, {
+    revenue: [{ label: 'Injera Revenue', month: num(p.injera_revenue) }, { label: 'Derkosh Revenue', month: num(p.derkosh_revenue) }],
+    cogs: [{ label: 'Cost of goods sold (materials + production overhead)', month: num(p.total_cogs) }],
+    opex: [{ label: 'Operating expenses', month: num(p.total_opex) }]
+  });
+  if(num(p.interest_expense) > 0) input.opex.push({ label: 'Finance costs (interest)', month: num(p.interest_expense) });
+  input.products = [{ name: 'Injera', revenue: num(p.injera_revenue) }, { name: 'Derkosh', revenue: num(p.derkosh_revenue) }].filter(x => x.revenue > 0);
+  if(d.prevPnl){
+    const pr = num(d.prevPnl.total_revenue), pc = num(d.prevPnl.total_cogs);
+    input.previous = { revenue: pr, grossProfit: pr - pc, netProfit: pr - pc - num(d.prevPnl.total_opex) - num(d.prevPnl.interest_expense) };
+    input.previousLabel = periodLabelFull(prevPeriodOf(snapshotPeriod));
+  }
+  input.footer = { notes: [
+    'Net profit is approximate: revenue less cost of goods sold, operating expenses and interest, the same way the Monthly Report page works it out.',
+    'This export is the month\u2019s profit and loss. The cash flow, purchases, production and inventory sections are on the Monthly Report page.'
+  ]};
+  return ReportEngine.presets.pl(input);
+}
+function _reportsEngineReady(){
+  if(typeof ReportEngine === 'undefined'){ toast('Report engine did not load \u2014 refresh the page and try again'); return false; }
+  return true;
+}
+function _buildReportsData(){ return currentReport === 'monthly_snapshot' ? buildMonthlyPnlReportData() : buildMultiYearReportData(); }
+async function exportPdf(){
+  if(!_reportsEngineReady()) return;
+  try{
+    toast('Generating PDF\u2026');
+    await ReportEngine.generatePDF(_buildReportsData(),{type:'detailed'});
+    toast('Report PDF downloaded \u2713');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    toast('Could not generate PDF: '+(err.message||'please try again'));
+  }
+}
+async function exportExcel(){
+  if(!_reportsEngineReady()) return;
+  try{
+    toast('Generating Excel\u2026');
+    await ReportEngine.generateExcel(_buildReportsData());
+    toast('Report Excel downloaded \u2713');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'));
   }
 }
 
@@ -3592,8 +3702,8 @@ renderHeader({
   selectedMonth: `2023 - ${CURRENT_YEAR}`,
   onMonthChange: onRangeChange,
   showExport: true,
-  onExportPdf: () => doExport('pdf'),
-  onExportXlsx: () => doExport('excel'),
+  onExportPdf: () => exportPdf(),
+  onExportXlsx: () => exportExcel(),
   // Notifications were previously 4 hardcoded fake entries (invented dates,
   // invented ETB figures, invented margin %). No live notification feed is
   // wired into this page yet — left empty rather than showing fabricated

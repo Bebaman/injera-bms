@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Derkosh — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -334,12 +335,6 @@ button{font-family:inherit}
 
 /* EXPORT DROPDOWN (page-specific: the production table's own multi-format
    export button, distinct from the shared header's export menu) */
-.export-drop{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 32px rgba(20,40,30,.16);min-width:210px;z-index:130;overflow:hidden;animation:dropIn .16s ease;display:none}
-.export-drop.show{display:block}
-.export-drop button{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .13s,color .13s;font-family:'Nunito',sans-serif}
-.export-drop button:hover{background:#f6faf7;color:var(--td)}
-.export-drop button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:#27ae60}
-.export-drop button:first-child{border-bottom:1px solid #f0f5f2}
 
 /* MODAL MOBILE */
 @media(max-width:760px){
@@ -439,13 +434,6 @@ button{font-family:inherit}
           <div class="card-ttl">Derkosh Production Records <span class="sub" id="tblLbl">(May 2026)</span></div>
           <div class="hd-actions">
             <button class="btn-add" onclick="openModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Production</button>
-            <div class="btn-tool" id="expBtn" role="button" tabindex="0" onclick="toggleExpDrop(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleExpDrop(event);}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke-width:3;stroke-linecap:round;margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
-              <div class="export-drop" id="expDrop">
-                <button onclick="event.stopPropagation();closeExpDrop();exportCSV()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
-                <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as PDF</button>
-                <button onclick="event.stopPropagation();closeExpDrop();exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (with charts)</button>
-              </div>
-            </div>
             <button class="btn-tool" id="fltBtn" onclick="toggleFltPop(event)"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter<span class="filter-badge" id="fltBadge" style="display:none">1</span></button>
             <div class="filter-pop" id="fltPop">
               <h5>Filter Records</h5>
@@ -565,9 +553,8 @@ button{font-family:inherit}
         <p id="reportSub">May 2026</p>
       </div>
       <div class="report-hd-actions">
-        <button class="btn-tool report-tool-btn" onclick="exportReportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF</button>
-        <button class="btn-tool report-tool-btn" onclick="exportCSV()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Excel</button>
-        <button class="btn-tool report-tool-btn" onclick="exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full PDF (charts)</button>
+        <button class="btn-tool report-tool-btn" onclick="exportPdf()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF</button>
+        <button class="btn-tool report-tool-btn" onclick="exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Excel</button>
       </div>
       <button class="modal-hdr-close" onclick="closeReport()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
@@ -739,6 +726,7 @@ button{font-family:inherit}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ══ STATE ══════════════════════════════════
    `rows` holds one entry per derkosh_batches record for the selected month,
@@ -752,6 +740,7 @@ let flt={pkg:'',min:''};
 let editingId=null;        // set while the Add modal is being used to edit an existing row
 let derkoshRevenueThisMonth=0; // from sales table, product_type=derkosh
 let derkoshSalesByCustomer=[]; // for the "Sales by Customer" table
+let derkoshSalesRows=[];       // this month's derkosh sales (date/customer/qty/revenue), for the report engine
 const f=(n,d=2)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 function periodFromLabel(label){
   const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -791,7 +780,6 @@ function onMonthChange(){
 document.addEventListener('click',e=>{
   if(!e.target.closest('.tbl-more')) document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
   if(!e.target.closest('#fltBtn')&&!e.target.closest('#fltPop')) document.getElementById('fltPop').classList.remove('show');
-  if(!e.target.closest('#expBtn')) closeExpDrop();
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
@@ -947,6 +935,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     months,
     selectedMonth:months[months.length-1],
     onMonthChange:onMonthChange,
+    showExport:true,
+    onExportPdf:exportPdf,
+    onExportXlsx:exportExcel,
     notifications:[]
   });
   initCounts();
@@ -1053,6 +1044,7 @@ async function loadMonth(){
     });
     derkoshSalesByCustomer=Object.values(byCust).sort((a,b)=>b.revenue-a.revenue);
     derkoshRevenueThisMonth=salesRows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
+    derkoshSalesRows=salesRows.map(r=>({date:r.date,customer:(r.customers&&r.customers.name)||'Unknown',quantity:parseFloat(r.quantity||0),revenue:parseFloat(r.revenue||0)}));
 
     document.getElementById('stk-opening-val') && (document.getElementById('stk-opening-val').textContent=f(openingStockKg)+' kg');
     document.getElementById('stk-opening-label') && (document.getElementById('stk-opening-label').textContent=monthLabel);
@@ -1252,20 +1244,6 @@ function clearFlt(){
   toast('Filters reset','success');
 }
 
-/* ══ EXPORT CSV ──────────────────────────── */
-/* ══ EXPORT DROPDOWN ─────────────────────────── */
-function toggleExpDrop(e){
-  e.stopPropagation();
-  const d=document.getElementById('expDrop');
-  const was=d.classList.contains('show');
-  // close all other dropdowns
-  document.querySelectorAll('.dropdown,.filter-pop').forEach(x=>x.classList.remove('show'));
-  d.classList.toggle('show',!was);
-}
-function closeExpDrop(){
-  document.getElementById('expDrop').classList.remove('show');
-}
-
 /* ══ TOTALS CARD SYNC ────────────────────────── */
 function syncTotalsCard(){
   // Kept as syncTotalsCard() since callers throughout the file still invoke
@@ -1277,594 +1255,78 @@ function syncTotalsCard(){
   if(document.getElementById('sS')) document.getElementById('sS').textContent=f(sm.sold)+' kg';
   if(document.getElementById('sCl')) document.getElementById('sCl').textContent=f(sm.cl)+' kg';
 }
-// also close export drop on outside click — patch into existing listener below
 
-/* ══ EXPORT EXCEL (real .xlsx via SheetJS) ────── */
-function exportCSV(retryCount){
-  retryCount = retryCount || 0;
-  const month = document.getElementById('msel').value.replace(' ','_');
-  if(typeof XLSX === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportCSV(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing Excel file…','info');
-      return;
-    }
-    // final fallback: still give the user a usable file rather than nothing
-    exportCSVFallback(month);
-    return;
-  }
+/* ══ EXPORT (report-engine.js) ═══════════════════════════
+   presets.derkosh() builds the PDF and Excel from the figures this page already
+   has (rows = production batches, derkoshSalesRows = this month's derkosh sales).
+   The old SheetJS / hand-drawn jsPDF exporters were removed.
+   Cost of goods sold = kg SOLD x this month's average production cost per kg
+   (transfer + packaging, from derkosh_batch_costs), so Gross Profit is measured on
+   what was sold. NOTE: the Gross Profit card on this page subtracts the whole
+   month's production cost instead, so the two differ whenever produced != sold. */
+async function buildDerkoshReportData(){
+  const period=currentPeriod();
+  const monthLabel=(document.getElementById('msel')||{}).value||periodLabel(period);
+  const session=(typeof loadSession==='function'?loadSession():null)||{};
+
+  // last month's revenue, for the "vs last month" comparison
+  let previousRevenue, previousLabel;
   try{
-    const hdr=['Date','Injera Used (pcs)','Pkg Type','Produced (kg)','Bags Used (pcs)','Transfer Cost (ETB)','Packaging Cost (ETB)','Total Cost (ETB)','Cost per Kg (ETB)','Sold (kg)','Closing Stock (kg)'];
-    const data=[hdr];
-    let sums={inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0};
-    rows.forEach(r=>{
-      const tc=r.tr+r.pkc; const cpk=r.prod?tc/r.prod:0;
-      data.push([r.date,r.inj,r.pkg,r.prod,r.bags,r.tr,r.pkc,tc,cpk,r.sold,r.cl]);
-      sums.inj+=r.inj;sums.prod+=r.prod;sums.bags+=r.bags;sums.tr+=r.tr;sums.pkc+=r.pkc;sums.sold+=r.sold;sums.cl+=r.cl;
-    });
-    const totTc=sums.tr+sums.pkc; const totCpk=sums.prod?totTc/sums.prod:0;
-    const totalRowIdx=data.length; // 0-indexed position the TOTAL row will occupy
-    data.push(['TOTAL',sums.inj,'—',sums.prod,sums.bags,sums.tr,sums.pkc,totTc,totCpk,sums.sold,sums.cl]);
+    const [y,m]=period.split('-').map(Number);
+    const pd=new Date(y,m-2,1);
+    const prevKey=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+    const prevSales=await sbGet(`sales?select=revenue&product_type=eq.derkosh&period=eq.${prevKey}&is_deleted=eq.false`);
+    const sum=prevSales.reduce((t,r)=>t+parseFloat(r.revenue||0),0);
+    if(sum>0){ previousRevenue=sum; previousLabel=periodLabel(prevKey); }
+  }catch(e){ /* no prior month on record — comparison is simply left out */ }
 
-    const ws=XLSX.utils.aoa_to_sheet(data);
-    // column widths
-    ws['!cols']=[{wch:14},{wch:15},{wch:12},{wch:13},{wch:14},{wch:17},{wch:18},{wch:15},{wch:14},{wch:11},{wch:16}];
-    ws['!rows']=[{hpt:22}];
-    // freeze header row
-    ws['!freeze']={xSplit:0,ySplit:1};
-
-    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
-    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-    const numCols=[3,7,9,10]; // kg columns -> 2 decimals
-    const moneyCols=[5,6,7,8]; // ETB columns -> currency-style 2 decimals
-
-    for(let r=0;r<data.length;r++){
-      for(let c=0;c<hdr.length;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]) continue;
-        const isHeader=r===0;
-        const isTotal=r===totalRowIdx;
-        let numFmt;
-        if(!isHeader && (numCols.includes(c)||moneyCols.includes(c))) numFmt='#,##0.00';
-        ws[addr].s={
-          font:{
-            bold:isHeader||isTotal,
-            color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')},
-            sz:isHeader?10:10
-          },
-          fill:{fgColor:{rgb:isHeader?'1D6B42':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))}},
-          alignment:{vertical:'center',horizontal:(c===0||c===2)?'left':'right'},
-          border:borderAll
-        };
-        if(numFmt) ws[addr].z=numFmt;
-      }
-    }
-
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,'Derkosh Production',ws);
-    XLSX.writeFile(wb,'Derkosh_Production_'+month+'.xlsx');
-    toast('Downloaded Derkosh_Production_'+month+'.xlsx ✓','success');
-  } catch(err){
-    console.error('Excel export failed:', err);
-    exportCSVFallback(month);
+  const totCost=rows.reduce((t,r)=>t+r.tr+r.pkc,0);
+  const totProduced=rows.reduce((t,r)=>t+r.prod,0);
+  const input={
+    period:monthLabel,
+    currency:'ETB',
+    generatedBy:session.name||undefined,
+    generatedRole:session.role||undefined,
+    generatedAt:new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    unitLabel:'kg',
+    openingStock:openingStockKg,
+    production:rows.map(r=>({date:r.sd,quantity:r.prod,cost:r.tr+r.pkc})),
+    sales:derkoshSalesRows,
+    unitCost:totProduced>0?totCost/totProduced:undefined
+  };
+  if(previousRevenue!==undefined){ input.previousRevenue=previousRevenue; input.previousLabel=previousLabel; }
+  if(!rows.length && !derkoshSalesRows.length){
+    input.status='empty';
+    input.emptyMessage='No Derkosh production or sales recorded for '+monthLabel+'.';
   }
+  return ReportEngine.presets.derkosh(input);
 }
-function csvField(v){
-  const s=String(v);
-  // wrap in quotes (and escape internal quotes) whenever the field contains a comma, quote, or newline
-  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
-  return s;
+function _derkoshReady(){
+  if(typeof ReportEngine==='undefined'){ toast('Report engine did not load — refresh the page and try again','error'); return false; }
+  return true;
 }
-function exportCSVFallback(month){
-  const hdr=['Date','Injera Used (pcs)','Pkg Type','Produced (kg)','Bags Used (pcs)','Transfer Cost (ETB)','Packaging Cost (ETB)','Total Cost (ETB)','Cost per Kg (ETB)','Sold (kg)','Closing Stock (kg)'];
-  const lines=[hdr.map(csvField).join(',')];
-  let sums={inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0};
-  rows.forEach(r=>{const tc=r.tr+r.pkc;const cpk=r.prod?tc/r.prod:0;lines.push([r.date,r.inj,r.pkg,f(r.prod),r.bags,f(r.tr),f(r.pkc),f(tc),f(cpk),f(r.sold),f(r.cl)].map(csvField).join(','));sums.inj+=r.inj;sums.prod+=r.prod;sums.bags+=r.bags;sums.tr+=r.tr;sums.pkc+=r.pkc;sums.sold+=r.sold;sums.cl+=r.cl;});
-  const totTc=sums.tr+sums.pkc; const totCpk=sums.prod?totTc/sums.prod:0;
-  lines.push(['TOTAL',sums.inj,'—',f(sums.prod),sums.bags,f(sums.tr),f(sums.pkc),f(totTc),f(totCpk),f(sums.sold),f(sums.cl)].map(csvField).join(','));
-  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download='Derkosh_Production_'+month+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  toast('Excel engine unavailable — downloaded as CSV instead','info');
-}
-
-/* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ── */
-function exportPDF(retryCount){
-  retryCount = retryCount || 0;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount < 6){
-      // libraries may still be finishing their async load — retry briefly before giving up
-      setTimeout(()=>exportPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
+async function exportPdf(){
+  if(!_derkoshReady()) return;
   try{
-  const { jsPDF } = window.jspdf;
-  const month = document.getElementById('msel').value;
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
-
-  // brand colors
-  const green = [39,174,96];
-  const darkGreen = [22,52,36];
-  const deepGreen = [16,39,26];
-  const textDark = [22,38,30];
-  const textMid = [94,114,104];
-  const border = [227,236,231];
-  const rowAlt = [244,249,246];
-
-  const sm = rows.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:a.cl+r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
-  const totTc = sm.tr + sm.pkc;
-  const totCpk = sm.prod ? totTc / sm.prod : 0;
-  const totRevText = f(derkoshRevenueThisMonth);
-  const totProfitText = f(derkoshRevenueThisMonth-totTc);
-
-  /* ---------- HEADER BAND (drawn on every page) ---------- */
-  function drawHeader(){
-    // gradient-look header via two stacked rects
-    doc.setFillColor(...deepGreen);
-    doc.rect(0, 0, pageW, 74, 'F');
-    doc.setFillColor(...green);
-    doc.rect(0, 70, pageW, 4, 'F');
-
-    // logo mark (rounded square initials)
-    doc.setFillColor(255,255,255);
-    doc.roundedRect(marginX, 18, 38, 38, 9, 9, 'F');
-    doc.setTextColor(...deepGreen);
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(15);
-    doc.text('MI', marginX + 19, 42, { align:'center' });
-
-    // titles
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(17);
-    doc.text('Derkosh Production Report', marginX + 52, 34);
-    doc.setFont('helvetica','normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX + 52, 49);
-
-    // right-aligned meta
-    doc.setFontSize(9);
-    doc.setTextColor(220,235,227);
-    doc.text('Period: ' + month, pageW - marginX, 30, { align:'right' });
-    doc.text('Generated: ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW - marginX, 43, { align:'right' });
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW - marginX, 56, { align:'right' });
-  }
-
-  /* ---------- KPI SUMMARY STRIP ---------- */
-  function drawKpiStrip(y){
-    const kpis = [
-      { lbl:'DERKOSH PRODUCED', val:f(sm.prod), unit:'kg' },
-      { lbl:'DERKOSH SOLD',     val:f(sm.sold), unit:'kg' },
-      { lbl:'CLOSING STOCK',    val:f(sm.cl),   unit:'kg' },
-      { lbl:'AVG COST / KG',    val:f(totCpk),  unit:'ETB' },
-      { lbl:'DERKOSH REVENUE',  val:totRevText, unit:'ETB' },
-      { lbl:'GROSS PROFIT',     val:totProfitText, unit:'ETB' }
-    ];
-    const gap = 10;
-    const cardW = (pageW - marginX*2 - gap*(kpis.length-1)) / kpis.length;
-    const cardH = 52;
-    kpis.forEach((k,i)=>{
-      const x = marginX + i*(cardW+gap);
-      doc.setFillColor(...rowAlt);
-      doc.setDrawColor(...border);
-      doc.roundedRect(x, y, cardW, cardH, 6, 6, 'FD');
-      doc.setTextColor(...textMid);
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(7);
-      doc.text(k.lbl, x + 10, y + 16, { charSpace:0.3 });
-      doc.setTextColor(...darkGreen);
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(14.5);
-      doc.text(k.val, x + 10, y + 36);
-      const valW = doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...textMid);
-      doc.text(k.unit, x + 10 + valW + 4, y + 36);
-    });
-    return y + cardH;
-  }
-
-  drawHeader();
-  const kpiBottom = drawKpiStrip(94);
-
-  /* ---------- DATA TABLE ---------- */
-  const head = [[ 'Date','Injera Used\n(pcs)','Pkg Type','Produced\n(kg)','Bags Used\n(pcs)','Transfer Cost\n(ETB)','Packaging Cost\n(ETB)','Total Cost\n(ETB)','Cost/Kg\n(ETB)','Sold\n(kg)','Closing Stock\n(kg)' ]];
-  const body = rows.map(r=>{
-    const tc = r.tr + r.pkc;
-    const cpk = r.prod ? tc/r.prod : 0;
-    return [r.date, r.inj, r.pkg, f(r.prod), r.bags, f(r.tr), f(r.pkc), f(tc), f(cpk), f(r.sold), f(r.cl)];
-  });
-  const foot = [[ 'TOTAL', sm.inj, '—', f(sm.prod), sm.bags, f(sm.tr), f(sm.pkc), f(totTc), f(totCpk), f(sm.sold), f(sm.cl) ]];
-
-  doc.autoTable({
-    head, body, foot,
-    startY: kpiBottom + 18,
-    margin: { left: marginX, right: marginX, bottom: 46 },
-    styles:{ font:'helvetica', fontSize:8.3, cellPadding:6, textColor:textDark, lineColor:border, lineWidth:0.6, valign:'middle' },
-    headStyles:{ fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7.6, halign:'left' },
-    footStyles:{ fillColor:rowAlt, textColor:darkGreen, fontStyle:'bold', fontSize:8.3, lineWidth:{ top:1.2 }, lineColor:[200,224,210] },
-    alternateRowStyles:{ fillColor:[249,251,250] },
-    columnStyles:{ 0:{fontStyle:'bold'}, 8:{textColor:[27,150,80],fontStyle:'bold'} },
-    didDrawPage: function(){
-      if(doc.internal.getCurrentPageInfo().pageNumber > 1) drawHeader();
-    }
-  });
-
-  /* ---------- FOOTER (page numbers, generated line) ---------- */
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i=1;i<=pageCount;i++){
-    doc.setPage(i);
-    doc.setDrawColor(...border);
-    doc.line(marginX, pageH - 34, pageW - marginX, pageH - 34);
-    doc.setFont('helvetica','normal');
-    doc.setFontSize(7.6);
-    doc.setTextColor(...textMid);
-    doc.text('© ' + new Date().getFullYear() + ' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH - 20);
-    doc.text('Page ' + i + ' of ' + pageCount, pageW - marginX, pageH - 20, { align:'right' });
-  }
-
-  const safeMonth = month.replace(' ','_');
-  doc.save('Derkosh_Production_Report_' + safeMonth + '.pdf');
-  toast('Downloaded Derkosh_Production_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
-    console.error('PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
+    toast('Generating PDF…','info');
+    const data=await buildDerkoshReportData();
+    await ReportEngine.generatePDF(data,{type:'detailed'});
+    toast('Derkosh report PDF downloaded ✓','success');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    toast('Could not generate PDF: '+(err.message||'please try again'),'error');
   }
 }
-
-/* ══ EXPORT FULL PDF WITH CHARTS (landscape, multi-page) ══════════════
-   A richer companion to exportPDF() above — same data, but also captures
-   each Chart.js canvas as an image and lays everything out across full
-   landscape pages (KPIs + charts on page 1, tables on following pages).
-   Kept fully separate from exportPDF()/exportReportPDF() so neither of
-   those existing export paths is touched. */
-function exportFullPDF(retryCount){
-  retryCount = retryCount || 0;
-  const chartsReady = window.derkoshCharts && window.derkoshCharts.chPS && window.derkoshCharts.chST && window.derkoshCharts.chCT && window.derkoshCharts.chRCP;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartsReady){
-    if(retryCount < 8){
-      setTimeout(()=>exportFullPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing full report PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF/chart engine. Check your connection and try again.','error');
-    return;
-  }
+async function exportExcel(){
+  if(!_derkoshReady()) return;
   try{
-  const { jsPDF } = window.jspdf;
-  const month = document.getElementById('msel').value;
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
-
-  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-  const sm = rows.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:a.cl+r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
-  const totTc = sm.tr + sm.pkc;
-  const totCpk = sm.prod ? totTc / sm.prod : 0;
-  const totRev = derkoshRevenueThisMonth;
-  const profit = totRev-totTc;
-
-  function drawHeader(subtitle){
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-    doc.setFillColor(255,255,255);
-    doc.roundedRect(marginX,18,38,38,9,9,'F');
-    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('MI', marginX+19, 42, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text('Derkosh Full Report'+(subtitle?' — '+subtitle:''), marginX+52, 34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, 56, {align:'right'});
-  }
-  function drawFooter(){
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
-      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
-    }
-  }
-  function drawKpiStrip(y){
-    const kpis=[
-      {lbl:'DERKOSH PRODUCED',val:f(sm.prod),unit:'kg'},
-      {lbl:'DERKOSH SOLD',val:f(sm.sold),unit:'kg'},
-      {lbl:'CLOSING STOCK',val:f(sm.cl),unit:'kg'},
-      {lbl:'AVG COST / KG',val:f(totCpk),unit:'ETB'},
-      {lbl:'REVENUE',val:f(totRev),unit:'ETB'},
-      {lbl:'GROSS PROFIT',val:f(profit),unit:'ETB'}
-    ];
-    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
-    kpis.forEach((k,i)=>{
-      const x=marginX+i*(cardW+gap);
-      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.text(k.lbl, x+10, y+15, {charSpace:0.3});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
-      doc.text(k.val, x+10, y+34);
-      const valW=doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
-      doc.text(k.unit, x+10+valW+4, y+34);
-    });
-    return y+cardH;
-  }
-  function drawChartTile(img, x, y, w, h, title){
-    doc.setFillColor(255,255,255); doc.setDrawColor(...border);
-    doc.roundedRect(x,y,w,h,7,7,'FD');
-    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-    doc.text(title, x+12, y+18);
-    const imgPad=10, imgY=y+26;
-    const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
-    try{ doc.addImage(img, 'PNG', x+imgPad, imgY, imgW, imgH, undefined, 'FAST'); }catch(e){ /* skip tile if capture failed */ }
-  }
-
-  /* ---- PAGE 1: KPI strip + all four charts (landscape 2x2 grid) ---- */
-  drawHeader();
-  const kpiBottom = drawKpiStrip(94);
-  const gY = kpiBottom+16;
-  const gGap=14;
-  const tileW=(pageW-marginX*2-gGap)/2;
-  const tileH=(pageH-gY-30-gGap)/2;
-  const imgPS = window.derkoshCharts.chPS.toBase64Image();
-  const imgST = window.derkoshCharts.chST.toBase64Image();
-  const imgCT = window.derkoshCharts.chCT.toBase64Image();
-  const imgRCP = window.derkoshCharts.chRCP.toBase64Image();
-  drawChartTile(imgPS, marginX, gY, tileW, tileH, 'Production vs Sales (Last 6 Months)');
-  drawChartTile(imgST, marginX+tileW+gGap, gY, tileW, tileH, 'Closing Stock Trend (Last 6 Months)');
-  drawChartTile(imgCT, marginX, gY+tileH+gGap, tileW, tileH, 'Cost per Kg Trend (Last 6 Months)');
-  drawChartTile(imgRCP, marginX+tileW+gGap, gY+tileH+gGap, tileW, tileH, 'Revenue vs Cost vs Gross Profit (Last 6 Months)');
-
-  /* ---- PAGE 2: Production records table ---- */
-  doc.addPage();
-  drawHeader('Production Records');
-  const head=[['Date','Injera Used\n(pcs)','Pkg Type','Produced\n(kg)','Bags Used\n(pcs)','Transfer Cost\n(ETB)','Packaging Cost\n(ETB)','Total Cost\n(ETB)','Cost/Kg\n(ETB)','Sold\n(kg)','Closing Stock\n(kg)']];
-  const body=rows.map(r=>{
-    const tc=r.tr+r.pkc; const cpk=r.prod?tc/r.prod:0;
-    return [r.date, r.inj, r.pkg, f(r.prod), r.bags, f(r.tr), f(r.pkc), f(tc), f(cpk), f(r.sold), f(r.cl)];
-  });
-  const foot=[['TOTAL', sm.inj, '—', f(sm.prod), sm.bags, f(sm.tr), f(sm.pkc), f(totTc), f(totCpk), f(sm.sold), f(sm.cl)]];
-  doc.autoTable({
-    head, body, foot, startY:94,
-    margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]},
-    columnStyles:{0:{fontStyle:'bold'},8:{textColor:[27,150,80],fontStyle:'bold'}}
-  });
-
-  /* ---- PAGE 3: Sales by customer table ---- */
-  doc.addPage();
-  drawHeader('Sales by Customer');
-  const custHead=[['Customer','Type','Sold (kg)','Revenue (ETB)','Avg Price/kg (ETB)','% of Total']];
-  const custTotalRev=derkoshSalesByCustomer.reduce((s,c)=>s+c.revenue,0);
-  const custTotalKg=derkoshSalesByCustomer.reduce((s,c)=>s+c.kg,0);
-  const custBody=derkoshSalesByCustomer.length
-    ? derkoshSalesByCustomer.map(c=>{
-        const avgPrice=c.kg?c.revenue/c.kg:0;
-        const pct=custTotalRev?(c.revenue/custTotalRev*100):0;
-        return [c.name,(c.type.charAt(0).toUpperCase()+c.type.slice(1)),f(c.kg),f(c.revenue),f(avgPrice),pct.toFixed(1)+'%'];
-      })
-    : [['No Derkosh sales recorded this month','—','—','—','—','—']];
-  const custFoot=[['TOTAL','—',f(custTotalKg),f(custTotalRev),f(custTotalKg?custTotalRev/custTotalKg:0),'100%']];
-  doc.autoTable({
-    head:custHead, body:custBody, foot:custFoot, startY:94,
-    margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]},
-    columnStyles:{0:{fontStyle:'bold'}}
-  });
-
-  drawFooter();
-  const safeMonth = month.replace(' ','_');
-  doc.save('Derkosh_Full_Report_'+safeMonth+'.pdf');
-  toast('Downloaded Derkosh_Full_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
-    console.error('Full PDF export failed:', err);
-    toast('Full report PDF export failed — please try again','error');
-  }
-}
-
-/* ══ EXPORT FULL DERKOSH REPORT PDF (single A4 portrait page) ── */
-function exportReportPDF(retryCount){
-  retryCount = retryCount || 0;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportReportPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing report PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
-  try{
-  const { jsPDF } = window.jspdf;
-  const month = document.getElementById('msel').value;
-  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();   // 595.28
-  const pageH = doc.internal.pageSize.getHeight();  // 841.89
-  const marginX = 34;
-
-  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-  const d = computeReportData();
-
-  /* ---------- HEADER ---------- */
-  doc.setFillColor(...deepGreen);
-  doc.rect(0,0,pageW,64,'F');
-  doc.setFillColor(...green);
-  doc.rect(0,60,pageW,4,'F');
-  doc.setFillColor(255,255,255);
-  doc.roundedRect(marginX,14,34,34,8,8,'F');
-  doc.setTextColor(...deepGreen);
-  doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
-  doc.text('MI', marginX+17, 35.5, {align:'center'});
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(15.5);
-  doc.text('Full Derkosh Report', marginX+46, 29);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.6);
-  doc.setTextColor(200,225,212);
-  doc.text('Mena Injera & Derkosh — Business Management System', marginX+46, 42);
-  doc.setFontSize(8);
-  doc.setTextColor(220,235,227);
-  doc.text('Period: '+month+'   •   Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 48, {align:'right'});
-
-  let y = 82;
-
-  /* ---------- KPI GRID (3 x 2, big & beautiful) ---------- */
-  const kpis=[
-    {lbl:'DERKOSH PRODUCED',val:f(d.sm.prod),u:'kg'},
-    {lbl:'DERKOSH SOLD',val:f(d.sm.sold),u:'kg'},
-    {lbl:'CLOSING STOCK',val:f(d.sm.cl),u:'kg'},
-    {lbl:'AVG COST / KG',val:f(d.totCpk),u:'ETB'},
-    {lbl:'REVENUE',val:f(d.totRev),u:'ETB'},
-    {lbl:'GROSS PROFIT',val:f(d.profit),u:'ETB'}
-  ];
-  const kCols=3, kGap=10;
-  const kCardW=(pageW-marginX*2-kGap*(kCols-1))/kCols;
-  const kCardH=56;
-  kpis.forEach((k,i)=>{
-    const col=i%kCols, row=Math.floor(i/kCols);
-    const x=marginX+col*(kCardW+kGap);
-    const cy=y+row*(kCardH+kGap);
-    doc.setFillColor(...rowAlt);
-    doc.setDrawColor(...border);
-    doc.roundedRect(x,cy,kCardW,kCardH,7,7,'FD');
-    doc.setTextColor(...textMid);
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.4);
-    doc.text(k.lbl, x+12, cy+18, {charSpace:0.25});
-    doc.setTextColor(...darkGreen);
-    doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text(k.val, x+12, cy+40);
-    const vw=doc.getTextWidth(k.val);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-    doc.setTextColor(...textMid);
-    doc.text(k.u, x+12+vw+4, cy+40);
-  });
-  y += kCardH*2 + kGap + 20;
-
-  /* ---------- SECTION: PRODUCTION TABLE (compact) ---------- */
-  doc.setTextColor(...textDark);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
-  doc.text('Production Records', marginX, y);
-  y += 8;
-
-  const prodHead=[['Date','Prod (kg)','Bags','Tr. Cost','Pkg Cost','Total','Cost/Kg','Sold','Closing']];
-  const prodBody=rows.map(r=>{
-    const tc=r.tr+r.pkc; const cpk=r.prod?tc/r.prod:0;
-    return [r.date, f(r.prod), r.bags, f(r.tr), f(r.pkc), f(tc), f(cpk), f(r.sold), f(r.cl)];
-  });
-  const prodFoot=[['TOTAL', f(d.sm.prod), d.sm.bags, f(d.sm.tr), f(d.sm.pkc), f(d.totCost), f(d.totCpk), f(d.sm.sold), f(d.sm.cl)]];
-
-  doc.autoTable({
-    head: prodHead, body: prodBody, foot: prodFoot,
-    startY: y,
-    margin: { left: marginX, right: marginX },
-    styles:{ font:'helvetica', fontSize:7.4, cellPadding:4, textColor:textDark, lineColor:border, lineWidth:0.5, valign:'middle' },
-    headStyles:{ fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7, halign:'left' },
-    footStyles:{ fillColor:rowAlt, textColor:darkGreen, fontStyle:'bold', fontSize:7.4, lineWidth:{top:1}, lineColor:[200,224,210] },
-    alternateRowStyles:{ fillColor:[249,251,250] },
-    columnStyles:{ 0:{fontStyle:'bold',cellWidth:64} }
-  });
-  y = doc.lastAutoTable.finalY + 18;
-
-  /* ---------- SECTION: TOP CUSTOMERS (compact) ---------- */
-  if(y > pageH - 160){ doc.addPage(); y = 40; }
-  doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
-  doc.setTextColor(...textDark);
-  doc.text('Sales by Customer', marginX, y);
-  y += 8;
-
-  const custHead=[['Customer','Type','Sold (kg)','Revenue (ETB)','Avg/kg','% of Total']];
-  const custTotalRev2=derkoshSalesByCustomer.reduce((s,c)=>s+c.revenue,0);
-  const custTotalKg2=derkoshSalesByCustomer.reduce((s,c)=>s+c.kg,0);
-  const custBody=derkoshSalesByCustomer.length
-    ? derkoshSalesByCustomer.map(c=>{
-        const avgPrice=c.kg?c.revenue/c.kg:0;
-        const pct=custTotalRev2?(c.revenue/custTotalRev2*100):0;
-        return [c.name,(c.type.charAt(0).toUpperCase()+c.type.slice(1)),f(c.kg),f(c.revenue),f(avgPrice),pct.toFixed(1)+'%'];
-      })
-    : [['No Derkosh sales recorded this month','—','—','—','—','—']];
-  const custFoot=[['TOTAL','–',f(custTotalKg2),f(custTotalRev2),f(custTotalKg2?custTotalRev2/custTotalKg2:0),'100%']];
-
-  doc.autoTable({
-    head: custHead, body: custBody, foot: custFoot,
-    startY: y,
-    margin: { left: marginX, right: marginX },
-    styles:{ font:'helvetica', fontSize:7.4, cellPadding:4, textColor:textDark, lineColor:border, lineWidth:0.5, valign:'middle' },
-    headStyles:{ fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7, halign:'left' },
-    footStyles:{ fillColor:rowAlt, textColor:darkGreen, fontStyle:'bold', fontSize:7.4, lineWidth:{top:1}, lineColor:[200,224,210] },
-    alternateRowStyles:{ fillColor:[249,251,250] }
-  });
-  y = doc.lastAutoTable.finalY + 18;
-
-  /* ---------- SECTION: KEY INSIGHTS ---------- */
-  if(y > pageH - 130){ doc.addPage(); y = 40; }
-  doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
-  doc.setTextColor(...textDark);
-  doc.text('Key Insights', marginX, y);
-  y += 14;
-
-  const topCust=derkoshSalesByCustomer[0];
-  const topCustPct=(topCust && d.totRev)?(topCust.revenue/d.totRev*100):0;
-  const insights=[
-    'Derkosh produced this month: '+f(d.sm.prod)+' kg across '+rows.length+' batch(es).',
-    'Average cost per kg this month is '+f(d.totCpk)+' ETB.',
-    'Closing stock is '+f(d.sm.cl)+' kg.',
-    topCust ? (topCust.name+' is the top customer this month ('+topCustPct.toFixed(1)+'% of revenue).') : 'No Derkosh sales recorded yet this month.',
-    'Gross margin currently stands at '+d.margin.toFixed(1)+'% for the period.'
-  ];
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.4);
-  doc.setTextColor(...textDark);
-  insights.forEach(line=>{
-    doc.setFillColor(...green);
-    doc.circle(marginX+2.5, y-2.8, 2, 'F');
-    const wrapped = doc.splitTextToSize(line, pageW - marginX*2 - 14);
-    doc.text(wrapped, marginX+12, y);
-    y += wrapped.length*11 + 4;
-  });
-
-  /* ---------- FOOTER (every page) ---------- */
-  const reportPageCount = doc.internal.getNumberOfPages();
-  for(let i=1;i<=reportPageCount;i++){
-    doc.setPage(i);
-    doc.setDrawColor(...border);
-    doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.4);
-    doc.setTextColor(...textMid);
-    doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
-    doc.text(reportPageCount>1 ? ('Page '+i+' of '+reportPageCount) : 'Prepared by: Eyasu Mesfin (Owner)', pageW-marginX, pageH-20, {align:'right'});
-  }
-
-  const safeMonth = month.replace(' ','_');
-  doc.save('Full_Derkosh_Report_' + safeMonth + '.pdf');
-  toast('Downloaded Full_Derkosh_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
-    console.error('Report PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
+    toast('Generating Excel…','info');
+    const data=await buildDerkoshReportData();
+    await ReportEngine.generateExcel(data);
+    toast('Derkosh report Excel downloaded ✓','success');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'),'error');
   }
 }
 

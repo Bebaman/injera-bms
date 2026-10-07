@@ -3,13 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Suppliers — Mena Injera &amp; Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 /* Reset, :root vars, base body/heading font rules now live in shared-shell.css. */
@@ -519,13 +521,13 @@ html,body{overflow-x:hidden}
               <div class="qa-ic ic-b"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
               <span>Top Suppliers Report</span>
             </div>
-            <div class="qa-btn" onclick="exportAllSuppliersExcel()">
+            <div class="qa-btn" onclick="exportExcel()">
               <div class="qa-ic ic-g"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <span>Export Suppliers (Excel)</span>
+              <span>Export Report (Excel)</span>
             </div>
-            <div class="qa-btn" onclick="exportAllSuppliersPDF()">
+            <div class="qa-btn" onclick="exportPdf()">
               <div class="qa-ic ic-r"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-              <span>Export Suppliers (PDF)</span>
+              <span>Export Report (PDF)</span>
             </div>
           </div>
         </div>
@@ -647,7 +649,7 @@ html,body{overflow-x:hidden}
     <div class="modal-bd" id="purchaseReportBody"></div>
     <div class="modal-ft">
       <button class="btn-sec" onclick="closeModal('purchaseReportOverlay')">Close</button>
-      <button class="btn-pri" onclick="exportAllSuppliersExcel()">Export (Excel)</button>
+      <button class="btn-pri" onclick="exportExcel()">Export (Excel)</button>
     </div>
   </div>
 </div>
@@ -695,7 +697,7 @@ html,body{overflow-x:hidden}
     <div class="modal-bd" id="performanceModalBody"></div>
     <div class="modal-ft">
       <button class="btn-sec" onclick="closeModal('performanceModalOverlay')">Close</button>
-      <button class="btn-pri" onclick="exportAllSuppliersPDF()">Export (PDF)</button>
+      <button class="btn-pri" onclick="exportPdf()">Export (PDF)</button>
     </div>
   </div>
 </div>
@@ -764,6 +766,7 @@ html,body{overflow-x:hidden}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 let businessSettings = {};
 
@@ -851,6 +854,9 @@ function renderSuppliersHeader(){
     months: months.map(m=>m.label),
     selectedMonth: months[months.length-1].label,
     onMonthChange: () => { renderAll(); },
+    showExport: true,
+    onExportPdf: exportPdf,
+    onExportXlsx: exportExcel,
     notifications: [] // populated from live data once init() loads suppliers/purchases — see refreshNotifications(computeSupplierNotifications()) below
   });
 }
@@ -1983,82 +1989,118 @@ function importSuppliersFromCSV(){
   showToast(`Imported ${added} supplier(s)${skipped?', skipped '+skipped+' duplicate(s)':''}`);
 }
 
-/* ════════════════ EXPORT (Excel = CSV, PDF = html2canvas+jsPDF) ════════════════ */
-function exportAllSuppliersExcel(){
-  let csv = 'Name,Category,Contact Person,Phone,Email,Address,Payment Terms,TIN,VAT Registration No.,Bank Name,Bank Account,Credit Limit,Total Purchases (All Time),This Month,Last Purchase,Status\n';
-  suppliers.forEach(s=>{
-    csv += [s.name,s.category,s.contactPerson,s.phone,s.email,s.address,s.terms,s.tin,s.vatNumber,s.bankName,maskBankAccount(s.bankAccount),s.creditLimit!=null?s.creditLimit.toFixed(2):'',s.allTime.toFixed(2),s.month.toFixed(2),s.lastPurchase,s.isActive?'Active':'Inactive']
-      .map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',') + '\n';
+/* ════════════════ EXPORT (report-engine.js) ════════════════
+   presets.suppliers() builds the PDF and Excel from figures this page already
+   holds (allPurchases + suppliers) for the month chosen in the header.
+   The old CSV and screenshot-based PDF exporters were removed.
+   - Quantities, unit prices and the price averages are kg-only (like the page's
+     own Blend figures); purchases in other units still count in spend, and
+     their quantity is written into the Item text instead.
+   - "Paid" follows the page's Amount Paid card: approved / auto-approved
+     purchases. There is no delivery-date tracking yet, so On-Time shows "—".
+   - Pass a supplier's database id to export just that supplier. */
+function buildSuppliersReportData(onlyDbId){
+  const mLabel = (document.getElementById('msel')||{}).value || monthLabel(new Date());
+  const mk = labelToMonthKey(mLabel);
+  const prevMk = prevMonthKey(mk);
+  const prevLabel = monthLabel(new Date(Number(prevMk.slice(0,4)), Number(prevMk.slice(5,7))-1, 1));
+  const scoped = onlyDbId!=null;
+  const inScope = p => !scoped || p.supplier_id===onlyDbId;
+  const session = (typeof loadSession==='function' ? loadSession() : null) || {};
+
+  const monthRows = allPurchases.filter(p=>p.period===mk);          // every supplier — used for the market average
+  const curRows = monthRows.filter(inScope);
+  const prevRows = allPurchases.filter(p=>p.period===prevMk && inScope(p));
+
+  const isKg = r => r.unit==='kg' && r.unit_price!=null && (Number(r.quantity)||0)>0;
+  const wavg = rows => {
+    const k = rows.filter(isKg);
+    const q = k.reduce((a,r)=>a+Number(r.quantity),0);
+    return q>0 ? k.reduce((a,r)=>a+Number(r.unit_price)*Number(r.quantity),0)/q : null;
+  };
+  // Blend = Grain-category kg purchases, exactly as the Avg. Purchase Price card computes it
+  const grainIds = new Set(suppliers.filter(s=>s.category==='Grain').map(s=>s._dbId||s.id));
+  const blendOf = rows => wavg(rows.filter(r=>grainIds.has(r.supplier_id)));
+  const sumCost = rows => rows.reduce((a,r)=>a+(Number(r.total_cost)||0),0);
+
+  const purchases = curRows.map(r=>{
+    const qty = Number(r.quantity)||0, kg = isKg(r);
+    const approved = r.approval_status==='approved' || r.approval_status==='auto_approved';
+    const name = r.item_name || '';
+    const item = (!kg && qty>0 && name) ? `${name} (${qty} ${r.unit||'units'})` : name;
+    const p = { date:String(r.date||'').slice(0,10), supplier:r.supplier_name||'Unknown Supplier',
+                amount:Number(r.total_cost)||0, item, status:approved?'Paid':'Pending' };
+    if(kg){ p.quantity = qty; p.unitPrice = Number(r.unit_price); }
+    return p;
   });
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'suppliers.csv'; a.click();
-  URL.revokeObjectURL(url);
-  showToast('Exported '+suppliers.length+' suppliers to Excel (CSV)');
+
+  const input = {
+    period: mLabel,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    unitLabel: 'kg',
+    product: 'Blend',
+    purchases,
+    totalSuppliers: scoped ? 1 : suppliers.length,
+    previousLabel: prevLabel
+  };
+  const blend = blendOf(curRows);
+  if(blend!=null) input.totals = { avgPrice: blend };
+  const prevTotal = sumCost(prevRows), prevBlend = blendOf(prevRows);
+  if(prevTotal>0) input.previousTotal = prevTotal;
+  if(prevBlend!=null) input.previousAvgPrice = prevBlend;
+  // One supplier on its own needs the whole market to compare against
+  if(scoped){ const m = wavg(monthRows); if(m!=null) input.marketAvg = m; }
+
+  if(!purchases.length){
+    input.status = 'empty';
+    input.emptyMessage = scoped
+      ? `No purchases from ${(supplierById(selectedSupplierId)||{}).name||'this supplier'} recorded for ${mLabel}.`
+      : `No supplier purchases recorded for ${mLabel}.`;
+  }
+
+  const data = ReportEngine.presets.suppliers(input);
+
+  // Supplier master list (what the old Excel/PDF export carried) — detailed PDF / Excel only
+  if(!scoped && suppliers.length && data.status!=='empty'){
+    data.tables = (data.tables||[]).concat([{
+      title: 'Supplier Directory', sheetName: 'Directory',
+      columns: ['Supplier','Category','Phone','Email','Payment Terms','TIN','Credit Limit (ETB)','All-Time Purchases (ETB)','Last Purchase','Status'],
+      rows: suppliers.map(s=>[
+        s.name, s.category, s.phone||'—', s.email||'—', s.terms||'—', s.tin||'—',
+        s.creditLimit!=null ? fmt(s.creditLimit) : '—', fmt(s.allTime),
+        s.lastPurchase ? fmtDate(s.lastPurchase) : '—', s.isActive ? 'Active' : 'Inactive'
+      ]),
+      columnAlign: [null,null,null,null,null,null,'right','right',null,null]
+    }]);
+  }
+  return data;
 }
-function exportSupplierExcel(){
-  const s = supplierById(selectedSupplierId);
-  let csv = 'Field,Value\n';
-  csv += `Name,"${s.name}"\nCategory,"${s.category}"\nContact Person,"${s.contactPerson||''}"\nPhone,"${s.phone}"\nEmail,"${s.email}"\nAddress,"${s.address}"\nPayment Terms,"${s.terms}"\nPreferred Currency,"${s.currency}"\nTIN,"${s.tin||''}"\nVAT Registration No.,"${s.vatNumber||''}"\nBank Name,"${s.bankName||''}"\nBank Account,"${maskBankAccount(s.bankAccount)}"\nCredit Limit,${s.creditLimit!=null?s.creditLimit.toFixed(2):''}\nBuying Schedule,"${marketDaysLabel(s)}"\nTotal Purchases (All Time),${s.allTime.toFixed(2)}\nThis Month,${s.month.toFixed(2)}\nLast Purchase,${s.lastPurchase}\nStatus,${s.isActive?'Active':'Inactive'}\n`;
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = s.name.replace(/\s+/g,'_')+'.csv'; a.click();
-  URL.revokeObjectURL(url);
-  showToast('Exported '+s.name+' to Excel (CSV)');
+function _suppliersReady(){
+  if(typeof ReportEngine==='undefined'){ showToast('Report engine did not load — refresh the page and try again'); return false; }
+  return true;
 }
-async function exportSupplierPDF(){
-  showToast('Generating PDF...');
-  const card = document.getElementById('supplierDetailsBody');
+async function _runSuppliersExport(kind, onlyDbId){
+  if(!_suppliersReady()) return;
+  const label = kind==='pdf' ? 'PDF' : 'Excel';
   try{
-    const canvas = await html2canvas(card, {scale:3, backgroundColor:'#ffffff'});
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
-    const pageW = pdf.internal.pageSize.getWidth();
-    const imgW = pageW - 60;
-    const imgH = canvas.height * (imgW / canvas.width);
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(14);
-    pdf.text('Supplier Details — ' + supplierById(selectedSupplierId).name, 30, 34);
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 30, 48, imgW, imgH);
-    pdf.save(supplierById(selectedSupplierId).name.replace(/\s+/g,'_')+'.pdf');
-    showToast('PDF exported');
+    showToast('Generating '+label+'…');
+    const data = buildSuppliersReportData(onlyDbId);
+    if(kind==='pdf') await ReportEngine.generatePDF(data, {type:'detailed'});
+    else await ReportEngine.generateExcel(data);
+    showToast('Suppliers report '+label+' downloaded ✓');
   }catch(err){
-    showToast('PDF export failed: '+err.message);
+    console.error(label+' export failed:', err);
+    showToast('Could not generate '+label+': '+(err.message||'please try again'));
   }
 }
-async function exportAllSuppliersPDF(){
-  showToast('Generating PDF...');
-  try{
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(15);
-    pdf.text('Supplier List — Mena Injera & Derkosh BMS', 30, 34);
-    pdf.setFontSize(9); pdf.setFont('helvetica','normal');
-    let y = 58;
-    const cols = [30,180,260,360,430,500,570,650];
-    const heads = ['Name','Category','Phone','All Time','This Month','Last Purchase','Status'];
-    pdf.setFont('helvetica','bold');
-    heads.forEach((h,i)=>pdf.text(h, cols[i], y));
-    pdf.setFont('helvetica','normal');
-    y += 16;
-    suppliers.forEach(s=>{
-      if(y > 560){ pdf.addPage(); y = 40; }
-      pdf.text(s.name.slice(0,22), cols[0], y);
-      pdf.text(s.category, cols[1], y);
-      pdf.text(s.phone||'—', cols[2], y);
-      pdf.text(fmt(s.allTime), cols[3], y);
-      pdf.text(fmt(s.month), cols[4], y);
-      pdf.text(fmtDate(s.lastPurchase), cols[5], y);
-      pdf.text(s.isActive?'Active':'Inactive', cols[6], y);
-      y += 15;
-    });
-    pdf.save('suppliers.pdf');
-    showToast('PDF exported');
-  }catch(err){
-    showToast('PDF export failed: '+err.message);
-  }
-}
+function exportPdf(){ return _runSuppliersExport('pdf'); }
+function exportExcel(){ return _runSuppliersExport('xlsx'); }
+function _selectedDbId(){ const s = supplierById(selectedSupplierId); return s ? (s._dbId||s.id) : null; }
+function exportSupplierPDF(){ const id=_selectedDbId(); if(id==null){ showToast('Select a supplier first'); return; } return _runSuppliersExport('pdf', id); }
+function exportSupplierExcel(){ const id=_selectedDbId(); if(id==null){ showToast('Select a supplier first'); return; } return _runSuppliersExport('xlsx', id); }
 
 /* ════════════════ TOAST ════════════════ */
 let toastTimer;

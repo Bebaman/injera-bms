@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Customers — Mena Injera & Derkosh BMS</title>
 <script>
 /* ════ EARLY AUTH CHECK ════
@@ -79,7 +83,6 @@ html{scroll-behavior:smooth}
 .content{min-width:0}
 
 /* PAGE ACTIONS ROW */
-.page-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px}
 
 /* KPI ROW */
 .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px;padding-top:0}
@@ -121,12 +124,6 @@ html{scroll-behavior:smooth}
 .btn-tool svg{width:14px;height:14px;stroke:var(--tm);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .btn-tool.excel svg{stroke:#27ae60}
 .btn-tool.pdf svg{stroke:#e5484d}
-.export-drop{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 32px rgba(20,40,30,.16);min-width:220px;z-index:130;overflow:hidden;animation:dropIn .16s ease;display:none}
-.export-drop.show{display:block}
-.export-drop button{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;background:none;border:none;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .13s,color .13s;font-family:'Nunito',sans-serif}
-.export-drop button:hover{background:#f6faf7;color:var(--td)}
-.export-drop button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:#27ae60}
-.export-drop button:not(:last-child){border-bottom:1px solid #f0f5f2}
 
 /* TOOLBAR (search + filters) */
 .cst-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -328,16 +325,6 @@ html{scroll-behavior:smooth}
   <div id="header-root"></div>
   <div class="content">
     <!-- PAGE ACTIONS -->
-    <div class="page-actions">
-      <div class="btn-tool" id="expBtn" role="button" tabindex="0" onclick="toggleExpDrop(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleExpDrop(event);}">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke-width:3;stroke-linecap:round;margin-left:2px"><polyline points="6 9 12 15 18 9"/></svg>
-        <div class="export-drop" id="expDrop">
-          <button onclick="event.stopPropagation();closeExpDrop();exportCSV()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
-          <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export as PDF</button>
-          <button onclick="event.stopPropagation();closeExpDrop();exportFullPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (with charts)</button>
-        </div>
-      </div>
-    </div>
 
     <!-- KPI ROW -->
     <div class="kpi-row">
@@ -492,7 +479,7 @@ html{scroll-behavior:smooth}
           <div class="qa-btn" onclick="openCreditAdjustmentModal()"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg><span>Credit Limit Adjustment</span></div>
           <div class="qa-btn" onclick="openCustomerLedger()"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span>Customer Ledger</span></div>
           <div class="qa-btn" onclick="openFullProfitabilityReport()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg><span>Profitability Report</span></div>
-          <div class="qa-btn" onclick="exportCSV()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export Customers</span></div>
+          <div class="qa-btn" onclick="exportExcel()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export Customers</span></div>
           <div class="qa-btn" onclick="openModal('importModal')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Import Customers</span></div>
         </div>
       </div>
@@ -570,7 +557,7 @@ html{scroll-behavior:smooth}
     </div>
     <div class="modal-footer">
       <button type="button" class="btn-ghost" onclick="closeModal('fullProfitModal')">Close</button>
-      <button type="button" class="btn-solid" onclick="exportFullProfitabilityPdf()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-txt">Download PDF</span></button>
+      <button type="button" class="btn-solid" onclick="exportPdf()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-txt">Download PDF</span></button>
     </div>
   </div>
 </div>
@@ -675,6 +662,7 @@ html{scroll-behavior:smooth}
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ══ MONTH SCOPING ═══════════════════════════
    Built dynamically (13 real calendar months through the current month)
@@ -707,6 +695,9 @@ renderHeader({
   months: MONTHS.map(m=>m.label),
   selectedMonth: CURRENT_MONTH_LABEL,
   onMonthChange: () => { onMonthChange(); },
+  showExport: true,
+  onExportPdf: () => exportPdf(),
+  onExportXlsx: () => exportExcel(),
   notifications: [] // populated for real once loadCustomers() resolves — see updateHeaderNotifications()
 });
 
@@ -1174,10 +1165,13 @@ function animateCounts(){
 
 /* ══ AGING DONUT CHART ══════════════════════ */
 let agingChart;
+let AGING_BUCKETS=[0,0,0,0];   // last computed A/R aging buckets (0-30, 31-60, 61-90, 90+), kept for the report export
+let AGING_INVOICES=[];        // open credit invoices with a balance: { customer, amount, days }
 async function loadAndRenderAging(){
   let buckets=[0,0,0,0];
+  const openInvoices=[];
   try{
-    const sales = await sbGet('sales?select=id,date,revenue&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false') || [];
+    const sales = await sbGet('sales?select=id,date,revenue,customers(name)&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false') || [];
     if(sales.length){
       const saleIds = sales.map(s=>s.id);
       const payments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
@@ -1187,6 +1181,7 @@ async function loadAndRenderAging(){
         const balance=parseFloat(s.revenue||0)-(paidBySale[s.id]||0);
         if(balance<=0) return;
         const days=daysSinceLocal(s.date);
+        openInvoices.push({customer:(s.customers&&s.customers.name)||'Unknown',amount:balance,days});
         if(days<=30) buckets[0]+=balance;
         else if(days<=60) buckets[1]+=balance;
         else if(days<=90) buckets[2]+=balance;
@@ -1196,6 +1191,8 @@ async function loadAndRenderAging(){
   }catch(err){
     console.error('Could not load aging data', err);
   }
+  AGING_BUCKETS=buckets.slice();
+  AGING_INVOICES=openInvoices;
   const total=buckets.reduce((a,b)=>a+b,0);
   const pcts=buckets.map(b=>total>0?(b/total*100):0);
 
@@ -1226,21 +1223,7 @@ function onMonthChange(){
   refreshKpis();
   toast('Showing data for '+m,'info');
 }
-document.addEventListener('click',e=>{
-  if(!e.target.closest('#expBtn')) closeExpDrop();
-});
 
-/* ══ EXPORT DROPDOWN ═════════════════════════ */
-function toggleExpDrop(e){
-  e.stopPropagation();
-  const d=document.getElementById('expDrop');
-  const was=d.classList.contains('show');
-  document.querySelectorAll('.export-drop.show').forEach(x=>x.classList.remove('show'));
-  d.classList.toggle('show',!was);
-}
-function closeExpDrop(){
-  document.getElementById('expDrop').classList.remove('show');
-}
 /* markAllRead() now comes from header.js (manages the real shared
    #notifPanel/#bellBadge). The old .sb-a click handler that faked
    navigation with a toast is removed — sidebar.js's nav links now go to
@@ -1448,431 +1431,105 @@ function updateTotalCustKpi(){
   document.getElementById('kpiInactive').textContent=inactive+' Inactive';
 }
 
-/* ══ EXPORT EXCEL (real .xlsx via SheetJS) ═══════════════════════ */
-function exportCSV(retryCount){
-  retryCount = retryCount || 0;
-  const month = document.getElementById('msel').value.replace(' ','_');
-  if(typeof XLSX === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportCSV(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing Excel file…','info');
-      return;
-    }
-    exportCSVFallback(month);
-    return;
-  }
-  try{
-    const hdr=['Customer Name','Type','Phone','Email','Address','Credit Limit (ETB)','Outstanding (ETB)','Credit Utilization %','Last Purchase','Avg Days to Pay','Status'];
-    const data=[hdr];
-    let sums={limit:0,out:0};
-    customers.forEach(c=>{
-      const util=c.creditLimit?(c.outstanding/c.creditLimit*100):0;
-      data.push([c.name,c.type,c.phone,c.email||'—',c.address||'—',c.creditLimit,c.outstanding,util,c.lastPurchase,c.avgDays,c.status]);
-      sums.limit+=c.creditLimit; sums.out+=c.outstanding;
-    });
-    const totalRowIdx=data.length;
-    const totUtil=sums.limit?(sums.out/sums.limit*100):0;
-    data.push(['TOTAL','—','—','—','—',sums.limit,sums.out,totUtil,'—','—','—']);
-
-    const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:22},{wch:12},{wch:16},{wch:24},{wch:26},{wch:16},{wch:15},{wch:16},{wch:14},{wch:14},{wch:10}];
-    ws['!rows']=[{hpt:22}];
-    ws['!freeze']={xSplit:0,ySplit:1};
-
-    const thinBorder={style:'thin',color:{rgb:'D8E6DE'}};
-    const borderAll={top:thinBorder,bottom:thinBorder,left:thinBorder,right:thinBorder};
-    const numCols=[5,6,7];
-
-    for(let r=0;r<data.length;r++){
-      for(let c=0;c<hdr.length;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]) continue;
-        const isHeader=r===0;
-        const isTotal=r===totalRowIdx;
-        let numFmt;
-        if(!isHeader && numCols.includes(c)) numFmt=(c===7)?'0.0"%"':'#,##0.00';
-        ws[addr].s={
-          font:{bold:isHeader||isTotal,color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')},sz:10},
-          fill:{fgColor:{rgb:isHeader?'1D6B42':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))}},
-          alignment:{vertical:'center',horizontal:(c<=4)?'left':'right'},
-          border:borderAll
-        };
-        if(numFmt) ws[addr].z=numFmt;
-      }
-    }
-
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Customers');
-    XLSX.writeFile(wb,'Customers_'+month+'.xlsx');
-    toast('Downloaded Customers_'+month+'.xlsx ✓','success');
-  } catch(err){
-    console.error('Excel export failed:', err);
-    exportCSVFallback(month);
-  }
-}
-function csvField(v){
-  const s=String(v);
-  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
-  return s;
-}
-function exportCSVFallback(month){
-  const hdr=['Customer Name','Type','Phone','Email','Address','Credit Limit (ETB)','Outstanding (ETB)','Credit Utilization %','Last Purchase','Avg Days to Pay','Status'];
-  const lines=[hdr.map(csvField).join(',')];
-  let sums={limit:0,out:0};
-  customers.forEach(c=>{
-    const util=c.creditLimit?(c.outstanding/c.creditLimit*100):0;
-    lines.push([c.name,c.type,c.phone,c.email||'—',c.address||'—',f(c.creditLimit),f(c.outstanding),util.toFixed(1),c.lastPurchase,c.avgDays,c.status].map(csvField).join(','));
-    sums.limit+=c.creditLimit; sums.out+=c.outstanding;
+/* ══ EXPORT (report-engine.js) ═══════════════════════════
+   presets.customers() builds the PDF and Excel. The page supplies the customer list
+   (customer_profitability view), this month's sales per customer, the open invoices
+   and the A/R aging it already draws. The old SheetJS / hand-drawn jsPDF exporters
+   (Excel, PDF, Full PDF, Profitability PDF) were removed. The per-customer ledger
+   statement (generateCustomerStatement) is a different document and is untouched. */
+async function fetchCustomerPeriodSales(period){
+  // one row per sale; grouped per customer below
+  const rows = await sbGet(`sales?select=customer_id,revenue,payment_method,date&period=eq.${period}&is_deleted=eq.false`) || [];
+  const by = {};
+  let revenue = 0, credit = 0;
+  rows.forEach(r => {
+    const rev = parseFloat(r.revenue || 0);
+    revenue += rev;
+    if (r.payment_method === 'credit') credit += rev;
+    const o = by[r.customer_id] || (by[r.customer_id] = { revenue:0, credit:0, orders:0, last:'' });
+    o.revenue += rev; o.orders += 1;
+    if (r.payment_method === 'credit') o.credit += rev;
+    if (r.date && String(r.date) > o.last) o.last = String(r.date).slice(0, 10);
   });
-  const totUtil=sums.limit?(sums.out/sums.limit*100):0;
-  lines.push(['TOTAL','—','—','—','—',f(sums.limit),f(sums.out),totUtil.toFixed(1),'—','—','—'].map(csvField).join(','));
-  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download='Customers_'+month+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  toast('Excel engine unavailable — downloaded as CSV instead','info');
+  return { by, revenue, credit };
 }
+async function buildCustomersReportData(){
+  const monthLabel = document.getElementById('msel') ? document.getElementById('msel').value : CURRENT_MONTH_LABEL;
+  const period = periodFromLabel(monthLabel);
+  const prior = prevPeriod(period);
+  const session = (typeof loadSession === 'function' ? loadSession() : null) || {};
 
-/* ══ EXPORT PDF (real .pdf via jsPDF + autotable) ═════════════════ */
-async function exportPDF(retryCount){
-  retryCount = retryCount || 0;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount < 6){
-      setTimeout(()=>exportPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
-  try{
-  const { jsPDF } = window.jspdf;
-  const month = document.getElementById('msel').value;
-  const preparedByLabel = await getCurrentUserLabel();
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
+  let cur = { by:{}, revenue:0, credit:0 }, prev = null;
+  try { cur = await fetchCustomerPeriodSales(period); } catch (e) { console.error('Could not load this month\'s sales for the report', e); }
+  try { prev = await fetchCustomerPeriodSales(prior); } catch (e) { /* no prior month — comparison left out */ }
 
-  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-  const active=customers.filter(c=>c.status==='Active').length;
-  const totalOut=customers.reduce((s,c)=>s+c.outstanding,0);
-  const totalLimit=customers.reduce((s,c)=>s+c.creditLimit,0);
-  const totalRev=customers.reduce((s,c)=>s+c.revenue,0);
-  const avgDays=customers.reduce((s,c)=>s+c.avgDays,0)/customers.length;
-  const util=totalLimit?(totalOut/totalLimit*100):0;
-
-  function drawHeader(){
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-    doc.setFillColor(255,255,255);
-    doc.roundedRect(marginX,18,38,38,9,9,'F');
-    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('MI', marginX+19, 42, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text('Customer List Report', marginX+52, 34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
-  }
-  function drawKpiStrip(y){
-    const kpis=[
-      {lbl:'TOTAL CUSTOMERS',val:String(customers.length),unit:active+' active'},
-      {lbl:'TOTAL REVENUE',val:f(totalRev),unit:'ETB'},
-      {lbl:'OUTSTANDING A/R',val:f(totalOut),unit:'ETB'},
-      {lbl:'AVG DAYS TO PAY',val:avgDays.toFixed(1),unit:'days'},
-      {lbl:'CREDIT UTILIZATION',val:util.toFixed(1),unit:'%'}
-    ];
-    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=52;
-    kpis.forEach((k,i)=>{
-      const x=marginX+i*(cardW+gap);
-      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.text(k.lbl, x+10, y+16, {charSpace:0.3});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(14.5);
-      doc.text(k.val, x+10, y+36);
-      const valW=doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...textMid);
-      doc.text(k.unit, x+10+valW+4, y+36);
-    });
-    return y+cardH;
-  }
-
-  drawHeader();
-  const kpiBottom = drawKpiStrip(94);
-
-  const head=[['Customer','Type','Phone','Credit Limit\n(ETB)','Outstanding\n(ETB)','Last Purchase','Avg Days\nto Pay','Status']];
-  const body=customers.map(c=>[c.name,c.type,c.phone,f(c.creditLimit),f(c.outstanding),c.lastPurchase,c.avgDays.toFixed(1),c.status]);
-  const foot=[['TOTAL','—','—',f(totalLimit),f(totalOut),'—',avgDays.toFixed(1),'—']];
-
-  doc.autoTable({
-    head, body, foot,
-    startY: kpiBottom+18,
-    margin:{left:marginX,right:marginX,bottom:46},
-    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]},
-    columnStyles:{0:{fontStyle:'bold'},4:{textColor:[197,36,41],fontStyle:'bold'}},
-    didDrawPage: function(){
-      if(doc.internal.getCurrentPageInfo().pageNumber > 1) drawHeader();
-    }
+  const termsText = d => (d === 0 ? 'Cash' : 'Net ' + d);
+  const list = customers.map(c => {
+    const m = cur.by[c.id] || { revenue:0, credit:0, orders:0, last:'' };
+    const pm = prev && prev.by[c.id];
+    const o = {
+      name: c.name,
+      revenue: m.revenue,
+      creditSales: m.credit,
+      outstanding: c.outstanding,
+      terms: termsText(c.paymentTermsDays),
+      orders: m.orders,
+      previousRevenue: pm ? pm.revenue : (prev ? 0 : undefined)
+    };
+    if (c.avgDays > 0) o.daysToPay = c.avgDays;
+    if (m.last) o.lastOrder = m.last;
+    return o;
   });
 
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i=1;i<=pageCount;i++){
-    doc.setPage(i);
-    doc.setDrawColor(...border);
-    doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-    doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
-    doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
+  const input = {
+    period: monthLabel,
+    currency: 'ETB',
+    generatedBy: session.name || undefined,
+    generatedRole: session.role || undefined,
+    generatedAt: new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }),
+    customers: list,
+    invoices: AGING_INVOICES.map(v => ({ customer: v.customer, amount: v.amount, days: v.days })),
+    aging: { current: AGING_BUCKETS[0], d30: AGING_BUCKETS[1], d60: AGING_BUCKETS[2], d90: AGING_BUCKETS[3] },
+    totals: {
+      customers: customers.length,
+      revenue: cur.revenue,
+      credit: cur.credit,
+      outstanding: customers.reduce((t, c) => t + c.outstanding, 0)
+    }
+  };
+  if (prev) { input.previousRevenue = prev.revenue; input.previousLabel = prevMonthLabel(); }
+  if (!customers.length) {
+    input.status = 'empty';
+    input.emptyMessage = 'No customers recorded yet.';
   }
-
-  const safeMonth = month.replace(' ','_');
-  doc.save('Customers_Report_'+safeMonth+'.pdf');
-  toast('Downloaded Customers_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
+  return ReportEngine.presets.customers(input);
+}
+function _custReady(){
+  if (typeof ReportEngine === 'undefined') { toast('Report engine did not load — refresh the page and try again','error'); return false; }
+  return true;
+}
+async function exportPdf(){
+  if (!_custReady()) return;
+  try {
+    toast('Generating PDF…','info');
+    const data = await buildCustomersReportData();
+    await ReportEngine.generatePDF(data, { type:'detailed' });
+    toast('Customers report PDF downloaded ✓','success');
+  } catch (err) {
     console.error('PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
+    toast('Could not generate PDF: ' + (err.message || 'please try again'), 'error');
   }
 }
-
-/* ══ EXPORT FULL PDF WITH CHARTS (landscape, multi-page) ══════════
-   Companion to exportPDF(): captures the Aging of Receivables donut
-   chart as an image and lays out KPIs + chart on page 1, the full
-   customer list on page 2, profitability on page 3, and the selected
-   customer's recent transactions on page 4. */
-async function exportFullPDF(retryCount){
-  retryCount = retryCount || 0;
-  const chartReady = typeof agingChart !== 'undefined' && agingChart;
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !chartReady){
-    if(retryCount < 8){
-      setTimeout(()=>exportFullPDF(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing full report PDF…','info');
-      return;
-    }
-    toast('Could not load the PDF/chart engine. Check your connection and try again.','error');
-    return;
-  }
-  try{
-  const { jsPDF } = window.jspdf;
-  const month = document.getElementById('msel').value;
-  const preparedByLabel = await getCurrentUserLabel();
-  const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const marginX = 32;
-
-  const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-  const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-  const active=customers.filter(c=>c.status==='Active').length;
-  const totalOut=customers.reduce((s,c)=>s+c.outstanding,0);
-  const totalLimit=customers.reduce((s,c)=>s+c.creditLimit,0);
-  const totalRev=customers.reduce((s,c)=>s+c.revenue,0);
-  const avgDays=customers.reduce((s,c)=>s+c.avgDays,0)/customers.length;
-  const util=totalLimit?(totalOut/totalLimit*100):0;
-
-  function drawHeader(subtitle){
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,74,'F');
-    doc.setFillColor(...green); doc.rect(0,70,pageW,4,'F');
-    doc.setFillColor(255,255,255);
-    doc.roundedRect(marginX,18,38,38,9,9,'F');
-    doc.setTextColor(...deepGreen); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('MI', marginX+19, 42, {align:'center'});
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
-    doc.text('Customer Full Report'+(subtitle?' — '+subtitle:''), marginX+52, 34);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — Business Management System', marginX+52, 49);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Period: '+month, pageW-marginX, 30, {align:'right'});
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 43, {align:'right'});
-    doc.text(preparedByLabel, pageW-marginX, 56, {align:'right'});
-  }
-  function drawFooter(){
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX, pageH-30, pageW-marginX, pageH-30);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-16);
-      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-16, {align:'right'});
-    }
-  }
-  function drawKpiStrip(y){
-    const kpis=[
-      {lbl:'TOTAL CUSTOMERS',val:String(customers.length),unit:active+' active'},
-      {lbl:'TOTAL REVENUE',val:f(totalRev),unit:'ETB'},
-      {lbl:'OUTSTANDING A/R',val:f(totalOut),unit:'ETB'},
-      {lbl:'AVG DAYS TO PAY',val:avgDays.toFixed(1),unit:'days'},
-      {lbl:'CREDIT UTILIZATION',val:util.toFixed(1),unit:'%'}
-    ];
-    const gap=10, cardW=(pageW-marginX*2-gap*(kpis.length-1))/kpis.length, cardH=50;
-    kpis.forEach((k,i)=>{
-      const x=marginX+i*(cardW+gap);
-      doc.setFillColor(...rowAlt); doc.setDrawColor(...border);
-      doc.roundedRect(x,y,cardW,cardH,6,6,'FD');
-      doc.setTextColor(...textMid); doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.text(k.lbl, x+10, y+15, {charSpace:0.3});
-      doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(13.5);
-      doc.text(k.val, x+10, y+34);
-      const valW=doc.getTextWidth(k.val);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...textMid);
-      doc.text(k.unit, x+10+valW+4, y+34);
-    });
-    return y+cardH;
-  }
-  function drawChartTile(img,x,y,w,h,title){
-    doc.setFillColor(255,255,255); doc.setDrawColor(...border);
-    doc.roundedRect(x,y,w,h,7,7,'FD');
-    doc.setTextColor(...darkGreen); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-    doc.text(title, x+12, y+18);
-    const imgPad=10, imgY=y+26;
-    const imgW=w-imgPad*2, imgH=h-(imgY-y)-imgPad;
-    try{ doc.addImage(img,'PNG',x+imgPad,imgY,imgW,imgH,undefined,'FAST'); }catch(e){}
-  }
-
-  /* ---- PAGE 1: KPI strip + aging donut chart ---- */
-  drawHeader();
-  const kpiBottom = drawKpiStrip(94);
-  const gY = kpiBottom+16;
-  const imgAging = agingChart.toBase64Image();
-  const tileW = pageW-marginX*2;
-  const tileH = pageH-gY-30;
-  drawChartTile(imgAging, marginX, gY, tileW, tileH, 'Aging of Receivables (All Customers)');
-
-  /* ---- PAGE 2: Customer list table ---- */
-  doc.addPage();
-  drawHeader('Customer List');
-  const custHead=[['Customer','Type','Phone','Credit Limit\n(ETB)','Outstanding\n(ETB)','Last Purchase','Avg Days\nto Pay','Status']];
-  const custBody=customers.map(c=>[c.name,c.type,c.phone,f(c.creditLimit),f(c.outstanding),c.lastPurchase,c.avgDays.toFixed(1),c.status]);
-  const custFoot=[['TOTAL','—','—',f(totalLimit),f(totalOut),'—',avgDays.toFixed(1),'—']];
-  doc.autoTable({
-    head:custHead, body:custBody, foot:custFoot, startY:94,
-    margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]},
-    columnStyles:{0:{fontStyle:'bold'},4:{textColor:[197,36,41],fontStyle:'bold'}}
-  });
-
-  /* ---- PAGE 3: Customer profitability table ---- */
-  doc.addPage();
-  drawHeader('Customer Profitability');
-  const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
-  const top5=[...customers].sort((a,b)=>b.revenue-a.revenue).slice(0,5);
-  let sumRev=0,sumGP=0,sumOut=0;
-  const profBody=top5.map(c=>{
-    const pct=(c.revenue/totalRevAll*100);
-    const gp=c.revenue*(c.grossMarginPct/100);
-    sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;
-    return [c.name,f(c.revenue),pct.toFixed(1)+'%',f(gp),c.grossMarginPct.toFixed(1)+'%',f(c.outstanding),c.avgDays.toFixed(1)];
-  });
-  const profFoot=[['TOTAL',f(sumRev),(sumRev/totalRevAll*100).toFixed(1)+'%',f(sumGP),(sumGP/sumRev*100).toFixed(1)+'%',f(sumOut),avgDays.toFixed(1)]];
-  doc.autoTable({
-    head:[['Customer','Total Revenue\n(ETB)','% of Total','Gross Profit\n(ETB)','Gross Margin %','Outstanding\n(ETB)','Avg Days\nto Pay']],
-    body:profBody, foot:profFoot, startY:94,
-    margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:9,lineWidth:{top:1.2},lineColor:[200,224,210]},
-    alternateRowStyles:{fillColor:[249,251,250]},
-    columnStyles:{0:{fontStyle:'bold'}}
-  });
-
-  /* ---- PAGE 4: Selected customer's recent transactions ---- */
-  const sel=customers.find(c=>c.id===selectedId) || customers[0];
-  doc.addPage();
-  drawHeader('Recent Transactions — '+sel.name);
-  doc.autoTable({
-    head:[['Date','Type','Product','Quantity','Unit Price (ETB)','Amount (ETB)','Payment Method','Status']],
-    body:(sel.txns||[]).map(t=>[t.date,t.type,t.product,t.qty,t.unitPrice!==null?f(t.unitPrice):'-',f(t.amount),t.method,t.status]),
-    startY:94,
-    margin:{left:marginX,right:marginX,bottom:44},
-    styles:{font:'helvetica',fontSize:9,cellPadding:7,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-    headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:8,halign:'left'},
-    alternateRowStyles:{fillColor:[249,251,250]}
-  });
-
-  drawFooter();
-  const safeMonth = month.replace(' ','_');
-  doc.save('Customers_Full_Report_'+safeMonth+'.pdf');
-  toast('Downloaded Customers_Full_Report_'+safeMonth+'.pdf ✓','success');
-  } catch(err){
-    console.error('Full PDF export failed:', err);
-    toast('Full report PDF export failed — please try again','error');
-  }
-}
-
-/* ══ FULL PROFITABILITY REPORT — PDF ══════════════════════ */
-function exportFullProfitabilityPdf(){
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
-  }
-  try{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const marginX = 32;
-    const green=[39,174,96], darkGreen=[22,52,36], deepGreen=[16,39,26];
-    const textDark=[22,38,30], textMid=[94,114,104], border=[227,236,231], rowAlt=[244,249,246];
-
-    doc.setFillColor(...deepGreen); doc.rect(0,0,pageW,60,'F');
-    doc.setFillColor(...green); doc.rect(0,56,pageW,4,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
-    doc.text('Customer Profitability Report', marginX, 32);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(200,225,212);
-    doc.text('Mena Injera & Derkosh — all customers, ranked by revenue', marginX, 47);
-    doc.setFontSize(9); doc.setTextColor(220,235,227);
-    doc.text('Generated: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW-marginX, 32, {align:'right'});
-
-    const totalRevAll=customers.reduce((s,c)=>s+c.revenue,0);
-    const all=[...customers].sort((a,b)=>b.revenue-a.revenue);
-    let sumRev=0,sumGP=0,sumOut=0,sumDaysWeighted=0;
-    const body=all.map(c=>{
-      const pct=(c.revenue/totalRevAll*100);
-      const gp=c.revenue*(c.grossMarginPct/100);
-      sumRev+=c.revenue;sumGP+=gp;sumOut+=c.outstanding;sumDaysWeighted+=c.avgDays*c.revenue;
-      return [c.name, f(c.revenue), pct.toFixed(1)+'%', f(gp), c.grossMarginPct.toFixed(1)+'%', f(c.outstanding), c.avgDays.toFixed(1)];
-    });
-    const foot=[['Total', f(sumRev), '100.0%', f(sumGP), sumRev?(sumGP/sumRev*100).toFixed(1):'0.0'+'%', f(sumOut), sumRev?(sumDaysWeighted/sumRev).toFixed(1):'0.0']];
-
-    doc.autoTable({
-      head:[['Customer','Revenue (ETB)','% of Total','Gross Profit (ETB)','GP %','Outstanding (ETB)','Avg Days to Pay']],
-      body, foot,
-      startY: 78,
-      margin:{left:marginX,right:marginX,bottom:46},
-      styles:{font:'helvetica',fontSize:8.3,cellPadding:6,textColor:textDark,lineColor:border,lineWidth:0.6,valign:'middle'},
-      headStyles:{fillColor:darkGreen,textColor:255,fontStyle:'bold',fontSize:7.6,halign:'left'},
-      footStyles:{fillColor:rowAlt,textColor:darkGreen,fontStyle:'bold',fontSize:8.3,lineWidth:{top:1.2},lineColor:[200,224,210]},
-      alternateRowStyles:{fillColor:[249,251,250]},
-      columnStyles:{0:{fontStyle:'bold'},5:{textColor:[197,36,41],fontStyle:'bold'}}
-    });
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++){
-      doc.setPage(i);
-      doc.setDrawColor(...border);
-      doc.line(marginX, pageH-34, pageW-marginX, pageH-34);
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.6); doc.setTextColor(...textMid);
-      doc.text('© '+new Date().getFullYear()+' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH-20);
-      doc.text('Page '+i+' of '+pageCount, pageW-marginX, pageH-20, {align:'right'});
-    }
-    doc.save('Customer_Profitability_Report_'+new Date().toISOString().slice(0,10)+'.pdf');
-    toast('Profitability report downloaded','success');
-  }catch(err){
-    console.error('Profitability PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
+async function exportExcel(){
+  if (!_custReady()) return;
+  try {
+    toast('Generating Excel…','info');
+    const data = await buildCustomersReportData();
+    await ReportEngine.generateExcel(data);
+    toast('Customers report Excel downloaded ✓','success');
+  } catch (err) {
+    console.error('Excel export failed:', err);
+    toast('Could not generate Excel file: ' + (err.message || 'please try again'), 'error');
   }
 }
 

@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Monthly Overhead — Mena Injera & Derkosh BMS</title>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,40 +15,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Roboto,sans-serif}
 
 /* ══ CONTENT ════════════════════════════════════════ */
 .content{padding:18px 20px;flex:1}
-
-/* ══ TOP ACTION ROW (Export buttons) ══════════════════ */
-.top-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;position:relative}
-.exp-btn{display:flex;align-items:center;gap:7px;border-radius:8px;padding:0 15px;height:36px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;background:#fff}
-.exp-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.exp-excel{border:1.5px solid #bcdece;color:#1a6b3c}
-.exp-excel:hover{background:#eef8f2}
-.exp-pdf{border:1.5px solid #f6cdc9;color:#b3261e}
-.exp-pdf:hover{background:#fdecea}
-.exp-caret{width:9px;height:9px;stroke:currentColor;stroke-width:3}
-.info-ic{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tl);cursor:pointer;flex-shrink:0}
-.info-ic:hover{background:var(--bg);color:var(--tm)}
-.info-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.pdf-menu{position:absolute;top:42px;right:0;background:#fff;border:1px solid var(--border);border-radius:11px;box-shadow:0 10px 32px rgba(20,40,30,.16);z-index:60;min-width:220px;overflow:hidden;display:none;animation:popIn .16s ease both}
-.pdf-menu.show{display:block}
-.pdf-menu-item{padding:11px 14px;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;display:flex;align-items:center;gap:9px;transition:background .13s,color .13s}
-.pdf-menu-item:hover{background:#f6faf7;color:var(--td)}
-.pdf-menu-item:first-child{border-bottom:1px solid #f0f5f2}
-.pdf-menu-item svg{width:14px;height:14px;stroke:#e53935;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.exp-btn.loading{pointer-events:none;opacity:.85}
-.exp-btn .btn-spin{display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-radius:50%;animation:spin .6s linear infinite}
-.exp-excel .btn-spin{border:2px solid rgba(39,174,96,.3);border-top-color:#1a6b3c}
-.exp-pdf .btn-spin{border:2px solid rgba(229,57,53,.3);border-top-color:#b3261e}
-.exp-btn.loading .btn-spin{display:inline-block}
-.exp-btn.loading .btn-txt-hide{display:none}
 
 /* ══ KPI ROW ════════════════════════════════════════ */
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
@@ -179,7 +155,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .kc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
 .row-anim{animation:fadeIn .3s ease both}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(39,174,96,.3);border-top-color:#1a6b3c;border-radius:50%;animation:spin .6s linear infinite}
-.spin-pdf{border:2px solid rgba(179,38,30,.3);border-top-color:#b3261e}
 
 /* ══ MODAL ═══════════════════════════════════════════ */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,27,21,.55);z-index:500;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease both}
@@ -211,7 +186,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .qa-grid{grid-template-columns:1fr}
   .sum-grid{grid-template-columns:1fr}
   .card{overflow:hidden;min-width:0;max-width:100%}
-  .top-actions{flex-wrap:wrap}
   .tbl{font-size:11px}
   .exp-bd{flex-direction:column;align-items:flex-start}
   .dnut{align-self:center}
@@ -234,26 +208,6 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 
   <!-- CONTENT -->
   <div class="content">
-
-    <!-- EXPORT BUTTONS -->
-    <div class="top-actions">
-      <div class="exp-btn exp-excel" id="excelBtn" role="button" tabindex="0" onclick="exportExcel()">
-        <span class="btn-spin"></span>
-        <svg class="btn-txt-hide" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="18"/><line x1="15" y1="12" x2="9" y2="18"/></svg>
-        <span class="btn-txt-hide" id="excelLbl">Export Excel</span>
-      </div>
-      <div class="exp-btn exp-pdf" id="pdfBtn" role="button" tabindex="0" onclick="togglePdfMenu(event)">
-        <span class="btn-spin"></span>
-        <svg class="btn-txt-hide" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="18"/><line x1="12" y1="13" x2="12" y2="18"/><line x1="15" y1="16" x2="15" y2="18"/></svg>
-        <span class="btn-txt-hide" id="pdfLbl">Export PDF</span>
-        <svg class="exp-caret btn-txt-hide" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="pdf-menu" id="pdfMenu">
-        <div class="pdf-menu-item" onclick="event.stopPropagation();closePdfMenu();exportPDF('full')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Full Report (Overhead + Payroll)</div>
-        <div class="pdf-menu-item" onclick="event.stopPropagation();closePdfMenu();exportPDF('overhead')"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>Overhead Only</div>
-        <div class="pdf-menu-item" onclick="event.stopPropagation();closePdfMenu();exportPDF('payroll')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Payroll Only</div>
-      </div>
-    </div>
 
     <!-- KPI ROW -->
     <div class="kpi-row" id="kpiRow">
@@ -710,6 +664,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* Supabase client + session wiring. This page reads and writes Supabase live
    (monthly_overhead, payroll_detail, overhead_categories, workers — see loaders
@@ -1581,295 +1536,99 @@ async function syncLaborFromPayroll(){
    header (header.js) — see onHeaderMonthChange() further down, wired via
    renderHeader()'s onMonthChange callback. */
 
-/* ════════════════ EXPORT: EXCEL (real .xlsx via SheetJS — carbon-copied approach from derkosh.html) ════════════════ */
-function exportExcel(retryCount){
-  retryCount = retryCount || 0;
-  const btn = document.getElementById('excelBtn');
-  const monthTag = currentMonth.replace('-','_');
-  if(typeof XLSX === 'undefined'){
-    if(retryCount < 6){
-      btn.classList.add('loading');
-      setTimeout(()=>exportExcel(retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing Excel file…','info');
-      return;
-    }
-    btn.classList.remove('loading');
-    exportExcelFallback(monthTag);
-    return;
-  }
-  btn.classList.add('loading');
+/* ════════════════ EXPORT (report-engine.js) ════════════════
+   presets.overhead() builds the PDF and Excel from the figures this page already
+   holds: overheadRows (monthly_overhead) and payrollRows (payroll_detail).
+   The old SheetJS / hand-drawn jsPDF exporters were removed; the engine loads
+   its own libraries. Labor/Wages is the sum of net pay (syncLaborFromPayroll), so
+   labor is sent once, person by person, from payrollRows, and the Labor/Wages
+   overhead row is left out of the entries to avoid counting it twice. */
+async function buildOverheadReportData(){
+  const session=(typeof loadSession==='function'?loadSession():null)||{};
+  const shortMonth=ym=>{ const [y,m]=ym.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'}); };
+
+  // wages: one entry per employee (cost to business = net pay, as in the Labor/Wages line)
+  const entries=payrollRows.map(r=>({
+    date:r.payDate||undefined, name:r.name, role:r.role, category:'Labor/Wages',
+    channel:r.channel||'', amount:netPay(r), grossPay:grossPay(r), kind:'labor'
+  }));
+  // everything else on the Monthly Overhead table
+  overheadRows.filter(r=>r.category!=='Labor/Wages').forEach(r=>entries.push({
+    name:r.description||r.category, category:r.category, channel:'', amount:r.amount, kind:'other'
+  }));
+
+  // trailing months (oldest first, current month last) and last month's output
+  let monthly, previousUnits;
   try{
-    const total = totalOverhead();
-    const oh = monthRows();
-    const pr = payrollMonthRows();
-
-    /* ---- Sheet 1: Monthly Overhead ---- */
-    const ohHdr = ['#','Overhead Category','Description','Monthly Amount (ETB)','Daily Rate (ETB)','% of Total'];
-    const ohData = [ohHdr];
-    oh.forEach((r,i)=> ohData.push([i+1, r.category, r.description, r.amount, Number(dailyRate(r.amount).toFixed(2)), total>0?Number((r.amount/total*100).toFixed(2)):0]));
-    const ohTotalRowIdx = ohData.length;
-    ohData.push(['', 'TOTAL', '', total, Number(dailyRate(total).toFixed(2)), 100]);
-
-    const ws1 = XLSX.utils.aoa_to_sheet(ohData);
-    ws1['!cols'] = [{wch:5},{wch:20},{wch:32},{wch:20},{wch:16},{wch:12}];
-    ws1['!freeze'] = {xSplit:0, ySplit:1};
-    styleSheet(ws1, ohHdr.length, ohData.length, ohTotalRowIdx, [3,4,5], [0]);
-
-    /* ---- Sheet 2: Payroll Detail ---- */
-    const prHdr = ['#','Employee Name','Role / Position','Days Worked','Gross Pay (ETB)','Advance (ETB)','Other Deductions (ETB)','Net Pay (ETB)','Payment Date','Payment Channel'];
-    const prData = [prHdr];
-    pr.forEach((r,i)=> prData.push([i+1, r.name, r.role, r.daysPresent, Number(grossPay(r).toFixed(2)), r.advance, r.other, Number(netPay(r).toFixed(2)), r.payDate, r.channel]));
-    const prTotalRowIdx = prData.length;
-    const totDays = pr.reduce((s,r)=>s+Number(r.daysPresent),0);
-    const totGross = pr.reduce((s,r)=>s+grossPay(r),0);
-    const totAdv = pr.reduce((s,r)=>s+Number(r.advance),0);
-    const totOther = pr.reduce((s,r)=>s+Number(r.other),0);
-    const totNet = pr.reduce((s,r)=>s+netPay(r),0);
-    prData.push(['', 'TOTAL', '', totDays, Number(totGross.toFixed(2)), Number(totAdv.toFixed(2)), Number(totOther.toFixed(2)), Number(totNet.toFixed(2)), '', '']);
-
-    const ws2 = XLSX.utils.aoa_to_sheet(prData);
-    ws2['!cols'] = [{wch:5},{wch:18},{wch:16},{wch:11},{wch:14},{wch:12},{wch:16},{wch:12},{wch:13},{wch:16}];
-    ws2['!freeze'] = {xSplit:0, ySplit:1};
-    styleSheet(ws2, prHdr.length, prData.length, prTotalRowIdx, [4,5,6,7], [0]);
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws1, 'Monthly Overhead');
-    XLSX.utils.book_append_sheet(wb, ws2, 'Payroll Detail');
-    XLSX.writeFile(wb, `Monthly_Overhead_${monthTag}.xlsx`);
-    toast('Downloaded Monthly_Overhead_'+monthTag+'.xlsx ✓','success');
-  } catch(err){
-    console.error('Excel export failed:', err);
-    exportExcelFallback(monthTag);
-  }
-  btn.classList.remove('loading');
-}
-// Shared cell-styling helper — mirrors derkosh.html's header/total-row/border/alt-row treatment
-function styleSheet(ws, colCount, rowCount, totalRowIdx, numericCols, leftAlignCols){
-  const thinBorder = {style:'thin', color:{rgb:'D8E6DE'}};
-  const borderAll = {top:thinBorder, bottom:thinBorder, left:thinBorder, right:thinBorder};
-  for(let r=0; r<rowCount; r++){
-    for(let c=0; c<colCount; c++){
-      const addr = XLSX.utils.encode_cell({r,c});
-      if(!ws[addr]) continue;
-      const isHeader = r===0;
-      const isTotal = r===totalRowIdx;
-      let numFmt;
-      if(!isHeader && numericCols.includes(c)) numFmt = '#,##0.00';
-      ws[addr].s = {
-        font:{ bold:isHeader||isTotal, color:{rgb:isHeader?'FFFFFF':(isTotal?'1D6B42':'16261E')}, sz:10 },
-        fill:{ fgColor:{rgb:isHeader?'1D5C38':(isTotal?'EAF7F0':(r%2===0?'FFFFFF':'F7FBF9'))} },
-        alignment:{ vertical:'center', horizontal: leftAlignCols.includes(c) ? 'left' : 'right' },
-        border: borderAll
-      };
-      if(numFmt) ws[addr].z = numFmt;
+    const periods=trailingPeriods(currentMonth,7);
+    const prev=periods[periods.length-2];
+    const [hist,prevBatches]=await Promise.all([
+      sbGet('monthly_overhead',`?select=period,amount,overhead_categories(name)&period=in.(${periods.map(p=>`"${p}"`).join(',')})`),
+      sbGet('production_batches',`?select=injera_qty&period=eq.${prev}&is_deleted=eq.false`)
+    ]);
+    if(hist.length){
+      const m={}; periods.forEach(p=>m[p]={total:0,labor:0});
+      hist.forEach(r=>{
+        const g=m[r.period]; if(!g) return;
+        g.total+=Number(r.amount)||0;
+        if(r.overhead_categories && r.overhead_categories.name==='Labor/Wages') g.labor+=Number(r.amount)||0;
+      });
+      // start at the first month that has data, so empty months do not read as a fall in cost
+      const firstIdx=periods.findIndex(p=>m[p].total>0);
+      if(firstIdx>=0) monthly=periods.slice(firstIdx).map(p=>({label:shortMonth(p),total:m[p].total,labor:m[p].labor}));
     }
-  }
-}
-function exportExcelFallback(monthTag){
-  // still give the user a usable file rather than nothing, if the Excel engine failed to load
-  const total = totalOverhead();
-  const lines = [['#','Overhead Category','Description','Monthly Amount (ETB)','Daily Rate (ETB)','% of Total'].join(',')];
-  monthRows().forEach((r,i)=> lines.push([i+1, csvF(r.category), csvF(r.description), r.amount, dailyRate(r.amount).toFixed(2), total>0?(r.amount/total*100).toFixed(2):'0.00'].join(',')));
-  lines.push(['','TOTAL','', total, dailyRate(total).toFixed(2), '100.00'].join(','));
-  lines.push(['']);
-  lines.push(['#','Employee Name','Role/Position','Days Worked','Gross Pay (ETB)','Advance (ETB)','Other Deductions (ETB)','Net Pay (ETB)','Payment Date','Payment Channel'].join(','));
-  payrollMonthRows().forEach((r,i)=> lines.push([i+1, csvF(r.name), csvF(r.role), r.daysPresent, grossPay(r).toFixed(2), r.advance, r.other, netPay(r).toFixed(2), r.payDate, csvF(r.channel)].join(',')));
-  const blob = new Blob(['\uFEFF'+lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'Monthly_Overhead_'+monthTag+'.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-  toast('Excel engine unavailable — downloaded as CSV instead','info');
-}
-function csvF(v){
-  const s = String(v);
-  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
-  return s;
-}
+    const pu=prevBatches.reduce((s,r)=>s+Number(r.injera_qty||0),0);
+    if(pu>0) previousUnits=pu;
+  }catch(e){ /* history is optional — the report simply leaves out the trend */ }
 
-/* ════════════════ EXPORT: PDF (jsPDF + autotable) ════════════════ */
-function togglePdfMenu(e){
-  e.stopPropagation();
-  document.getElementById('pdfMenu').classList.toggle('show');
-}
-function closePdfMenu(){ document.getElementById('pdfMenu').classList.remove('show'); }
-document.addEventListener('click', closePdfMenu);
-
-/* ════════════════ EXPORT: PDF (real .pdf via jsPDF + autotable — carbon-copied from derkosh.html's exportPDF) ════════════════ */
-function exportPDF(section, retryCount){
-  retryCount = retryCount || 0;
-  const btn = document.getElementById('pdfBtn');
-  if(typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined'){
-    if(retryCount < 6){
-      btn.classList.add('loading');
-      setTimeout(()=>exportPDF(section, retryCount+1), 400);
-      if(retryCount === 0) toast('Preparing PDF…','info');
-      return;
-    }
-    btn.classList.remove('loading');
-    toast('Could not load the PDF engine. Check your connection and try again.','error');
-    return;
+  const input={
+    period:monthLabel(currentMonth),
+    currency:'ETB',
+    generatedBy:session.name||undefined,
+    generatedRole:session.role||undefined,
+    generatedAt:new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
+    entries,
+    days:dim(),
+    totals:{ total:totalOverhead(), labor:laborRowAmount() }
+  };
+  if(monthly) input.monthly=monthly;
+  if(currentMonthInjeraQty>0){
+    input.productionUnits=currentMonthInjeraQty; input.unitLabel='injera';
+    if(previousUnits) input.previousUnits=previousUnits;
   }
-  btn.classList.add('loading');
+  if(!overheadRows.length && !payrollRows.length){
+    input.status='empty';
+    input.emptyMessage='No overhead or payroll recorded for '+monthLabel(currentMonth)+'.';
+  }
+  return ReportEngine.presets.overhead(input);
+}
+function _overheadReady(){
+  if(typeof ReportEngine==='undefined'){ toast('Report engine did not load — refresh the page and try again','error'); return false; }
+  return true;
+}
+async function exportPdf(){
+  if(!_overheadReady()) return;
   try{
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const marginX = 32;
-
-    // brand colors — same palette as derkosh.html
-    const green = [39,174,96];
-    const darkGreen = [29,92,56];
-    const deepGreen = [18,43,30];
-    const textDark = [26,46,37];
-    const textMid = [90,110,101];
-    const border = [224,234,229];
-    const rowAlt = [240,248,244];
-    const purple = [139,92,246];
-
-    const total = totalOverhead();
-    const daily = dailyRate(total);
-    const labor = laborRowAmount();
-    const laborPct = total>0 ? (labor/total*100) : 0;
-    const oh = monthRows();
-    const pr = payrollMonthRows();
-    const totNet = pr.reduce((s,r)=>s+netPay(r),0);
-
-    function drawHeader(reportTitle){
-      doc.setFillColor(...deepGreen);
-      doc.rect(0, 0, pageW, 74, 'F');
-      doc.setFillColor(...green);
-      doc.rect(0, 70, pageW, 4, 'F');
-
-      doc.setFillColor(255,255,255);
-      doc.roundedRect(marginX, 18, 38, 38, 9, 9, 'F');
-      doc.setTextColor(...deepGreen);
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(15);
-      doc.text('MI', marginX + 19, 42, { align:'center' });
-
-      doc.setTextColor(255,255,255);
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(17);
-      doc.text(reportTitle, marginX + 52, 34);
-      doc.setFont('helvetica','normal');
-      doc.setFontSize(9.5);
-      doc.setTextColor(200,225,212);
-      doc.text('Mena Injera & Derkosh — Business Management System', marginX + 52, 49);
-
-      doc.setFontSize(9);
-      doc.setTextColor(220,235,227);
-      doc.text('Period: ' + monthLabel(currentMonth), pageW - marginX, 30, { align:'right' });
-      doc.text('Generated: ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), pageW - marginX, 43, { align:'right' });
-      doc.text('Prepared by: Eyasu Mesfin (Owner)', pageW - marginX, 56, { align:'right' });
-    }
-
-    function drawKpiStrip(y, kpis){
-      const gap = 10;
-      const cardW = (pageW - marginX*2 - gap*(kpis.length-1)) / kpis.length;
-      const cardH = 52;
-      kpis.forEach((k,i)=>{
-        const x = marginX + i*(cardW+gap);
-        doc.setFillColor(...rowAlt);
-        doc.setDrawColor(...border);
-        doc.roundedRect(x, y, cardW, cardH, 6, 6, 'FD');
-        doc.setTextColor(...textMid);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(7);
-        doc.text(k.lbl, x + 10, y + 16, { charSpace:0.3 });
-        doc.setTextColor(...darkGreen);
-        doc.setFont('helvetica','bold');
-        doc.setFontSize(14.5);
-        doc.text(k.val, x + 10, y + 36);
-        const valW = doc.getTextWidth(k.val);
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(8);
-        doc.setTextColor(...textMid);
-        doc.text(k.unit, x + 10 + valW + 4, y + 36);
-      });
-      return y + cardH;
-    }
-
-    function drawFooter(){
-      const pageCount = doc.internal.getNumberOfPages();
-      for(let i=1;i<=pageCount;i++){
-        doc.setPage(i);
-        doc.setDrawColor(...border);
-        doc.line(marginX, pageH - 34, pageW - marginX, pageH - 34);
-        doc.setFont('helvetica','normal');
-        doc.setFontSize(7.6);
-        doc.setTextColor(...textMid);
-        doc.text('© ' + new Date().getFullYear() + ' Mena Injera & Derkosh Business Management System — Confidential', marginX, pageH - 20);
-        doc.text('Page ' + i + ' of ' + pageCount, pageW - marginX, pageH - 20, { align:'right' });
-      }
-    }
-
-    const reportTitle = section==='overhead' ? 'Overhead Details Report' : section==='payroll' ? 'Payroll Detail Report' : 'Monthly Overhead Report';
-    drawHeader(reportTitle);
-    let y = 94;
-
-    if(section==='full'){
-      y = drawKpiStrip(y, [
-        { lbl:'TOTAL OVERHEAD', val:fmt(total), unit:'ETB' },
-        { lbl:'DAILY RATE', val:fmt(daily), unit:'ETB/day' },
-        { lbl:'LABOR COST', val:fmt(labor), unit:'ETB' },
-        { lbl:'LABOR % OF TOTAL', val:laborPct.toFixed(2), unit:'%' },
-        { lbl:'PRODUCTION DAYS', val:String(dim()), unit:'days' },
-        { lbl:'PAYROLL NET PAID', val:fmt(totNet), unit:'ETB' }
-      ]);
-      y += 18;
-    }
-
-    if(section==='full' || section==='overhead'){
-      doc.setTextColor(...textDark); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-      doc.text('Monthly Overhead Details', marginX, y);
-      doc.autoTable({
-        head: [['#','Overhead Category','Description','Monthly Amount\n(ETB)','Daily Rate\n(ETB)','% of Total']],
-        body: oh.map((r,i)=>[i+1, r.category, r.description, fmt(r.amount), fmt(dailyRate(r.amount)), (total>0?(r.amount/total*100).toFixed(2):'0.00')+'%']),
-        foot: [['', 'TOTAL', '', fmt(total), fmt(dailyRate(total)), '100.00%']],
-        startY: y + 6,
-        margin: { left: marginX, right: marginX, bottom: 46 },
-        styles:{ font:'helvetica', fontSize:8.3, cellPadding:6, textColor:textDark, lineColor:border, lineWidth:0.6, valign:'middle' },
-        headStyles:{ fillColor:darkGreen, textColor:255, fontStyle:'bold', fontSize:7.6, halign:'left' },
-        footStyles:{ fillColor:rowAlt, textColor:darkGreen, fontStyle:'bold', fontSize:8.3, lineWidth:{top:1.2}, lineColor:[200,224,210] },
-        alternateRowStyles:{ fillColor:[249,251,250] },
-        columnStyles:{ 0:{fontStyle:'bold'}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right'} },
-        didDrawPage: function(){ if(doc.internal.getCurrentPageInfo().pageNumber > 1) drawHeader(reportTitle); }
-      });
-      y = doc.lastAutoTable.finalY + 22;
-    }
-
-    if(section==='full' || section==='payroll'){
-      if(y > pageH - 140){ doc.addPage(); drawHeader(reportTitle); y = 94; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...textDark);
-      doc.text('Payroll Detail', marginX, y);
-      doc.autoTable({
-        head: [['#','Employee','Role / Position','Days\nWorked','Gross Pay\n(ETB)','Advance\n(ETB)','Other Ded.\n(ETB)','Net Pay\n(ETB)','Payment Date','Channel']],
-        body: pr.map((r,i)=>[i+1, r.name, r.role, r.daysPresent, fmt(grossPay(r)), fmt(r.advance), fmt(r.other), fmt(netPay(r)), fmtDate(r.payDate), r.channel]),
-        foot: [['', 'TOTAL', '', pr.reduce((s,r)=>s+Number(r.daysPresent),0), fmt(pr.reduce((s,r)=>s+grossPay(r),0)), fmt(pr.reduce((s,r)=>s+Number(r.advance),0)), fmt(pr.reduce((s,r)=>s+Number(r.other),0)), fmt(totNet), '', '']],
-        startY: y + 6,
-        margin: { left: marginX, right: marginX, bottom: 46 },
-        styles:{ font:'helvetica', fontSize:8.3, cellPadding:6, textColor:textDark, lineColor:border, lineWidth:0.6, valign:'middle' },
-        headStyles:{ fillColor:purple, textColor:255, fontStyle:'bold', fontSize:7.6, halign:'left' },
-        footStyles:{ fillColor:[243,232,253], textColor:[91,49,178], fontStyle:'bold', fontSize:8.3, lineWidth:{top:1.2}, lineColor:[220,200,245] },
-        alternateRowStyles:{ fillColor:[249,251,250] },
-        columnStyles:{ 0:{fontStyle:'bold'}, 7:{fontStyle:'bold',textColor:[91,49,178]} },
-        didDrawPage: function(){ if(doc.internal.getCurrentPageInfo().pageNumber > 1) drawHeader(reportTitle); }
-      });
-    }
-
-    drawFooter();
-
-    const monthTag = currentMonth.replace('-','_');
-    const filename = `Monthly_Overhead_${monthTag}_${section}.pdf`;
-    doc.save(filename);
-    toast('Downloaded '+filename+' ✓','success');
-  } catch(err){
-    console.error('PDF export failed:', err);
-    toast('PDF export failed — please try again','error');
+    toast('Generating PDF…','info');
+    const data=await buildOverheadReportData();
+    await ReportEngine.generatePDF(data,{type:'detailed'});
+    toast('Overhead report PDF downloaded ✓','success');
+  }catch(err){
+    console.error('PDF export failed:',err);
+    toast('Could not generate PDF: '+(err.message||'please try again'),'error');
   }
-  btn.classList.remove('loading');
+}
+async function exportExcel(){
+  if(!_overheadReady()) return;
+  try{
+    toast('Generating Excel…','info');
+    const data=await buildOverheadReportData();
+    await ReportEngine.generateExcel(data);
+    toast('Overhead report Excel downloaded ✓','success');
+  }catch(err){
+    console.error('Excel export failed:',err);
+    toast('Could not generate Excel file: '+(err.message||'please try again'),'error');
+  }
 }
 
 /* ════════════════ COUNT-UP ANIMATION ════════════════ */
@@ -1931,6 +1690,9 @@ if(typeof renderHeader === 'function'){
       months: MONTH_OPTIONS.map(monthLabel),
       selectedMonth: monthLabel(currentMonth),
       onMonthChange: onHeaderMonthChange,
+      showExport: true,
+      onExportPdf: exportPdf,
+      onExportXlsx: exportExcel,
       notifications: []
     });
   } catch(err){

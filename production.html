@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B4332">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="/js/offline-sync.js"></script>
 <title>Production Management — Mena Injera & Derkosh BMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -704,6 +704,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 <script src="/js/app-state.js"></script>
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
+<script src="/js/report-engine.js"></script>
 <script>
 /* ════════════════════════════════════════════════════════
    SESSION / AUTH — now handled by app-state.js (shared shell):
@@ -2214,118 +2215,193 @@ function openAllAlerts(){
 }
 
 /* ════════════════════════════════════════════════════════
-   EXPORT CSV
+   EXPORTS — PDF (summary + detailed), Excel and CSV all come from
+   the shared /js/report-engine.js (ReportEngine.presets.production).
+   This page only gathers its own already-computed figures and hands
+   them over; the engine formats, lays out and downloads. The old
+   jsPDF / autotable / SheetJS code and their <script> tags are gone.
+   Reports cover the WHOLE selected month — the same set of batches
+   the KPI cards use — not the table's search/status filters.
    ════════════════════════════════════════════════════════ */
-/* ════════════════════════════════════════════════════════
-   EXPORT DROPDOWN (PDF / Excel / CSV / Print)
-   Ported from pettycash.html's export pattern. The old
-   "Full Sheet (PDF)" html2canvas capture is intentionally
-   NOT included — it was fragile at full-page size; Print
-   (native window.print + @media print) replaces it.
-   ════════════════════════════════════════════════════════ */
-// closeExportMenus()/toggleExportMenu(evt,id) removed — the old export
-// button/menu they controlled is gone. The shared header's own
-// toggleExportMenu()/closeExportMenu() (header.js) now own the Export
-// button; exportPDF()/exportExcelWorkbook() below are wired to it as
-// onExportPdf/onExportXlsx in the INIT block, and CSV/Print are appended
-// into its menu there too.
+const YIELD_TARGET = 90; // % of the type average — same 90% line the Yield Rate card and Low Yield alert use
 
-// ── PDF Report (jsPDF + autotable) ──────────────────────
-function exportPDF(){
-  if(typeof window.jspdf==='undefined'){ toast('PDF library did not load. Check your connection.','error'); return; }
-  const rows = filteredBatches();
-  if(!rows.length){ toast('No batches to export with the current filters.','error'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'pt', format:'a4', orientation:'landscape' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const green = [39,174,96], dark = [22,38,30], grey = [120,140,130];
-
-  doc.setFillColor(...green); doc.rect(0,0,pageW,64,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text('Mena Injera & Derkosh',40,28);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-  doc.text('Business Management System — Production Report',40,44);
-  doc.setFontSize(9.5); doc.text(currentMonth(),pageW-40,28,{align:'right'});
-  doc.text('Generated '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),pageW-40,44,{align:'right'});
-
-  const totalQty = rows.reduce((s,r)=>s+r.qty,0);
-  const totalCost = rows.reduce((s,r)=>s+r.total,0);
-  const avgCpi = totalQty>0 ? totalCost/totalQty : 0;
-  const kpis = [['Total Batches',rows.length],['Injera Produced',fmt0(totalQty)+' pcs'],['Production Cost',fmt2(totalCost)+' ETB'],['Avg Cost/Injera',fmt2(avgCpi)+' ETB']];
-  const boxW = (pageW-80-3*10)/4;
-  kpis.forEach((k,i)=>{
-    const x = 40+i*(boxW+10);
-    doc.setFillColor(246,250,247); doc.setDrawColor(224,236,229);
-    doc.roundedRect(x,80,boxW,46,5,5,'FD');
-    doc.setTextColor(...grey); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
-    doc.text(String(k[0]).toUpperCase(),x+10,96);
-    doc.setTextColor(...dark); doc.setFont('helvetica','bold'); doc.setFontSize(12.5);
-    doc.text(String(k[1]),x+10,112);
-  });
-
-  const body = rows.map(r=>[r.batchNo,r.date,r.type,fmt1(r.blend),fmt1(r.corn),fmt1(r.gomen),fmt0(r.qty),fmt2(r.material),fmt2(r.overhead),fmt2(r.other),fmt2(r.total),fmt2(r.costPerInjera),r.status]);
-  doc.autoTable({
-    startY: 142,
-    head: [['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Qty','Material','Overhead','Other','Total','Cost/Inj.','Status']],
-    body,
-    foot: [['','','','','','','','','','','TOTAL',fmt2(totalCost),'']],
-    theme: 'grid',
-    headStyles: { fillColor: green, textColor: 255, fontStyle:'bold', fontSize:8 },
-    footStyles: { fillColor:[246,250,247], textColor: dark, fontStyle:'bold', fontSize:8 },
-    bodyStyles: { fontSize:8, textColor: dark },
-    alternateRowStyles: { fillColor:[250,252,251] },
-    columnStyles: { 3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'},7:{halign:'right'},8:{halign:'right'},9:{halign:'right'},10:{halign:'right'},11:{halign:'right'} },
-    margin: { left:40, right:40 },
-    didDrawPage: function(){
-      const ph = doc.internal.pageSize.getHeight();
-      doc.setFontSize(7.5); doc.setTextColor(...grey);
-      doc.text('Mena Injera & Derkosh BMS — Production Report — Page '+doc.internal.getNumberOfPages(),40,ph-20);
-    }
-  });
-
-  doc.save(`production-${monthLabelToPeriod(currentMonth())}.pdf`);
-  toast(`Exported ${rows.length} batches to PDF.`,'success');
+function sessionName(){
+  const s = CURRENT_SESSION || {};
+  const u = s.user || s.profile || s;
+  return u.full_name || u.fullName || u.name || u.display_name || u.username || (u.email ? String(u.email).split('@')[0] : undefined);
+}
+function sessionRole(){
+  const s = CURRENT_SESSION || {};
+  const u = s.user || s.profile || s;
+  return u.role || u.job_title || undefined;
 }
 
-// ── Excel Workbook (SheetJS, 2 sheets) ──────────────────
-function exportExcelWorkbook(){
-  if(typeof XLSX==='undefined'){ toast('Excel library did not load. Check your connection.','error'); return; }
-  const rows = filteredBatches();
-  if(!rows.length){ toast('No batches to export with the current filters.','error'); return; }
-  const totalQty = rows.reduce((s,r)=>s+r.qty,0);
+// Removes one column (by header text) from an engine table, keeping rows / totals / alignment in step.
+function dropTableColumn(t, header){
+  if(!t || !Array.isArray(t.columns)) return;
+  const i = t.columns.indexOf(header);
+  if(i < 0) return;
+  t.columns.splice(i,1);
+  t.rows.forEach(r=>r.splice(i,1));
+  if(Array.isArray(t.totalsRow)) t.totalsRow.splice(i,1);
+  if(Array.isArray(t.columnAlign)) t.columnAlign.splice(i,1);
+}
+
+const STATUS_TONE = { Completed:'good', Review:'info', Warning:'warn', Alert:'bad' };
+
+// Builds the complete reportData for the selected month. Returns null (with a toast) when there is nothing to report.
+async function buildProductionReport(){
+  if(typeof ReportEngine === 'undefined' || !ReportEngine.presets || !ReportEngine.presets.production){
+    toast('Report engine did not load. Check your connection and reload the page.','error');
+    return null;
+  }
+  const rows = getBatches();
+  const month = currentMonth();
+  if(!rows.length){ toast(`No batches recorded for ${month} — nothing to export.`,'error'); return null; }
+
+  // Yield = pieces per kg of input vs. this month's average for the same batch type (100% = average).
+  // Same maths as the Yield Rate KPI and the Low Yield alert (typeRateAverages), so exports match the page.
+  const { normalAvg, specialAvg } = typeRateAverages(rows);
+  const yieldOf = r => {
+    const avg = r.type==='Special' ? specialAvg : normalAvg;
+    const kg = r.blend + r.corn + (r.gomen||0);
+    return avg>0 && kg>0 ? ((r.qty/kg)/avg)*100 : null;
+  };
+  const yields = rows.map(yieldOf);
+  const known = yields.filter(v=>v!==null);
+  const yieldRate = known.length ? (known.filter(v=>v>=YIELD_TARGET).length / rows.length) * 100 : undefined;
+
+  const totalQty  = rows.reduce((s,r)=>s+r.qty,0);
   const totalCost = rows.reduce((s,r)=>s+r.total,0);
 
-  const wsData = [
-    ['Mena Injera & Derkosh — Production Batch List'],
-    [currentMonth()],
-    [],
-    ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material Cost (ETB)','Overhead (ETB)','Other Cost (ETB)','Total Cost (ETB)','Cost/Injera (ETB)','Status']
-  ];
-  rows.forEach(r=>wsData.push([r.batchNo,r.date,r.type,r.blend,r.corn,r.gomen,r.qty,r.material,r.overhead,r.other,r.total,r.costPerInjera,r.status]));
-  wsData.push([]);
-  wsData.push(['','','','','','','','','','','TOTAL',totalCost,'']);
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:18},{wch:12},{wch:9},{wch:11},{wch:10},{wch:11},{wch:11},{wch:14},{wch:12},{wch:12},{wch:13},{wch:12},{wch:11}];
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+  const input = {
+    period: month,
+    currency: 'ETB',
+    unitLabel: 'pcs',
+    generatedBy: sessionName(),
+    generatedRole: sessionRole(),
+    targetYield: YIELD_TARGET,
+    batches: rows.map((r,i)=>({
+      date: r.date, batchNo: r.batchNo, type: r.type,
+      material: r.material, overhead: r.overhead, other: r.other,
+      cost: r.total,            // the BMS-calculated batch cost (production_batch_costs view) — shown as-is
+      units: r.qty,
+      yieldPct: yields[i]
+    })),
+    totals: { batches: rows.length, units: totalQty, cost: totalCost }
+  };
+  if(yieldRate !== undefined) input.totals.yieldRate = yieldRate;
 
-  const avgCpi = totalQty>0 ? totalCost/totalQty : 0;
-  const sumData = [
-    ['Production Summary',''],
-    [currentMonth(),''],
-    [],
-    ['Total Batches', rows.length],
-    ['Injera Produced (pcs)', totalQty],
-    ['Total Production Cost (ETB)', totalCost],
-    ['Average Cost / Injera (ETB)', Math.round(avgCpi*100)/100],
-  ];
-  const ws2 = XLSX.utils.aoa_to_sheet(sumData);
-  ws2['!cols'] = [{wch:26},{wch:16}];
+  // Cost-per-injera comparison with the previous month (same lightweight read the KPI cards use).
+  const prevP = prevPeriodOf(monthLabelToPeriod(month));
+  try{
+    const prev = await loadPeriodSummary(prevP);
+    if(prev && prev.qty>0 && prev.cost>0){
+      input.previousCostPerUnit = prev.cost / prev.qty;
+      input.previousLabel = periodLabel(prevP);
+    }
+  }catch(e){ /* comparison is optional */ }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
-  XLSX.utils.book_append_sheet(wb, ws, 'Batches');
-  XLSX.writeFile(wb, `production-${monthLabelToPeriod(currentMonth())}.xlsx`);
-  toast(`Exported ${rows.length} batches as Excel workbook.`,'success');
+  const rd = ReportEngine.presets.production(input);
+  if(rd.status === 'empty') return rd;
+
+  // No per-batch WAC on this page — don't print an empty column.
+  (rd.tables||[]).forEach(t=>dropTableColumn(t,'WAC (ETB)'));
+
+  // ── Extra detailed table: every field the old exports carried (kg per material, status) ──
+  const sumKg = k => rows.reduce((s,r)=>s+(r[k]||0),0);
+  const sumMoney = k => rows.reduce((s,r)=>s+(r[k]||0),0);
+  const register = {
+    title: 'Batch Register',
+    sheetName: 'Batch Register',
+    columns: ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material (ETB)','Overhead (ETB)','Other (ETB)','Total Cost (ETB)','Cost / Injera (ETB)','Status'],
+    rows: rows.map(r=>[
+      r.batchNo, r.date, r.type,
+      fmt1(r.blend), fmt1(r.corn), fmt1(r.gomen||0), fmt0(r.qty),
+      fmt2(r.material), fmt2(r.overhead), fmt2(r.other), fmt2(r.total), fmt2(r.costPerInjera),
+      { v:r.status, tone:STATUS_TONE[r.status] }
+    ]),
+    columnAlign: [null,null,null,'right','right','right','right','right','right','right','right','right',null],
+    totalsRow: ['TOTAL', `${rows.length} ${rows.length===1?'batch':'batches'}`, '',
+      fmt1(sumKg('blend')), fmt1(sumKg('corn')), fmt1(sumKg('gomen')), fmt0(totalQty),
+      fmt2(sumMoney('material')), fmt2(sumMoney('overhead')), fmt2(sumMoney('other')), fmt2(totalCost),
+      totalQty>0 ? fmt2(totalCost/totalQty) : '—', '']
+  };
+  rd.tables.push(register);
+
+  // ── Flagged batches, with the reason(s) from the page's own alert rules ──
+  const alerts = computeAlerts();
+  const reasonText = {
+    material:'High material usage (over 10% above standard)',
+    yield:'Low yield (below 90% of the type average)',
+    cost:'Cost per injera above target',
+    missing:'Missing batch data'
+  };
+  const flagged = new Map();
+  Object.keys(reasonText).forEach(k=>{
+    (alerts[k]||[]).forEach(r=>{
+      if(!flagged.has(r.id)) flagged.set(r.id,{ row:r, reasons:[] });
+      flagged.get(r.id).reasons.push(reasonText[k]);
+    });
+  });
+  if(flagged.size){
+    rd.tables.push({
+      title: 'Flagged Batches',
+      sheetName: 'Flagged Batches',
+      columns: ['Batch No.','Date','Type','Status','Why it was flagged'],
+      rows: Array.from(flagged.values()).map(({row,reasons})=>[
+        row.batchNo, row.date, row.type, { v:row.status, tone:STATUS_TONE[row.status] }, { v:reasons.join('; '), tone:'warn' }
+      ])
+    });
+  }
+
+  rd.definitions = (rd.definitions||[]).concat([
+    { term:'Yield', text:`A batch's pieces per kg of input compared with this month's average for the same batch type (Normal or Special). 100% is average; below ${YIELD_TARGET}% is flagged.` },
+    { term:'Yield Rate', text:`The share of this month's batches whose yield is at or above ${YIELD_TARGET}% — the same figure as the Yield Rate card on the page.` }
+  ]);
+  rd.notes = (rd.notes||[]).concat([
+    'Covers all batches recorded for the month, not the table filters currently applied on screen.'
+  ]);
+  return rd;
+}
+
+let __exporting = false;
+async function runProductionExport(label, fn){
+  if(__exporting) return;
+  __exporting = true;
+  try{
+    closeExportMenu(); closeAllDD(null);
+    toast(`Preparing ${label}…`,'info');
+    const rd = await buildProductionReport();
+    if(!rd) return;
+    await fn(rd);
+    toast(`${label} exported.`,'success');
+  }catch(e){
+    console.error('[production] export failed:', e);
+    toast(`Could not create the ${label}: ${e && e.message ? e.message : 'unknown error'}`,'error');
+  }finally{
+    __exporting = false;
+  }
+}
+
+// One-page dashboard-style summary (KPI cards, trend, cost breakdown, insights, batch ledger).
+function exportPDF(){ return runProductionExport('PDF summary', rd=>ReportEngine.generatePDF(rd,{ type:'summary' })); }
+// Summary page + every detail table (cost by batch, unit economics, production by day, batch register ...).
+function exportPDFDetailed(){ return runProductionExport('detailed PDF', rd=>ReportEngine.generatePDF(rd,{ type:'detailed' })); }
+// Summary workbook + one sheet per table.
+function exportExcelWorkbook(){ return runProductionExport('Excel workbook', rd=>ReportEngine.generateExcel(rd)); }
+// Raw data: the full batch register only — plain numbers (no thousands separators), no totals row,
+// so the file imports cleanly into other tools.
+function exportCSV(){
+  return runProductionExport('CSV', rd=>{
+    const rows = getBatches();
+    const raw = {
+      title: 'Batch Register',
+      columns: ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material Cost (ETB)','Overhead (ETB)','Other Cost (ETB)','Total Cost (ETB)','Cost/Injera (ETB)','Status'],
+      rows: rows.map(r=>[r.batchNo, r.date, r.type, r.blend, r.corn, r.gomen||0, r.qty, r.material, r.overhead, r.other, r.total, r.costPerInjera, r.status])
+    };
+    return ReportEngine.generateCSV(Object.assign({}, rd, { tables:[raw], panelTable:undefined }), { tableIndex:0 });
+  });
 }
 
 // ── Print (native browser print, not html2canvas) ───────
@@ -2358,23 +2434,6 @@ function restorePrintState(){
   }
 }
 window.addEventListener('afterprint', restorePrintState);
-
-function exportCSV(){
-  const rows = filteredBatches();
-  if(rows.length===0){ toast('No batches to export with the current filters.','error'); return; }
-  const headers = ['Batch No.','Date','Type','Blend (kg)','Corn (kg)','Gomen (kg)','Injera Qty','Material Cost (ETB)','Overhead (ETB)','Other Cost (ETB)','Total Cost (ETB)','Cost/Injera (ETB)','Status'];
-  const lines = [headers.join(',')];
-  rows.forEach(r=>{
-    lines.push([r.batchNo,r.date,r.type,fmt1(r.blend),fmt1(r.corn),fmt1(r.gomen),r.qty,fmt2(r.material),fmt2(r.overhead),fmt2(r.other),fmt2(r.total),fmt2(r.costPerInjera),r.status].join(','));
-  });
-  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `production-batches-${currentMonth().replace(' ','-')}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast(`Exported ${rows.length} batches to CSV.`,'success');
-}
 
 /* ════════════════════════════════════════════════════════
    COUNT-UP ANIMATION FOR KPI VALUES
@@ -2879,27 +2938,44 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   addBtn.addEventListener('click', ()=>openAddModal());
   tbRight.insertBefore(addBtn, tbRight.firstChild);
 
-  // Extend the shared Export menu with CSV + Print (shared header only
-  // ships PDF/Excel by default)
+  // Export menu: the shared header ships PDF + Excel (wired above to the report engine).
+  // Relabel them and add Detailed PDF, CSV and Print.
   const exportMenu = document.getElementById('exportMenu');
   if(exportMenu){
-    const csvItem = document.createElement('div');
-    csvItem.className = 'exp-menu-item';
-    csvItem.innerHTML = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><div><h5>Export as CSV</h5><span>Raw data</span></div>`;
-    csvItem.addEventListener('click', ()=>{ closeExportMenu(); exportCSV(); });
-    const printItem = document.createElement('div');
-    printItem.className = 'exp-menu-item';
-    printItem.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><div><h5>Print</h5><span>Uses your browser's print dialog</span></div>`;
-    printItem.addEventListener('click', ()=>{ closeExportMenu(); printReport(); });
+    const mkItem = (icon, title, sub, onClick) => {
+      const el = document.createElement('div');
+      el.className = 'exp-menu-item';
+      el.innerHTML = `<svg viewBox="0 0 24 24">${icon}</svg><div><h5>${title}</h5><span>${sub}</span></div>`;
+      el.addEventListener('click', onClick);
+      return el;
+    };
+    const relabel = (el, title, sub) => {
+      const h = el.querySelector('h5'), s = el.querySelector('span');
+      if(h) h.textContent = title;
+      if(s) s.textContent = sub;
+    };
+    const items = Array.from(exportMenu.querySelectorAll('.exp-menu-item'));
+    const pdfItem = items.find(el => /pdf/i.test(el.textContent));
+    const xlsItem = items.find(el => /excel|xlsx/i.test(el.textContent));
+    if(pdfItem) relabel(pdfItem, 'PDF summary', 'One-page report');
+    if(xlsItem) relabel(xlsItem, 'Excel workbook', 'Summary + one sheet per table');
+
+    const detailedItem = mkItem('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>',
+      'Detailed PDF', 'Summary plus every detail table', exportPDFDetailed);
+    const csvItem = mkItem('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
+      'Export as CSV', 'Raw batch data', exportCSV);
+    const printItem = mkItem('<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+      'Print', "Uses your browser's print dialog", ()=>{ closeExportMenu(); printReport(); });
+
+    if(pdfItem) pdfItem.insertAdjacentElement('afterend', detailedItem); else exportMenu.appendChild(detailedItem);
     exportMenu.append(csvItem, printItem);
   }
 
   initCountUps();
-  if(!db){
-    if(CURRENT_SESSION){
-      toast('Could not connect to the database (Supabase failed to load). Check your internet connection and reload the page.','error');
-    }
-    // else: app-state.js's early auth check already redirected to login.html.
+  if(!CURRENT_SESSION){
+    // No session: app-state.js's early auth check is already redirecting to login.
+    // (This used to test a page-level `db` client that no longer exists — it threw
+    // a ReferenceError here and the page never loaded its data.)
     return;
   }
   await loadBatchStandards();
