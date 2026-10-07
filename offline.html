@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline — Mena BMS</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,#1B4332,#2D6A4F);font-family:Nunito,system-ui,sans-serif;color:#fff;text-align:center;padding:24px}
+  .card{background:#fff;color:#1B4332;border-radius:16px;padding:32px 24px;max-width:360px}
+  h1{margin:0 0 8px;font-size:22px} p{margin:0 0 20px;color:#444;line-height:1.5}
+  button{background:#52B788;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:15px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>You're offline</h1>
+    <p>This page hasn't been saved on your device yet. Pages you've opened before still work, and anything you enter will sync when you're back online.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>
