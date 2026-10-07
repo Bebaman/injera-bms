@@ -248,8 +248,10 @@
       const headers = { ...it.headers };
       await freshAuth(headers);
       let res;
-      try { res = await realFetch(it.url, { method: it.method, headers, body: it.body }); }
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 15000);   // a dead connection must not leave "Syncing…" pulsing forever
+      try { res = await realFetch(it.url, { method: it.method, headers, body: it.body, signal: ctl.signal }); }
       catch (e) { break; }                                   // still offline: stop, keep order
+      finally { clearTimeout(to); }
       if (res.ok) { await del(QUEUE, it.id); sent++; continue; }
       // Our own retry of a row that already reached the server → treat as done.
       if (res.status === 409 && it.injected && it.method === 'POST') { await del(QUEUE, it.id); sent++; continue; }
@@ -285,19 +287,28 @@
     if (navigator.onLine === false) { window.setSyncStatus('offline'); return; }
     probing = true;
     const ctl = new AbortController();
-    const to = setTimeout(() => ctl.abort(), 8000);
+    const to = setTimeout(() => ctl.abort(), 5000);
     try {
       await realFetch(base + '/auth/v1/health', { headers: { apikey: window.SB_KEY }, signal: ctl.signal, cache: 'no-store' });
       probeFails = 0;
       const cur = window.getSyncState ? window.getSyncState() : 'live';
       if (cur !== 'live') window.setSyncStatus('live');
     } catch (e) {
-      if (++probeFails >= 2) window.setSyncStatus('error', { message: 'Server unreachable — retrying…' });
+      // Wi-Fi / mobile data that is connected but has no internet leaves navigator.onLine true, so
+      // the probe is the only thing that can say so. Re-check once quickly, then call it offline.
+      if (++probeFails >= 2) window.setSyncStatus('offline');
+      else setTimeout(probe, 1500);
     } finally { clearTimeout(to); probing = false; }
   }
   window.addEventListener('online', () => setTimeout(probe, 300));
   window.addEventListener('DOMContentLoaded', () => setTimeout(probe, 1200));
-  setInterval(() => { if (!document.hidden) probe(); }, 20000);
+  // every 20 s while live; every 5 s while offline / reconnecting so the pill recovers quickly
+  let probeTick = 0;
+  setInterval(() => {
+    if (document.hidden) return;
+    const st = window.getSyncState ? window.getSyncState() : 'live';
+    if (st !== 'live' || ++probeTick % 4 === 0) probe();
+  }, 5000);
   document.addEventListener('click', (e) => {
     if (e.target.closest && e.target.closest('#statPill') && state.failed) showFailed();
   });

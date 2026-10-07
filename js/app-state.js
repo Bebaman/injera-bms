@@ -380,7 +380,15 @@ async function authHeadersAsync(extra){
     // the request on a token that's dead or about to be. (If the exp claim
     // can't be read we don't guess; the 401 path in _sbRequest recovers.)
     if (expMs && expMs - Date.now() < 30000){
-      if (await refreshAccessToken()) session = loadSession();
+      // Known offline: don't wait on a refresh that can't succeed — go on with the saved token
+      // (reads come from the device copy, writes are queued). On a dead connection that merely
+      // looks online the refresh can hang for ~45 s, so wait at most 2 s; if it is still not done
+      // the request goes out and the existing 401 path finishes the refresh if the server needs it.
+      const _off = navigator.onLine === false || window.getSyncState?.() === 'offline';
+      if (!_off){
+        const ok = await Promise.race([refreshAccessToken(), new Promise(r => setTimeout(() => r(null), 2000))]);
+        if (ok) session = loadSession();
+      }
     }
   }
   return _buildHeaders(session, extra);
@@ -426,10 +434,11 @@ async function _sbRequest(method, path, body, extraHeaders, fallbackMsg){
       return await fetch(`${window.SB_URL}/${path}`, opts);
     }catch(err){
       const timedOut = err && err.name === 'AbortError';
-      window.setSyncStatus?.('error', { message: 'Connection lost — retrying…' });
-      throw new Error(timedOut
+      // No connection at all is "offline", not a server fault.
+      window.setSyncStatus?.(timedOut ? 'error' : 'offline', { message: 'Connection lost — retrying…' });
+      throw Object.assign(new Error(timedOut
         ? 'The server took too long to respond. Please try again.'
-        : 'Could not reach the server. Check your internet connection.');
+        : 'Could not reach the server. Check your internet connection.'), { offline: !timedOut });
     }finally{
       t.done();
     }
@@ -460,12 +469,18 @@ async function _sbRequest(method, path, body, extraHeaders, fallbackMsg){
       _redirectToLogin(1200);
       throw Object.assign(new Error('Your session has expired. Please sign in again.'), { sessionExpired: true });
     }
-    if (res.status >= 500) window.setSyncStatus?.('error', { message: 'Some data failed to load' });
+    // The service worker answers 503 + X-BMS-Offline when there is no connection AND no saved copy.
+    const _noConn = !!(res.headers && res.headers.get('x-bms-offline'));
+    if (_noConn) window.setSyncStatus?.('offline');
+    else if (res.status >= 500) window.setSyncStatus?.('error', { message: 'Some data failed to load' });
     else window.setSyncStatus?.('live');
+    if (_noConn) throw Object.assign(new Error('You are offline and this data was not saved on this device yet.'), { offline: true });
     if (res.status === 403) throw new Error(detail || "You don't have permission to do that.");
     throw new Error(detail || fallbackMsg(res.status));
   }
-  window.setSyncStatus?.('live');
+  // A reply the service worker took from its saved copy is not live data: keep the pill on "offline".
+  if (res.headers && res.headers.get('x-bms-cache')) window.setSyncStatus?.('offline');
+  else window.setSyncStatus?.('live');
   return _parseBody(res);
 }
 async function sbGet(path){
