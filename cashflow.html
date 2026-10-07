@@ -1162,150 +1162,158 @@ async function getNetMovementTrend(period, months){
   return { labels, values };
 }
 
-// Collapses the on-screen 3-channel (cash/bank/mobile) statement into the
-// 2-column Particulars/Amount shape used in the PDF/Excel summary table —
-// same sections, same conditionals as renderCashFlowTable() above, just totaled.
-function buildSummaryTableRows(cf){
-  const rows = [];
-  rows.push(['A. OPENING CASH BALANCE', '']);
-  rows.push(['Cash on Hand', fmtSigned(cf.opening.cash)]);
-  rows.push(['Bank Account', fmtSigned(cf.opening.bank)]);
-  rows.push(['Mobile Money', fmtSigned(cf.opening.mobile)]);
-  rows.push(['Total Opening Balance', fmtSigned(rowTotal(cf.opening))]);
-
-  rows.push(['B. OPERATING ACTIVITIES', '']);
-  rows.push(['Cash Receipts', '']);
-  rows.push(['Cash Sales — Injera', fmtSigned(cf.cashSalesInjera.cash)]);
-  rows.push(['Cash Sales — Derkosh', fmtSigned(cf.cashSalesDerkosh.cash)]);
-  rows.push(['Bank Sales & Collections', fmtSigned(cf.salesByChannel.bank)]);
-  rows.push(['Mobile Money Sales & Collections', fmtSigned(cf.salesByChannel.mobile)]);
-  rows.push(['Collections from Credit Customers', fmtSigned(rowTotal(cf.creditCollected))]);
-  rows.push(['Other Cash Income', fmtSigned(rowTotal(cf.otherCashIncome))]);
-  rows.push(['Total Operating Receipts', fmtSigned(rowTotal(cf.totalOperatingReceipts))]);
-  rows.push(['Cash Payments', '']);
-  rows.push(['Raw Materials Purchases', fmtSigned(-rowTotal(cf.rawMaterials))]);
-  rows.push(['Packaging Purchases', fmtSigned(-rowTotal(cf.packaging))]);
-  rows.push(['Labor / Wages Paid', fmtSigned(-rowTotal(cf.laborWages))]);
-  rows.push(['Rent', fmtSigned(-rowTotal(cf.rent))]);
-  rows.push(['Electricity', fmtSigned(-rowTotal(cf.electricity))]);
-  rows.push(['Water', fmtSigned(-rowTotal(cf.water))]);
-  rows.push(['Maintenance & Repairs', fmtSigned(-rowTotal(cf.maintenance))]);
-  rows.push(['Delivery Out & Transport', fmtSigned(-rowTotal(cf.deliveryOut))]);
-  rows.push(['Marketing', fmtSigned(-rowTotal(cf.marketing))]);
-  rows.push(['Bank Charges', fmtSigned(-rowTotal(cf.bankCharges))]);
-  rows.push(['Petty Cash Expenses', fmtSigned(-cf.pettyCashOut.cash)]);
-  rows.push(['Other Operating Expenses', fmtSigned(-rowTotal(addChan(cf.otherOverhead, cf.otherCashOut)))]);
-  rows.push(['Total Operating Payments', fmtSigned(-rowTotal(cf.totalOperatingPayments))]);
-  rows.push(['Net Cash from Operating Activities', fmtSigned(rowTotal(cf.netOperating))]);
-
-  rows.push(['C. INVESTING ACTIVITIES', '']);
-  rows.push(['Equipment Purchase', fmtSigned(-rowTotal(cf.equipPurchases))]);
-  if(rowTotal(cf.equipSales)!==0) rows.push(['Equipment Sale / Disposal', fmtSigned(rowTotal(cf.equipSales))]);
-  rows.push(['Net Cash from Investing Activities', fmtSigned(rowTotal(cf.netInvesting))]);
-
-  rows.push(['D. FINANCING ACTIVITIES', '']);
-  if(rowTotal(cf.capitalInjection)!==0) rows.push(['Owner Capital Injection', fmtSigned(rowTotal(cf.capitalInjection))]);
-  if(rowTotal(cf.capitalWithdrawal)!==0) rows.push(['Owner Capital Withdrawal', fmtSigned(-rowTotal(cf.capitalWithdrawal))]);
-  if(rowTotal(cf.loanReceived)!==0) rows.push(['Loan Received', fmtSigned(rowTotal(cf.loanReceived))]);
-  if(rowTotal(cf.loanPrincipal)!==0) rows.push(['Loan Repayment — Principal', fmtSigned(-rowTotal(cf.loanPrincipal))]);
-  if(rowTotal(cf.loanInterest)!==0) rows.push(['Loan Repayment — Interest', fmtSigned(-rowTotal(cf.loanInterest))]);
-  Object.entries(cf.distributions).forEach(([label,o])=>{ if(rowTotal(o)!==0) rows.push([label, fmtSigned(-rowTotal(o))]); });
-  if(rowTotal(cf.otherFinancing)!==0) rows.push(['Other Financing Activity', fmtSigned(rowTotal(cf.otherFinancing))]);
-  const hasFinancing = Object.keys(cf.distributions).length>0 || rowTotal(cf.capitalInjection)!==0 || rowTotal(cf.capitalWithdrawal)!==0 ||
-    rowTotal(cf.loanReceived)!==0 || rowTotal(cf.loanPrincipal)!==0 || rowTotal(cf.loanInterest)!==0 || rowTotal(cf.otherFinancing)!==0;
-  if(!hasFinancing) rows.push(['No financing activity this month', '']);
-  rows.push(['Net Cash from Financing Activities', fmtSigned(rowTotal(cf.netFinancing))]);
-
-  rows.push(['E. TRANSFERS BETWEEN ACCOUNTS', '']);
-  if(rowTotal(cf.transferIn)!==0 || rowTotal(cf.transferOut)!==0){
-    rows.push(['Transfers Between Accounts', fmtSigned(rowTotal(cf.netTransfers))]);
-  } else {
-    rows.push(['No transfers this month', '']);
-  }
-  rows.push(['NET CASH MOVEMENT (B + C + D + E)', fmtSigned(rowTotal(cf.netMovement))]);
-  return rows;
+// ── Statement lines for the report engine ─────────────────────────────────
+// Turns one month's computeCashFlow() result into the direct-method lines that
+// ReportEngine.presets.cashflow() expects: receipts POSITIVE, payments NEGATIVE,
+// one { label, cash, bank, mobile } per line. Lines that are zero in every channel
+// are left out so the printed statement only shows what actually happened.
+function cfLine(label, o, sign){
+  const k = sign || 1;
+  return { label, cash:(o.cash||0)*k, bank:(o.bank||0)*k, mobile:(o.mobile||0)*k };
+}
+function cfNonZero(l){ return Math.abs(l.cash)+Math.abs(l.bank)+Math.abs(l.mobile) > 0.004; }
+function cfStatementLines(cf){
+  const operating = [
+    cfLine('Cash sales — Injera', cf.cashSalesInjera),
+    cfLine('Cash sales — Derkosh', cf.cashSalesDerkosh),
+    { label:'Bank sales', cash:0, bank:cf.salesByChannel.bank||0, mobile:0 },
+    { label:'Mobile money sales', cash:0, bank:0, mobile:cf.salesByChannel.mobile||0 },
+    cfLine('Collections from credit customers', cf.creditCollected),
+    cfLine('Other operating income', cf.otherCashIncome),
+    cfLine('Raw materials purchases', cf.rawMaterials, -1),
+    cfLine('Packaging purchases', cf.packaging, -1),
+    cfLine('Labor / wages paid', cf.laborWages, -1),
+    cfLine('Rent', cf.rent, -1),
+    cfLine('Electricity', cf.electricity, -1),
+    cfLine('Water', cf.water, -1),
+    cfLine('Maintenance & repairs', cf.maintenance, -1),
+    cfLine('Delivery out & transport', cf.deliveryOut, -1),
+    cfLine('Marketing', cf.marketing, -1),
+    cfLine('Bank charges', cf.bankCharges, -1),
+    cfLine('Petty cash expenses', cf.pettyCashOut, -1),
+    cfLine('Other operating expenses', addChan(cf.otherOverhead, cf.otherCashOut), -1)
+  ].filter(cfNonZero);
+  const investing = [
+    cfLine('Equipment purchase', cf.equipPurchases, -1),
+    cfLine('Equipment sale / disposal', cf.equipSales)
+  ].filter(cfNonZero);
+  const financing = [
+    cfLine('Owner capital injection', cf.capitalInjection),
+    cfLine('Owner capital withdrawal', cf.capitalWithdrawal, -1),
+    cfLine('Loan received', cf.loanReceived),
+    cfLine('Loan repayment — principal', cf.loanPrincipal, -1),
+    cfLine('Loan repayment — interest', cf.loanInterest, -1)
+  ].concat(Object.entries(cf.distributions).map(([label,o]) => cfLine(label, o, -1)))
+   .concat([ cfLine('Other financing activity', cf.otherFinancing) ])
+   .filter(cfNonZero);
+  const transfers = [
+    cfLine('Transfers in', cf.transferIn),
+    cfLine('Transfers out', cf.transferOut, -1)
+  ].filter(cfNonZero);
+  return { operating, investing, financing, transfers };
+}
+// Total inflow / outflow the same way the engine counts them: per line, per channel,
+// positive amounts are inflow and negative amounts are outflow. Transfers are excluded.
+function cfFlowTotals(lines){
+  let inflow = 0, outflow = 0;
+  ['operating','investing','financing'].forEach(k => lines[k].forEach(l => {
+    ['cash','bank','mobile'].forEach(c => { if(l[c] > 0) inflow += l[c]; else outflow += -l[c]; });
+  }));
+  return { inflow, outflow };
+}
+function cfShort(mk){ return MONTH_NAMES[Number(mk.split('-')[1]) - 1]; }
+async function cfPeriodCf(mk){
+  const data = await fetchPeriodData(mk);
+  const opening = await resolveOpeningBalance(mk);
+  return computeCashFlow({ ...data, openingBalance: opening });
 }
 
-// Assembles the one ReportData object that report-engine.js turns into the
-// PDF, Excel, and CSV — see the schema documented at the top of that file.
+// The dated cash movements behind the statement, built with the same inclusion rules
+// as computeCashFlow() so the engine can tie them back to each channel's totals.
+// Sales are grouped per day / channel / product (a month of individual sales would run
+// to hundreds of rows); everything else is listed one movement per line.
+function cfTransactions(){
+  const inflows = [], outflows = [];
+  const ok = ch => CHANNELS.includes(ch);
+  const add = (list, date, description, channel, amount, activity) => {
+    if(amount > 0.004) list.push({ date, description, channel, amount, activity });
+  };
+  const byDay = {};
+  RAW.sales.forEach(s => {
+    if(s.payment_method === 'credit' || !ok(s.payment_method)) return;
+    const prod = s.product_type === 'injera' ? 'Injera' : 'Derkosh';
+    const key = [s.date, s.payment_method, prod].join('|');
+    byDay[key] = byDay[key] || { date:s.date, channel:s.payment_method, prod, amount:0, n:0 };
+    byDay[key].amount += parseFloat(s.revenue||0); byDay[key].n++;
+  });
+  Object.values(byDay).forEach(g => add(inflows, g.date, `${g.prod} sales (${g.n})`, g.channel, g.amount, 'operating'));
+  RAW.creditPayments.forEach(cp => { if(ok(cp.channel)) add(inflows, cp.payment_date, 'Credit customer payment', cp.channel, parseFloat(cp.amount_paid||0), 'operating'); });
+  RAW.cfEntries.forEach(e => {
+    if(e.entry_type === 'transfer' || e.entry_type === 'loan_repayment' || !ok(e.channel)) return;
+    if(!['operating','investing','financing'].includes(e.category)) return;
+    const amt = parseFloat(e.amount||0);
+    const desc = e.description || (e.entry_type || e.category).replace(/_/g,' ');
+    add(e.direction === 'in' ? inflows : outflows, e.date, desc, e.channel, amt, e.category);
+  });
+  RAW.purchases.forEach(p => {
+    if(p.source === 'milling_conversion' || !ok(p.payment_channel)) return;
+    add(outflows, p.date || p.purchase_date, p.description || p.supplier || (p.type === 'expense' ? 'Expense' : 'Purchase'), p.payment_channel, parseFloat(p.total_cost||0), 'operating');
+  });
+  RAW.payroll.forEach(pr => { if(ok(pr.payment_channel)) add(outflows, pr.payment_date, 'Payroll', pr.payment_channel, parseFloat(pr.net_pay||0), 'operating'); });
+  RAW.pettyCash.forEach(pc => add(outflows, pc.date, pc.description || 'Petty cash expense', 'cash', parseFloat(pc.amount||0), 'operating'));
+  (RAW.loanRepayments||[]).forEach(r => {
+    if(!ok(r.payment_channel)) return;
+    add(outflows, r.actual_payment_date, 'Loan repayment — principal', r.payment_channel, parseFloat(r.principal_portion||0), 'financing');
+    add(outflows, r.actual_payment_date, 'Loan repayment — interest', r.payment_channel, parseFloat(r.interest_portion||0), 'financing');
+  });
+  return { inflows, outflows };
+}
+
+// Builds the input for ReportEngine.presets.cashflow() — the engine owns the layout,
+// subtotals, reconciliation and notes; this page only supplies the figures.
 async function buildReportData(cf){
-  const { inflow, outflow } = computeGrossFlows(cf);
-  const netMovement = rowTotal(cf.netMovement);
-  const closing = rowTotal(cf.closing);
+  const lines = cfStatementLines(cf);
+  const tx = cfTransactions();
 
-  const trend = await getNetMovementTrend(RAW.period, 6);
-
-  let pct = null;
+  // last month, for the "vs Aug" figures and the opening-balance reconciliation
+  let previous, previousClosing;
   try{
-    const prevData = await fetchPeriodData(RAW.prevPeriod);
-    const prevOpening = await resolveOpeningBalance(RAW.prevPeriod);
-    const prevCf = computeCashFlow({ ...prevData, openingBalance: prevOpening });
-    const prevNet = rowTotal(prevCf.netMovement);
-    if(prevNet !== 0) pct = ((netMovement - prevNet) / Math.abs(prevNet)) * 100;
-  } catch(e){ /* no prior period on record — leave pct as null */ }
+    const prevCf = await cfPeriodCf(RAW.prevPeriod);
+    previous = cfFlowTotals(cfStatementLines(prevCf));
+    previousClosing = prevCf.closing;
+  } catch(e){ /* no prior month on record — those extras are simply left out */ }
 
-  const opTotal = rowTotal(cf.netOperating), invTotal = rowTotal(cf.netInvesting), finTotal = rowTotal(cf.netFinancing);
-  const bridgeLabels = ['Opening Balance','Operating Activities','Investing Activities','Financing Activities','Closing Balance'];
-  const bridgeValues = [rowTotal(cf.opening), opTotal, invTotal, finTotal, closing];
-  const bridgeColors = bridgeValues.map(v => v < 0 ? '#C0392B' : '#2D6A4F');
+  // the five months before this one, oldest first, for the trend charts
+  const history = [];
+  let mk = RAW.period;
+  const keys = [];
+  for(let n=0;n<5;n++){ mk = prevMonthKey(mk); keys.unshift(mk); }
+  for(const k of keys){
+    try{
+      const t = cfFlowTotals(cfStatementLines(await cfPeriodCf(k)));
+      history.push({ label: cfShort(k), inflow: t.inflow, outflow: t.outflow });
+    } catch(e){ /* a month that failed to load is left out of the trend */ }
+  }
 
-  const insights = [
-    {
-      icon: opTotal < 0 ? 'trendDown' : 'trendUp', color: opTotal < 0 ? '#C0392B' : '#2D6A4F',
-      text: opTotal < 0 ? `Operating activities used cash of ${fmt(Math.abs(opTotal))} ETB` : `Operating activities generated cash of ${fmt(opTotal)} ETB`
-    },
-    {
-      icon: 'exchange', color: '#E67E22',
-      text: invTotal < 0 ? `Investing activities used cash of ${fmt(Math.abs(invTotal))} ETB` : `Investing activities provided cash of ${fmt(invTotal)} ETB`
-    },
-    {
-      icon: 'exchange', color: '#2E86DE',
-      text: finTotal < 0 ? `Financing activities used cash of ${fmt(Math.abs(finTotal))} ETB` : `Financing activities provided cash of ${fmt(finTotal)} ETB`
-    },
-    pct !== null ? {
-      icon: 'percent', color: '#8E44AD',
-      text: `Cash ${pct < 0 ? 'decreased' : 'increased'} by ${Math.abs(pct).toFixed(2)}% compared to ${monthLabel(RAW.prevPeriod)}`
-    } : {
-      icon: 'percent', color: '#8E44AD',
-      text: `No ${monthLabel(RAW.prevPeriod)} data available for comparison`
-    },
-    { icon: 'safe', color: '#2D6A4F', text: `Closing cash balance is ${fmt(closing)} ETB` }
-  ];
-
-  return {
-    module: 'Cash Flow',
-    title: 'Cash Flow Report',
+  return ReportEngine.presets.cashflow({
     period: monthLabel(RAW.period),
     currency: 'ETB',
-    generatedBy: getGeneratedByName() || '-',
+    generatedBy: getGeneratedByName() || (typeof OWNER!=='undefined' && OWNER && OWNER.name) || undefined,
     generatedAt: new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }),
-    kpis: [
-      { icon:'wallet', label:'OPENING CASH BALANCE', value: fmtSigned(rowTotal(cf.opening)), unit:'ETB', color:'#2D6A4F' },
-      { icon:'arrowDown', label:'TOTAL CASH INFLOW', value: fmt(inflow), unit:'ETB', color:'#2E86DE' },
-      { icon:'arrowUp', label:'TOTAL CASH OUTFLOW', value: fmt(outflow), unit:'ETB', color:'#C0392B' },
-      { icon:'exchange', label:'NET CASH FLOW', value: fmtSigned(netMovement), unit:'ETB', color:'#E67E22' },
-      { icon:'safe', label:'CLOSING CASH BALANCE', value: fmtSigned(closing), unit:'ETB', color:'#2D6A4F' },
-      { icon:'percent', label:'CASH FLOW CHANGE', value: pct!==null ? (pct>=0?'+':'')+pct.toFixed(2)+'%' : 'N/A', unit: 'vs '+monthLabel(RAW.prevPeriod), color:'#8E44AD' }
-    ],
-    charts: [
-      { type:'bar', title:'Cash Inflow vs Outflow (ETB)', labels:['Total Inflow','Total Outflow'], values:[inflow, outflow], colors:['#2D6A4F','#C0392B'] },
-      { type:'line', title:'Net Cash Flow Trend (Last 6 Months)', labels: trend.labels, values: trend.values },
-      { type:'doughnut', title:'Cash Flow by Activities (ETB)', labels:['Operating Activities','Investing Activities','Financing Activities'],
-        values:[Math.abs(opTotal)||0.0001, Math.abs(invTotal)||0.0001, Math.abs(finTotal)||0.0001], colors:['#27ae60','#f59e0b','#2563eb'] },
-      { type:'bar', title:'Cash Flow Bridge (ETB)', labels: bridgeLabels, values: bridgeValues, colors: bridgeColors }
-    ],
-    tables: [
-      { title:'CASH FLOW STATEMENT (SUMMARY)', columns:['Particulars','Amount (ETB)'], rows: buildSummaryTableRows(cf),
-        totalsRow: ['CLOSING CASH BALANCE (A + Net Movement)', fmtSigned(closing)] }
-      // NOTE: a second itemized "Major Cash Transactions" table (date/description/
-      // activity type/inflow/outflow) is intentionally not included yet — building
-      // it means merging RAW.sales/creditPayments/purchases/payroll/pettyCash/
-      // cfEntries/loanRepayments into one dated list, and I don't actually know the
-      // date column name on each of those tables (sale_date? date? created_at?) from
-      // the code alone. Tell me those column names and I'll add it as tables[1].
-    ],
-    insights
-  };
+    opening: cf.opening,
+    operating: lines.operating,
+    investing: lines.investing,
+    financing: lines.financing,
+    transfers: lines.transfers,
+    closing: cf.closing,
+    previousClosing,
+    previousLabel: cfShort(RAW.prevPeriod),
+    previous,
+    history: history.length ? history : undefined,
+    monthLabel: cfShort(RAW.period),
+    inflows: tx.inflows,
+    outflows: tx.outflows
+  });
 }
 
 async function exportPdf(){

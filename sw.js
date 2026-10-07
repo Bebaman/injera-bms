@@ -1,7 +1,7 @@
 /* Mena BMS service worker — offline app shell + cached Supabase reads.
    Writes are NOT handled here: /js/offline-sync.js queues them in IndexedDB.
    BUMP `VERSION` ON EVERY DEPLOY so users receive the new files. */
-const VERSION = 'bms-v1';
+const VERSION = 'bms-v2';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
