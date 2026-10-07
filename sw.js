@@ -1,7 +1,7 @@
 /* Mena BMS service worker — offline app shell + cached Supabase reads.
    Writes are NOT handled here: /js/offline-sync.js queues them in IndexedDB.
    BUMP `VERSION` ON EVERY DEPLOY so users receive the new files. */
-const VERSION = 'bms-v2';
+const VERSION = 'bms-v3';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -79,15 +79,37 @@ self.addEventListener('message', (e) => {
 const isSupabase = (u) => u.hostname.endsWith('.supabase.co');
 const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
 
+// Once one request has failed or timed out we know the connection is down, so for the next few
+// seconds every other request goes straight to the saved copy instead of each waiting out its own
+// timeout (a dashboard fires ~50 requests: waiting 8 s apiece left it "loading" for a minute).
+let offlineUntil = 0;
+const knownOffline = () => (self.navigator && self.navigator.onLine === false) || Date.now() < offlineUntil;
+
+// Answers served from the saved copy are tagged so the page can tell "live" from "saved on this device".
+async function tagged(res, header) {
+  const h = new Headers(res.headers);
+  h.set(header, '1');
+  return new Response(await res.clone().blob(), { status: res.status, statusText: res.statusText, headers: h });
+}
+
 async function networkFirst(req, cacheName, ms) {
   const cache = await caches.open(cacheName);
+  const isData = cacheName === DATA_CACHE;
+  const find = () => cache.match(req, { ignoreVary: true });
+  if (knownOffline()) {
+    const hit = await find();
+    if (hit) return isData ? tagged(hit, 'X-BMS-Cache') : hit;
+    if (self.navigator && self.navigator.onLine === false) throw new Error('offline');
+  }
   try {
-    const res = await Promise.race([fetch(req), timeout(ms)]);
+    const res = await Promise.race([fetch(req), timeout(knownOffline() ? 2500 : ms)]);
+    offlineUntil = 0;
     if (res && res.ok) cache.put(req, res.clone());
     return res;
   } catch (err) {
-    const hit = await cache.match(req);
-    if (hit) return hit;
+    offlineUntil = Date.now() + 12000;
+    const hit = await find();
+    if (hit) return isData ? tagged(hit, 'X-BMS-Cache') : hit;
     throw err;
   }
 }
@@ -111,9 +133,9 @@ self.addEventListener('fetch', (e) => {
   // Supabase reads: network first, fall back to the last good copy.
   if (isSupabase(url) && url.pathname.startsWith('/rest/v1/')) {
     e.respondWith(
-      networkFirst(req, DATA_CACHE, 8000).catch(() =>
+      networkFirst(req, DATA_CACHE, 5000).catch(() =>
         new Response(JSON.stringify({ message: 'offline', offline: true }), {
-          status: 503, headers: { 'Content-Type': 'application/json' } }))
+          status: 503, headers: { 'Content-Type': 'application/json', 'X-BMS-Offline': '1' } }))
     );
     return;
   }
@@ -121,7 +143,7 @@ self.addEventListener('fetch', (e) => {
   // Page navigations: network first, then saved copy (also /page -> /page.html), then offline page.
   if (req.mode === 'navigate') {
     e.respondWith(
-      networkFirst(req, SHELL_CACHE, 4000).catch(async () => {
+      networkFirst(req, SHELL_CACHE, 3000).catch(async () => {
         const cache = await caches.open(SHELL_CACHE);
         const p = url.pathname.replace(/\/$/, '');
         return (await cache.match(req, { ignoreSearch: true })) ||

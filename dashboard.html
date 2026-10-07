@@ -847,6 +847,9 @@ let LAST = null; // cache of last computed dashboard payload, used by export + s
 // ══════════════════════════════════════════════════════════
 // ── MASTER REFRESH ───────────────────────────────────────
 // ══════════════════════════════════════════════════════════
+// Offline, a query that was never saved on this device must not take the whole dashboard down with it:
+// that one list comes back empty and everything else still shows. Real server errors still surface.
+function _offlineTolerant(p){ return p.catch(err => { if (err && err.offline) return []; throw err; }); }
 async function refreshDashboard(){
   const msel = document.getElementById('msel');
   if(!msel){ console.error('refreshDashboard: #msel element not found on page — check header.js/sidebar.js render it before this runs.'); return; }
@@ -917,7 +920,7 @@ async function refreshDashboard(){
       sbGet(`payroll_detail?select=worker_id,payment_date,gross_pay,days_present,days_in_month&period=eq.${period}`),
       sbGet(`period_closes?select=period&period=eq.${prevP}`),
       sbGet(`vat_summary?select=*&period=eq.${period}`),
-      sbGet(`login_log?select=email,outcome,created_at&outcome=neq.success&created_at=gte.${new Date(Date.now()-86400000).toISOString()}`),
+      sbGet(`login_log?select=email,outcome,created_at&outcome=neq.success&created_at=gte.${new Date(Math.floor((Date.now()-86400000)/3600000)*3600000).toISOString()}`),
       sbGet(`price_history?select=item_name,date,unit_price,rolling_3_avg&period=eq.${period}`),
       sbGet(`period_closes?select=period&limit=1`),
       // ── New insight-module data (added 2026-07) — every query below reuses tables/
@@ -933,7 +936,7 @@ async function refreshDashboard(){
       // All-time successful logins, oldest first — used to detect a login from an IP never
       // seen before for that user. Small-business login volume, so unlimited is fine.
       sbGet(`login_log?select=email,user_id,ip_address,created_at&outcome=eq.success&order=created_at.asc`)
-    ]);
+    ].map(_offlineTolerant));
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
     const CREDIT_WARNING_PCT = (businessSettingsRows && businessSettingsRows[0] && businessSettingsRows[0].credit_limit_warning_pct != null)
