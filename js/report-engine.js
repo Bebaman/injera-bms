@@ -7398,6 +7398,10 @@
   //   largeThreshold?: 50000                          // one movement at/above this is listed as large
   //                                                   //   (default: 25% of that side's total)
   //   layout?: 'statement'                            // the old statement-only page (v3.5-v3.8)
+  //   transfers?: [{ label, cash, bank, mobile }]     // v3.40: moves between the business's own channels
+  //                                                   //   (money out of one pool is NEGATIVE, into the other
+  //                                                   //   POSITIVE). Shown as section D, kept out of inflow /
+  //                                                   //   outflow, and counted in each channel's closing balance.
   // }
   // The closing balance is always computed (opening + net movement) so the statement foots; if
   // the page supplies its own `closing` and it disagrees, a note says so rather than hiding it.
@@ -7444,7 +7448,17 @@
       push(netLabel, nets[key], 'subtotal');
       list.forEach(r => allLines.push(r));
     });
-    const net = CF_CHANNELS.map((_, c) => nets.operating[c] + nets.investing[c] + nets.financing[c]);
+    // v3.40: moves between the business's own cash / bank / mobile pools. Not an activity under IAS 7:
+    // they net to zero in total and only change which channel holds the cash, so they are shown in
+    // their own section after C and are left out of inflow / outflow / the activity totals.
+    const xferList = listOf(i.transfers);
+    const xferNet = colSum(xferList);
+    if (xferList.length) {
+      section('D. Transfers between accounts');
+      xferList.forEach(r => push(r.label, vec(r), 'line'));
+      push('Net transfers between accounts', xferNet, 'subtotal');
+    }
+    const net = CF_CHANNELS.map((_, c) => nets.operating[c] + nets.investing[c] + nets.financing[c] + (xferList.length ? xferNet[c] : 0));
     const closing = CF_CHANNELS.map((_, c) => opening[c] + net[c]);
     push('Net change in cash', net, 'subtotal', true);
     push('CLOSING CASH BALANCE', closing, 'total');
@@ -7629,14 +7643,15 @@
     }
 
     // ---- Row 3: the channel table ----
+    const hasX = xferList.length > 0;
     const channelTable = {
       title: 'Cash Position by Channel', sheetName: 'Channel Summary',
-      columns: ['Channel', `Opening (${cur})`, `Inflow (${cur})`, `Outflow (${cur})`, `Closing (${cur})`],
-      rows: CF_CHANNELS.map(([, label], c) => [label, stm(opening[c]), stm(inflowBy[c]), stm(outflowBy[c]), stm(closing[c])]),
-      totalsRow: ['Total', stm(openT), stm(inflowT), stm(outflowT), stm(closeT)],
-      columnAlign: [null, 'right', 'right', 'right', 'right'],
+      columns: ['Channel', `Opening (${cur})`, `Inflow (${cur})`, `Outflow (${cur})`].concat(hasX ? [`Transfers (${cur})`] : [], [`Closing (${cur})`]),
+      rows: CF_CHANNELS.map(([, label], c) => [label, stm(opening[c]), stm(inflowBy[c]), stm(outflowBy[c])].concat(hasX ? [tc(stm(xferNet[c]), xferNet[c])] : [], [stm(closing[c])])),
+      totalsRow: ['Total', stm(openT), stm(inflowT), stm(outflowT)].concat(hasX ? [stm(sumVec(xferNet))] : [], [stm(closeT)]),
+      columnAlign: hasX ? [null, 'right', 'right', 'right', 'right', 'right'] : [null, 'right', 'right', 'right', 'right'],
       statement: true,
-      additive: [1, 2, 3, 4] // opening, inflow, outflow and closing all add up across channels
+      additive: hasX ? [1, 2, 3, 4, 5] : [1, 2, 3, 4] // opening, inflow, outflow, transfers and closing all add up across channels
     };
 
     // ---- detailed PDF + Excel ----
