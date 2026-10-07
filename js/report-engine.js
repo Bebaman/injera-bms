@@ -1,6 +1,564 @@
 /* ============================================================
    MENA INJERA & DERKOSH BMS — SHARED REPORT ENGINE
-   report-engine.js  (v2)
+   report-engine.js  (v3.39)
+   ------------------------------------------------------------
+   WHAT'S NEW IN v3.39 - wiring fixes found while connecting sales / purchases / profit / reports
+   - Chart.js plugins registered globally by a page (the pages load chartjs-plugin-datalabels and call
+     Chart.register(ChartDataLabels)) no longer leak into the engine's off-screen charts: datalabels is switched
+     off for every engine chart, so exported PDFs / Excel images never get stray value labels on top of the
+     engine's own labels.
+   - PALETTE (the colours the presets hand to donut charts) now follows THEME.palette, so every donut uses the
+     same forest / gold / sage / slate / clay / plum set as the rest of the redesign.
+
+   WHAT'S NEW IN v3.38 - Multi-Year preset (reports.html)
+   - presets.multiyear(input): Summary page = 6 KPI cards (revenue, COGS, net profit, net margin, injera and
+     derkosh produced), Revenue Trend and Net Profit Trend charts, Key Insights, and the Year-over-Year Summary
+     beside Production by Year. Detailed PDF / Excel adds the YoY P&L, revenue, COGS, profit and margin, product
+     mix, per-unit economics (injera and derkosh), top customers, concentration, retention / churn, ingredient
+     prices, seasonality, variance and COGS decomposition (amounts and mix), each with a chart where one helps.
+   - The engine does not recalculate the module: the page passes the figures it already computes (input contract
+     is documented above the preset). Anything not supplied is left out. A part-year (YTD) is compared with the
+     same months of the previous year when input.years[].likeForLike is given, never with a full year.
+   - Reconciliation checks run only on figures the page supplies (gross profit, net profit, COGS components vs.
+     total COGS). No other preset, chart or layout changed.
+   - Engine, opt-in and used only by this preset: reportData.detailSections = [{ title, charts?, tables?, insights? }]
+     prints the detailed PDF as an ordered list of sections (heading, charts two to a row, then tables) instead of
+     "all extra charts, then all tables". Multi-Year uses it to follow the plan: YoY P&L, Revenue, COGS, Profit &
+     Margin, Production, Product Mix, Per-Unit Economics, Customers, Ingredients, Seasonality, Variance, COGS
+     Decomposition, then the Executive Summary as the conclusion. Excel / CSV ignore it. reportData.typeTitles =
+     { summary, detailed } sets the page title per PDF type ("Multi-Year Report — Summary" / "— Detailed").
+     drawCharts takes an optional { perRow } so a lone chart can stay half width. Without these fields every
+     other module renders exactly as before.
+
+   WHAT'S NEW IN v3.37 — unit economics, product mix and top buyers
+   - Production: two new KPI cards, "Cost per Injera" (production cost / injera produced, with the change vs. the
+     previous period when input.previousCostPerUnit is given) and "Profit per Injera" (average selling price less
+     cost per injera, with the margin). The Production Cost card now shows cost per batch instead (the per-injera
+     figure has its own card). Profit needs a selling price: input.avgPrice (aliases sellingPrice / avgSellingPrice)
+     or input.injeraRevenue + input.injeraSold; without one the card is left out and the footer says why. Detailed
+     PDF / Excel: new "Unit Economics per Injera" table (price, cost by component, cost, profit, margin) and, when a
+     price is known, a "Profit / Injera" column on "Cost Detail by Batch". A Key Insight states the profit per injera.
+   - Derkosh: two new KPI cards, "Cost per kg" and "Profit per kg", per kg SOLD (profit per kg = gross profit / kg sold;
+     cost per kg = average price - profit per kg), so they always tie to the Gross Profit card; the cost card says
+     "Estimated cost" when the engine had to fall back to an estimate. Detailed PDF / Excel: new "Unit Economics per kg"
+     table with memo lines for this period's production cost per kg and the BMS weighted-average cost.
+   - Dashboard (management): Product Mix. The Key Insights always keep a slot for it (e.g. "Product mix: Injera 78% ·
+     Derkosh 22% of revenue", plus the biggest share move when prior revenue is given). Input: input.productMix =
+     [{ name, revenue, previousRevenue?, grossProfit? }] or the shortcut injeraRevenue / derkoshRevenue (+
+     previousInjeraRevenue / previousDerkoshRevenue, injeraGrossProfit / derkoshGrossProfit). Detailed PDF / Excel: a
+     "Product Mix" table (revenue, share, prior share and change, gross profit and margin when supplied; revenue not
+     assigned to a product is shown as "Other revenue" so the table foots to total revenue) and a donut chart. Nothing
+     changes when no product revenue is supplied.
+   - Customers: the page no longer answers only "who owes us". The Summary gets a "Top Buyers" panel (ranked by
+     revenue, share of revenue) beside the A/R chart, and the Key Insights now give buyers at least two of the four
+     slots (top buyer and whether they also owe, dependence on one customer, top-3 share, customers who stopped
+     buying or are buying less). Detailed PDF / Excel, placed first: "Top Buyers — Full Ranking" (rank, revenue,
+     share, cumulative share, owes, typical days to pay, and orders / average order / change vs. last period / last
+     order when the page supplies them), "Revenue Concentration" (top 1 / 3 / 5 / 10 and the average per buying
+     customer) and "Customers With No Purchases This Period". New optional customer fields: orders, lastOrder,
+     previousRevenue. Everything is built from figures the page already passes; the extra fields only add columns.
+
+   WHAT'S NEW IN v3.36 — the last leftovers (everything except the KPI cards is now on the new design)
+   - "No data" page: soft tinted dashed card with a gold tick and sentence-case message (PDF and Excel).
+   - Excel: forest titles with a gold rule, sentence-case section labels (Overview charts, Highlights,
+     ranking titles), plain (non-italic) meta line, insight tags in sentence case.
+
+   WHAT'S NEW IN v3.35 — header, footer and ranked lists join the new look
+   - Page header: forest company name, hairline rule with the same short gold tick as the section headings.
+   - Footer rule is the same hairline; text positions are unchanged.
+   - Ranked lists: soft rank badges (gold ring for #1), forest values, hairline separators, and a slim
+     proportion bar under each row when every value is a positive number (opt out: rankedList.bars = false).
+
+   WHAT'S NEW IN v3.34 — proportions & resolution
+   - Every chart bitmap is now rendered at the exact aspect ratio of the box it is placed in (the
+     extra-charts grid used a fixed 900x420 render squeezed into a 1:0.55 box = visible distortion).
+   - One print-resolution rule for all charts: 4.2 px per PDF point (~300 dpi). Chart.js is pinned to
+     devicePixelRatio 1, so a retina screen no longer produces a different bitmap than a normal one.
+   - Chart text is sized in points (7-7.6 pt) instead of as a fraction of canvas width, so labels stay
+     the same physical size in every panel. Donut centre text scales with the canvas and shrinks to fit
+     the hole. Excel charts render at 1100x600 for a 330x180 slot (same 11:6 ratio, 3.3x density).
+   - PDF chart images are Flate-compressed ('FAST') so the higher resolution doesn't bloat the file.
+
+   WHAT'S NEW IN v3.33 — complete visual redesign ("teff & forest")
+   -----------------
+   - Tables: no more boxed grid. Hairline row rules, a forest-green rule under the header and above the
+     totals row, a barely-there zebra tint, sage section bands, right-aligned numeric columns by default.
+     Excel follows the same look (no gridlines, hairline rules, forest header rule).
+   - Charts: every bar / line chart now goes through the refined "clean" renderer unless a spec asks for
+     style:'classic'. Soft gradient bars with rounded tops, dashed light gridlines, gradient area under
+     lines, calm categorical palette (THEME.palette) with teff-gold as the single warm accent, negatives
+     in clay red. Donuts: rounded, spaced segments, a thinner ring and the share printed on each segment.
+   - Cards: chart panels and insight cards share one soft card (hairline border + faint shadow).
+     Section headings are sentence case with a short gold tick. KPI cards are unchanged.
+   - Nothing about the data contract changed: every existing chart spec / table / preset renders as before,
+     only the look is new. chartSpec.style = 'classic' keeps the old chart look for a single chart.
+
+   WHAT'S NEW IN v3.32 — audit fixes (pagination, reconciliation, validation, CSV)
+   -----------------
+   - Pagination: detail tables no longer break into the footer band (autoTable's bottom margin is now
+     62pt, the same clearance the insight cards and charts already used). Every titled table in the
+     detailed PDF goes through drawTitledTable(): the heading is only drawn when the header row and
+     the first rows (or the whole table, when it is short) fit below it, otherwise both move to the
+     next page together. The fixed "y > pageHeight - 192" guesses are gone.
+   - Reconciliation: every check now has a status — Matches, Differs, or Not checked (with the reason).
+     A check that could not be made (non-numeric cells, a declared column with no total, a declared table
+     with no totals row, a statement-style table, a custom check with a missing figure) is listed as
+     Not checked in amber instead of silently disappearing, so it can never be read as a pass. A table
+     that has no totals row and declares nothing (a plain ledger) is not listed: there is nothing to check. A table may name its additive columns explicitly with
+     table.additive = [columnIndex | 'Column name', ...], or switch the engine's own checks off with
+     table.reconcile = false. Without either, the old column-name heuristic still applies.
+   - Validation: validateReportData() now also checks KPI items (label + value), insight items,
+     rankedList, definitions, custom checks, table row / totals-row widths against the column count
+     and, for PDF, every chart spec — so a malformed input fails with one clear message before
+     rendering starts rather than part-way through.
+   - CSV: an empty report no longer throws; it downloads a one-row "No data" CSV, matching the PDF and
+     Excel empty states. Per-table CSVs accept { excludeTotals: true } to leave the totals row out
+     (pure data), and every row is padded to the header width so files stay rectangular. Use
+     { perTable: true } for anything that will be imported into another system.
+
+   WHAT'S NEW IN v3.31 — Sales preset (Detailed Report Design Plan, the last module)
+   -----------------
+   - presets.sales(input): Sales built in the engine like every other module. Summary page: Total Sales
+     (vs. the previous period), Units Sold, Average Sale Value, Credit Sales and Outstanding A/R cards, a
+     daily sales trend, a sales-by-product donut, Key Insights, a short ledger and the top customers.
+     Detailed PDF / Excel: "Daily Sales Breakdown" (with running total; undated sales listed last),
+     "Sales by Product Type" (quantity, share, average price), "Payment-Method Breakdown", "Customer Sales
+     Detail" (revenue, share, credit sales, amount owed), "Credit Sales and Outstanding A/R Detail" (each
+     credit sale with collected, owed and, when input.asOf is given, days open) and the full Sales Ledger.
+   - Credit sale = payment method or status says credit / unpaid / partial / open. Owed comes from
+     balance, else amount - paid, else the full amount of an unpaid sale; otherwise it is UNKNOWN: shown as
+     "—", left out of Outstanding A/R and named in a note. Checks tie every table to the ledger and, when
+     input.customerBalances is given, the owed total to the BMS balances. The existing Sales page is not
+     changed by this; it keeps working until it is switched to presets.sales.
+
+   WHAT'S NEW IN v3.30 — Cash Flow and Budget transaction detail (Detailed Report Design Plan, final pass)
+   -----------------
+   - Cash Flow: "Cash Movement by Date and Channel" (every day with cash movement: net by Cash / Bank /
+     Mobile, inflow, outflow, net and the running balance from the opening cash), "Transaction Detail vs.
+     Statement by Channel" (each channel's inflow and outflow from the transaction lists set beside the
+     statement, Matches / Differs) and, when inflows / outflows carry activity: 'operating' |
+     'investing' | 'financing', "Cash Movements by Activity" (every movement under its activity with
+     a net per activity, checked against the statement). Optional reference on a movement is printed
+     with its description. Checks: closing cash rebuilt from the dated movements, each channel's inflow
+     and outflow, and each activity. A movement with no date or channel is listed last / as Unassigned,
+     and a note says how many; nothing is guessed. The Summary page and the statement are unchanged.
+   - Budget: "Supporting Transactions by Budget Line" now lists the transactions behind EVERY line
+     (not only lines that are Over / Miss), grouped by section with each line tagged by its status, a
+     subtotal per line and a total per section. Each line's actual is checked against its
+     transactions; lines with no transactions and transactions matching no line are named in the
+     notes. Replaces "Transactions Behind Significant Variances" (the 60-row cap is gone). The
+     Summary page is unchanged.
+   - Hardening: a preset input that should be a list (batches, sales, items, transactions, loans,
+     expenses and the like) but arrives as anything else is now treated as empty instead of
+     throwing. Checked by running all 15 presets with empty, null and malformed input: no crashes,
+     and every table's rows, totals row, row kinds and alignment match its columns.
+
+   WHAT'S NEW IN v3.29 — Dashboard detail (Detailed Report Design Plan, remaining modules, 6)
+   -----------------
+   - Dashboard: "Headline Figures vs. Prior" (the six headline figures with the prior value, change and
+     change %, red / green by whether the move is good for that figure), "Expense Split" as exact amounts
+     and shares, "Revenue vs. Expenses by Period" with a detailed-PDF chart (input.expenseTrend =
+     [{ label, amount }] beside revenueTrend; periods are matched by label and a period missing from
+     one side shows "—", never zero) and "Items Needing Attention" (every module the table flags, plus
+     cross-module alerts with the figures behind them: collections vs. cash, net loss, revenue drop; and
+     any input.alerts = [{ module, issue, detail, tone? }] the page adds). totals.expenses, when given,
+     is checked against the expense split. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.28 — Profit & Loss detail (Detailed Report Design Plan, remaining modules, 5)
+   -----------------
+   - Profit & Loss: "Supporting Transactions by Line" (input.transactions = [{ line, section?, date,
+     description, amount, reference? }]) lists the records behind every revenue, cost-of-goods-sold
+     and operating-expense line, grouped in statement order with a subtotal per line and a grand total,
+     so any figure on the statement can be traced to its source. The Notes and Reconciliation page
+     checks each line's statement amount against its transactions, and says which lines have no
+     transactions and which transactions match no line (those are left out of the table, not guessed
+     into a line). Without input.transactions nothing changes. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.27 — Overhead detail (Detailed Report Design Plan, remaining modules, 4)
+   -----------------
+   - Overhead: "Labor Cost by Employee" (role, entries, gross pay, cost to the business and share of
+     labor, so the payroll can be read person by person) and "Overhead by Payment Channel" (entries,
+     amount and share for Cash / Bank / Mobile, with labor and non-labor split out). Checks compare the
+     Summary totals with the entry detail and the current month in the monthly history. An entry with no
+     employee name is grouped as "Unnamed", and one with no channel as "Not stated"; a note says how many.
+     The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.26 — Petty Cash detail (Detailed Report Design Plan, remaining modules, 3)
+   -----------------
+   - Petty Cash: "Cash Position Calculation" (opening balance + replenishments = funds available,
+     less spent = calculated remaining, set beside the remaining cash the page reports, with the
+     difference), "Spending by Day" (transactions, amount, running total and cash left after each day),
+     "Spending by Channel" (when transactions carry a channel), "Receipt Coverage" (with / without a
+     receipt reference: count, amount, share) and "Transactions Without Receipt Reference" (each one
+     listed). Checks compare the remaining cash with opening + replenishments - spent, the spent figure
+     with the ledger, and the missing-receipt amount with the coverage table. Summary page unchanged.
+
+   WHAT'S NEW IN v3.25 — Customers detail (Detailed Report Design Plan, remaining modules, 2)
+   -----------------
+   - Customers: "Customer Aging Detail" (every customer's balance in Current / 30+ / 60+ / 90+ days,
+     plus any balance with no invoice age), "Payment Terms and Behaviour" (terms, typical days to pay,
+     days late against the terms, oldest open invoice, status), "Customer Revenue and Credit Sales"
+     (every customer's revenue, share of revenue, credit sales, credit share and open balance) and,
+     when invoices are supplied, "Open Invoices" (each unpaid invoice with its age, how far past the
+     customer's terms it is, and an optional invoice reference). Checks compare revenue, credit sales
+     and outstanding A/R with the Summary. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.24 — Production detail (Detailed Report Design Plan, remaining modules, 1)
+   -----------------
+   - Production: "Production by Day" (batches, units, rejected, average yield, cost and cost per
+     injera for each production day, with totals) and "Yield and Rejects by Batch" (units, rejected,
+     good units, reject rate, yield and the gap to the yield target). Rejected quantities are shown
+     only for batches that record them (batches[].rejected); a batch without one shows "—" and is left
+     out of the reject totals, and a note says how many. Yield is the BMS figure for each batch and the
+     engine only displays it. Checks compare units and cost with the Summary. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.23 — Inventory detail (Detailed Report Design Plan, gap-closing pass)
+   -----------------
+   - Inventory: "Stock Movement by Item" (opening + received - used (+ adjustments) = calculated
+     closing, set beside the reported closing with the difference; an item that cannot be rebuilt
+     shows "—" rather than a guessed figure), "Low Stock and Reorder Detail" (closing against the
+     reorder level, days of supply and the last receipt; drawn only when movements carry receipt dates) and "Inventory Movement
+     Records" (every movement in date order with its type, signed quantity, reference and balance
+     after, when supplied). Received / used come from the item's own figures, else from the movements.
+     A check reports how many items do not reconcile, so the Notes and Reconciliation page shows it.
+     Every table appears only when the page passes the data for it. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.22 — Loans detail (Detailed Report Design Plan, gap-closing pass, 3 of 4)
+   -----------------
+   - Loans: "Loan Position by Loan" (principal, principal repaid, % repaid, outstanding, interest paid,
+     next due date, overdue amount), "Overdue Payments" (each overdue instalment with its principal,
+     interest and days overdue), "Payments Made" (paid instalments; a Paid On column and days
+     early / late appear when paid dates are supplied) and "Still to Pay by Month" (unpaid
+     instalments grouped by due month). Checks compare the outstanding balance with the principal
+     still in the schedule, and the interest-paid figure with the per-loan detail. The register and
+     the full repayment schedule were already printed by the detailed PDF. The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.21 — Purchases detail (Detailed Report Design Plan, gap-closing pass, 2 of 4)
+   -----------------
+   - Purchases: "Spend by Type" (raw materials / operating / other, reconciled to the KPIs),
+     "Purchase Trend by Week", "Item Breakdown by Category" (appears when purchases carry a
+     description), "Approval Status" (when statuses are recorded) and "Awaiting Approval" (every
+     pending purchase, large ones flagged, with a check against the Large Expenses Pending figure).
+     The full purchase ledger and the full supplier list were already printed by the detailed PDF.
+     The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.20 — Milling detail (Detailed Report Design Plan, gap-closing pass, 1 of 4)
+   -----------------
+   - Milling: "Conversion Detail by Run" (date, batch, teff, rice, total input, blend, yield, total
+     cost, cost per kg, status — a column appears only when at least one run carries it),
+     "Inputs Used" (teff vs. rice, quantity and share) and "Cost and Inventory Value" (runs, blend
+     produced, total conversion cost, average cost per kg, inventory value generated).
+   - Runs with no cost are left out of the average and the inventory value, and the Notes and
+     Reconciliation page says how many; definitions explain yield, cost per kg and inventory value.
+     The Summary page is unchanged.
+
+   WHAT'S NEW IN v3.19 — Suppliers, Derkosh and Profit Distribution detail (Detailed Report Design Plan, step 7)
+   -----------------
+   - Suppliers: "Purchases by Supplier" (purchase count, quantity, total, share of spend, average
+     price, paid / owed when payments are recorded, on-time %) and "Purchase Detail by Supplier"
+     (every purchase grouped under its supplier, with a subtotal per supplier and a grand total;
+     optional Item / Reference columns appear only when the purchases carry them).
+   - Derkosh: "Production vs. Sales Quantity" (every day with production or sales: produced, sold,
+     net, running net, with totals that must match the Summary); when openingStock is supplied, a
+     "Stock Movement" table (opening + produced - sold = calculated closing stock).
+   - Derkosh: "Revenue and Gross Profit by Customer" and "Sales Ledger with Gross Profit" (every
+     sale with its revenue, cost of goods sold, gross profit and margin). COGS follows the same
+     order as the Summary (BMS figure first, WAC next, an estimate only as a disclosed last
+     resort); a sale with no cost shows "—" rather than a guessed profit.
+   - Profit Distribution: "Distributable Amount Calculation" (the BMS passes its own steps as
+     input.calculation; without them the engine lays out the figures it was given — cash in, cash
+     out, net cash profit, distributable amount, closing cash, headroom — and invents none),
+     "Shareholder Split" (ownership %, share of the distributable amount, recorded and pending
+     distributions), "Cash In vs. Cash Out by Period", "Owner Injections" and, when supplied,
+     "Closing Cash by Channel".
+   - Each of these adds cross-checks (reportData.checks) so the Notes and Reconciliation page
+     shows whether the detail adds up to the Summary figure. The Summary pages are unchanged.
+
+   WHAT'S NEW IN v3.18 — Inventory, Petty Cash and Customers detail (Detailed Report Design Plan, step 6)
+   -----------------
+   - Inventory: "Price Movement by Item" (records, first and latest price with dates, change).
+   - Petty Cash: "Spending by Category" (every category, share) and "Largest Expenses" (top ten).
+   - Customers: "A/R Aging by Bucket" with exact amounts and share of aged A/R.
+   All appear in the detailed PDF and Excel; the Summary pages are unchanged.
+
+   WHAT'S NEW IN v3.17 — Production and Overhead detail (Detailed Report Design Plan, step 5)
+   -----------------
+   - Production: new "Cost Detail by Batch" table (date, batch, units, material, overhead, other,
+     total cost, cost per injera) in the detailed PDF and Excel. Total cost is the BMS figure when
+     supplied; if the BMS period total is larger than the batches add up to, the reconciliation
+     section shows that difference rather than hiding it.
+   - Overhead: new "Overhead by Category" (every category, labor / non-labor, share) and
+     "Monthly Overhead" (total, labor, non-labor, change vs the prior month) tables.
+
+   WHAT'S NEW IN v3.16 — Notes and Reconciliation (Detailed Report Design Plan, step 4)
+   -----------------
+   - Every detailed PDF now ends with a "Notes and Reconciliation" section: reconciliation checks
+     (for each table with a totals row, the sum of the additive columns vs. the reported total,
+     "Matches" or "Differs by ..."; per-unit / % / average / balance columns are skipped), then
+     optional definitions (reportData.definitions = [{ term, text }]), then ALL notes in full
+     (the footer only has room for three lines). A module can add cross-checks of its own with
+     reportData.checks = [{ label, expected, actual, tolerance? }] and extra notes with
+     reportData.notes = ['...'].
+
+   WHAT'S NEW IN v3.15 — page footer on every page (Detailed Report Design Plan, step 3)
+   -----------------
+   - Every page footer now carries the module and period plus the generation time, next to the
+     page number (continuation pages used to show only "Page n of N"). One timestamp is shared
+     by the header and all footers.
+
+   WHAT'S NEW IN v3.14 — empty tables (Detailed Report Design Plan, step 2)
+   -----------------
+   - A table with no rows is drawn as one quiet "No records for this period." box (override with
+     table.emptyMessage) instead of a bare header row and an all-zero totals line. Applies to
+     every table in every module, summary and detailed.
+
+   WHAT'S NEW IN v3.13 — detailed PDF: full ranked lists (Detailed Report Design Plan, step 1)
+   -----------------
+   - The ranked list on the Summary (Top Suppliers, Sales by Customer, Top Debtors, Reorder Now ...)
+     shows only a few rows. The detailed PDF now lists EVERY item as a "... — Full List" table
+     (only when the Summary left some out), and the Excel export now carries every item too,
+     not just the first maxRows. Applies to every module that passes a rankedList.
+
+   WHAT'S NEW IN v3.12 — hardening pass (no design changes)
+   -----------------
+   - The Summary page is strictly ONE page. drawSummarySection() no longer adds pages: Row 2
+     is capped so Row 3 keeps room, every Row 3 table is fitted to the space actually left
+     (summaryMaxRows is only the starting cap; rows are trimmed further if needed, with the
+     "+ N more rows" note), ranked lists show only the rows that fit, and as a safety net any
+     overflow page autoTable still creates is removed. Whatever the page cannot show is
+     printed in full in the detailed PDF and always present in Excel/CSV. The detailed pages
+     now always start on a fresh page after the Summary.
+   - Key Insights are never silently dropped. One shared layout routine (layoutInsights)
+     sizes the column AND draws it. Too much text is first compacted (font/spacing, three
+     levels), then shortened with "..." (never below one line per card); the full text is
+     then printed in the detailed PDF and a footer note says it was shortened. Only an
+     unusually long list can still leave trailing cards off, and that is disclosed the same way.
+   - Production: accepts the BMS-calculated batch cost (batches[].cost) and period cost
+     (totals.cost) and displays it as-is instead of recomputing material + overhead + other.
+     The Cost Breakdown adds an "Other / unallocated" row so it still foots to the BMS total.
+     With no BMS cost supplied it falls back to the component sum and says so in the footer.
+   - Derkosh: accepts the BMS weighted-average cost (unitCost / wac) and totals.cogs. COGS
+     comes from totals.cogs, then the sales rows' cogs, then units sold x WAC; only if none
+     is given does it estimate from the period's average production cost, with a footer note.
+   - Report-engine rule: the BMS calculates, the engine only formats and presents.
+
+   WHAT'S NEW IN v3.11 — a second, quieter chart look for Cash Flow, P&L and Budget
+   -----------------
+   - chartSpec.minimal (with style:'clean'): no axes and no gridlines — thin pill-shaped bars, one
+     soft baseline, every value written on its bar, and a lighter card frame on the summary page.
+     chartSpec.precise keeps one decimal above 100K (265.9K); labelTexts prints exact text per bar;
+     chartSpec.stacked puts bars of one month in one column (up for positive, down for negative).
+   - Cash Flow summary chart is now a waterfall from OPENING cash through operating, investing
+     and financing to CLOSING cash. Its detailed charts are Monthly Cash Flow (inflow above the
+     baseline, outflow below, net as a line) and Opening vs. Closing Cash by Channel.
+   - P&L and Budget charts use the same quiet look, with a softer green / amber / coral palette.
+
+   WHAT'S NEW IN v3.10 — a cleaner chart style, used by Cash Flow, P&L and Budget
+   -----------------
+   - chartSpec.style = 'clean' (opt-in; every other module's charts look exactly as before).
+     Text is sized from the picture width so axis labels and legends are readable on the page,
+     bars/points carry short value labels (458K, 1.2M, 103%), gridlines are light and
+     horizontal-only, bars are rounded, long names wrap, and the legend sits clear of the axis.
+   - P&L summary chart is now a waterfall (revenue -> costs -> gross profit -> operating
+     expenses -> net profit); the P&L trend is revenue bars with net profit as a line on its own
+     right-hand axis; the expense donut shows each share in its legend.
+   - Budget charts run horizontally (budget vs. actual by section, utilization with a dashed
+     100% line, favourable / unfavourable variance by line); monthly stays vertical.
+   - New chartSpec fields: horizontal, labelFormat, valueLabels, labelSeries, ranges,
+     labelValues, connectors, refLine, and series[].type / series[].axis for bar + line combos.
+
+   WHAT'S NEW IN v3.9 — Cash Flow, Profit & Loss and Budget get the dashboard summary page
+   -----------------
+   - The three statement modules now use the same page as every other module. Summary: KPI
+     cards (Cash Flow 5, P&L 6, Budget 5), one main chart, Key Insights and a compact table
+     that fits one landscape page. The formal statement is unchanged (IAS 7 by channel,
+     IAS 2 with overhead in cost of goods sold, favourable-positive variances) and is the first
+     page of the detailed PDF. Pass layout:'statement' to a preset for the old statement-only page.
+   - Detailed PDF, per module (every extra is optional; whatever the page does not pass is
+     simply not drawn, and nothing unknown is shown as zero):
+       Cash Flow  - full statement; monthly inflow/outflow and net cash trend charts (history);
+                    inflow and outflow transaction tables; reconciliation; exceptions table.
+       P&L        - full statement; period comparison with Change and Change %; revenue and
+                    net profit trend, gross vs net, expense-split donut; revenue breakdown by
+                    product (quantity, average price, and product profit only when costs exist);
+                    expense breakdown; data notes.
+       Budget     - full line-by-line table with Trend; utilization and variance charts; monthly
+                    comparison; variance explanation (overs, unders, lines with no budget);
+                    the transactions behind lines that are over budget or missed.
+   - Engine: chart.detailOnly keeps a chart off the summary page and in the detailed PDF;
+     table.beforeCharts prints a table ahead of the extra charts in the detailed PDF;
+     reportData.detailChartsTitle renames the extra-charts heading; table.sheetName sets a
+     short Excel sheet name. With none of these set, behaviour is exactly as before.
+   - Budget no longer adds revenue and expenses into one "total variance": cards read
+     revenue, expenses and the net result separately.
+
+   WHAT'S NEW IN v3.8 — minus signs, green profit / red loss
+   -----------------
+   - Negative numbers are written with a minus sign (-1,234.50, -2.8%), never in brackets.
+     This is the shared formatter (ReportEngine.format.n), so every preset follows it; the
+     default footer note now says so. A value that rounds to zero prints as 0, never -0.
+     Reports a page builds itself (e.g. Sales) pass their own strings and are not affected.
+   - Profit and Loss: gross and net profit rows are green when positive and red when
+     negative, and the labels switch between GROSS PROFIT / GROSS LOSS and NET PROFIT / NET
+     LOSS. The Budget net line and Cash Flow's net change in cash follow the same colouring.
+
+   WHAT'S NEW IN v3.7 — Budget (the last planned module design)
+   -----------------
+   - presets added in v3.7: budget
+   - Budget (presets.budget): Particulars / Budget / Actual / Variance / Variance % / Trend vs.
+     Prior Month / Status, line by line, with a subtotal per section and a net line when the
+     report has both income and expense sections. Income lines are Beat / On Target / Miss,
+     expense lines Under / On Target / Over (within tolerancePct, default 2%, is On Target).
+     Variance is favourable-positive by default, so red always means "worse than budget"
+     (varianceSign:'raw' gives Actual - Budget). Trend compares each line's distance from
+     budget with last month's, in points (Better / Steady / Worse). No cards, no chart.
+     Notes: how many lines met budget, the biggest gap, the net result vs. budget, the trend.
+   - With Budget, every module in the PDF Export Design Plan has a preset: the 13 dashboard
+     designs (Sales is page-built as the reference) and the 3 statements.
+
+   WHAT'S NEW IN v3.6 — Profit & Loss
+   -----------------
+   - presets added in v3.6: pl
+   - Profit & Loss (presets.pl): Particulars / This Month / % of Revenue / Year-to-Date /
+     % of Revenue on an IAS 2 basis — Revenue, Cost of goods sold (overhead included), GROSS
+     PROFIT with its margin, Operating expenses, NET PROFIT / (LOSS) with its margin. No cards,
+     no chart. The Year-to-Date columns appear only when every line has a ytd figure (a
+     half-filled column would understate totals; a footer note says when it is dropped).
+     Notes: an opex line labelled "overhead" is flagged (IAS 2 puts it in COGS), net profit or
+     loss, revenue and gross-margin movement versus last month, the largest cost, YTD result.
+
+   WHAT'S NEW IN v3.5 — statement modules, one at a time (Cash Flow first)
+   -----------------
+   Same opt-in rule as before: nothing here changes how any earlier preset renders.
+   - presets added in v3.5: cashflow
+   - Cash Flow (presets.cashflow): the IAS 7 Direct Method statement as the plan describes —
+     opening balance, then Operating / Investing / Financing activities with a subtotal for
+     each, net increase / (decrease), and the closing balance, across the Cash, Bank and
+     Mobile channels plus a Total column. A second table reconciles each channel's opening
+     balance against last month's computed closing balance (Reconciled / Difference, colour
+     coded). No KPI cards, no chart. Notes underneath flag a negative channel balance, an
+     opening balance that does not match last month, a closing figure that disagrees with the
+     statement, operating cash burn and the movement in total cash.
+   - Fix (PDF text): four spots wrote characters the embedded Nunito/Quicksand subsets have
+     no glyph for, so they would have printed as blanks/boxes whenever they fired — the
+     arrow in the Overhead "rising every month", Customers "bucket grew" and Suppliers
+     "price hike" insights (now ", " / "to"), and the ellipsis that Petty Cash appended to a
+     shortened description (now three dots).
+
+   WHAT'S NEW IN v3.4 — the last planned module designs
+   -----------------
+   Same opt-in rule as before: nothing here changes how any earlier preset renders.
+   - presets added in v3.4 (one at a time, in plan order): profit, dashboard
+   - Profit Distribution (presets.profit): Net Cash Profit / Distributable / Closing Cash /
+     Owner Injections cards, a Cash In vs. Cash Out line chart, the shareholder-split donut
+     (the 80/20 ownership), Key Insights (cash short of the distributable amount, distributable
+     down on last month, pending distributions, owner injections), and the Distribution History
+     table. Cancelled distributions stay visible in the table but are left out of its total.
+   - Dashboard (presets.dashboard): the six-KPI row (Total Revenue / Net Profit / Gross Profit /
+     Cash Balance / Outstanding A/R / Derkosh Stock) as ONE tight row of six cards — the open
+     "two rows or one" question from the plan is settled as one row. Revenue Trend line, Expense
+     Split donut, cross-module Key Insights (A/R rising while cash falls, net loss, A/R share of
+     revenue, modules needing attention, Derkosh days of cover) and a one-row-per-module summary
+     table (value, unit, vs. prior, status). Figures over 10 million shorten to 12.5M.
+   - Fix (drawKPICards): when a long value pushes the unit onto its own line, the delta line
+     ("+14.6% vs Aug") used to be drawn on top of it; it now sits one line lower in that case
+     only. Cards where the unit fits beside the value are unchanged.
+
+   WHAT'S NEW IN v3.3 — the rest of the planned module designs
+   -----------------
+   Same opt-in rule as v3.2: nothing here changes how Sales, Purchases, Production,
+   Derkosh or Milling render. New presets are added one module at a time, in the order
+   of the PDF Export Design Plan:
+   - presets added in v3.3: inventory, overhead, pettycash, customers, suppliers, loans
+   - Inventory: Reorder Now list + Stock Status table (most urgent first), a Price
+     Trend chart (one item as an actual price, several as % change), and an extra
+     "Expiring Soon" table that appears in the detailed PDF / Excel only.
+   - Overhead: month-over-month trend chart (total + labor), an exact Labor vs. Non-Labor
+     table in the middle slot (no donut), and the payroll / overhead ledger with an
+     overhead-vs-output insight when production volumes are supplied.
+   - Petty Cash: both charts kept as designed (daily spending bars with the peak day
+     highlighted + a top-categories donut), and a ledger whose missing receipt
+     references are flagged in amber and called out in Key Insights.
+   - Customers: A/R Aging bar chart (Current / 30+ / 60+ / 90+ days, bars coloured green to
+     red), Aging Detail table with a derived Status per customer, and a Top Debtors list.
+     Aging is built from open invoices or per-customer buckets; any receivables with no
+     invoice age are called out in the footer rather than silently left out of the chart.
+   - Suppliers: price-trend lines for the biggest suppliers (plus a market-average line when
+     one is supplied), a Supplier Comparison table with "vs. Market Avg." and on-time %
+     colour-coded, and a Top Suppliers by Spend list. Without an external market average
+     the "market" is the all-supplier weighted average, and a footer note says so.
+   - Loans: no chart, as designed — Key Insights at full width, then the Loan Register and the
+     Repayment Schedule side by side (reportData.summaryTables = 2). The schedule lists what
+     is still to be paid first (overdue leading, in red), paid instalments after.
+   ------------------------------------------------------------
+   WHAT'S NEW IN v3.2 — the remaining module designs from the PDF Export Design Plan
+   -----------------
+   Everything below is opt-in. A reportData that uses none of it (e.g. the Sales
+   report) renders exactly as it did in v3.1 — verified page-for-page.
+   - ReportEngine.presets.<module>(input) — one preset per planned design. The page
+     passes its own computed figures; the preset returns the complete reportData
+     (KPIs, charts, generated Key Insights, tables, ranked list). Modules done so far:
+     purchases, production, derkosh, milling.
+   - ReportEngine.format — the number helpers the presets use (money, pct, ...).
+   - Table cells may be { v, tone, bold } objects; tone = good | warn | bad | info | muted
+     colours the cell (status columns: Overdue, Reorder, Beat, Miss ...). Excel and CSV
+     still receive plain values.
+   - table.rowKinds (section | line | subtotal | total | pct | note), table.statement,
+     table.alignNumeric, table.negativeRed, table.columnAlign — statement-style row
+     formatting, right-aligned numbers, red negatives. Mirrored in Excel.
+   - table.summaryMaxRows — the PDF summary page shows the first N rows plus a
+     "+ N more rows" line; the detailed PDF prints the full table, Excel/CSV always
+     carry every row.
+   - reportData.summaryTables = 2 — Row 3 shows tables[0] and tables[1] side by side
+     (Loans: register + repayment schedule) instead of table + ranked list.
+   - reportData.panelTable — a compact table in the Row-2 middle slot when there is no
+     second chart (Production cost breakdown, Overhead labor split). Also exported to
+     Excel/CSV as the last table.
+   - reportData.layout = 'statement' — formal statement pages (Cash Flow, Profit &
+     Loss, Budget): no KPI cards or charts, full-width statement tables. Optional
+     statementTitle / statementBasis.
+   - Documentation fix: generatePDF has always defaulted to 'landscape' (as the code
+     comment says); the v3.1 note below that says the default stays 'portrait' was wrong.
+
+   WHAT'S NEW IN v3.1 — pre-17-module hardening
+   -----------------
+   - Fixed a real Excel bug: a table titled "Summary" could collide with the
+     Summary sheet ExcelJS worksheet names must be unique, so dedup now seeds
+     from the workbook's existing sheet names instead of starting empty.
+   - Fixed the Excel Summary KPI grid: KPI cards now divide a fixed 14-column
+     canvas evenly (wrapping every 7 KPIs) instead of a fixed 3-col-per-card
+     width that pushed a 6th KPI past the 14-column title/meta area.
+   - PDF summary page: estimates whether the table + its side-by-side charts
+     fit in the space left on the page before drawing either, so autoTable's
+     own pagination can no longer split a table from its charts.
+   - Added validateReportData(), called first by generatePDF/generateExcel/
+     generateCSV, so a malformed reportData (wrong types, missing arrays)
+     fails with one clear message instead of an internal crash mid-render.
+   - Added a standardized empty-report state: set reportData.status = 'empty'
+     (optionally with reportData.emptyMessage) and PDF/Excel render a single
+     branded "NO DATA FOR THIS PERIOD" message instead of a blank-looking
+     report; CSV throws a clear "no data available" error instead of the
+     previous bare "tables is empty".
+   - Footer notes are now bounded to a fixed-height band and never run past
+     the bottom of the page; once there are more notes than fit, the rest
+     collapse into a single "+N more notes" line instead of overflowing.
+   - Charts (line/bar) accept an optional chartSpec.series = [{ label,
+     values, color, fill }, ...] for multi-line/grouped-bar datasets (e.g.
+     purchase quantity vs. spend, production input vs. output), on top of
+     the original single-series `values` shape, which is still the default
+     and renders exactly as before when `series` isn't passed.
+   - generateCSV(reportData, { perTable: true }) downloads one CSV file per
+     table instead of the blank-line-separated all-tables file — better for
+     automated processing. The original all-in-one and single-table modes
+     are unchanged and still the default.
+   - CDN load failures now name the specific library and every URL that was
+     tried, instead of a bare "All CDN sources failed for <url>" message.
+   - generatePDF(reportData, { orientation: 'landscape' }) now works — added
+     the option (default stays 'portrait') and converted every hardcoded
+     page-bottom pagination threshold (drawCharts, drawSummarySection,
+     drawHighlights, the detailed-mode table loop) to be computed from the
+     actual page height instead of assuming a fixed 842pt portrait page, so
+     landscape reports paginate correctly instead of overflowing the page.
    ------------------------------------------------------------
    Fifth shared file, alongside shared-shell.css / app-state.js /
    sidebar.js / header.js. Purely additive — no existing page is
@@ -58,6 +616,31 @@
      stripped, not just spaces), and sheet names in Excel are
      de-duplicated so two same-titled tables don't crash the export.
 
+   WHAT'S NEW IN v3 — LIGHTER RESTYLE
+   -----------------
+   Visual restyle only — the reportData shape, generatePDF/generateExcel/
+   generateCSV signatures, and summary/detailed layout rules are all
+   unchanged, so no module wiring into this engine needs to change.
+   - Header: no more solid green top bar. Logo + company name now sit
+     left, report title + generated meta sit right, one thin green
+     rule underneath — two columns instead of the old centered title.
+   - KPI cards: dropped the drawn icon-in-a-circle badge. Cards are now
+     flat, left-aligned (label / big value / small unit, stacked), with
+     kpi.color kept only as a slim 2pt left accent bar instead of
+     coloring the whole value — quieter, but the color field you pass
+     still means something.
+   - Table header row is a light gray band with small muted-gray
+     caption text instead of a solid green fill with white text; grid
+     lines are thin gray instead of black. Totals row is white with
+     bold green text (no more solid pale-green fill block).
+   - Section titles (e.g. "REVENUE BY PRODUCT") are now dark gray/black
+     instead of green, matching the plainer look; green is reserved for
+     the header rule, totals text, and chart accents.
+   - Excel: header bands and the Summary sheet's title/meta rows are no
+     longer solid green fills — white background with a green bottom
+     rule instead. KPI values on the Summary sheet are dark text now,
+     same "color as accent, not as fill" idea as the PDF.
+
    STANDARD REPORT OBJECT (unchanged — same shape as before)
    -----------------------
    {
@@ -103,10 +686,22 @@
        }
      ],
      insights: [
-       // icon/color are optional — omit both for a plain accent-colored dot
+       // icon/color are optional — omit both for a plain accent-colored dot.
+       // label (e.g. 'WATCH', 'GROWTH') is an alternative to icon — a short
+       // uppercase tag drawn above the text instead of a badge; a card can
+       // use either, both, or neither.
        { icon: 'trendDown', color: '#C0392B', text: 'Operating activities used cash of 20,550.00 ETB' },
+       { label: 'Watch', color: '#C89B3C', text: 'Outstanding A/R rose to 15% of revenue.' },
        ...
      ],
+     rankedList: { // optional — bottom-right panel beside tables[0], e.g. "Top Customers"
+       title: 'Top Customers by Revenue',
+       maxRows: 4, // optional, defaults to 6
+       items: [
+         { rank: 1, name: 'Addis Ababa Hotel', meta: 'Cash — 4 orders', value: '142,600 ETB', sub: '11.4% of revenue' },
+         ...
+       ]
+     },
      footer: {
        preparedBy: 'Business Management System',
        company: 'MENA Injera & Derkosh',
@@ -120,9 +715,18 @@
 
    LAYOUT RULE FOR THE SUMMARY PAGE (applies to every module)
    -----------------------
-   - tables[0] + charts[0..1]  -> drawn side-by-side (table left, charts stacked right)
-   - tables[0] only            -> full-width table
-   - charts[0..1] only         -> full-width chart grid
+   Row 1 (always): KPI cards, from reportData.kpis.
+   Row 2: up to three panels side by side —
+     - charts[0]   -> primary chart (e.g. a trend/bar chart), left column
+     - charts[1]   -> secondary chart (e.g. a donut), middle column
+     - insights    -> Key Insights card column, right column
+     Any of the three may be omitted; present panels share the row width
+     (chart+donut+insights uses a 38/30/32 split; any two split evenly;
+     a single panel takes the full width).
+   Row 3: table[0] (e.g. a breakdown table) + reportData.rankedList (e.g.
+     "Top Customers", a numbered name/value list) side by side. If only one
+     of the two is present it takes the full width; if neither is present
+     the row is omitted.
    - options.type === 'detailed' additionally renders charts[2..] in a
      2-per-row grid and tables[1..] full-width, each on its own page
      if needed. This is true regardless of which module is calling it.
@@ -143,7 +747,18 @@
     textDark: '#1F2937',
     textMuted: '#6B7280',
     border: '#E5E7EB',
-    rowAlt: '#F3F6F4',
+    rowAlt: '#F8FAF7',
+    tableHeaderBg: '#EEF2EF', // light sage-tinted header (was near-white #F8F9FA,
+                               // which gave almost no contrast against the white
+                               // page and muted-gray header text)
+    cardBg: '#FFFFFF',
+    // v3.33 palette — calm, ordered, colour-blind-friendly. Forest leads, teff-gold is the warm accent.
+    sage: '#74C69D',
+    slate: '#4F7CAC',
+    clay: '#C2684F',
+    plum: '#7C5C8A',
+    hairline: '#E3E9E4',
+    palette: ['#2D6A4F', '#C89B3C', '#74C69D', '#4F7CAC', '#C2684F', '#7C5C8A'],
     fontHeading: 'Quicksand', // embedded below — falls back to helvetica if embedding fails for any reason
     fontBody: 'Nunito'
   };
@@ -219,14 +834,19 @@
     });
   }
 
-  async function loadWithFallback(sources) {
+  async function loadWithFallback(libName, sources) {
+    const failedUrls = [];
     for (const url of sources) {
       try {
         await loadScript(url);
         return true;
-      } catch (e) { /* try next source */ }
+      } catch (e) { failedUrls.push(url); }
     }
-    throw new Error('All CDN sources failed for ' + sources[0]);
+    throw new Error(
+      `ReportEngine: could not load required library "${libName}" — all ${failedUrls.length} ` +
+      `CDN source(s) failed (${failedUrls.join(', ')}). Check your network connection, or whether ` +
+      `a firewall/ad-blocker/CSP is blocking script tags from cdn.jsdelivr.net or cdnjs.cloudflare.com.`
+    );
   }
 
   async function ensureLibs(needed) {
@@ -239,7 +859,7 @@
     };
     for (const lib of needed) {
       if (!checks[lib]()) {
-        await loadWithFallback(CDN_SOURCES[lib]);
+        await loadWithFallback(lib, CDN_SOURCES[lib]);
       }
     }
     // retry-until-loaded: autotable attaches to jsPDF prototype async in some builds
@@ -295,6 +915,207 @@
       return { value: n, negative: n < 0, isPct };
     }
     return { value: s, negative: false, isPct: false };
+  }
+
+  // Like parseCellValue, but also handles a value with a trailing unit word baked in
+  // (e.g. "142,600 ETB", "774,300 ETB") — the documented rankedList.items[].value
+  // format. Strips one trailing non-numeric word before parsing, so Excel gets a
+  // genuine numeric cell (sortable/summable) instead of the whole string landing in
+  // a text column; the stripped unit is returned separately so callers that want to
+  // display it (or re-attach it) still can. Falls back to parseCellValue unchanged
+  // when there's no trailing unit to strip.
+  function parseValueWithUnit(raw) {
+    const s = String(raw === null || raw === undefined ? '' : raw).trim();
+    const match = s.match(/^(.*?)\s+([A-Za-z]+)$/);
+    if (match) {
+      const numPart = parseCellValue(match[1]);
+      if (typeof numPart.value === 'number') {
+        return { value: numPart.value, unit: match[2], negative: numPart.negative, isPct: numPart.isPct };
+      }
+    }
+    const parsed = parseCellValue(s);
+    return Object.assign({ unit: '' }, parsed);
+  }
+
+  // ------------------------------------------------------------
+  // TABLE ENRICHMENTS (v3.2) — all opt-in; a table that uses none of these
+  // renders exactly as it did in v3.1.
+  //
+  //   cell objects   any body/totals cell may be { v: 'Overdue', tone: 'bad', bold: true }
+  //                  instead of a plain string. tone is 'good' | 'warn' | 'bad' |
+  //                  'info' | 'muted'. Cells are flattened back to plain strings
+  //                  before anything is drawn/exported, so Excel and CSV only ever
+  //                  see the text.
+  //   rowKinds       table.rowKinds = ['section','line','line','subtotal',...] — one
+  //                  entry per body row. section = shaded group heading, line =
+  //                  indented line item, subtotal / total = bold with a top rule,
+  //                  pct = muted ratio row, note = muted footnote row.
+  //   statement      table.statement = true turns on right-aligned numeric columns
+  //                  and red negatives (also implied by layout:'statement').
+  //   alignNumeric / negativeRed / columnAlign   individual switches for the above.
+  //   summaryMaxRows PDF summary page only: show the first N rows plus a
+  //                  "+ N more rows" line. The detailed PDF, Excel and CSV
+  //                  always carry every row.
+  // ------------------------------------------------------------
+  const TONE_COLORS = {
+    good: THEME.primary,
+    warn: THEME.warning,
+    bad: THEME.danger,
+    info: THEME.info,
+    muted: THEME.textMuted
+  };
+
+  function flattenCell(cell) {
+    if (cell !== null && typeof cell === 'object' && !Array.isArray(cell)) {
+      return { text: cell.v === undefined || cell.v === null ? '' : cell.v, tone: cell.tone || null, bold: !!cell.bold };
+    }
+    return { text: cell, tone: null, bold: false };
+  }
+
+  function normalizeTable(t) {
+    if (!t || t._normalized) return t;
+    const tones = {};
+    const bolds = {};
+    const flatRow = (r, ri, prefix) => (r || []).map((c, ci) => {
+      const f = flattenCell(c);
+      if (f.tone) tones[prefix + ri + ',' + ci] = f.tone;
+      if (f.bold) bolds[prefix + ri + ',' + ci] = true;
+      return f.text;
+    });
+    return Object.assign({}, t, {
+      rows: (t.rows || []).map((r, ri) => flatRow(r, ri, 'b')),
+      totalsRow: t.totalsRow ? flatRow(t.totalsRow, 0, 'f') : t.totalsRow,
+      _tones: tones,
+      _bolds: bolds,
+      _normalized: true
+    });
+  }
+
+  function normalizeReportData(rd) {
+    const out = Object.assign({}, rd);
+    if (Array.isArray(rd.tables)) out.tables = rd.tables.map(normalizeTable);
+    if (rd.panelTable) out.panelTable = normalizeTable(rd.panelTable);
+    return out;
+  }
+
+  // Every table that Excel / CSV should carry: tables[] plus the Row-2 panelTable
+  // (which has no other home in a spreadsheet).
+  function exportTables(rd) {
+    return (rd.tables || []).concat(rd.panelTable ? [rd.panelTable] : []);
+  }
+
+  // Applies summaryMaxRows: returns the same table when nothing is cut, else a copy with
+  // only the first N rows plus `note` — a short "+ N more rows" line the caller draws
+  // under the table (kept out of the table itself so it can't be mistaken for data and
+  // doesn't cost a full row of height).
+  function capTableRows(table, maxRows, noteText) {
+    const cap = maxRows || table.summaryMaxRows;
+    if (!cap || !table.rows || table.rows.length <= cap) return { table, hidden: 0, note: '' };
+    const hidden = table.rows.length - cap;
+    const copy = Object.assign({}, table, {
+      rows: table.rows.slice(0, cap),
+      rowKinds: table.rowKinds ? table.rowKinds.slice(0, cap) : table.rowKinds
+    });
+    const note = noteText || `+ ${hidden} more row${hidden > 1 ? 's' : ''} — see the detailed report or Excel export`;
+    return { table: copy, hidden, note };
+  }
+
+  // Small muted "+ N more rows" line under a capped summary table. Returns the new y.
+  function drawMoreNote(doc, note, x, y) {
+    if (!note) return y;
+    doc.setFont(THEME.fontBody, 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(THEME.textMuted);
+    doc.text(note, x, y + 9);
+    return y + 12;
+  }
+
+  const NUMERIC_CELL = /^[(+\-–]?\s*[\d][\d,]*(\.\d+)?\s*[)%]?(\s?[A-Za-z]{1,4})?$|^[-–—]$/;
+
+  // Builds the extra autoTable options (a didParseCell hook) for a table, or {} when the
+  // table uses none of the v3.2 features — which keeps v3.1 tables byte-identical.
+  function tableExtraOptions(table, pad) {
+    const kinds = table.rowKinds || [];
+    const tones = table._tones || {};
+    const bolds = table._bolds || {};
+    const statement = !!table.statement;
+    const alignNumeric = table.alignNumeric !== undefined ? table.alignNumeric : true;
+    const negativeRed = table.negativeRed !== undefined ? table.negativeRed : statement;
+    const explicitAlign = Array.isArray(table.columnAlign) ? table.columnAlign : null;
+
+    const base = pad === undefined ? 5 : pad;
+    const cols = table.columns || [];
+    const bodyRows = table.rows || [];
+    const colAlign = cols.map((c, ci) => {
+      if (explicitAlign && explicitAlign[ci]) return explicitAlign[ci];
+      if (!alignNumeric) return null;
+      let numeric = 0, filled = 0;
+      bodyRows.forEach((r, ri) => {
+        if (kinds[ri] === 'section' || kinds[ri] === 'note') return;
+        const s = String(r[ci] === undefined || r[ci] === null ? '' : r[ci]).trim();
+        if (!s) return;
+        filled++;
+        if (NUMERIC_CELL.test(s)) numeric++;
+      });
+      return filled && numeric / filled >= 0.7 ? 'right' : null;
+    });
+
+    return {
+      didParseCell(data) {
+        const { section, row, column, cell } = data;
+        const ci = column.index;
+        if (colAlign[ci]) cell.styles.halign = colAlign[ci];
+        // v3.33 — rules, not boxes: a forest rule under the header and over the totals row,
+        // a hairline between body rows, nothing else.
+        if (section === 'head') {
+          cell.styles.lineColor = THEME.primaryDark;
+          cell.styles.lineWidth = { top: 0, right: 0, bottom: 1.1, left: 0 };
+          return;
+        }
+        if (section === 'foot') {
+          cell.styles.lineColor = THEME.primaryDark;
+          cell.styles.lineWidth = { top: 1.1, right: 0, bottom: 0, left: 0 };
+        } else {
+          cell.styles.lineColor = THEME.hairline;
+          cell.styles.lineWidth = { top: 0, right: 0, bottom: 0.45, left: 0 };
+        }
+
+        const prefix = section === 'foot' ? 'f' : 'b';
+        const kind = section === 'body' ? kinds[row.index] : null;
+        const raw = Array.isArray(cell.text) ? cell.text.join(' ') : String(cell.text || '');
+
+        if (kind === 'section') {
+          cell.styles.fillColor = '#EAF2EC';
+          cell.styles.textColor = THEME.primaryDark;
+          cell.styles.fontStyle = 'bold';
+          cell.styles.lineWidth = 0;
+        } else if (kind === 'subtotal' || kind === 'total') {
+          cell.styles.fontStyle = 'bold';
+          cell.styles.textColor = kind === 'total' ? THEME.primaryDark : THEME.textDark;
+          cell.styles.fillColor = kind === 'total' ? '#F0F6F2' : '#FFFFFF';
+          cell.styles.lineColor = kind === 'total' ? THEME.primaryDark : '#9DB3A6';
+          cell.styles.lineWidth = kind === 'total'
+            ? { top: 1, right: 0, bottom: 1, left: 0 }
+            : { top: 0.7, right: 0, bottom: 0.45, left: 0 };
+        } else if (kind === 'pct' || kind === 'note') {
+          cell.styles.textColor = THEME.textMuted;
+          if (kind === 'note') cell.styles.fillColor = '#FFFFFF';
+        } else if (kind === 'line' && ci === 0) {
+          cell.styles.cellPadding = { top: base, bottom: base, right: base, left: base + 8 };
+        }
+
+        if (negativeRed && kind !== 'section' && kind !== 'note' && /^\(.*\)$|^-\s?\d/.test(raw.trim())) {
+          cell.styles.textColor = THEME.danger;
+        }
+
+        const tone = tones[prefix + row.index + ',' + ci];
+        if (tone && TONE_COLORS[tone]) {
+          cell.styles.textColor = TONE_COLORS[tone];
+          cell.styles.fontStyle = 'bold';
+        }
+        if (bolds[prefix + row.index + ',' + ci]) cell.styles.fontStyle = 'bold';
+      }
+    };
   }
 
   // ------------------------------------------------------------
@@ -425,8 +1246,387 @@
   // CHART RENDERING — Chart.js drawn to an offscreen canvas,
   // exported as a PNG data URL for embedding into the PDF
   // ------------------------------------------------------------
+  // Validates a chartSpec before anything touches the DOM or Chart.js, so a
+  // malformed spec throws one clear error instead of silently falling through
+  // Chart.js's own defaults into a chart that renders fine but shows the
+  // wrong (or empty) data — e.g. a values array shorter than labels, which
+  // Chart.js will happily draw as a truncated, mathematically wrong chart.
+  const SUPPORTED_CHART_TYPES = ['bar', 'line', 'doughnut', 'pie'];
+  function validateChartSpec(chartSpec) {
+    if (!chartSpec || typeof chartSpec !== 'object') {
+      throw new Error('ReportEngine: chart spec must be an object.');
+    }
+    const errors = [];
+    const label = chartSpec.title ? `chart "${chartSpec.title}"` : 'chart';
+
+    if (!SUPPORTED_CHART_TYPES.includes(chartSpec.type)) {
+      errors.push(`type must be one of ${SUPPORTED_CHART_TYPES.join(', ')} (got ${JSON.stringify(chartSpec.type)})`);
+    }
+    if (!Array.isArray(chartSpec.labels) || !chartSpec.labels.length) {
+      errors.push('labels must be a non-empty array');
+    }
+
+    const multi = Array.isArray(chartSpec.series) && chartSpec.series.length;
+    if (multi) {
+      chartSpec.series.forEach((s, i) => {
+        if (!s || typeof s !== 'object') { errors.push(`series[${i}] must be an object`); return; }
+        if (!Array.isArray(s.values) || !s.values.length) {
+          errors.push(`series[${i}].values must be a non-empty array`);
+        } else {
+          if (Array.isArray(chartSpec.labels) && s.values.length !== chartSpec.labels.length) {
+            errors.push(`series[${i}].values length (${s.values.length}) must match labels length (${chartSpec.labels.length})`);
+          }
+          if (s.values.some(v => typeof v !== 'number' || !Number.isFinite(v))) {
+            errors.push(`series[${i}].values must contain only finite numbers`);
+          }
+        }
+      });
+    } else {
+      if (!Array.isArray(chartSpec.values) || !chartSpec.values.length) {
+        errors.push('values must be a non-empty array (or pass chartSpec.series for multi-series)');
+      } else {
+        if (Array.isArray(chartSpec.labels) && chartSpec.values.length !== chartSpec.labels.length) {
+          errors.push(`values length (${chartSpec.values.length}) must match labels length (${chartSpec.labels.length})`);
+        }
+        if (chartSpec.values.some(v => typeof v !== 'number' || !Number.isFinite(v))) {
+          errors.push('values must contain only finite numbers');
+        }
+      }
+    }
+
+    if (errors.length) {
+      throw new Error(`ReportEngine: invalid ${label} — ` + errors.join('; '));
+    }
+  }
+
+  // Injects @font-face rules for Quicksand/Nunito into the page, reusing the same
+  // embedded TTF data jsPDF registers for the PDF text — so Chart.js (which renders
+  // to a <canvas> via the browser's own font stack, not jsPDF's) draws axis labels,
+  // legends, and titles in the same typeface as the surrounding PDF text instead of
+  // silently falling back to a generic sans-serif. Runs once per page; safe to call
+  // before every chart render.
+  let chartFontsInjected = false;
+  async function ensureChartFonts() {
+    if (chartFontsInjected) return;
+    chartFontsInjected = true;
+    try {
+      const specs = [
+        ['Quicksand', 'normal', FONT_FILES['Quicksand-Regular.ttf'].data],
+        ['Quicksand', 'bold', FONT_FILES['Quicksand-Bold.ttf'].data],
+        ['Nunito', 'normal', FONT_FILES['Nunito-Regular.ttf'].data],
+        ['Nunito', 'bold', FONT_FILES['Nunito-Bold.ttf'].data]
+      ];
+      const loaded = await Promise.all(specs.map(([family, weight, data]) => {
+        const face = new FontFace(family, `url(data:font/ttf;base64,${data})`, { weight });
+        return face.load().then(f => { document.fonts.add(f); return f; }).catch(() => null);
+      }));
+      if (loaded.every(f => f)) {
+        global.Chart.defaults.font.family = "'Nunito', sans-serif";
+      }
+      // If a font failed to load, Chart.js silently keeps its own default family —
+      // charts still render correctly, just without the matched typeface.
+    } catch (e) {
+      // Font injection is a visual nicety, never a reason to fail chart rendering.
+    }
+  }
+
+  // ------------------------------------------------------------
+  // CLEAN CHART STYLE (v3.10, refined in v3.11) — opt in with chartSpec.style = 'clean'
+  //
+  // A calmer, larger, easier-to-read look used by Cash Flow, P&L and Budget (other modules
+  // keep the original look until they opt in). What it does differently:
+  //  - text is sized from the image width, so axis labels and legends stay readable once the
+  //    picture is placed on the page (the old look rendered 12px text that printed at ~4pt);
+  //  - value labels on bars/points in short form (458K, 1.2M, 103%); light horizontal
+  //    gridlines only, no axis lines, a stronger zero line; rounded bars; long category names
+  //    wrap instead of shrinking; a small round-cornered legend at the top.
+  // Extra chartSpec fields it understands (all optional):
+  //   minimal: true              no axis and no gridlines at all — thin pill-shaped bars, a single
+  //                              soft baseline and every value written directly on its bar
+  //   precise: true              labels keep one decimal above 100K (265.9K instead of 266K)
+  //   horizontal: true           bars run left to right (long names, many lines)
+  //   stacked: true              bars share a column: positives go up, negatives go down
+  //   labelFormat: 'pct'         labels/ticks as percentages instead of money
+  //   valueLabels: false         turn the value labels off
+  //   labelSeries: [1]           only label these series (e.g. the line of a bar + line chart)
+  //   labelTexts: ['+102K',..]   the exact text to print for each bar (single-series charts)
+  //   ranges: [[lo,hi],...]      floating bars (a waterfall); pass labelValues / labelTexts for labels
+  //   labelValues: [..]          the numbers to print above each bar when `ranges` is used
+  //   connectors: [level,...]    thin dashed steps between neighbouring bars (waterfall)
+  //   refLine: { value, label }  a dashed reference line, e.g. 100% of budget
+  //   fontPx: 23                 override the text size (px) when the picture is scaled up on the page
+  //   series[k].type: 'line'     draw that series as a line over bars; series[k].axis: 'right'
+  //                              puts it on its own right-hand axis
+  // ------------------------------------------------------------
+  const isHex = c => /^#[0-9a-f]{6}$/i.test(String(c || ''));
+  const alpha = (c, a) => (isHex(c) ? c + a : c);
+
+  const abbrNum = (v, precise) => {
+    const x = Number(v);
+    if (!Number.isFinite(x)) return '';
+    const n = Math.abs(x);
+    let s;
+    if (n >= 1e6) s = (n / 1e6).toFixed(precise ? 2 : (n >= 1e7 ? 0 : 1)).replace(/\.?0+$/, '') + 'M';
+    else if (n >= 1e5) s = (precise ? (n / 1e3).toFixed(1).replace(/\.0$/, '') : String(Math.round(n / 1e3))) + 'K';
+    else if (n >= 1e3) s = (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    else s = String(Math.round(n * 10) / 10);
+    return (x < 0 && n >= 0.05 ? '-' : '') + s;
+  };
+
+  function cleanTitleOptions(spec, fs) {
+    const show = spec.showTitle !== false && !!spec.title;
+    return {
+      title: { display: show, text: spec.title || '', align: 'start', color: THEME.primaryDark,
+        font: { family: 'Quicksand, sans-serif', size: Math.round(fs * 1.15), weight: 'bold' }, padding: { top: 0, bottom: spec.subtitle ? 2 : Math.round(fs * 0.5) } },
+      subtitle: { display: show && !!spec.subtitle, text: spec.subtitle || '', align: 'start', color: THEME.textMuted,
+        font: { family: 'Nunito, sans-serif', size: Math.round(fs * 0.85) }, padding: { bottom: Math.round(fs * 0.7) } }
+    };
+  }
+
+  function cleanChartConfig(spec, widthPx, heightPx, palette) {
+    const fs = spec.fontPx || Math.max(11, Math.round(widthPx / 46));
+    const FONT = 'Nunito, sans-serif';
+    const INK = THEME.textDark, MUTED = THEME.textMuted, GRID = '#ECEFEC';
+    const minimal = spec.minimal === true;
+    const pct = spec.labelFormat === 'pct';
+    const fmtVal = v => (pct ? `${Number(v).toFixed(1).replace(/\.0$/, '')}%` : abbrNum(v, spec.precise));
+    const multi = Array.isArray(spec.series) && spec.series.length;
+    const list = multi ? spec.series : [{ label: '', values: spec.values }];
+    const n = spec.labels.length;
+    const baseKind = spec.type === 'line' ? 'line' : 'bar';
+    const horizontal = spec.horizontal === true && baseKind === 'bar' && !list.some(s => s.type === 'line');
+    const rightAxis = list.some(s => s.axis === 'right');
+    const hasNeg = list.some(s => (s.values || []).some(v => v < 0)) || (Array.isArray(spec.ranges) && spec.ranges.some(r => r[0] < 0));
+
+    const wrap = (s, max) => {
+      if (Array.isArray(s)) return s;
+      const lines = []; let cur = '';
+      String(s).split(' ').forEach(w => {
+        if (cur && (cur + ' ' + w).length > max) { lines.push(cur); cur = w; } else cur = (cur ? cur + ' ' : '') + w;
+      });
+      if (cur) lines.push(cur);
+      return lines.length > 1 ? lines : (lines[0] || '');
+    };
+    const dense = horizontal && n > 6;
+    const maxChars = horizontal ? (dense ? 30 : 17) : Math.max(7, Math.floor((widthPx * 0.84 / n) / (fs * 0.56)));
+    const gradient = c => ctx => {
+      const a = ctx.chart.chartArea;
+      if (!a) return c + '33';
+      const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+      g.addColorStop(0, alpha(c, '66')); g.addColorStop(0.6, alpha(c, '1A')); g.addColorStop(1, alpha(c, '00'));
+      return g;
+    };
+    // soft vertical (or horizontal) sheen on bars; solid for waterfalls and charts with negatives
+    const barFill = c => {
+      if (spec.ranges || hasNeg || !isHex(c)) return c;
+      return ctx => {
+        const a = ctx.chart.chartArea;
+        if (!a) return c;
+        const g = horizontal ? ctx.chart.ctx.createLinearGradient(a.left, 0, a.right, 0) : ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+        if (horizontal) { g.addColorStop(0, alpha(c, 'AA')); g.addColorStop(1, c); }
+        else { g.addColorStop(0, c); g.addColorStop(1, alpha(c, '9E')); }
+        return g;
+      };
+    };
+    // single-series per-bar colours: explicit colours, a highlighted bar, or negatives in clay red
+    const hiSet = new Set(spec.highlightIndex == null ? [] : [].concat(spec.highlightIndex));
+    const singleVals = (!multi && !spec.ranges && Array.isArray(spec.values)) ? spec.values : [];
+    const negSingle = baseKind === 'bar' && !spec.barColor && singleVals.some(v => v < 0);
+    const perBarAuto = (!multi && (hiSet.size || negSingle))
+      ? spec.labels.map((_, i) => (hiSet.has(i) ? (spec.highlightColor || THEME.primary)
+          : (singleVals[i] < 0 && negSingle ? THEME.clay : (spec.barColor || (spec.colors && spec.colors.length === 1 ? spec.colors[0] : palette[0])))))
+      : null;
+
+    const datasets = list.map((s, k) => {
+      const kind = s.type || baseKind;
+      const color = s.color || spec.barColor || (spec.colors && spec.colors.length !== n && spec.colors[k]) || palette[k % palette.length];
+      if (kind === 'line') {
+        // v3.37: a series called average / target / budget ... is a reference line: thin, dashed, no
+        // markers. A dense series (a point per day) gets a clean line with only the last point marked,
+        // instead of a ring on all 30 points.
+        const nPts = (s.values || []).length;
+        const refLike = multi && /average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(s.label || ''));
+        const denseLine = nPts > 12;
+        const mainCount = multi ? list.filter(x => !(/average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(x.label || '')))).length : 1;
+        const dotR = Math.max(3, fs * 0.3);
+        return { type: 'line', label: s.label || '', data: s.values, borderColor: color,
+          borderWidth: refLike ? Math.max(1.6, fs * 0.11) : Math.max(2.2, fs * (denseLine ? 0.15 : 0.17)),
+          borderDash: refLike ? [Math.round(fs * 0.5), Math.round(fs * 0.4)] : undefined,
+          pointRadius: refLike ? 0 : (denseLine ? (c => (c.dataIndex === nPts - 1 ? dotR : 0)) : dotR),
+          pointHoverRadius: 0, pointBackgroundColor: refLike || denseLine ? color : '#FFFFFF', pointBorderColor: color, pointBorderWidth: Math.max(2, fs * 0.13),
+          tension: denseLine ? 0.25 : 0.3, cubicInterpolationMode: 'monotone', fill: !refLike && mainCount === 1 && !minimal, backgroundColor: gradient(color),
+          yAxisID: s.axis === 'right' ? 'y1' : 'y', order: refLike ? 1 : 0 };
+      }
+      const perBar = (!multi && Array.isArray(spec.colors) && spec.colors.length === n ? spec.colors : null) || perBarAuto;
+      return { type: 'bar', label: s.label || '', data: (!multi && spec.ranges) ? spec.ranges : s.values,
+        backgroundColor: perBar || barFill(color), borderWidth: 0,
+        borderRadius: minimal ? 999 : Math.round(fs * 0.3),
+        borderSkipped: ((spec.ranges || minimal) && !spec.stacked) ? false : 'start',
+        barPercentage: minimal ? (multi && !spec.stacked ? 0.8 : (spec.stacked ? 0.5 : 0.46)) : (multi ? 0.9 : 0.62), categoryPercentage: minimal ? 0.72 : (multi ? 0.72 : 0.8),
+        maxBarThickness: Math.round(fs * (minimal ? 2.4 : 3.6)), yAxisID: 'y', order: 1 };
+    });
+
+    const tickFont = size => ({ family: FONT, size: Math.round(size) });
+    const zeroAware = { color: c => (c.tick && c.tick.value === 0 ? '#9AA5A0' : GRID), lineWidth: c => (c.tick && c.tick.value === 0 ? 1.6 : 1), drawTicks: false };
+    // v3.37: a line chart whose values sit in a narrow band (yield 90-96%, cost/kg 6-9) used to be
+    // drawn from zero and looked flat. When every value is positive and the lowest is at least half
+    // the highest, the axis is fitted to the data (plus room for a reference line) instead.
+    const lineOnly = baseKind === 'line' && !list.some(s => s.type === 'bar');
+    let fitRange = null;
+    if (lineOnly && spec.beginAtZero !== true && !rightAxis) {
+      const vals = [];
+      list.forEach(s => (s.values || []).forEach(v => { if (Number.isFinite(Number(v))) vals.push(Number(v)); }));
+      if (spec.refLine && Number.isFinite(Number(spec.refLine.value))) vals.push(Number(spec.refLine.value));
+      if (vals.length >= 3) {
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        if (lo > 0 && lo >= hi * 0.5) {
+          const pad = (hi - lo) > 0 ? (hi - lo) * 0.3 : hi * 0.05;
+          fitRange = { min: Math.max(0, lo - pad), max: hi + pad };
+        }
+      }
+    }
+    const valueAxis = (pos, color) => {
+      if (fitRange && pos !== 'right') {
+        return { position: pos, beginAtZero: false, suggestedMin: fitRange.min, suggestedMax: fitRange.max, grace: 0, border: { display: false, dash: [3, 4] },
+          grid: Object.assign({}, zeroAware), display: !minimal,
+          ticks: { color: color || MUTED, font: tickFont(fs * 0.9), maxTicksLimit: 5, padding: 6, callback: v => fmtVal(v) } };
+      }
+      if (minimal && pos !== 'right') return { display: false, beginAtZero: true, grace: hasNeg && horizontal ? '32%' : '14%', stacked: spec.stacked === true };
+      return {
+        position: pos, beginAtZero: true, grace: '10%', border: { display: false, dash: [3, 4] }, stacked: spec.stacked === true,
+        grid: pos === 'right' ? { display: false } : Object.assign({}, zeroAware),
+        ticks: { color: color || MUTED, font: tickFont(fs * 0.9), maxTicksLimit: 5, padding: 6, callback: v => fmtVal(v) }
+      };
+    };
+    // Daily charts label every day 1..30; that row of numbers is clutter, so it is hidden.
+    const dayNumberAxis = !horizontal && Array.isArray(spec.labels) && spec.labels.length >= 8 && spec.labels.every(l => /^\d{1,2}$/.test(String(l)));
+    const catAxis = {
+      grid: { display: false }, border: minimal ? { display: false } : { color: '#CBD3CE' }, stacked: spec.stacked === true,
+      ticks: { color: minimal ? '#374151' : INK, font: { family: FONT, size: Math.round(horizontal ? (dense ? fs * 0.8 : fs * 0.95) : (minimal ? fs * 0.95 : fs)), weight: '600' }, autoSkip: !horizontal && n > 9, maxTicksLimit: 8, maxRotation: 0, minRotation: 0, padding: minimal ? 8 : 6, display: !dayNumberAxis }
+    };
+    const scales = horizontal
+      ? { x: valueAxis('bottom'), y: Object.assign({ reverse: false }, catAxis) }
+      : { x: catAxis, y: valueAxis('left') };
+    if (rightAxis) {
+      const lc = (list.find(s => s.axis === 'right') || {}).color || INK;
+      scales.y1 = valueAxis('right', lc);
+    }
+
+    // baseline, connectors, reference line and value labels are drawn by one small plugin
+    const only = Array.isArray(spec.labelSeries) ? new Set(spec.labelSeries) : null;
+    const plugin = {
+      id: 'cleanExtras',
+      beforeDatasetsDraw(chart) {
+        if (!minimal) return;
+        const { ctx, chartArea } = chart;
+        const vs = horizontal ? chart.scales.x : chart.scales.y;
+        if (!vs || vs.min > 0 || vs.max < 0) return;
+        const z = vs.getPixelForValue(0);
+        ctx.save();
+        ctx.strokeStyle = '#D5DCD8'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (horizontal) { ctx.moveTo(z, chartArea.top); ctx.lineTo(z, chartArea.bottom); }
+        else { ctx.moveTo(chartArea.left, z); ctx.lineTo(chartArea.right, z); }
+        ctx.stroke(); ctx.restore();
+      },
+      afterDatasetsDraw(chart) {
+        const { ctx, chartArea } = chart;
+        ctx.save();
+        if (Array.isArray(spec.connectors) && !horizontal) {
+          const meta = chart.getDatasetMeta(0);
+          const yScale = chart.scales.y;
+          ctx.strokeStyle = '#B4BDB8'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+          spec.connectors.forEach((lvl, i) => {
+            const a = meta.data[i], b = meta.data[i + 1];
+            if (!a || !b || !Number.isFinite(lvl)) return;
+            const y = yScale.getPixelForValue(lvl);
+            ctx.beginPath(); ctx.moveTo(a.x + a.width / 2, y); ctx.lineTo(b.x - b.width / 2, y); ctx.stroke();
+          });
+          ctx.setLineDash([]);
+        }
+        if (spec.refLine && Number.isFinite(spec.refLine.value)) {
+          ctx.strokeStyle = '#6B7280'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          if (horizontal) {
+            const x = chart.scales.x.getPixelForValue(spec.refLine.value);
+            ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke(); ctx.setLineDash([]);
+            if (spec.refLine.label) { ctx.fillStyle = MUTED; ctx.font = `600 ${Math.round(fs * 0.8)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(spec.refLine.label, x, chartArea.top - 3); }
+          } else {
+            const y = chart.scales.y.getPixelForValue(spec.refLine.value);
+            ctx.moveTo(chartArea.left, y); ctx.lineTo(chartArea.right, y);
+            ctx.stroke(); ctx.setLineDash([]);
+          }
+        }
+        if (spec.valueLabels !== false) {
+          ctx.font = `700 ${Math.round(fs * (minimal ? 0.95 : 0.88))}px ${FONT}`;
+          ctx.fillStyle = INK;
+          chart.data.datasets.forEach((ds, di) => {
+            if (only && !only.has(di)) return;
+            const meta = chart.getDatasetMeta(di);
+            if (meta.hidden) return;
+            const isLine = ds.type === 'line';
+            if (isLine && n > 9) return;
+            meta.data.forEach((el, i) => {
+              const raw = ds.data[i];
+              const single = !multi;
+              let val = (single && Array.isArray(spec.labelValues)) ? spec.labelValues[i] : (Array.isArray(raw) ? null : raw);
+              let text = (single && Array.isArray(spec.labelTexts)) ? spec.labelTexts[i] : null;
+              if (text == null) {
+                if (!Number.isFinite(val) || Math.abs(val) < 0.0001) return;
+                text = fmtVal(val);
+              } else if (!Number.isFinite(val)) val = 1;
+              if (!text) return;
+              if (isLine) {
+                ctx.textAlign = 'center'; ctx.textBaseline = val >= 0 ? 'bottom' : 'top';
+                ctx.fillText(text, el.x, el.y + (val >= 0 ? -fs * 0.7 : fs * 0.7));
+              } else if (horizontal) {
+                const right = Math.max(el.x, el.base), left = Math.min(el.x, el.base);
+                ctx.textBaseline = 'middle';
+                if (val >= 0) { ctx.textAlign = 'left'; ctx.fillText(text, right + fs * 0.45, el.y); }
+                else { ctx.textAlign = 'right'; ctx.fillText(text, left - fs * 0.45, el.y); }
+              } else {
+                const top = Math.min(el.y, el.base), bot = Math.max(el.y, el.base);
+                ctx.textAlign = 'center';
+                if (val >= 0 || Array.isArray(raw)) { ctx.textBaseline = 'bottom'; ctx.fillText(text, el.x, top - fs * 0.35); }
+                else { ctx.textBaseline = 'top'; ctx.fillText(text, el.x, bot + fs * 0.35); }
+              }
+            });
+          });
+        }
+        ctx.restore();
+      }
+    };
+
+    return {
+      type: 'bar',
+      data: { labels: spec.labels.map(l => wrap(l, maxChars)), datasets },
+      plugins: [plugin],
+      options: Object.assign({
+        responsive: false, animation: false, devicePixelRatio: 1,
+        indexAxis: horizontal ? 'y' : 'x',
+        layout: { padding: { top: Math.round(fs * (spec.refLine && horizontal ? 1.6 : (multi && !horizontal ? 1.5 : 1.2))), right: Math.round(horizontal ? fs * (spec.labelTexts ? 5.2 : 3.4) : fs * 0.8), left: 2, bottom: 2 } },
+        plugins: Object.assign({
+          legend: { display: !!multi, position: 'top', align: (horizontal || spec.stacked) ? 'start' : (rightAxis ? 'center' : 'end'),
+            labels: { sort: (a, b) => a.datasetIndex - b.datasetIndex, usePointStyle: true, pointStyle: 'rectRounded', boxWidth: Math.round(fs * 0.8), boxHeight: Math.round(fs * 0.8), padding: Math.round(fs * 0.9), color: INK, font: { family: FONT, size: fs, weight: '600' } } }
+        }, cleanTitleOptions(spec, fs)),
+        scales
+      })
+    };
+  }
+
+  // v3.34 — one print-resolution rule for every chart bitmap: 4.2 px per PDF point (~300 dpi).
+  const CHART_PX_PER_PT = 4.2;
+  // pixel size for a slot of wPt x hPt points, with the bitmap's ratio matching the slot's exactly
+  function chartPx(wPt, hPt) {
+    const w = Math.max(120, Math.round(wPt * CHART_PX_PER_PT));
+    return { w, h: Math.max(80, Math.round(w * hPt / wPt)) };
+  }
+
   async function renderChartToImage(chartSpec, widthPx = 900, heightPx = 420) {
+    validateChartSpec(chartSpec);
     await ensureLibs(['chartjs']);
+    await ensureChartFonts();
 
     const canvas = document.createElement('canvas');
     canvas.width = widthPx;
@@ -435,176 +1635,361 @@
     canvas.style.left = '-99999px';
     document.body.appendChild(canvas);
 
-    const palette = chartSpec.colors || [THEME.primary, THEME.danger, THEME.info, THEME.warning, THEME.purple, THEME.accent];
+    let chart = null;
+    try {
+      const palette = chartSpec.colors || THEME.palette;
 
-    let config;
-    if (chartSpec.type === 'doughnut' || chartSpec.type === 'pie') {
-      config = {
-        type: chartSpec.type,
-        data: {
-          labels: chartSpec.labels,
-          datasets: [{ data: chartSpec.values, backgroundColor: palette, borderWidth: 2, borderColor: '#fff' }]
-        },
-        options: {
-          responsive: false,
-          animation: false,
-          plugins: {
-            legend: { display: true, position: 'right', labels: { font: { size: 13 } } },
-            title: { display: !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } }
+      let config;
+      const isDonut = chartSpec.type === 'doughnut' || chartSpec.type === 'pie';
+      if (chartSpec.style !== 'classic' && !isDonut) {
+        config = cleanChartConfig(chartSpec, widthPx, heightPx, palette);
+      } else if (isDonut) {
+        // Optional center label (doughnut only) — e.g. "Total Sales / 1,248,750 / ETB"
+        // drawn in the donut's hole, matching the approved design. Only registered
+        // when chartSpec.centerLabel is supplied, so charts that don't want it are
+        // unaffected.
+        const centerPlugins = [];
+        if (chartSpec.type === 'doughnut' && chartSpec.centerLabel) {
+          const cl = chartSpec.centerLabel; // { top, value, bottom }
+          centerPlugins.push({
+            id: 'centerLabel',
+            afterDraw(chart) {
+              const { ctx, chartArea } = chart;
+              const cx = (chartArea.left + chartArea.right) / 2;
+              const cy = (chartArea.top + chartArea.bottom) / 2;
+              ctx.save();
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              // v3.37: sized from the hole itself so the total reads clearly at any chart size
+              const holeD = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top) * 0.70;
+              const holeW = holeD * 0.84;                    // usable width inside the ring
+              const unit = holeD / 100;                      // 1% of the hole diameter
+              if (cl.top) {
+                ctx.font = `600 ${Math.round(8.5 * unit)}px Nunito, sans-serif`;
+                ctx.fillStyle = THEME.textMuted;
+                ctx.fillText(cl.top, cx, cy - 15 * unit);
+              }
+              if (cl.value) {
+                let vs = 16 * unit;
+                ctx.font = `bold ${Math.round(vs)}px Quicksand, sans-serif`;
+                const vw = ctx.measureText(String(cl.value)).width;
+                if (vw > holeW) { vs *= holeW / vw; ctx.font = `bold ${Math.round(vs)}px Quicksand, sans-serif`; }
+                ctx.fillStyle = THEME.primaryDark;
+                ctx.fillText(cl.value, cx, cy + 2 * unit);
+              }
+              if (cl.bottom) {
+                ctx.font = `600 ${Math.round(8.5 * unit)}px Nunito, sans-serif`;
+                ctx.fillStyle = THEME.textMuted;
+                ctx.fillText(cl.bottom, cx, cy + 17 * unit);
+              }
+              ctx.restore();
+            }
+          });
+        }
+        config = {
+          type: chartSpec.type,
+          data: {
+            labels: chartSpec.labels,
+            datasets: [{ data: chartSpec.values, backgroundColor: palette, borderWidth: 0,
+              borderRadius: chartSpec.type === 'doughnut' ? Math.max(3, Math.round(widthPx / 60)) : 0,
+              spacing: chartSpec.type === 'doughnut' ? Math.max(2, Math.round(widthPx / 140)) : 0, hoverOffset: 0 }]
+          },
+          plugins: centerPlugins.concat(chartSpec.showPercent === false ? [] : [{
+            id: 'segmentShare',
+            afterDatasetsDraw(chart) {
+              const vals = (chart.data.datasets[0].data || []).map(Number);
+              const total = vals.reduce((a, b) => a + (Number.isFinite(b) ? Math.max(b, 0) : 0), 0);
+              if (!(total > 0)) return;
+              const meta = chart.getDatasetMeta(0);
+              const { ctx } = chart;
+              ctx.save();
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              // v3.37: label size follows the ring's thickness, so it stays legible when the donut is small
+              const a0 = meta.data[0];
+              const ringT = a0 ? Math.max(0, a0.outerRadius - a0.innerRadius) : 0;
+              ctx.font = `700 ${Math.max(10, Math.round(ringT > 0 ? ringT * 0.42 : widthPx / 30))}px Nunito, sans-serif`;
+              ctx.fillStyle = '#FFFFFF';
+              meta.data.forEach((arc, i) => {
+                const share = Math.max(vals[i], 0) / total;
+                if (share < 0.07) return;
+                const p = arc.tooltipPosition();
+                ctx.fillText(Math.round(share * 100) + '%', p.x, p.y);
+              });
+              ctx.restore();
+            }
+          }]),
+          options: {
+            responsive: false,
+            devicePixelRatio: 1,
+            animation: false,
+            cutout: chartSpec.type === 'doughnut' ? '70%' : undefined,
+            plugins: {
+              // legendPosition override lets a caller switch to a 'bottom' legend for
+              // square/compact chart boxes, where a 'right' legend has no room and
+              // ends up illegibly small — this is what made the donut's legend
+              // unreadable at small box sizes.
+              legend: {
+                display: chartSpec.showLegend !== false,
+                position: chartSpec.legendPosition || 'right',
+                labels: chartSpec.style !== 'classic'
+                  ? { font: { family: 'Nunito, sans-serif', size: chartSpec.fontPx || Math.max(11, Math.round(widthPx / 46)), weight: '600' }, usePointStyle: true, pointStyle: 'rectRounded',
+                      boxWidth: chartSpec.fontPx ? Math.round(chartSpec.fontPx * 0.8) : Math.round(widthPx / 58), boxHeight: chartSpec.fontPx ? Math.round(chartSpec.fontPx * 0.8) : Math.round(widthPx / 58), padding: chartSpec.fontPx ? Math.round(chartSpec.fontPx * 0.9) : Math.round(widthPx / 52), color: THEME.textDark }
+                  : { font: { size: 13 }, boxWidth: 14, padding: 10 }
+              },
+              title: chartSpec.style !== 'classic'
+                ? cleanTitleOptions(chartSpec, chartSpec.fontPx || Math.max(11, Math.round(widthPx / 46))).title
+                : { display: chartSpec.showTitle !== false && !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } }
+            }
           }
-        }
-      };
-    } else if (chartSpec.type === 'line') {
-      config = {
-        type: 'line',
-        data: {
-          labels: chartSpec.labels,
-          datasets: [{
-            data: chartSpec.values,
-            borderColor: THEME.primary,
-            backgroundColor: 'rgba(45,106,79,0.08)',
-            pointBackgroundColor: chartSpec.values.map(v => (v < 0 ? THEME.danger : THEME.primary)),
-            pointRadius: 5,
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: false,
-          animation: false,
-          plugins: { legend: { display: false }, title: { display: !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } } },
-          scales: { y: { grid: { color: THEME.border } }, x: { grid: { display: false } } }
-        }
-      };
-    } else {
-      // bar / waterfall-style bar
-      config = {
-        type: 'bar',
-        data: {
-          labels: chartSpec.labels,
-          datasets: [{
-            data: chartSpec.values,
-            backgroundColor: chartSpec.values.map((v, i) => (palette[i] || (v < 0 ? THEME.danger : THEME.primary)))
-          }]
-        },
-        options: {
-          responsive: false,
-          animation: false,
-          plugins: { legend: { display: false }, title: { display: !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } } },
-          scales: { y: { grid: { color: THEME.border } }, x: { grid: { display: false } } }
-        }
-      };
-    }
+        };
+      } else if (chartSpec.type === 'line') {
+        // Optional chartSpec.series = [{ label, values, color, fill }, ...] for multi-line
+        // charts (e.g. purchase quantity vs. spend, production input vs. output) — falls
+        // straight through to the original single-series behavior when series is absent.
+        const multi = Array.isArray(chartSpec.series) && chartSpec.series.length;
+        config = {
+          type: 'line',
+          data: {
+            labels: chartSpec.labels,
+            datasets: multi
+              ? chartSpec.series.map((s, i) => ({
+                  label: s.label || `Series ${i + 1}`,
+                  data: s.values || [],
+                  borderColor: s.color || palette[i % palette.length],
+                  backgroundColor: (s.color || palette[i % palette.length]) + '22',
+                  pointRadius: 4,
+                  tension: 0.3,
+                  cubicInterpolationMode: 'monotone', // never overshoots below a 0 day (plain curves dip under the axis)
+                  fill: !!s.fill
+                }))
+              : [{
+                  data: chartSpec.values,
+                  borderColor: THEME.primary,
+                  backgroundColor: 'rgba(45,106,79,0.08)',
+                  pointBackgroundColor: chartSpec.values.map(v => (v < 0 ? THEME.danger : THEME.primary)),
+                  pointRadius: 5,
+                  tension: 0.3,
+                  cubicInterpolationMode: 'monotone', // never overshoots below a 0 day (plain curves dip under the axis)
+                  fill: true
+                }]
+          },
+          options: {
+            responsive: false,
+            devicePixelRatio: 1,
+            animation: false,
+            plugins: {
+              legend: { display: multi },
+              title: { display: chartSpec.showTitle !== false && !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { y: { grid: { color: THEME.border } }, x: { grid: { display: false } } }
+          }
+        };
+      } else {
+        // bar / waterfall-style bar — same optional chartSpec.series support as line, for
+        // grouped bars (e.g. per-supplier spend broken out by category).
+        const multi = Array.isArray(chartSpec.series) && chartSpec.series.length;
+        // Single-series bar coloring:
+        //  - chartSpec.barColor: one base color applied to every bar (e.g. a daily
+        //    trend chart where every bar means the same thing) — this is the common
+        //    case and what chartSpec.colors with a single entry now also does.
+        //  - chartSpec.highlightIndex: optional index (or array of indices) drawn in
+        //    THEME.primary (or chartSpec.highlightColor) instead of the base color,
+        //    e.g. to call out the best/worst day.
+        //  - Omit both for the original per-category palette behavior (each bar a
+        //    different color, falling back to red for negative values) — used for
+        //    category comparisons like "Sales by Channel".
+        const singleBaseColor = chartSpec.barColor || (chartSpec.colors && chartSpec.colors.length === 1 ? chartSpec.colors[0] : null);
+        const highlightSet = new Set(
+          chartSpec.highlightIndex == null ? [] :
+          Array.isArray(chartSpec.highlightIndex) ? chartSpec.highlightIndex : [chartSpec.highlightIndex]
+        );
+        const highlightColor = chartSpec.highlightColor || THEME.primary;
+        config = {
+          type: 'bar',
+          data: {
+            labels: chartSpec.labels,
+            datasets: multi
+              ? chartSpec.series.map((s, i) => ({
+                  label: s.label || `Series ${i + 1}`,
+                  data: s.values || [],
+                  backgroundColor: s.color || palette[i % palette.length]
+                }))
+              : [{
+                  data: chartSpec.values,
+                  backgroundColor: chartSpec.values.map((v, i) => {
+                    if (highlightSet.has(i)) return highlightColor;
+                    if (singleBaseColor) return singleBaseColor;
+                    return palette[i] || (v < 0 ? THEME.danger : THEME.primary);
+                  })
+                }]
+          },
+          options: {
+            responsive: false,
+            devicePixelRatio: 1,
+            animation: false,
+            plugins: {
+              legend: { display: multi },
+              title: { display: chartSpec.showTitle !== false && !!chartSpec.title, text: chartSpec.title || '', font: { size: 15, weight: 'bold' } }
+            },
+            scales: { y: { grid: { color: THEME.border } }, x: { grid: { display: false } } }
+          }
+        };
+      }
 
-    const chart = new global.Chart(canvas.getContext('2d'), config);
-    // allow one render frame
-    await new Promise(r => setTimeout(r, 50));
-    const dataUrl = canvas.toDataURL('image/png', 1.0);
-    chart.destroy();
-    document.body.removeChild(canvas);
-    return dataUrl;
+      // v3.39: a page that registered chartjs-plugin-datalabels globally must not decorate engine charts
+      config.options = config.options || {};
+      config.options.plugins = config.options.plugins || {};
+      config.options.plugins.datalabels = false;
+      chart = new global.Chart(canvas.getContext('2d'), config);
+      // allow one render frame
+      await new Promise(r => setTimeout(r, 50));
+      return canvas.toDataURL('image/png', 1.0);
+    } finally {
+      // Guaranteed cleanup: if chart construction/config-building above threw,
+      // or resolved normally, the temporary canvas (and Chart.js instance, if
+      // one was created) is always removed — repeated report generation can
+      // no longer leave stray canvases behind in the page.
+      if (chart) chart.destroy();
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    }
   }
 
   async function renderQRCodeImage(text, size) {
     size = size || 120;
     await ensureLibs(['qrcode']);
-    return new Promise((resolve, reject) => {
-      try {
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.left = '-99999px';
-        document.body.appendChild(container);
-        // eslint-disable-next-line no-new
-        new global.QRCode(container, { text: text, width: size, height: size, correctLevel: global.QRCode.CorrectLevel.M });
-        setTimeout(() => {
-          const canvas = container.querySelector('canvas');
-          const img = container.querySelector('img');
-          let dataUrl = null;
-          if (canvas) dataUrl = canvas.toDataURL('image/png');
-          else if (img) dataUrl = img.src;
-          document.body.removeChild(container);
-          resolve(dataUrl);
-        }, 80);
-      } catch (e) { reject(e); }
-    });
+    let container = null;
+    try {
+      return await new Promise((resolve, reject) => {
+        try {
+          container = document.createElement('div');
+          container.style.position = 'fixed';
+          container.style.left = '-99999px';
+          document.body.appendChild(container);
+          // eslint-disable-next-line no-new
+          new global.QRCode(container, { text: text, width: size, height: size, correctLevel: global.QRCode.CorrectLevel.M });
+          setTimeout(() => {
+            const canvas = container.querySelector('canvas');
+            const img = container.querySelector('img');
+            let dataUrl = null;
+            if (canvas) dataUrl = canvas.toDataURL('image/png');
+            else if (img) dataUrl = img.src;
+            resolve(dataUrl);
+          }, 80);
+        } catch (e) { reject(e); }
+      });
+    } finally {
+      // Guaranteed cleanup: whether the QR render resolved, threw synchronously,
+      // or rejected, the temporary container is always removed.
+      if (container && container.parentNode) container.parentNode.removeChild(container);
+    }
   }
 
   // ------------------------------------------------------------
   // PDF SECTION RENDERERS
   // ------------------------------------------------------------
+  // Lighter, two-column header — logo + company block on the left,
+  // report title + generated meta right-aligned on the right, with a
+  // single thin accent rule underneath. No solid color fill anywhere.
   function drawHeader(doc, reportData, pageWidth) {
     const margin = 40;
     const company = reportData.company || {};
     const logo = company.logoDataUrl || MENA_LOGO_B64;
 
-    doc.setFillColor(THEME.primary);
-    doc.rect(0, 0, pageWidth, 4, 'F');
-
+    // Left block: logo + company name/subtitle on one line, tagline below
     if (logo) {
       try {
-        doc.addImage(logo, 'PNG', margin, 16, 42, 42);
+        doc.addImage(logo, 'PNG', margin, 14, 30, 30);
       } catch (e) {
         doc.setFillColor(THEME.primaryDark);
-        doc.circle(margin + 20, 38, 20, 'F');
+        doc.circle(margin + 15, 29, 15, 'F');
         doc.setTextColor('#FFFFFF');
-        doc.setFontSize(16);
+        doc.setFontSize(13);
         doc.setFont(THEME.fontHeading, 'bold');
-        doc.text('M', margin + 20, 43, { align: 'center' });
+        doc.text('M', margin + 15, 33, { align: 'center' });
       }
     }
 
-    doc.setTextColor(THEME.textDark);
+    const textX = margin + (logo ? 40 : 0);
+    doc.setTextColor(THEME.primaryDark);
     doc.setFont(THEME.fontHeading, 'bold');
     doc.setFontSize(14);
-    doc.text(company.name || 'MENA INJERA', margin + 52, 32);
-    doc.text(company.subtitle || '& DERKOSH', margin + 52, 48);
+    doc.text(`${company.name || 'MENA INJERA'} ${company.subtitle || '& DERKOSH'}`, textX, 26);
     doc.setFont(THEME.fontHeading, 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(THEME.primary);
-    doc.text((company.tagline || 'BUSINESS MANAGEMENT SYSTEM').toUpperCase(), margin + 52, 58);
-
-    doc.setTextColor(THEME.textDark);
-    doc.setFont(THEME.fontHeading, 'bold');
-    doc.setFontSize(20);
-    doc.text((reportData.title || reportData.module || 'REPORT').toUpperCase(), pageWidth / 2, 34, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setTextColor(THEME.primary);
-    doc.text(reportData.period || '', pageWidth / 2, 52, { align: 'center' });
-    doc.setFontSize(9);
     doc.setTextColor(THEME.textMuted);
-    doc.text('Currency: ' + (reportData.currency || 'ETB'), pageWidth / 2, 64, { align: 'center' });
+    doc.text(company.tagline || 'Business Management System', textX, 38);
 
-    doc.setFontSize(8);
+    // Right block: report title, then period/generated meta, all muted and small.
+    // Sized a notch below the company name (14pt) so the brand reads as the
+    // dominant element and the report title as a secondary document label,
+    // instead of the two competing at identical weight.
+    doc.setTextColor(THEME.primaryDark);
+    doc.setFont(THEME.fontHeading, 'bold');
+    doc.setFontSize(12);
+    const titleLine = reportData.period && !(reportData.title || '').includes(reportData.period)
+      ? `${reportData.title || reportData.module || 'Report'} — ${reportData.period}`
+      : (reportData.title || reportData.module || 'Report');
+    doc.text(titleLine, pageWidth - margin, 22, { align: 'right' });
+
+    doc.setFont(THEME.fontHeading, 'normal');
+    doc.setFontSize(7.5);
     doc.setTextColor(THEME.textMuted);
     const now = reportData.generatedAt || new Date().toLocaleString();
-    doc.text('Report Generated:', pageWidth - margin, 24, { align: 'right' });
-    doc.text(String(now), pageWidth - margin, 34, { align: 'right' });
-    doc.text('Generated By:', pageWidth - margin, 48, { align: 'right' });
-    doc.text(reportData.generatedBy || '-', pageWidth - margin, 58, { align: 'right' });
-    doc.text(reportData.generatedRole || '', pageWidth - margin, 68, { align: 'right' });
+    doc.text(`Generated ${now}`, pageWidth - margin, 34, { align: 'right' });
+    if (reportData.generatedBy) {
+      doc.text(`By ${reportData.generatedBy}${reportData.generatedRole ? ' — ' + reportData.generatedRole : ''}`, pageWidth - margin, 44, { align: 'right' });
+    }
 
-    doc.setDrawColor(THEME.primary);
-    doc.setLineWidth(1);
-    doc.line(margin, 78, pageWidth - margin, 78);
+    doc.setDrawColor('#D5DDD7');
+    doc.setLineWidth(0.6);
+    doc.line(margin, 56, pageWidth - margin, 56);
+    doc.setFillColor(THEME.gold);
+    doc.roundedRect(margin, 55.1, 40, 1.9, 0.95, 0.95, 'F');
 
-    return 92; // next Y cursor
+    return 76; // next Y cursor
+  }
+
+  // v3.33: the one card every panel shares — white, hairline border, a faint offset shadow.
+  function drawCard(doc, x, y, w, h, r) {
+    const rad = r === undefined ? 6 : r;
+    doc.setFillColor('#EEF1EE');
+    doc.roundedRect(x + 0.7, y + 1.3, w, h, rad, rad, 'F');
+    doc.setFillColor('#FFFFFF');
+    doc.setDrawColor('#E1E7E2');
+    doc.setLineWidth(0.6);
+    doc.roundedRect(x, y, w, h, rad, rad, 'FD');
   }
 
   function drawSectionTitle(doc, text, y, margin) {
+    // Page-level heading (e.g. "SALES SUMMARY") — deliberately larger and bolder
+    // than the panel sub-headings below it (10pt), so the page reads with two
+    // clear tiers instead of every title looking the same weight.
     doc.setFont(THEME.fontHeading, 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(THEME.primary);
-    doc.text(text.toUpperCase(), margin, y);
-    return y + 14;
+    doc.setFontSize(13);
+    doc.setTextColor(THEME.primaryDark);
+    doc.text(text, margin, y);
+    // the single warm accent: a short teff-gold tick under every page heading
+    doc.setFillColor(THEME.gold);
+    doc.roundedRect(margin, y + 4.4, 22, 1.8, 0.9, 0.9, 'F');
+    return y + 16;
   }
 
+  // Flat, left-aligned cards — label / big value / subtitle, stacked
+  // top-to-bottom like the approved screenshot. No icon or colored
+  // badge; kpi.color is kept only as a slim 2pt left accent so the
+  // color field a module supplies still means something, without the
+  // card itself reading as "loud".
   function drawKPICards(doc, kpis, y, pageWidth, margin) {
     if (!kpis || !kpis.length) return y;
     const usable = pageWidth - margin * 2;
-    const gap = 8;
+    const gap = 10;
     const perRow = kpis.length > 5 ? 6 : kpis.length;
     const cardW = (usable - gap * (perRow - 1)) / perRow;
-    const cardH = 62;
+    // Taller, roomier cards with real breathing space — the previous 54/60pt cards
+    // packed label/value/unit/delta into a cramped stack with little visual weight.
+    const hasAnyDelta = kpis.some(k => k.delta);
+    const cardH = hasAnyDelta ? 66 : 58;
+    const pad = 12;
 
     kpis.forEach((kpi, i) => {
       const col = i % perRow;
@@ -613,50 +1998,99 @@
       const cy = y + row * (cardH + gap);
       const color = kpi.color || THEME.primary;
 
+      // Card body
       doc.setDrawColor(THEME.border);
-      doc.setFillColor('#FFFFFF');
+      doc.setFillColor(THEME.cardBg);
+      doc.setLineWidth(0.75);
       doc.roundedRect(x, cy, cardW, cardH, 4, 4, 'FD');
 
-      doc.setDrawColor(color);
-      doc.setFillColor('#FFFFFF');
-      doc.setLineWidth(1.1);
-      doc.circle(x + cardW / 2, cy + 16, 10, 'FD');
-      drawIcon(doc, kpi.icon, x + cardW / 2, cy + 16, 8, color);
+      // Top accent bar (full-width, not just a slim left stripe) gives each card a
+      // clearer color identity at a glance, closer to how a real dashboard reads.
+      doc.setFillColor(color);
+      doc.roundedRect(x, cy, cardW, 3.5, 4, 4, 'F');
+      // square off the bottom corners of the accent bar so it doesn't look like a
+      // floating pill cut into the card
+      doc.setFillColor(color);
+      doc.rect(x, cy + 1.8, cardW, 1.7, 'F');
 
-      doc.setFont(THEME.fontHeading, 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(THEME.textMuted);
-      doc.text((kpi.label || '').toUpperCase(), x + cardW / 2, cy + 34, { align: 'center', maxWidth: cardW - 6 });
+      const innerX = x + pad;
+      const innerTop = cy + 3.5;
 
       doc.setFont(THEME.fontHeading, 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(color);
-      doc.text(String(kpi.value), x + cardW / 2, cy + 46, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setTextColor(THEME.textMuted);
+      doc.text((kpi.label || '').toUpperCase(), innerX, innerTop + 15, { maxWidth: cardW - pad * 2, charSpace: 0.3 });
+
+      // Value and unit sit on one baseline (e.g. "1,248,750 ETB") instead of two
+      // stacked lines — reads more like a real number, less like a form field.
+      doc.setFont(THEME.fontHeading, 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(THEME.textDark);
+      const valueText = String(kpi.value);
+      let unitWrapped = false; // v3.4: set when the unit drops to its own line (see the delta below)
+      doc.text(valueText, innerX, innerTop + 34, { maxWidth: cardW - pad * 2 });
 
       if (kpi.unit) {
+        const valueWidth = doc.getTextWidth(valueText);
         doc.setFont(THEME.fontHeading, 'normal');
-        doc.setFontSize(6.5);
+        doc.setFontSize(8.5);
         doc.setTextColor(THEME.textMuted);
-        doc.text(kpi.unit, x + cardW / 2, cy + 55, { align: 'center' });
+        // Only inline the unit if there's clearly room; otherwise it would overlap
+        // a long value string, so fall back to a second line beneath.
+        if (innerX + valueWidth + 24 < x + cardW - pad) {
+          doc.text(kpi.unit, innerX + valueWidth + 5, innerTop + 34);
+        } else {
+          doc.text(kpi.unit, innerX, innerTop + 44);
+          unitWrapped = true;
+        }
+      }
+
+      // Optional delta/context line, e.g. "+12.5% vs Aug" or "62% of revenue".
+      // kpi.deltaTone controls color: 'good' -> primary green, 'warn' -> danger red,
+      // anything else (or omitted) -> muted gray, matching the mockup's neutral sub-lines.
+      if (kpi.delta) {
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(7.5);
+        const deltaColor = kpi.deltaTone === 'good' ? THEME.primary
+          : kpi.deltaTone === 'warn' ? THEME.danger
+          : THEME.textMuted;
+        doc.setTextColor(deltaColor);
+        // v3.4: when the unit wrapped onto its own line (a long value on a narrow card, e.g. the
+        // six-card Dashboard row) the delta used to be drawn on top of it; it now sits one line lower.
+        doc.text(String(kpi.delta), innerX, innerTop + (unitWrapped ? 56 : 48), { maxWidth: cardW - pad * 2 });
       }
     });
 
     const rows = Math.ceil(kpis.length / perRow);
-    return y + rows * (cardH + gap) + 10;
+    return y + rows * (cardH + gap) + 4;
+  }
+
+  // v3.9: which charts go on the summary page and which are detailed-only. A chart with
+  // detailOnly:true never appears on the summary page; the summary shows the first two
+  // charts that are NOT detailOnly, and everything else (detailOnly ones and any overflow)
+  // is printed in detailed mode. With no detailOnly charts this is exactly the old rule:
+  // charts[0..1] on the summary page, charts[2..] in the detailed PDF.
+  function splitCharts(reportData) {
+    const all = Array.isArray(reportData.charts) ? reportData.charts : [];
+    const summary = [], extra = [];
+    all.forEach(c => { if (c && !c.detailOnly && summary.length < 2) summary.push(c); else if (c) extra.push(c); });
+    return { summary, extra };
   }
 
   // Chart grid used for extra charts (index 2+) in detailed mode, and as a
   // full-width fallback when a module has charts but no table on page 1.
   // Uses a running x/y cursor (not index math) so page breaks never
   // misplace a chart — this was the bug in v1.
-  async function drawCharts(doc, charts, y, pageWidth, margin) {
+  async function drawCharts(doc, charts, y, pageWidth, margin, opts) {
     if (!charts || !charts.length) return y;
     const usable = pageWidth - margin * 2;
-    const perRow = charts.length > 1 ? 2 : 1;
+    const perRow = (opts && opts.perRow) || (charts.length > 1 ? 2 : 1); // v3.38: perRow lets a lone chart stay half width
     const gap = 10;
     const chartW = (usable - gap * (perRow - 1)) / perRow;
     const chartH = chartW * 0.55;
-    const pageBottom = 770;
+    // 72pt reserved above the footer band — same margin the original hardcoded 770 left
+    // on an 842pt-tall portrait page, now computed so it also holds on landscape.
+    const pageBottom = doc.internal.pageSize.getHeight() - 72;
 
     let col = 0;
     let cx = margin;
@@ -668,10 +2102,13 @@
         cy = 40;
       }
 
-      const img = await renderChartToImage(charts[i]);
-      doc.setDrawColor(THEME.border);
-      doc.roundedRect(cx, cy, chartW, chartH, 3, 3, 'S');
-      doc.addImage(img, 'PNG', cx + 4, cy + 4, chartW - 8, chartH - 8);
+      const boxW = chartW - 8, boxH = chartH - 8;
+      const px = chartPx(boxW, boxH);
+      const ptText = perRow === 1 ? 7.8 : 7.2;
+      const img = await renderChartToImage(
+        Object.assign({ fontPx: Math.round(ptText * CHART_PX_PER_PT) }, charts[i]), px.w, px.h);
+      drawCard(doc, cx, cy, chartW, chartH, 6);
+      doc.addImage(img, 'PNG', cx + 4, cy + 4, boxW, boxH, undefined, 'FAST');
 
       col++;
       if (col >= perRow) {
@@ -686,135 +2123,731 @@
     return cy + 6;
   }
 
-  function drawTable(doc, table, y, margin) {
-    doc.autoTable({
+  // opts.bottomMargin (v3.9, optional): the page-bottom margin autoTable breaks at (its
+  // default of 40 is kept when omitted). The summary page passes its own so a table can
+  // never run into the footer band.
+  // v3.13: a table with no rows is drawn as one quiet message box ("No records for this period")
+  // instead of a bare header row with a misleading all-zero totals line. Returns the bottom y
+  // and sets doc.lastAutoTable.finalY so callers that read it keep working.
+  function drawEmptyTable(doc, table, y, x, width) {
+    const h = 24;
+    doc.setDrawColor('#D9E0DA');
+    doc.setLineWidth(0.6);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.roundedRect(x, y, width, h, 4, 4, 'S');
+    doc.setLineDashPattern([], 0);
+    doc.setFont(THEME.fontBody, 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(THEME.textMuted);
+    doc.text(String(table.emptyMessage || 'No records for this period.'), x + width / 2, y + h / 2 + 3, { align: 'center' });
+    doc.lastAutoTable = { finalY: y + h };
+    return y + h;
+  }
+  const hasNoRows = t => !t.rows || t.rows.length === 0;
+
+  // v3.32 — clearance kept above the footer band on every page (the footer rule sits 50pt up).
+  const PAGE_BOTTOM_RESERVE = 62;
+
+  // Starts a new page when `need` points do not fit below y; otherwise returns y unchanged.
+  function ensureSpace(doc, y, need) {
+    const ph = doc.internal.pageSize.getHeight();
+    if (y > 40 && y + need > ph - PAGE_BOTTOM_RESERVE) { doc.addPage(); return 40; }
+    return y;
+  }
+
+  // Height a heading must keep company with: a short table (8 rows or fewer) travels whole when it
+  // fits on one page; a longer one needs its header row and first two rows.
+  function tableLeadHeight(doc, table, margin) {
+    const rows = table.rows || [];
+    if (!rows.length) return 60;
+    const width = doc.internal.pageSize.getWidth() - margin * 2;
+    const usable = doc.internal.pageSize.getHeight() - 40 - PAGE_BOTTOM_RESERVE - 24;
+    const flat = r => (r || []).map(c => (c && typeof c === 'object' && c.v !== undefined ? c.v : c));
+    const probe = n => measureTableHeight(doc, {
+      columns: table.columns,
+      rows: rows.slice(0, n).map(flat),
+      totalsRow: n >= rows.length && table.totalsRow ? flat(table.totalsRow) : undefined
+    }, width, 8.5, 5) * 1.1 + 6; // 10% safety: the estimate ignores autoTable's exact column widths
+    if (rows.length <= 8) { const all = probe(rows.length); if (all <= usable) return all; }
+    return Math.min(probe(2), usable);
+  }
+
+  // Section heading + table, kept together across a page break.
+  function drawTitledTable(doc, title, table, y, margin, opts) {
+    y = ensureSpace(doc, y, 16 + tableLeadHeight(doc, table, margin));
+    y = drawSectionTitle(doc, title, y, margin);
+    return drawTable(doc, table, y, margin, opts);
+  }
+
+  function drawTable(doc, table, y, margin, opts) {
+    if (hasNoRows(table)) {
+      return drawEmptyTable(doc, table, y, margin, doc.internal.pageSize.getWidth() - margin * 2) + 16;
+    }
+    const bottom = opts && opts.bottomMargin !== undefined ? opts.bottomMargin : PAGE_BOTTOM_RESERVE;
+    doc.autoTable(Object.assign({
       startY: y,
       head: [table.columns],
       body: table.rows.slice(),
       foot: table.totalsRow ? [table.totalsRow] : undefined,
-      margin: { left: margin, right: margin },
-      styles: { font: THEME.fontBody, fontSize: 8.5, cellPadding: 5, textColor: THEME.textDark },
-      headStyles: { fillColor: THEME.primary, textColor: '#FFFFFF', fontStyle: 'bold' },
+      margin: { left: margin, right: margin, bottom },
+      styles: { font: THEME.fontBody, fontSize: 8.5, cellPadding: 5, textColor: THEME.textDark, lineColor: THEME.hairline, lineWidth: 0 },
+      headStyles: { fillColor: '#FFFFFF', textColor: THEME.primaryDark, fontStyle: 'bold', fontSize: 7.5 },
       alternateRowStyles: { fillColor: THEME.rowAlt },
-      footStyles: { fillColor: '#EAF3EE', textColor: THEME.primaryDark, fontStyle: 'bold' },
-      theme: 'grid'
-    });
+      footStyles: { fillColor: '#FFFFFF', textColor: THEME.primaryDark, fontStyle: 'bold' },
+      theme: 'plain'
+    }, tableExtraOptions(table, 5)));
     return doc.lastAutoTable.finalY + 16;
   }
 
   // Narrower variant used for the left column of the side-by-side
   // summary layout (table + charts sharing the top of page 1).
-  function drawTableAt(doc, table, y, margin, width) {
-    doc.autoTable({
+  // opts (all optional, v3.2): rightMargin — right page margin (defaults to the left
+  // one, as before); fontSize / cellPadding — for compact panel tables; bottomMargin (v3.9)
+  // — the page-bottom margin autoTable breaks at (default 40).
+  function drawTableAt(doc, table, y, margin, width, opts) {
+    if (hasNoRows(table)) return drawEmptyTable(doc, table, y, margin, width);
+    const o = opts || {};
+    const pad = o.cellPadding === undefined ? 5 : o.cellPadding;
+    doc.autoTable(Object.assign({
       startY: y,
       head: [table.columns],
       body: table.rows.slice(),
       foot: table.totalsRow ? [table.totalsRow] : undefined,
-      margin: { left: margin, right: margin },
+      margin: { left: margin, right: o.rightMargin === undefined ? margin : o.rightMargin,
+                bottom: o.bottomMargin === undefined ? PAGE_BOTTOM_RESERVE : o.bottomMargin },
       tableWidth: width,
-      styles: { font: THEME.fontBody, fontSize: 7.5, cellPadding: 4, textColor: THEME.textDark, overflow: 'linebreak' },
-      headStyles: { fillColor: THEME.primary, textColor: '#FFFFFF', fontStyle: 'bold', fontSize: 7.5 },
+      styles: { font: THEME.fontBody, fontSize: o.fontSize || 8, cellPadding: pad, textColor: THEME.textDark, overflow: 'linebreak', lineColor: THEME.hairline, lineWidth: 0 },
+      headStyles: { fillColor: '#FFFFFF', textColor: THEME.primaryDark, fontStyle: 'bold', fontSize: 7.5 },
       alternateRowStyles: { fillColor: THEME.rowAlt },
-      footStyles: { fillColor: '#EAF3EE', textColor: THEME.primaryDark, fontStyle: 'bold' },
-      theme: 'grid'
-    });
+      footStyles: { fillColor: '#FFFFFF', textColor: THEME.primaryDark, fontStyle: 'bold' },
+      theme: 'plain'
+    }, tableExtraOptions(table, pad)));
     return doc.lastAutoTable.finalY;
   }
 
-  // Page-1 summary: table + its charts side by side, matching the
-  // approved design. Falls back gracefully for modules that only
-  // have a table, or only have charts, on their summary page.
-  async function drawSummarySection(doc, reportData, y, pageWidth, margin) {
-    const usable = pageWidth - margin * 2;
-    const table = reportData.tables && reportData.tables[0];
-    const charts = (reportData.charts || []).slice(0, 2);
+  // Measures the real height drawTableAt() will render at a given width, by
+  // wrapping each cell's text against its actual column width with the same
+  // font/size/padding autoTable will use — instead of guessing a flat
+  // per-row height. A flat guess is wrong as soon as any cell wraps to more
+  // than one line (long descriptions, narrow currency columns, etc.), which
+  // is exactly when the real table ends up taller than the estimate and
+  // splits from its charts. Column widths are apportioned by each column's
+  // longest content, mirroring autoTable's own 'auto' width algorithm
+  // closely enough for a pre-render estimate.
+  // ------------------------------------------------------------
+  // INSIGHTS LAYOUT (v3.9) — ONE layout routine shared by the measuring pass and the
+  // drawing pass, so the two can never drift apart (v3.8 kept the same constants in
+  // two places and silently dropped any card that didn't fit).
+  //
+  // layoutInsights() never drops a card to make room. It tries three progressively
+  // tighter compaction levels (font / line height / padding), and if the text still
+  // doesn't fit it shortens the longest cards with an ellipsis, one line at a time
+  // (never below one line per card). Only if even that can't fit — an unusually long
+  // list — are trailing cards left off, and that is reported back (`dropped`) so the
+  // caller can disclose it on the page instead of losing content silently.
+  // ------------------------------------------------------------
+  const INSIGHT_ICON_COL_W = 22; // reserved when ins.icon is present
+  const INSIGHT_LEVELS = [
+    { font: 7.5, lineH: 9.5, pad: 6, gap: 5, labelH: 8.5, labelFont: 6.5 }, // approved design
+    { font: 7,   lineH: 8.8, pad: 5, gap: 4, labelH: 8,   labelFont: 6.5 },
+    { font: 6.5, lineH: 8,   pad: 4, gap: 3, labelH: 7.5, labelFont: 6   }
+  ];
 
-    if (table && charts.length) {
-      const leftW = usable * 0.56;
-      const rightW = usable - leftW - 14;
-      const rightX = margin + leftW + 14;
+  // Clips wrapped `lines` to maxLines, ending the last kept line with "..." (shortened
+  // until it fits the column).
+  function ellipsizeLines(doc, lines, maxLines, avail) {
+    const kept = lines.slice(0, maxLines);
+    let last = String(kept[kept.length - 1] || '').replace(/[\s.,;:\-–—]+$/, '');
+    while (last.length > 1 && doc.getTextWidth(last + '...') > avail) {
+      last = last.slice(0, -1).replace(/[\s.,;:\-–—]+$/, '');
+    }
+    kept[kept.length - 1] = last + '...';
+    return kept;
+  }
 
+  function insightCardLayout(doc, ins, width, L, maxLines) {
+    const hasIcon = !!ins.icon;
+    const textX0 = hasIcon ? L.pad + INSIGHT_ICON_COL_W : L.pad;
+    const avail = width - L.pad - textX0;
+    doc.setFont(THEME.fontBody, 'normal');
+    doc.setFontSize(L.font);
+    let lines = doc.splitTextToSize(String(ins.text === undefined || ins.text === null ? '' : ins.text), avail);
+    let clipped = false;
+    if (maxLines && lines.length > maxLines) {
+      lines = ellipsizeLines(doc, lines, maxLines, avail);
+      clipped = true;
+    }
+    const labelRows = ins.label ? 1 : 0;
+    const cardH = Math.max(
+      L.pad + labelRows * L.labelH + lines.length * L.lineH + L.pad * 0.6,
+      hasIcon ? L.pad * 2 + 16 : 0
+    );
+    return { ins, lines, textX0, cardH, clipped, fullLines: lines.length };
+  }
+
+  // Returns { level, cards, height, shortened, dropped }. `height` is the stack's real
+  // height (cards plus the gaps between them, no trailing gap). maxHeight omitted →
+  // natural size at the approved level, nothing shortened.
+  function layoutInsights(doc, insights, width, maxHeight) {
+    const list = insights || [];
+    const heightOf = (cards, L) => cards.reduce((a, c) => a + c.cardH, 0) + Math.max(cards.length - 1, 0) * L.gap;
+
+    if (!maxHeight) {
+      const cards = list.map(ins => insightCardLayout(doc, ins, width, INSIGHT_LEVELS[0]));
+      return { level: INSIGHT_LEVELS[0], cards, height: heightOf(cards, INSIGHT_LEVELS[0]), shortened: false, dropped: 0 };
+    }
+
+    // 1) compaction levels, no text changes
+    for (let k = 0; k < INSIGHT_LEVELS.length; k++) {
+      const L = INSIGHT_LEVELS[k];
+      const cards = list.map(ins => insightCardLayout(doc, ins, width, L));
+      const h = heightOf(cards, L);
+      if (h <= maxHeight) return { level: L, cards, height: h, shortened: false, dropped: 0 };
+    }
+
+    // 2) tightest level, shorten the longest cards one line at a time
+    const L = INSIGHT_LEVELS[INSIGHT_LEVELS.length - 1];
+    const limits = list.map(() => 0); // 0 = unlimited
+    let cards = list.map(ins => insightCardLayout(doc, ins, width, L));
+    let guard = 500;
+    while (heightOf(cards, L) > maxHeight && guard-- > 0) {
+      let idx = -1, most = 1;
+      cards.forEach((c, n) => { if (c.lines.length > most) { most = c.lines.length; idx = n; } });
+      if (idx < 0) break; // everything is already one line
+      limits[idx] = most - 1;
+      cards[idx] = insightCardLayout(doc, list[idx], width, L, limits[idx]);
+    }
+
+    // 3) last resort: still too tall at one line each (a very long list) — leave off
+    //    trailing cards, and say so.
+    let dropped = 0;
+    while (cards.length > 1 && heightOf(cards, L) > maxHeight) { cards.pop(); dropped++; }
+
+    const shortened = cards.some(c => c.clipped) || dropped > 0;
+    return { level: L, cards, height: heightOf(cards, L), shortened, dropped };
+  }
+
+  function measureTableHeight(doc, table, width, fontSize, cellPadding) {
+    const cols = table.columns || [];
+    const allRows = (table.rows || []).concat(table.totalsRow ? [table.totalsRow] : []);
+    if (!cols.length) return 24;
+
+    doc.setFont(THEME.fontBody, 'normal');
+    doc.setFontSize(fontSize);
+
+    // Proportional column widths from each column's longest cell text
+    // (header included), same signal autoTable's 'auto' mode uses.
+    const rawWidths = cols.map((c, i) => {
+      let maxLen = String(c || '').length;
+      allRows.forEach(r => { maxLen = Math.max(maxLen, String(r[i] === undefined || r[i] === null ? '' : r[i]).length); });
+      return Math.max(maxLen, 3);
+    });
+    const totalRaw = rawWidths.reduce((a, b) => a + b, 0) || 1;
+    const colWidths = rawWidths.map(w => Math.max((w / totalRaw) * width, 24));
+
+    const lineH = fontSize * 1.15;
+    const headerH = fontSize + cellPadding * 2 + 2;
+
+    let bodyH = 0;
+    allRows.forEach(r => {
+      let maxLinesInRow = 1;
+      cols.forEach((c, i) => {
+        const cellText = String(r[i] === undefined || r[i] === null ? '' : r[i]);
+        const innerWidth = Math.max(colWidths[i] - cellPadding * 2, 10);
+        const wrapped = doc.splitTextToSize(cellText, innerWidth);
+        maxLinesInRow = Math.max(maxLinesInRow, wrapped.length || 1);
+      });
+      bodyH += maxLinesInRow * lineH + cellPadding * 2;
+    });
+
+    return headerH + bodyH;
+  }
+
+  // Fits a summary-page table into availH points (v3.9). Starts from the table's own
+  // summaryMaxRows cap and drops further rows, one at a time, until the measured height
+  // (plus the "+ N more rows" note, and a small safety margin for the estimate) fits.
+  // Returns capTableRows()'s { table, hidden, note }, or null when not even one row fits
+  // (the caller then leaves the table out and points to the detailed report).
+  // Hidden rows are never lost: the caller records the table in _truncatedIdx so the
+  // detailed PDF prints it in full, and Excel/CSV always carry every row.
+  function fitSummaryTable(doc, raw, width, availH, fontSize, pad) {
+    const total = (raw.rows || []).length;
+    if (!total) return { table: raw, hidden: 0, note: '' };
+    const NOTE_H = 12, SAFETY = 6;
+    const startCap = raw.summaryMaxRows ? Math.min(raw.summaryMaxRows, total) : total;
+    for (let n = startCap; n >= 1; n--) {
+      const c = capTableRows(raw, n);
+      if (measureTableHeight(doc, c.table, width, fontSize, pad) + (c.note ? NOTE_H : 0) + SAFETY <= availH) return c;
+    }
+    return null;
+  }
+
+  // Ranked list panel (e.g. "Top Customers by Revenue") — numbered rows with a
+  // name/meta line on the left and a value/percent on the right. Used in the
+  // bottom-right slot of the summary page, alongside the payment/breakdown
+  // table in the bottom-left slot.
+  // items: [{ rank, name, meta, value, sub }]
+  function drawRankedList(doc, items, y, margin, width, maxRows, opts) {
+    const rowH = 31; // a middle ground between the original cramped 30pt and a
+                      // more generous size — keeps row 3 fitting on page 1
+                      // alongside the taller row-2 content above it
+    const badgeR = 10;
+    const topPad = 12; // clears the column title above, matching the visual gap
+                        // autoTable's header row gives drawTableAt() for free
+    const rows = (items || []).slice(0, maxRows || 6);
+
+    // slim proportion bars — only when every shown value is a positive number (K/M/B suffixes understood)
+    const mag = v => {
+      const m = String(v == null ? '' : v).replace(/,/g, '').match(/(-?\d+(?:\.\d+)?)\s*([KMB])?/i);
+      if (!m) return NaN;
+      return parseFloat(m[1]) * ({ K: 1e3, M: 1e6, B: 1e9 }[(m[2] || '').toUpperCase()] || 1);
+    };
+    const mags = rows.map(it => mag(it.value));
+    const showBars = !(opts && opts.bars === false) && rows.length > 1 && mags.every(v => Number.isFinite(v) && v > 0);
+    const maxMag = showBars ? Math.max.apply(null, mags) : 1;
+
+    rows.forEach((item, i) => {
+      const ry = y + topPad + i * rowH;
+      const rankColor = i === 0 ? THEME.gold : THEME.primary; // #1 gets a small
+                                                                // highlight, like a
+                                                                // leaderboard
+
+      doc.setFillColor(i === 0 ? '#FBF3E1' : '#EAF2EC');
+      doc.setDrawColor(i === 0 ? THEME.gold : '#CFE3D6');
+      doc.setLineWidth(0.8);
+      doc.circle(margin + badgeR, ry + rowH / 2 - 5, badgeR, 'FD');
       doc.setFont(THEME.fontHeading, 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(THEME.primary);
-      doc.text((table.title || 'SUMMARY').toUpperCase(), margin, y);
-      doc.text((charts.length > 1 ? 'OVERVIEW CHARTS' : (charts[0].title || 'CHART').toUpperCase()), rightX, y);
+      doc.setFontSize(8.5);
+      doc.setTextColor(rankColor);
+      doc.text(String(item.rank || i + 1), margin + badgeR, ry + rowH / 2 - 2, { align: 'center' });
 
-      const bodyY = y + 14;
-      const leftBottom = drawTableAt(doc, table, bodyY, margin, leftW);
+      const textX = margin + badgeR * 2 + 10;
+      doc.setFont(THEME.fontHeading, 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(THEME.textDark);
+      doc.text(String(item.name || ''), textX, ry + rowH / 2 - 7);
 
-      let cy = bodyY;
-      for (const spec of charts) {
-        const chH = rightW * 0.55;
-        const img = await renderChartToImage(spec);
-        doc.setDrawColor(THEME.border);
-        doc.roundedRect(rightX, cy, rightW, chH, 3, 3, 'S');
-        doc.addImage(img, 'PNG', rightX + 4, cy + 4, rightW - 8, chH - 8);
-        cy += chH + 10;
+      if (item.meta) {
+        doc.setFont(THEME.fontBody, 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(THEME.textMuted);
+        doc.text(String(item.meta), textX, ry + rowH / 2 + 5);
       }
 
-      return Math.max(leftBottom, cy) + 14;
+      doc.setFont(THEME.fontHeading, 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(THEME.primaryDark);
+      doc.text(String(item.value || ''), margin + width, ry + rowH / 2 - 7, { align: 'right' });
+
+      if (item.sub) {
+        doc.setFont(THEME.fontBody, 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(THEME.textMuted);
+        doc.text(String(item.sub), margin + width, ry + rowH / 2 + 5, { align: 'right' });
+      }
+
+      if (showBars) {
+        const bx = textX, bw = margin + width - textX, by = ry + rowH - 6.2;
+        doc.setFillColor('#EEF2EF');
+        doc.roundedRect(bx, by, bw, 2.4, 1.2, 1.2, 'F');
+        doc.setFillColor(i === 0 ? THEME.gold : THEME.primary);
+        doc.roundedRect(bx, by, Math.max(2.4, bw * mags[i] / maxMag), 2.4, 1.2, 1.2, 'F');
+      }
+
+      if (i < rows.length - 1) {
+        doc.setDrawColor(THEME.hairline);
+        doc.setLineWidth(0.5);
+        doc.line(margin, ry + rowH - 1.5, margin + width, ry + rowH - 1.5);
+      }
+    });
+
+    return y + topPad + rows.length * rowH + 8;
+  }
+
+  // ------------------------------------------------------------
+  // SUMMARY PAGE — the one shared layout for every module's page 1.
+  //
+  // Row 1: KPI cards (drawKPICards)
+  // Row 2: three panels side by side — primary chart (reportData.charts[0]),
+  //        secondary chart/donut (reportData.charts[1]), and a Key Insights
+  //        column (reportData.insights) — each in its own bordered card.
+  // Row 3: two panels side by side — a table (reportData.tables[0]) and a
+  //        ranked list (reportData.rankedList), e.g. a breakdown table next
+  //        to a "Top Customers" panel.
+  //
+  // Any row is omitted gracefully if its data isn't present (e.g. no second
+  // chart collapses row 2 to two panels; no rankedList collapses row 3 to a
+  // full-width table).
+  // ------------------------------------------------------------
+  async function drawSummarySection(doc, reportData, y, pageWidth, margin) {
+    const usable = pageWidth - margin * 2;
+    const gap = 14;
+    const charts = splitCharts(reportData).summary;
+    const primaryChart = charts[0];
+    const secondaryChart = charts[1];
+    const insights = reportData.insights;
+    const rawTable = reportData.tables && reportData.tables[0];
+    // v3.2: reportData.summaryTables === 2 puts tables[0] and tables[1] side by side in
+    // Row 3 instead of table + ranked list (e.g. Loans: register + repayment schedule).
+    const rawTable2 = reportData.summaryTables === 2 && reportData.tables ? reportData.tables[1] : null;
+    // v3.2: reportData.panelTable is a compact table drawn in the Row-2 secondary slot
+    // when there is no second chart (e.g. Production cost breakdown).
+    const panelTable = !secondaryChart ? reportData.panelTable : null;
+    const rankedList = rawTable2 ? null : reportData.rankedList;
+    reportData._truncatedIdx = reportData._truncatedIdx || [];
+
+    // The summary page is STRICTLY ONE PAGE (v3.9). Nothing in this function adds a page:
+    // every block is sized to the room that is actually left, rows that don't fit are
+    // trimmed (summaryMaxRows is only the starting cap), and anything cut from the page
+    // is recorded in _truncatedIdx so the detailed PDF prints it in full, and Excel/CSV
+    // always carry every row.
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageBottom = pageHeight - 72;
+    // Tables and lists may run down to just above the footer rule (as v3.8 did); pageBottom
+    // stays the stricter bound used to size Row 2.
+    const tableBottom = pageHeight - 60;
+    const bottomMargin = pageHeight - tableBottom; // what autoTable must leave below summary tables
+    reportData._summaryNotes = reportData._summaryNotes || [];
+    reportData._rankedShown = 0;
+    const markTruncated = (idx) => { if (reportData._truncatedIdx.indexOf(idx) < 0) reportData._truncatedIdx.push(idx); };
+    const noteOnce = (t) => { if (reportData._summaryNotes.indexOf(t) < 0) reportData._summaryNotes.push(t); };
+
+    // Fits one table into the room below startY and draws it; returns the y it ended at.
+    // `drawFn(tbl, bm)` draws the (possibly trimmed) table and returns autoTable's finalY.
+    const fitAndDraw = (raw, idx, startY, x, width, fontSize, pad, drawFn) => {
+      const fit = fitSummaryTable(doc, raw, width, tableBottom - startY, fontSize, pad);
+      if (!fit) { // not even one row fits — leave the table out, say so
+        markTruncated(idx);
+        return drawMoreNote(doc, 'Table not shown here — see the detailed report or Excel export', x, startY);
+      }
+      if (fit.hidden) markTruncated(idx);
+      const pagesBefore = doc.internal.getNumberOfPages();
+      const startPage = doc.internal.getCurrentPageInfo().pageNumber;
+      const endY = drawFn(fit.table, bottomMargin);
+      if (doc.internal.getNumberOfPages() > pagesBefore) {
+        // Safety net: the row estimate was optimistic and autoTable ran onto a new page.
+        // Remove the overflow page(s) — the summary stays one page — and disclose it.
+        for (let pg = doc.internal.getNumberOfPages(); pg > pagesBefore; pg--) doc.deletePage(pg);
+        doc.setPage(startPage);
+        markTruncated(idx);
+        noteOnce('A summary table was cut to keep this page to one sheet; see the detailed report.');
+        return tableBottom;
+      }
+      return fit.note ? drawMoreNote(doc, fit.note, x, endY) : endY;
+    };
+
+    const table = rawTable;
+    const table2 = rawTable2;
+
+    // ---- ROW 2: chart | chart-or-table | insights ----
+    const panelCount = [primaryChart, secondaryChart || panelTable, insights].filter(Boolean).length;
+    if (panelCount) {
+      // Column widths: when all three are present, insights gets a narrower
+      // share (matches the approved design); with two panels, split evenly;
+      // with one, it takes the full width.
+      let colWidths;
+      if (primaryChart && panelTable && insights) {
+        colWidths = [usable * 0.35, usable * 0.35, usable * 0.30 - (gap * 2 / 3)];
+      } else if (primaryChart && secondaryChart && insights) {
+        colWidths = [usable * 0.38, usable * 0.30, usable * 0.32 - (gap * 2 / 3)];
+      } else if (panelCount === 2) {
+        colWidths = [(usable - gap) / 2, (usable - gap) / 2];
+      } else {
+        colWidths = [usable];
+      }
+
+      // Row height (v3.9): Row 2 may only use what is left above Row 3's minimum. Charts
+      // render at a fixed height; the insights column is laid out by layoutInsights() —
+      // the same routine drawHighlights() draws from — against the room available, so
+      // long insight text is compacted or shortened to fit instead of clipped or pushed
+      // onto a second page.
+      const hasRow3 = !!(table || table2 || rankedList);
+      const ROW3_MIN = 120;
+      const row2Room = pageBottom - y - 20; // row 2 = title strip (14) + panel + 6 gap
+      const chartPanelH = Math.max(100, Math.min(196, row2Room - (hasRow3 ? 90 : 0))); // v3.37: taller chart/donut cards (was 164)
+      const maxPanelH = Math.max(chartPanelH, Math.min(row2Room - (hasRow3 ? ROW3_MIN : 0), 260));
+      let insightLayout = null;
+      let panelH = chartPanelH;
+      if (insights && insights.length) {
+        const insightsW = colWidths[colWidths.length - 1];
+        insightLayout = layoutInsights(doc, insights, insightsW, maxPanelH - 5);
+        panelH = Math.max(chartPanelH, Math.min(maxPanelH, insightLayout.height + 5));
+        if (insightLayout.shortened) reportData._insightsShortened = true;
+      }
+
+      let cx = margin;
+      const titleY = y;
+      const bodyY = y + 14;
+      let colIdx = 0;
+
+      if (primaryChart) {
+        const w = colWidths[colIdx];
+        // Panel sub-heading tier: smaller and colored (primary green) rather than
+        // full dark-text weight, so it reads as clearly subordinate to the 12pt
+        // page-level heading (drawSectionTitle) above it.
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(THEME.primary);
+        doc.text(String(primaryChart.title || 'Chart'), cx, titleY);
+        if (primaryChart.subtitle) {
+          doc.setFont(THEME.fontBody, 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(THEME.textMuted);
+          doc.text(primaryChart.subtitle, cx, titleY + 10);
+        }
+        // Chart card border: THEME.border is intentionally light for table gridlines,
+        // but at that weight a standalone box around a chart barely reads as a card.
+        // Use a darker, slightly thicker line here so the box is actually visible.
+        const cleanP = primaryChart.style !== 'classic';
+        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
+        // showTitle:false — the panel already shows this chart's title as a header
+        // above the box (drawn just above), so Chart.js's own in-canvas title would
+        // just repeat it, tiny and cramped, inside the chart area.
+        // Rendered close to the box's own aspect ratio (computed from w/panelH) at a
+        // higher resolution than the box's point size, so axis labels and gridlines
+        // stay crisp instead of being upscaled/blurred or built for a mismatched
+        // wide aspect and then squeezed, which is what made text illegibly small.
+        const boxW = w - 8, boxH = panelH - 26;
+        const px = chartPx(boxW, boxH);
+        const img = await renderChartToImage(
+          Object.assign({}, primaryChart, { showTitle: false }, cleanP ? { fontPx: Math.round(7.4 * CHART_PX_PER_PT) } : {}),
+          px.w, px.h
+        );
+        doc.addImage(img, 'PNG', cx + 4, bodyY + 8, boxW, boxH, undefined, 'FAST');
+        cx += w + gap;
+        colIdx++;
+      }
+
+      if (secondaryChart) {
+        const w = colWidths[colIdx];
+        // Panel sub-heading tier: smaller and colored (primary green) rather than
+        // full dark-text weight, so it reads as clearly subordinate to the 12pt
+        // page-level heading (drawSectionTitle) above it.
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(THEME.primary);
+        doc.text(String(secondaryChart.title || 'Chart'), cx, titleY);
+        // Same darker/thicker border as the chart card above — THEME.border alone
+        // was too faint to read as a card outline.
+        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
+        const side = Math.min(w - 16, panelH - 40);
+        // legendPosition:'bottom' — a 'right' legend has no room to breathe in a
+        // small square box and was rendering illegibly small; a bottom legend below
+        // the ring reads clearly at this size instead.
+        const donutSpec = Object.assign({ fontPx: Math.round(6.6 * CHART_PX_PER_PT) }, secondaryChart, { showTitle: false, legendPosition: 'bottom' });
+        const px = chartPx(side, side);
+        const img = await renderChartToImage(donutSpec, px.w, px.w);
+        doc.addImage(img, 'PNG', cx + (w - side) / 2, bodyY + 12, side, side, undefined, 'FAST');
+        cx += w + gap;
+        colIdx++;
+      }
+
+      if (panelTable) {
+        const w = colWidths[colIdx];
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(THEME.primary);
+        doc.text(String(panelTable.title || 'Breakdown'), cx, titleY);
+        if (panelTable.subtitle) {
+          doc.setFont(THEME.fontBody, 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(THEME.textMuted);
+          doc.text(panelTable.subtitle, cx, titleY + 10);
+        }
+        // Same card outline as the chart panels so the row reads as three matching cards.
+        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
+        const inset = 7;
+        const panelRaw = Object.assign({}, panelTable, { summaryMaxRows: panelTable.summaryMaxRows || 6 });
+        const panelTop = bodyY + 4 + inset;
+        const panelFit = fitSummaryTable(doc, panelRaw, w - inset * 2, (bodyY + panelH - 14) - panelTop - 3, 7.5, 4);
+        if (panelFit) {
+          const panelEnd = drawTableAt(doc, panelFit.table, panelTop, cx + inset, w - inset * 2,
+            { fontSize: 7.5, cellPadding: 4, rightMargin: pageWidth - (cx + w - inset), bottomMargin });
+          drawMoreNote(doc, panelFit.note, cx + inset, panelEnd + 1);
+        }
+        cx += w + gap;
+        colIdx++;
+      }
+
+      if (insights && insights.length) {
+        const w = colWidths[colIdx];
+        // Panel sub-heading tier: smaller and colored (primary green) rather than
+        // full dark-text weight, so it reads as clearly subordinate to the 12pt
+        // page-level heading (drawSectionTitle) above it.
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(THEME.primary);
+        doc.text('KEY INSIGHTS', cx, titleY);
+        // insightLayout is the very layout panelH was sized from, so what is drawn is
+        // exactly what was measured.
+        drawHighlights(doc, insights, bodyY + 4, pageWidth, cx, { width: w, inline: true, layout: insightLayout });
+      }
+
+      y = bodyY + panelH + 6; // small gap so row 3's title/content doesn't
+                               // crowd directly against row 2's bottom edge
+                               // (e.g. the last insight card's accent bar)
+    }
+
+    // ---- ROW 3 (v3.2, summaryTables === 2): table | table ----
+    // Used by modules whose real content is two tables rather than a table + ranking
+    // (Loans: register + repayment schedule). v3.9: each table is fitted to the room left
+    // on the page — it never paginates.
+    if (table && table2) {
+      const leftW = usable * (reportData.summaryTableSplit || 0.44);
+      const rightW = usable - leftW - gap;
+      const rightX = margin + leftW + gap;
+      const pageW = doc.internal.pageSize.getWidth();
+
+      y += 3;
+      doc.setFont(THEME.fontHeading, 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(THEME.primary);
+      doc.text(String(table.title || 'Table'), margin, y);
+      doc.text(String(table2.title || 'Table'), rightX, y);
+
+      const bodyY = y + 14;
+      const leftBottom = fitAndDraw(table, 0, bodyY, margin, leftW, 8, 5,
+        (t, bm) => drawTableAt(doc, t, bodyY, margin, leftW, { rightMargin: pageW - margin - leftW, bottomMargin: bm }));
+      const rightBottom = fitAndDraw(table2, 1, bodyY, rightX, rightW, 8, 5,
+        (t, bm) => drawTableAt(doc, t, bodyY, rightX, rightW, { rightMargin: margin, bottomMargin: bm }));
+      return Math.max(leftBottom, rightBottom) + 10;
+    }
+
+    // ---- ROW 3: table | ranked list ----
+    if (table && rankedList) {
+      const leftW = usable * 0.52;
+      const rightW = usable - leftW - gap;
+      const rightX = margin + leftW + gap;
+
+      y += 3; // small nudge so the title clears the last insight card's accent
+              // bar directly above it in row 2
+
+      // Same panel sub-heading tier as the row-2 titles above.
+      doc.setFont(THEME.fontHeading, 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(THEME.primary);
+      doc.text(String(table.title || 'Table'), margin, y);
+      doc.text(String(rankedList.title || 'Ranking'), rightX, y);
+
+      const bodyY = y + 14;
+      const leftBottom = fitAndDraw(table, 0, bodyY, margin, leftW, 8, 5,
+        (t, bm) => drawTableAt(doc, t, bodyY, margin, leftW, { bottomMargin: bm }));
+      const listBottom = drawFittedRankedList(rankedList, bodyY, rightX, rightW);
+      return Math.max(leftBottom, listBottom) + 10;
     }
 
     if (table) {
       y = drawSectionTitle(doc, table.title || 'Summary Table', y, margin);
-      return drawTable(doc, table, y, margin);
+      const startY = y;
+      const endY = fitAndDraw(table, 0, startY, margin, usable, 8.5, 5,
+        (t, bm) => { drawTable(doc, t, startY, margin, { bottomMargin: bm }); return doc.lastAutoTable.finalY; });
+      return endY + 8;
     }
 
-    if (charts.length) {
-      y = drawSectionTitle(doc, 'Overview Charts', y, margin);
-      return await drawCharts(doc, charts, y, pageWidth, margin);
+    if (rankedList) {
+      y = drawSectionTitle(doc, rankedList.title || 'Ranking', y, margin);
+      return drawFittedRankedList(rankedList, y, margin, usable);
     }
 
     return y;
+
+    // Ranked list sized to the room left (rows are a fixed 31pt each; at least one must
+    // fit or the list is left out with a pointer to the Excel export).
+    function drawFittedRankedList(rl, startY, x, width) {
+      const items = rl.items || [];
+      const want = Math.min(items.length, rl.maxRows || 6);
+      const fits = Math.floor((tableBottom - startY - 12) / 31); // 12 = list top padding
+      const show = Math.min(want, Math.max(fits, 0));
+      reportData._rankedShown = show; // how many the Summary actually printed (detailed PDF lists the rest)
+      if (!show) {
+        return want ? drawMoreNote(doc, 'List not shown here — see the Excel export', x, startY) : startY;
+      }
+      let bottom = drawRankedList(doc, items, startY, x, width, show, { bars: rl.bars });
+      if (show < want) {
+        bottom = drawMoreNote(doc, `+ ${want - show} more — see the Excel export`, x, bottom - 8);
+      }
+      return bottom;
+    }
   }
 
-  // Insight/highlight pills — now page-break aware (v1 could run off
-  // the bottom of the page silently with 6+ insights).
-  function drawHighlights(doc, insights, y, pageWidth, margin) {
+  // Insight cards — redesigned from the original numbered-circle-row pattern into
+  // stacked, left-accent-bar cards with a short label (e.g. "GROWTH", "WATCH") above
+  // the insight text, matching the approved report design. Accepts both the
+  // documented { icon, color, text } shape (icon drawn as a small badge) and the
+  // newer { label, color, text } shape (label drawn as text) — a card can supply
+  // either or both.
+  //
+  // opts.inline (used as the third summary-page column, beside the chart/donut):
+  //   x is treated as the column's left edge (not the page margin), no section
+  //   title is drawn (the caller already drew a matching column header), and the
+  //   page-break decision was already made by the caller. v3.9: the caller passes
+  //   opts.layout — the result of layoutInsights() that it sized the row from — so
+  //   exactly what was measured is what gets drawn, and no card is ever silently
+  //   clipped away (see layoutInsights for how over-long content is fitted).
+  // Default (non-inline) mode: full-width, own section title, and freely paginates
+  // across pages for a large insight list, always at the approved text size.
+  function drawHighlights(doc, insights, y, pageWidth, x, opts) {
     if (!insights || !insights.length) return y;
-    if (y > 700) { doc.addPage(); y = 40; }
-    y = drawSectionTitle(doc, 'Highlights', y, margin);
+    const inline = !!(opts && opts.inline);
+    const pageHeight = doc.internal.pageSize.getHeight();
 
-    const usable = pageWidth - margin * 2;
-    const perRow = Math.min(insights.length, 5);
-    const gap = 6;
-    const cardW = (usable - gap * (perRow - 1)) / perRow;
-    const rowH = 46;
-    const pageBottom = 780;
+    if (!inline) {
+      if (y > pageHeight - 142) { doc.addPage(); y = 40; }
+      y = drawSectionTitle(doc, (opts && opts.title) || 'Key Insights', y, x);
+    }
 
-    let col = 0;
+    const usable = opts && opts.width ? opts.width : pageWidth - x * 2;
+    const layout = (opts && opts.layout) ||
+      layoutInsights(doc, insights, usable, inline && opts.maxHeight ? opts.maxHeight : 0);
+    const L = layout.level;
+    const pageBottom = pageHeight - 62;
+
     let cy = y;
-    insights.forEach((ins) => {
-      if (col === 0 && cy + rowH > pageBottom) {
+    for (const card of layout.cards) {
+      const ins = card.ins;
+      const cardH = card.cardH;
+      const color = ins.color || THEME.primary;
+      const hasIcon = !!ins.icon;
+      const textX0 = card.textX0;
+
+      if (!inline && cy + cardH > pageBottom) {
         doc.addPage();
         cy = 40;
       }
-      const x = margin + col * (cardW + gap);
-      if (ins.icon) {
-        // Colored icon badge, same vector icon set as the KPI cards, so a module
-        // can color/differentiate each insight (e.g. green for a positive one,
-        // red for a negative one) instead of every pill looking identical.
-        const iColor = ins.color || THEME.accent;
-        doc.setDrawColor(iColor);
+
+      doc.setFillColor('#F6F8F5');
+      doc.roundedRect(x, cy, usable, cardH, 4, 4, 'F');
+      doc.setFillColor(color);
+      doc.roundedRect(x, cy, 2.6, cardH, 1.3, 1.3, 'F');
+
+      if (hasIcon) {
+        doc.setDrawColor(color);
         doc.setFillColor('#FFFFFF');
         doc.setLineWidth(1);
-        doc.circle(x + 9, cy + 8, 8, 'FD');
-        drawIcon(doc, ins.icon, x + 9, cy + 8, 6.5, iColor);
-      } else {
-        doc.setFillColor(THEME.accent);
-        doc.circle(x + 10, cy + 8, 7, 'F');
+        doc.circle(x + L.pad + 7, cy + cardH / 2, 8, 'FD');
+        drawIcon(doc, ins.icon, x + L.pad + 7, cy + cardH / 2, 6, color);
       }
-      doc.setFont(THEME.fontHeading, 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(THEME.textDark);
-      doc.text(ins.text, x + 22, cy + 6, { maxWidth: cardW - 24 });
 
-      col++;
-      if (col >= perRow) { col = 0; cy += rowH; }
-    });
-    if (col !== 0) cy += rowH;
-    return cy + 10;
+      let textY = cy + L.pad + 2;
+      if (ins.label) {
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(L.labelFont);
+        doc.setTextColor(color);
+        doc.text(String(ins.label), x + textX0, textY);
+        textY += L.labelH;
+      } else {
+        textY += L.lineH - 2;
+      }
+
+      doc.setFont(THEME.fontBody, 'normal');
+      doc.setFontSize(L.font);
+      doc.setTextColor(THEME.textDark);
+      doc.text(card.lines, x + textX0, textY + 2);
+
+      cy += cardH + L.gap;
+    }
+
+    return cy + 4;
   }
 
   async function drawFooter(doc, reportData) {
@@ -831,7 +2864,8 @@
 
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setDrawColor(THEME.border);
+      doc.setDrawColor('#D5DDD7');
+      doc.setLineWidth(0.6);
       doc.line(margin, pageHeight - 50, pageWidth - margin, pageHeight - 50);
 
       doc.setFont(THEME.fontHeading, 'normal');
@@ -839,13 +2873,34 @@
       doc.setTextColor(THEME.textMuted);
 
       if (footer.notes && footer.notes.length && i === pageCount) {
-        doc.text('Notes:', margin, pageHeight - 38);
-        footer.notes.forEach((n, idx) => {
-          doc.text(`${idx + 1}. ${n}`, margin, pageHeight - 30 + idx * 8, { maxWidth: pageWidth / 2 - margin });
+        // Fixed band from notesTop to notesBottom — notes can never run past the page edge
+        // regardless of count; once they don't fit, the rest collapse into "+N more notes".
+        const notesTop = pageHeight - 38;
+        const notesBottom = pageHeight - 8;
+        const lineH = 8;
+        const maxLines = Math.max(1, Math.floor((notesBottom - notesTop) / lineH));
+        const overflow = footer.notes.length > maxLines;
+        const shown = overflow ? footer.notes.slice(0, Math.max(maxLines - 1, 1)) : footer.notes;
+
+        doc.text('Notes:', margin, notesTop);
+        shown.forEach((n, idx) => {
+          doc.text(`${idx + 1}. ${n}`, margin, notesTop + 8 + idx * lineH, { maxWidth: pageWidth / 2 - margin });
         });
+        if (overflow) {
+          const extra = footer.notes.length - shown.length;
+          doc.text(`+ ${extra} more note${extra > 1 ? 's' : ''}`, margin, notesTop + 8 + shown.length * lineH);
+        }
       }
 
       const qrOffset = (qrImg && i === pageCount) ? 46 : 0;
+      // v3.15: every page says which report it belongs to, for what period, and when it was made —
+      // continuation pages used to carry only a page number.
+      {
+        const idLine = `${reportData.module || reportData.title || 'Report'}${reportData.period ? ' — ' + reportData.period : ''}`;
+        const idX = pageWidth - margin - qrOffset - 125;
+        doc.text(idLine, idX, pageHeight - 22, { align: 'right', maxWidth: 220 });
+        doc.text(`Generated ${reportData.generatedAt || ''}`, idX, pageHeight - 14, { align: 'right', maxWidth: 220 });
+      }
       doc.text('Prepared By:', pageWidth - margin - qrOffset, pageHeight - 38, { align: 'right' });
       doc.text(footer.preparedBy || 'Business Management System', pageWidth - margin - qrOffset, pageHeight - 30, { align: 'right' });
       doc.text(footer.company || '', pageWidth - margin - qrOffset, pageHeight - 22, { align: 'right' });
@@ -858,35 +2913,477 @@
   }
 
   // ------------------------------------------------------------
+  // VALIDATION — called first by generatePDF/generateExcel/generateCSV so a
+  // module that passes a malformed reportData gets one clear error message
+  // instead of an internal crash partway through a render. Checks shape and
+  // types, not that every optional field is present.
+  // ------------------------------------------------------------
+  function validateReportData(reportData, scope) {
+    if (!reportData || typeof reportData !== 'object') {
+      throw new Error('ReportEngine: reportData must be an object.');
+    }
+    const errors = [];
+    if (reportData.kpis !== undefined && !Array.isArray(reportData.kpis)) {
+      errors.push('kpis must be an array');
+    }
+    if (reportData.charts !== undefined && !Array.isArray(reportData.charts)) {
+      errors.push('charts must be an array');
+    }
+    if (reportData.insights !== undefined && !Array.isArray(reportData.insights)) {
+      errors.push('insights must be an array');
+    }
+    if (reportData.footer !== undefined && typeof reportData.footer !== 'object') {
+      errors.push('footer must be an object');
+    }
+    const checkTable = (t, label) => {
+      if (!t || typeof t !== 'object') { errors.push(`${label} must be an object`); return; }
+      if (!Array.isArray(t.columns)) errors.push(`${label}.columns must be an array`);
+      if (!Array.isArray(t.rows)) errors.push(`${label}.rows must be an array`);
+      else if (t.rows.some(r => !Array.isArray(r))) errors.push(`${label}.rows must be an array of row arrays`);
+      if (t.totalsRow !== undefined && !Array.isArray(t.totalsRow)) errors.push(`${label}.totalsRow must be an array`);
+      if (t.rowKinds !== undefined && !Array.isArray(t.rowKinds)) errors.push(`${label}.rowKinds must be an array`);
+      // v3.32: every row must be exactly as wide as the header.
+      if (Array.isArray(t.columns) && Array.isArray(t.rows)) {
+        const w = t.columns.length;
+        const off = [];
+        t.rows.forEach((r, ri) => { if (Array.isArray(r) && r.length !== w) off.push(`rows[${ri}] has ${r.length} cells`); });
+        if (off.length) errors.push(`${label}: ${off.slice(0, 3).join(', ')}${off.length > 3 ? ` (+${off.length - 3} more)` : ''} but there are ${w} columns`);
+        if (Array.isArray(t.totalsRow) && t.totalsRow.length !== w) errors.push(`${label}.totalsRow has ${t.totalsRow.length} cells but there are ${w} columns`);
+      }
+      if (t.additive !== undefined && !Array.isArray(t.additive)) errors.push(`${label}.additive must be an array of column indexes or names`);
+    };
+    if (reportData.tables !== undefined && !Array.isArray(reportData.tables)) {
+      errors.push('tables must be an array');
+    } else if (Array.isArray(reportData.tables)) {
+      reportData.tables.forEach((t, i) => checkTable(t, `tables[${i}]`));
+    }
+    if (reportData.panelTable !== undefined) checkTable(reportData.panelTable, 'panelTable');
+    if (reportData.summaryTables !== undefined) {
+      if (reportData.summaryTables !== 1 && reportData.summaryTables !== 2) {
+        errors.push('summaryTables must be 1 or 2');
+      } else if (reportData.summaryTables === 2 && !(Array.isArray(reportData.tables) && reportData.tables.length >= 2)) {
+        errors.push('summaryTables: 2 needs at least two entries in tables');
+      }
+    }
+    if (reportData.layout !== undefined && reportData.layout !== 'dashboard' && reportData.layout !== 'statement') {
+      errors.push("layout must be 'dashboard' or 'statement'");
+    }
+    // v3.32: the nested structures the renderers actually read.
+    const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+    const present = v => v !== undefined && v !== null && v !== '';
+    if (Array.isArray(reportData.kpis)) {
+      reportData.kpis.forEach((k, i) => {
+        if (!isObj(k)) { errors.push(`kpis[${i}] must be an object`); return; }
+        if (!present(k.label)) errors.push(`kpis[${i}].label is required`);
+        if (!present(k.value)) errors.push(`kpis[${i}].value is required`);
+        ['unit', 'subtitle', 'delta', 'color'].forEach(f => {
+          const v = k[f];
+          if (v !== undefined && v !== null && typeof v === 'object' && f !== 'delta') errors.push(`kpis[${i}].${f} must be text`);
+        });
+      });
+    }
+    if (Array.isArray(reportData.insights)) {
+      reportData.insights.forEach((n, i) => {
+        if (typeof n === 'string') return;
+        if (!isObj(n)) errors.push(`insights[${i}] must be a string or an object`);
+        else if (!present(n.text)) errors.push(`insights[${i}].text is required`);
+      });
+    }
+    if (reportData.rankedList !== undefined && reportData.rankedList !== null) {
+      const rl = reportData.rankedList;
+      if (!isObj(rl) || !Array.isArray(rl.items)) errors.push('rankedList must be an object with an items array');
+      else rl.items.forEach((it, i) => {
+        if (!isObj(it)) { errors.push(`rankedList.items[${i}] must be an object`); return; }
+        ['name', 'meta', 'value', 'sub'].forEach(f => {
+          const v = it[f];
+          if (v !== undefined && v !== null && typeof v !== 'string' && typeof v !== 'number') errors.push(`rankedList.items[${i}].${f} must be text or a number`);
+        });
+        if (it.rank !== undefined && it.rank !== null && !Number.isFinite(Number(it.rank))) errors.push(`rankedList.items[${i}].rank must be a number`);
+      });
+      if (isObj(rl) && rl.maxRows !== undefined && !(Number(rl.maxRows) >= 0)) errors.push('rankedList.maxRows must be a number');
+    }
+    if (reportData.definitions !== undefined) {
+      if (!Array.isArray(reportData.definitions)) errors.push('definitions must be an array');
+      else reportData.definitions.forEach((d, i) => {
+        if (!isObj(d) || !present(d.term) || !present(d.text)) errors.push(`definitions[${i}] needs a term and a text`);
+      });
+    }
+    if (reportData.checks !== undefined) {
+      if (!Array.isArray(reportData.checks)) errors.push('checks must be an array');
+      else reportData.checks.forEach((c, i) => {
+        if (!isObj(c)) { errors.push(`checks[${i}] must be an object`); return; }
+        if (!('expected' in c) || !('actual' in c)) errors.push(`checks[${i}] needs expected and actual`);
+        if (c.tolerance !== undefined && !Number.isFinite(Number(c.tolerance))) errors.push(`checks[${i}].tolerance must be a number`);
+      });
+    }
+    if (scope === 'pdf' && reportData.status !== 'empty' && Array.isArray(reportData.charts)) {
+      reportData.charts.forEach((c, i) => {
+        try { validateChartSpec(c); } catch (e) { errors.push(`charts[${i}]: ${String(e.message).replace(/^ReportEngine: /, '')}`); }
+      });
+    }
+    if (reportData.detailSections !== undefined) {
+      if (!Array.isArray(reportData.detailSections)) errors.push('detailSections must be an array');
+      else reportData.detailSections.forEach((sec, k) => {
+        if (!sec || typeof sec !== 'object') { errors.push(`detailSections[${k}] must be an object`); return; }
+        ['charts', 'tables', 'insights'].forEach(f => { if (sec[f] !== undefined && !Array.isArray(sec[f])) errors.push(`detailSections[${k}].${f} must be an array`); });
+        if (Array.isArray(sec.tables)) sec.tables.forEach((t, ti) => checkTable(t, `detailSections[${k}].tables[${ti}]`));
+        if (scope === 'pdf' && Array.isArray(sec.charts)) sec.charts.forEach((c, ci) => {
+          try { validateChartSpec(c); } catch (e) { errors.push(`detailSections[${k}].charts[${ci}]: ${String(e.message).replace(/^ReportEngine: /, '')}`); }
+        });
+      });
+    }
+    if (errors.length) {
+      throw new Error('ReportEngine: invalid reportData — ' + errors.join('; '));
+    }
+  }
+
+  // Standardized "no data" state — a module passes reportData.status === 'empty'
+  // instead of an empty/fabricated-looking KPI-and-table page. Renders one clean
+  // message box under the header rather than a report that just looks broken.
+  function drawEmptyState(doc, reportData, y, pageWidth, margin) {
+    const usable = pageWidth - margin * 2;
+    const boxTop = y + 30;
+    const boxH = 130;
+
+    doc.setFillColor('#F8FAF7');
+    doc.setDrawColor('#D9E0DA');
+    doc.setLineWidth(0.8);
+    doc.setLineDashPattern([3, 3], 0);
+    doc.roundedRect(margin, boxTop, usable, boxH, 8, 8, 'FD');
+    doc.setLineDashPattern([], 0);
+
+    doc.setFillColor(THEME.gold);
+    doc.roundedRect(pageWidth / 2 - 11, boxTop + boxH / 2 - 34, 22, 1.8, 0.9, 0.9, 'F');
+
+    doc.setFont(THEME.fontHeading, 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(THEME.primaryDark);
+    doc.text('No data for this period', pageWidth / 2, boxTop + boxH / 2 - 8, { align: 'center' });
+
+    doc.setFont(THEME.fontBody, 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(THEME.textMuted);
+    const msg = reportData.emptyMessage ||
+      `There were no recorded transactions for ${reportData.period || 'this period'}.`;
+    doc.text(msg, pageWidth / 2, boxTop + boxH / 2 + 14, { align: 'center', maxWidth: usable - 80 });
+
+    return boxTop + boxH + 20;
+  }
+
+  // ------------------------------------------------------------
+  // STATEMENT LAYOUT (v3.2) — reportData.layout = 'statement'
+  //
+  // For modules that are formal accounting statements rather than dashboards
+  // (Cash Flow, Profit & Loss, Budget): a page title, an optional basis line
+  // (reportData.statementBasis, e.g. "IAS 7 — Direct Method"), then each entry of
+  // reportData.tables as a full-width statement table, in order. Statement tables get
+  // right-aligned numeric columns and red negatives automatically, and honour
+  // table.rowKinds for section / line / subtotal / total / pct / note rows. Any
+  // reportData.insights are drawn underneath as plain notes; KPIs and charts are ignored.
+  // ------------------------------------------------------------
+  function drawStatementSection(doc, reportData, y, pageWidth, margin) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    y = drawSectionTitle(doc, reportData.statementTitle || ((reportData.module || '') + ' Statement'), y, margin);
+    if (reportData.statementBasis) {
+      doc.setFont(THEME.fontBody, 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(THEME.textMuted);
+      doc.text(reportData.statementBasis, margin, y - 4);
+      y += 8;
+    }
+
+    (reportData.tables || []).forEach((t, i) => {
+      y = ensureSpace(doc, y, (t.title ? 8 : 0) + tableLeadHeight(doc, t, margin));
+      if (t.title) {
+        doc.setFont(THEME.fontHeading, 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(THEME.primary);
+        doc.text(String(t.title), margin, y);
+        y += 8;
+      }
+      y = drawTable(doc, Object.assign({}, t, { statement: t.statement === undefined ? true : t.statement }), y, margin);
+    });
+
+    if (reportData.insights && reportData.insights.length) {
+      y = drawHighlights(doc, reportData.insights, y, pageWidth, margin, { title: reportData.insightsTitle || 'Notes' });
+    }
+    return y;
+  }
+
+  // Reconciliation checks the engine can make on its own (v3.16): for every table that has a
+  // totals row, add up the rows of each additive numeric column and compare with the reported
+  // total. Per-unit, percentage, average and balance columns are skipped (their totals are not
+  // sums), as are statement-style tables (subtotals inside the rows) and any column where a cell
+  // is not a plain number — so a mismatch shown here is a real one, not a guess. A module can add
+  // its own cross-checks with reportData.checks = [{ label, expected, actual, tolerance? }].
+  // v3.32: a table can list its additive columns (table.additive = [index | 'Column name']) or opt out
+  // (table.reconcile = false); anything that cannot be checked is reported as 'unchecked', not hidden.
+  // Tables with neither a totals row nor a declared additive list are plain ledgers and are not listed.
+  function computeReconciliation(rd) {
+    const out = [];
+    const num = c => {
+      const v = c && typeof c === 'object' && c.v !== undefined ? c.v : c;
+      if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+      const t = String(v === undefined || v === null ? '' : v).trim().replace(/,/g, '');
+      return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null;
+    };
+    const NOT_ADDITIVE = /%|\/|avg|average|rate|price|wac|yield|margin|days|balance|share|ratio|per /i;
+    // v3.32: every entry carries status 'match' | 'differs' | 'unchecked' (+ reason). `ok` is kept
+    // for older callers and is true only for 'match' — an unchecked entry is never a pass.
+    const push = e => out.push(Object.assign({ ok: e.status === 'match' }, e));
+    (rd.tables || []).concat(rd.panelTable ? [rd.panelTable] : []).forEach(t => {
+      if (!t || !t.rows || !t.rows.length) return;
+      if (t.reconcile === false) return; // module switched the engine's check off for this table
+      const title = t.title || 'Table';
+      if (!t.totalsRow) {
+        // A table with no totals row has nothing to compare against, which is normal for a ledger.
+        // But a module that declared additive columns expects a check, so say it could not be made.
+        if (Array.isArray(t.additive) && t.additive.length) {
+          push({ table: title, column: 'All declared columns', rows: t.rows.length, status: 'unchecked', reason: 'table has no totals row to compare with' });
+        }
+        return;
+      }
+      const declared = Array.isArray(t.additive) && t.additive.length > 0;
+      // `statement` is often only a styling flag; a module that declares its additive columns has
+      // said the rows do add up. Tables with subtotal rows (rowKinds) can never be summed blindly.
+      if (t.rowKinds || (t.statement && !declared)) {
+        push({ table: title, column: 'All columns', rows: t.rows.length, status: 'unchecked',
+          reason: 'statement-style table with subtotals; rows are not simply additive' });
+        return;
+      }
+      // Which columns to test: the module's own list when it gives one, else the name heuristic.
+      let cols;
+      const explicit = Array.isArray(t.additive);
+      if (explicit) {
+        cols = [];
+        t.additive.forEach(spec => {
+          const j = typeof spec === 'number' ? spec : t.columns.findIndex(c => String(c) === String(spec));
+          if (!Number.isInteger(j) || j < 0 || j >= t.columns.length) {
+            push({ table: title, column: String(spec), rows: t.rows.length, status: 'unchecked', reason: 'column not found in this table' });
+          } else cols.push(j);
+        });
+      } else {
+        cols = [];
+        for (let j = 1; j < t.columns.length; j++) if (!NOT_ADDITIVE.test(String(t.columns[j]))) cols.push(j);
+      }
+      cols.forEach(j => {
+        const column = String(t.columns[j]);
+        const total = num(t.totalsRow[j]);
+        if (total === null) {
+          // A heuristic column with no numeric total simply has nothing to compare; a column the
+          // module declared additive but gave no total for is reported.
+          if (explicit) push({ table: title, column, rows: t.rows.length, status: 'unchecked', reason: 'no numeric reported total' });
+          return;
+        }
+        const vals = t.rows.map(r => num(r[j]));
+        const bad = vals.filter(v => v === null).length;
+        if (bad) {
+          push({ table: title, column, rows: t.rows.length, total, status: 'unchecked',
+            reason: `${bad} of ${vals.length} rows are not plain numbers` });
+          return;
+        }
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const tol = Math.max(1, t.rows.length * 0.01);
+        push({ table: title, column, rows: t.rows.length, sum, total, status: Math.abs(sum - total) <= tol ? 'match' : 'differs' });
+      });
+    });
+    (rd.checks || []).forEach(c => {
+      const label = (c && c.label) || 'Check';
+      const e = Number(c && c.expected), a = Number(c && c.actual);
+      const missing = v => v === undefined || v === null || v === '';
+      if (!c || missing(c.expected) || missing(c.actual) || !Number.isFinite(e) || !Number.isFinite(a)) {
+        push({ table: label, column: 'Summary vs. detail', rows: 1, status: 'unchecked', reason: 'a figure needed for this check is missing' });
+        return;
+      }
+      push({ table: label, column: 'Summary vs. detail', rows: 1, sum: a, total: e,
+        status: Math.abs(a - e) <= (c.tolerance === undefined ? 1 : c.tolerance) ? 'match' : 'differs' });
+    });
+    return out;
+  }
+
+  // ------------------------------------------------------------
   // PUBLIC: PDF GENERATION
   // ------------------------------------------------------------
+  // options.orientation: 'landscape' (default, matches the approved A4 landscape
+  // report design) or 'portrait'
+  // v3.38 — ordered detailed layout. reportData.detailSections = [{ title, charts?, tables?, insights? }]
+  // prints the detailed PDF as a sequence of sections (a heading, then its charts two to a row, then its
+  // tables) instead of "all extra charts, then all tables". Opt-in: without detailSections nothing changes.
+  // Excel / CSV ignore it and keep carrying every table in reportData.tables.
+  async function drawDetailSections(doc, reportData, y, pageWidth, margin) {
+    for (const s of reportData.detailSections) {
+      if (!s) continue;
+      const charts = Array.isArray(s.charts) ? s.charts.filter(Boolean) : [];
+      const tables = (Array.isArray(s.tables) ? s.tables.filter(Boolean) : []).map(normalizeTable);
+      const insights = Array.isArray(s.insights) ? s.insights.filter(Boolean) : [];
+      if (!charts.length && !tables.length && !insights.length) continue;
+      const title = s.title || 'Details';
+      if (!charts.length && !tables.length) { y = drawHighlights(doc, insights, y, pageWidth, margin, { title }); continue; }
+      if (!charts.length && !insights.length && tables.length === 1) { y = drawTitledTable(doc, title, tables[0], y, margin); continue; }
+      const chartRowH = ((pageWidth - margin * 2 - 10) / 2) * 0.55 + 16;
+      y = ensureSpace(doc, y, 16 + (charts.length ? chartRowH : tableLeadHeight(doc, tables[0], margin)));
+      y = drawSectionTitle(doc, title, y, margin);
+      if (charts.length) y = await drawCharts(doc, charts, y, pageWidth, margin, { perRow: 2 });
+      for (const t of tables) y = drawTitledTable(doc, t.title || 'Details', t, y, margin);
+      if (insights.length) y = drawHighlights(doc, insights, y, pageWidth, margin, { title: 'Key Points' });
+    }
+    return y;
+  }
+
   async function generatePDF(reportData, options = {}) {
+    validateReportData(reportData, 'pdf');
+    reportData = normalizeReportData(reportData);
+    // One timestamp for the header and every page footer (v3.15).
+    if (!reportData.generatedAt) reportData = Object.assign({}, reportData, { generatedAt: new Date().toLocaleString() });
+    // v3.38: optional per-type page title, e.g. typeTitles = { summary: 'Multi-Year Report — Summary', detailed: '… — Detailed' }
+    const typeKey = options.type === 'detailed' ? 'detailed' : 'summary';
+    if (reportData.typeTitles && reportData.typeTitles[typeKey]) reportData = Object.assign({}, reportData, { title: reportData.typeTitles[typeKey] });
     await ensureLibs(['jspdf', 'autotable']);
     const { jsPDF } = global.jspdf;
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const orientation = options.orientation === 'portrait' ? 'portrait' : 'landscape';
+    const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation });
     registerFonts(doc);
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 40;
 
     let y = drawHeader(doc, reportData, pageWidth);
-    y = drawSectionTitle(doc, (reportData.module || '') + ' Summary', y, margin);
-    y = drawKPICards(doc, reportData.kpis, y, pageWidth, margin);
-    y = await drawSummarySection(doc, reportData, y, pageWidth, margin);
-    y = drawHighlights(doc, reportData.insights, y, pageWidth, margin);
 
-    // Detailed report: additional charts + full transaction tables, unlimited pages
-    if (options.type === 'detailed') {
-      if (reportData.charts && reportData.charts.length > 2) {
-        doc.addPage();
-        y = 40;
-        y = drawSectionTitle(doc, 'Additional Charts', y, margin);
-        y = await drawCharts(doc, reportData.charts.slice(2), y, pageWidth, margin);
+    if (reportData.status === 'empty') {
+      y = drawEmptyState(doc, reportData, y, pageWidth, margin);
+    } else if (reportData.layout === 'statement') {
+      // Statement-shaped modules (Cash Flow, Profit & Loss, Budget): no KPI cards, no
+      // charts — the formal statement is the page. Same for summary and detailed.
+      y = drawStatementSection(doc, reportData, y, pageWidth, margin);
+    } else {
+      y = drawSectionTitle(doc, (reportData.module || '') + ' Summary', y, margin);
+      y = drawKPICards(doc, reportData.kpis, y, pageWidth, margin);
+      // drawSummarySection now draws the whole page-1 layout in one call: the
+      // chart/donut/insights row, then the table/ranked-list row. Insights are
+      // no longer drawn separately afterward — see the layout doc comment above
+      // drawSummarySection for the shared page structure.
+      y = await drawSummarySection(doc, reportData, y, pageWidth, margin);
+
+      // Disclose anything the one-page Summary had to shorten (footer notes, last page).
+      // A new footer object is built: the caller's own footer is never mutated.
+      const sumNotes = (reportData._summaryNotes || []).slice();
+      if (reportData._insightsShortened) {
+        sumNotes.push(options.type === 'detailed'
+          ? 'Insights shortened on the Summary page; full text follows below.'
+          : 'Insights shortened to fit this page; full text is in the detailed report.');
       }
-      if (reportData.tables && reportData.tables.length > 1) {
-        for (let i = 1; i < reportData.tables.length; i++) {
-          if (y > 650) { doc.addPage(); y = 40; }
-          y = drawSectionTitle(doc, reportData.tables[i].title || 'Details', y, margin);
-          y = drawTable(doc, reportData.tables[i], y, margin);
+      if (sumNotes.length) {
+        const f = reportData.footer || {};
+        reportData = Object.assign({}, reportData, {
+          footer: Object.assign({}, f, { notes: (f.notes || []).concat(sumNotes) })
+        });
+      }
+
+      // Detailed report: additional charts + full transaction tables, unlimited pages.
+      // v3.12: the Summary is always exactly one page, so every detail page starts fresh.
+      if (options.type === 'detailed') {
+        // v3.9: tables flagged beforeCharts (e.g. the full statement of Cash Flow / P&L /
+        // Budget) are printed first, on a fresh page, ahead of the extra charts.
+        const hasSections = Array.isArray(reportData.detailSections) && reportData.detailSections.length > 0; // v3.38
+        const firstIdx0 = reportData.summaryTables === 2 ? 2 : 1;
+        const preTables = [];
+        for (let i = firstIdx0; reportData.tables && i < reportData.tables.length; i++) {
+          if (reportData.tables[i] && reportData.tables[i].beforeCharts) preTables.push(reportData.tables[i]);
+        }
+        if (preTables.length) {
+          doc.addPage();
+          y = 40;
+          for (const t of preTables) {
+            y = drawTitledTable(doc, t.title || 'Details', Object.assign({}, t, { statement: t.statement === undefined ? true : t.statement }), y, margin);
+          }
+        }
+        const extraCharts = hasSections ? [] : splitCharts(reportData).extra;
+        let freshPage = preTables.length > 0; // a detail page has already been started
+        if (extraCharts.length) {
+          doc.addPage();
+          freshPage = true;
+          y = 40;
+          y = drawSectionTitle(doc, reportData.detailChartsTitle || 'Additional Charts', y, margin);
+          y = await drawCharts(doc, extraCharts, y, pageWidth, margin);
+        }
+        if (hasSections) {
+          doc.addPage();
+          freshPage = true;
+          y = 40;
+          y = await drawDetailSections(doc, reportData, y, pageWidth, margin);
+        }
+        // Tables the summary page already showed in full are skipped; ones the summary
+        // page cut short (summaryMaxRows) are printed here in full.
+        const firstDetailIdx = reportData.summaryTables === 2 ? 2 : 1;
+        const detailTables = [];
+        (hasSections ? [] : (reportData._truncatedIdx || [])).slice().sort((p, q) => p - q).forEach(i => {
+          const t = reportData.tables[i];
+          detailTables.push(Object.assign({}, t, { title: (t.title || 'Details') + ' — Full List' }));
+        });
+        for (let i = firstDetailIdx; !hasSections && reportData.tables && i < reportData.tables.length; i++) {
+          if (reportData.tables[i] && reportData.tables[i].beforeCharts) continue; // already printed above
+          detailTables.push(reportData.tables[i]);
+        }
+        const fullInsights = !hasSections && !!reportData._insightsShortened;
+        if ((detailTables.length || fullInsights || (reportData.rankedList && reportData.rankedList.items && reportData.rankedList.items.length > (reportData._rankedShown || 0))) && !freshPage) {
+          doc.addPage();
+          y = 40;
+        }
+        if (fullInsights) {
+          // Insight text was shortened to fit the one-page Summary — print it in full here.
+          y = drawHighlights(doc, reportData.insights, y, pageWidth, margin, { title: 'Key Insights — Full Text' });
+        }
+        // Ranked lists (Top Suppliers, Sales by Customer, Top Debtors, Reorder Now ...) show only
+        // a few rows on the Summary. The detailed PDF lists every item, as a table.
+        const rl = reportData.rankedList;
+        if (!hasSections && rl && Array.isArray(rl.items) && rl.items.length > (reportData._rankedShown || 0)) {
+          detailTables.unshift({
+            title: (rl.title || 'Ranking') + ' — Full List',
+            columns: ['#', 'Name', 'Detail', 'Value', ''],
+            rows: rl.items.map((it, n) => [String(it.rank || n + 1), String(it.name || ''), String(it.meta || ''), String(it.value || ''), String(it.sub || '')]),
+            columnAlign: [null, null, null, 'right', 'right']
+          });
+        }
+        if (detailTables.length) {
+          // 192pt reserved above the footer band, same margin the original portrait-only
+          // "y > 650" threshold left on an 842pt-tall page — now computed from the actual
+          // page height so it holds on both portrait and landscape.
+          for (const t of detailTables) {
+            y = drawTitledTable(doc, t.title || 'Details', t, y, margin);
+          }
+        }
+
+        // ---- Notes and reconciliation (v3.16) — the closing section of every detailed report.
+        const checks = computeReconciliation(reportData);
+        const notes = ((reportData.footer && reportData.footer.notes) || []).concat(reportData.notes || []);
+        const defs = reportData.definitions || [];
+        if (checks.length || notes.length || defs.length) {
+          const wasFresh = freshPage || detailTables.length > 0 || fullInsights;
+          if (!wasFresh) { doc.addPage(); y = 40; } else { y = ensureSpace(doc, y, 130); }
+          y = drawSectionTitle(doc, 'Notes and Reconciliation', y, margin);
+          if (checks.length) {
+            y = drawTable(doc, normalizeTable({
+              title: 'Reconciliation checks',
+              columns: ['Table', 'Column', 'Rows', 'Sum of rows', 'Reported total', 'Result'],
+              rows: checks.map(c => [c.table, c.column, String(c.rows),
+                c.status === 'unchecked' ? '—' : fmt.n(c.sum, 2),
+                c.status === 'unchecked' || c.total === undefined ? '—' : fmt.n(c.total, 2),
+                c.status === 'match' ? { v: 'Matches', tone: 'good' }
+                  : c.status === 'differs' ? { v: 'Differs by ' + fmt.n(Math.abs(c.sum - c.total), 2), tone: 'bad' }
+                  : { v: 'Not checked — ' + (c.reason || 'could not be checked'), tone: 'warn' }]),
+              columnAlign: [null, null, 'right', 'right', 'right', null]
+            }), y, margin);
+          }
+          if (defs.length) {
+            const defTable = { columns: ['Term', 'Definition'], rows: defs.map(d => [String(d.term || ''), String(d.text || '')]) };
+            y = ensureSpace(doc, y, tableLeadHeight(doc, defTable, margin));
+            y = drawTable(doc, defTable, y, margin);
+          }
+          if (notes.length) {
+            const noteTable = { columns: ['#', 'Note'], rows: notes.map((n, k) => [String(k + 1), String(n)]) };
+            y = ensureSpace(doc, y, tableLeadHeight(doc, noteTable, margin));
+            y = drawTable(doc, noteTable, y, margin);
+          }
         }
       }
     }
@@ -905,6 +3402,8 @@
   // header, logo on the first sheet)
   // ------------------------------------------------------------
   async function generateExcel(reportData) {
+    validateReportData(reportData);
+    reportData = normalizeReportData(reportData);
     await ensureLibs(['exceljs']);
     const ExcelJS = global.ExcelJS;
     const wb = new ExcelJS.Workbook();
@@ -912,26 +3411,24 @@
     wb.created = new Date();
 
     const GREEN = 'FF1D5C38';
-    const GREEN_LIGHT = 'FFEAF3EE';
-    const BORDER = 'FFE5E7EB';
+    const GREEN_LIGHT = 'FFF3F8F4';
+    const GREEN_DARK = 'FF1B4332';
+    const GOLD = 'FFC89B3C';
+    const BORDER = 'FFE3E9E4';
     const TEXT_MUTED = 'FF6B7280';
     const RED = 'FFC0392B';
 
     function thinBorder() {
-      return {
-        top: { style: 'thin', color: { argb: BORDER } },
-        left: { style: 'thin', color: { argb: BORDER } },
-        bottom: { style: 'thin', color: { argb: BORDER } },
-        right: { style: 'thin', color: { argb: BORDER } }
-      };
+      // v3.33: a hairline under each row, no boxes
+      return { bottom: { style: 'thin', color: { argb: BORDER } } };
     }
 
     function styleHeaderRow(row) {
       row.eachCell(cell => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        cell.font = { bold: true, color: { argb: GREEN }, size: 10 };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = thinBorder();
+        cell.border = { bottom: { style: 'medium', color: { argb: GREEN } } };
       });
     }
 
@@ -939,18 +3436,43 @@
       ws.mergeCells(1, 1, 1, Math.max(colSpan, 2));
       const c1 = ws.getCell(1, 1);
       c1.value = `${(reportData.company && reportData.company.name) || 'MENA INJERA'} ${(reportData.company && reportData.company.subtitle) || '& DERKOSH'} — ${title}`;
-      c1.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
-      c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+      c1.font = { bold: true, size: 13, color: { argb: GREEN_DARK } };
       c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+      c1.border = { bottom: { style: 'medium', color: { argb: GOLD } } };
       ws.getRow(1).height = 26;
 
       ws.mergeCells(2, 1, 2, Math.max(colSpan, 2));
       const c2 = ws.getCell(2, 1);
       c2.value = `${reportData.period || ''}   |   Currency: ${reportData.currency || 'ETB'}   |   Generated by ${reportData.generatedBy || '-'} on ${reportData.generatedAt || new Date().toLocaleString()}`;
-      c2.font = { italic: true, size: 9, color: { argb: TEXT_MUTED } };
+      c2.font = { size: 9, color: { argb: TEXT_MUTED } };
       ws.getRow(2).height = 16;
 
       ws.addRow([]); // spacer row
+    }
+
+    // Standardized "no data" state — mirrors drawEmptyState() in the PDF path:
+    // one branded sheet with a clear message instead of a blank-looking workbook.
+    if (reportData.status === 'empty') {
+      const ws = wb.addWorksheet('Report', { views: [{ showGridLines: false }] });
+      addBrandHeader(ws, reportData.title || reportData.module || 'Report', 8);
+      ws.mergeCells(4, 1, 9, 8);
+      const cell = ws.getCell(4, 1);
+      cell.value = 'No data for this period\n\n' + (reportData.emptyMessage ||
+        `There were no recorded transactions for ${reportData.period || 'this period'}.`);
+      cell.font = { size: 11, color: { argb: TEXT_MUTED } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      try {
+        const logoB64 = (reportData.company && reportData.company.logoDataUrl) || MENA_LOGO_B64;
+        const imgId = wb.addImage({ buffer: base64ToUint8Array(logoB64), extension: 'png' });
+        ws.addImage(imgId, { tl: { col: 0.1, row: 0.1 }, ext: { width: 28, height: 28 } });
+      } catch (e) { /* non-fatal — sheet continues without the logo */ }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const fileName = safeFileName(`${reportData.module || 'report'}_${reportData.period || ''}`) + '.xlsx';
+      triggerDownload(blob, fileName);
+      return fileName;
     }
 
     let logoEmbedded = false;
@@ -961,25 +3483,24 @@
     // strip. Skipped only if the report has none of kpis/charts/insights.
     async function addSummarySheet() {
       const hasKpis = reportData.kpis && reportData.kpis.length;
-      const hasCharts = reportData.charts && reportData.charts.length;
+      const hasCharts = reportData.charts && reportData.charts.filter(c => c && !c.detailOnly).length;
       const hasInsights = reportData.insights && reportData.insights.length;
       if (!hasKpis && !hasCharts && !hasInsights) return;
 
-      const ws = wb.addWorksheet('Summary');
+      const ws = wb.addWorksheet('Summary', { views: [{ showGridLines: false }] });
 
       ws.mergeCells(1, 1, 1, 14);
       const titleCell = ws.getCell(1, 1);
-      titleCell.value = `${(reportData.company && reportData.company.name) || 'MENA INJERA'} ${(reportData.company && reportData.company.subtitle) || '& DERKOSH'}  —  ${(reportData.title || reportData.module || 'REPORT').toUpperCase()}`;
-      titleCell.font = { bold: true, size: 15, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN } };
+      titleCell.value = `${(reportData.company && reportData.company.name) || 'MENA INJERA'} ${(reportData.company && reportData.company.subtitle) || '& DERKOSH'}  —  ${reportData.title || reportData.module || 'Report'}`;
+      titleCell.font = { bold: true, size: 15, color: { argb: GREEN_DARK } };
       titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 5 };
+      titleCell.border = { bottom: { style: 'medium', color: { argb: GOLD } } };
       ws.getRow(1).height = 30;
 
       ws.mergeCells(2, 1, 2, 14);
       const metaCell = ws.getCell(2, 1);
       metaCell.value = `${reportData.period || ''}   |   Currency: ${reportData.currency || 'ETB'}   |   Generated by ${reportData.generatedBy || '-'} on ${reportData.generatedAt || new Date().toLocaleString()}`;
-      metaCell.font = { italic: true, size: 9, color: { argb: TEXT_MUTED } };
-      metaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
+      metaCell.font = { size: 9, color: { argb: TEXT_MUTED } };
       metaCell.alignment = { vertical: 'middle', indent: 5 };
       ws.getRow(2).height = 18;
 
@@ -993,68 +3514,109 @@
       let cursorRow = 4;
 
       if (hasKpis) {
-        const labelRow = cursorRow, valueRow = cursorRow + 1, unitRow = cursorRow + 2;
-        reportData.kpis.forEach((kpi, i) => {
-          const colStart = 1 + i * 3;
-          const colEnd = colStart + 1;
-          const colorArgb = 'FF' + String(kpi.color || THEME.primary).replace('#', '').toUpperCase();
-          const parsed = parseCellValue(kpi.value);
+        // Fixed 14-column canvas (matches the title/meta merge width above) divided evenly
+        // across however many KPIs are on a row, instead of a fixed 3-col-per-card width —
+        // the old math put KPI 6 at columns 16-17, past the 14-column title area. Wraps to
+        // a new row of cards every 7 KPIs so a card is never squeezed below 2 columns wide.
+        const totalCols = 14;
+        const maxPerRow = 7;
+        const kpiRows = [];
+        for (let i = 0; i < reportData.kpis.length; i += maxPerRow) {
+          kpiRows.push(reportData.kpis.slice(i, i + maxPerRow));
+        }
 
-          [labelRow, valueRow, unitRow].forEach(r => {
-            for (let c = colStart; c <= colEnd; c++) {
-              const cell = ws.getCell(r, c);
-              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-              const border = {
-                left: { style: 'thin', color: { argb: BORDER } },
-                right: { style: 'thin', color: { argb: BORDER } }
-              };
-              if (r === labelRow) border.top = { style: 'medium', color: { argb: colorArgb } };
-              if (r === unitRow) border.bottom = { style: 'thin', color: { argb: BORDER } };
-              cell.border = border;
+        kpiRows.forEach((rowKpis) => {
+          const labelRow = cursorRow, valueRow = cursorRow + 1, unitRow = cursorRow + 2;
+          // Delta/context row (e.g. "+12.5% vs Aug", "62% of revenue") only reserved
+          // when at least one KPI in this row actually uses it, so KPI rows without
+          // deltas stay as compact as before.
+          const rowHasDelta = rowKpis.some(k => k.delta);
+          const deltaRow = rowHasDelta ? unitRow + 1 : null;
+          const lastRow = deltaRow || unitRow;
+          const n = rowKpis.length;
+          const base = Math.floor(totalCols / n);
+          const extra = totalCols % n;
+          let col = 1;
+
+          rowKpis.forEach((kpi, i) => {
+            const width = base + (i < extra ? 1 : 0);
+            const colStart = col;
+            const colEnd = col + width - 1;
+            col += width;
+
+            const colorArgb = 'FF' + String(kpi.color || THEME.primary).replace('#', '').toUpperCase();
+            const parsed = parseCellValue(kpi.value);
+
+            const rowsToStyle = deltaRow ? [labelRow, valueRow, unitRow, deltaRow] : [labelRow, valueRow, unitRow];
+            rowsToStyle.forEach(r => {
+              for (let c = colStart; c <= colEnd; c++) {
+                const cell = ws.getCell(r, c);
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+                const border = {
+                  left: { style: 'thin', color: { argb: BORDER } },
+                  right: { style: 'thin', color: { argb: BORDER } }
+                };
+                if (r === labelRow) border.top = { style: 'medium', color: { argb: colorArgb } };
+                if (r === lastRow) border.bottom = { style: 'thin', color: { argb: BORDER } };
+                cell.border = border;
+              }
+            });
+
+            ws.mergeCells(labelRow, colStart, labelRow, colEnd);
+            const lc = ws.getCell(labelRow, colStart);
+            lc.value = (kpi.label || '').toUpperCase();
+            lc.font = { size: 8, bold: true, color: { argb: TEXT_MUTED } };
+            lc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+            ws.mergeCells(valueRow, colStart, valueRow, colEnd);
+            const vc = ws.getCell(valueRow, colStart);
+            vc.value = parsed.value;
+            vc.font = { size: 13, bold: true, color: { argb: parsed.negative ? RED : 'FF1F2937' } };
+            vc.alignment = { horizontal: 'center', vertical: 'middle' };
+            if (typeof parsed.value === 'number') {
+              vc.numFmt = parsed.isPct ? '0.00%;[Red]-0.00%' : '#,##0.00;[Red](#,##0.00)';
+            }
+
+            ws.mergeCells(unitRow, colStart, unitRow, colEnd);
+            const uc = ws.getCell(unitRow, colStart);
+            uc.value = kpi.unit || '';
+            uc.font = { size: 8, color: { argb: TEXT_MUTED } };
+            uc.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            if (deltaRow) {
+              ws.mergeCells(deltaRow, colStart, deltaRow, colEnd);
+              const dc = ws.getCell(deltaRow, colStart);
+              dc.value = kpi.delta || '';
+              const deltaArgb = kpi.deltaTone === 'good' ? GREEN
+                : kpi.deltaTone === 'warn' ? RED
+                : TEXT_MUTED;
+              dc.font = { size: 8, bold: true, color: { argb: deltaArgb } };
+              dc.alignment = { horizontal: 'center', vertical: 'middle' };
             }
           });
 
-          ws.mergeCells(labelRow, colStart, labelRow, colEnd);
-          const lc = ws.getCell(labelRow, colStart);
-          lc.value = (kpi.label || '').toUpperCase();
-          lc.font = { size: 8, bold: true, color: { argb: TEXT_MUTED } };
-          lc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-          ws.mergeCells(valueRow, colStart, valueRow, colEnd);
-          const vc = ws.getCell(valueRow, colStart);
-          vc.value = parsed.value;
-          vc.font = { size: 13, bold: true, color: { argb: parsed.negative ? RED : colorArgb } };
-          vc.alignment = { horizontal: 'center', vertical: 'middle' };
-          if (typeof parsed.value === 'number') {
-            vc.numFmt = parsed.isPct ? '0.00%;[Red]-0.00%' : '#,##0.00;[Red](#,##0.00)';
-          }
-
-          ws.mergeCells(unitRow, colStart, unitRow, colEnd);
-          const uc = ws.getCell(unitRow, colStart);
-          uc.value = kpi.unit || '';
-          uc.font = { size: 8, color: { argb: TEXT_MUTED } };
-          uc.alignment = { horizontal: 'center', vertical: 'middle' };
+          ws.getRow(labelRow).height = 22;
+          ws.getRow(valueRow).height = 22;
+          ws.getRow(unitRow).height = 16;
+          if (deltaRow) ws.getRow(deltaRow).height = 16;
+          cursorRow = lastRow + 2;
         });
-
-        ws.getRow(labelRow).height = 22;
-        ws.getRow(valueRow).height = 22;
-        ws.getRow(unitRow).height = 16;
-        cursorRow = unitRow + 2;
       }
 
       if (hasCharts) {
         const chartsLabel = ws.getCell(cursorRow, 1);
-        chartsLabel.value = 'OVERVIEW CHARTS';
-        chartsLabel.font = { bold: true, size: 10, color: { argb: GREEN } };
+        chartsLabel.value = 'Overview charts';
+        chartsLabel.font = { bold: true, size: 12, color: { argb: GREEN_DARK } };
+        ws.getRow(cursorRow).height = 20;
         cursorRow += 1;
         const chartTopRow = cursorRow;
 
         // Same Chart.js render used for the PDF, capped at 4 so the sheet stays a sane size
-        const chartsToEmbed = reportData.charts.slice(0, 4);
+        const chartsToEmbed = reportData.charts.filter(c => c && !c.detailOnly).slice(0, 4);
         let col = 0;
         for (let i = 0; i < chartsToEmbed.length; i++) {
           try {
-            const dataUrl = await renderChartToImage(chartsToEmbed[i], 700, 380);
+            const dataUrl = await renderChartToImage(Object.assign({ fontPx: 33 }, chartsToEmbed[i]), 1100, 600);
             const imgId = wb.addImage({ buffer: base64ToUint8Array(dataUrl), extension: 'png' });
             ws.addImage(imgId, {
               tl: { col: col * 7, row: (chartTopRow - 1) + Math.floor(i / 2) * 13 },
@@ -1068,34 +3630,90 @@
 
       if (hasInsights) {
         const insightsLabel = ws.getCell(cursorRow, 1);
-        insightsLabel.value = 'HIGHLIGHTS';
-        insightsLabel.font = { bold: true, size: 10, color: { argb: GREEN } };
+        insightsLabel.value = 'Highlights';
+        insightsLabel.font = { bold: true, size: 12, color: { argb: GREEN_DARK } };
+        ws.getRow(cursorRow).height = 20;
         cursorRow += 1;
 
         reportData.insights.forEach(ins => {
+          const insColorArgb = 'FF' + String(ins.color || THEME.primary).replace('#', '').toUpperCase();
+          // ins.label (e.g. "GROWTH", "WATCH") — the same tag the PDF shows above each
+          // insight's text — is bolded as a prefix so the categorization isn't lost in
+          // the Excel export; ins.icon (the older, alternative schema) has no plain-text
+          // equivalent and is intentionally not rendered as a symbol here.
           ws.mergeCells(cursorRow, 1, cursorRow, 14);
           const cell = ws.getCell(cursorRow, 1);
-          cell.value = '●  ' + ins.text;
-          cell.font = { size: 9, color: { argb: 'FF1F2937' } };
+          cell.value = ins.label ? `${ins.label}:  ${ins.text}` : '●  ' + ins.text;
+          cell.font = { size: 9.5, color: { argb: 'FF1F2937' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
-          cell.alignment = { vertical: 'middle', indent: 1 };
-          cell.border = { left: { style: 'medium', color: { argb: GREEN } } };
+          cell.alignment = { vertical: 'middle', indent: 1, wrapText: true };
+          cell.border = { left: { style: 'medium', color: { argb: insColorArgb } } };
           ws.getRow(cursorRow).height = 16;
+          cursorRow += 1;
+        });
+        cursorRow += 1; // spacer before a following rankedList section, if any
+      }
+
+      // rankedList (e.g. "Top Customers by Revenue") — the PDF's bottom-right summary
+      // panel had no Excel equivalent at all before this; a reader exporting to Excel
+      // was silently missing this section entirely. Rendered as a simple ranked table:
+      // #, Name, Meta, Value, Sub — mirroring the same fields drawRankedList() uses.
+      if (reportData.rankedList && reportData.rankedList.items && reportData.rankedList.items.length) {
+        const rl = reportData.rankedList;
+        const rlLabel = ws.getCell(cursorRow, 1);
+        rlLabel.value = String(rl.title || 'Ranking');
+        rlLabel.font = { bold: true, size: 12, color: { argb: GREEN_DARK } };
+        ws.getRow(cursorRow).height = 20;
+        cursorRow += 1;
+
+        const rlHeaderRow = ws.getRow(cursorRow);
+        const rlHeaders = ['#', 'Name', 'Detail', 'Value', ''];
+        rlHeaders.forEach((h, i) => { rlHeaderRow.getCell(i + 1).value = h; });
+        styleHeaderRow(rlHeaderRow);
+        rlHeaderRow.height = 18;
+        cursorRow += 1;
+
+        // v3.13: every item, not just the summary page's maxRows — the export is the full record.
+        const items = rl.items;
+        items.forEach((item, i) => {
+          const row = ws.getRow(cursorRow);
+          row.getCell(1).value = item.rank || i + 1;
+          row.getCell(2).value = item.name || '';
+          row.getCell(3).value = item.meta || '';
+          // Splits a combined "142,600 ETB" into a numeric cell plus a unit, so the
+          // Value column is genuinely numeric (sortable/summable) in Excel rather
+          // than landing as plain text the way the PDF's plain-text rendering allows.
+          const parsedVal = parseValueWithUnit(item.value);
+          row.getCell(4).value = parsedVal.value;
+          if (typeof parsedVal.value === 'number') {
+            row.getCell(4).numFmt = parsedVal.unit
+              ? `#,##0.00 "${parsedVal.unit}";[Red](#,##0.00) "${parsedVal.unit}"`
+              : '#,##0.00;[Red](#,##0.00)';
+          }
+          row.getCell(5).value = item.sub || '';
+          row.eachCell((cell, colNum) => {
+            cell.border = thinBorder();
+            cell.font = { size: 9, color: { argb: 'FF1F2937' }, bold: colNum === 2 };
+            if (colNum === 4) cell.alignment = { horizontal: 'right' };
+            if (i % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
+          });
           cursorRow += 1;
         });
       }
 
       ws.getColumn(1).width = 14;
       for (let c = 2; c <= 14; c++) ws.getColumn(c).width = 10;
-      ws.views = [{ state: 'frozen', ySplit: 3 }];
+      ws.views = [{ state: 'frozen', ySplit: 3, showGridLines: false }];
     }
 
     await addSummarySheet();
 
-    // One sheet per table (names de-duplicated so identical titles don't crash the export)
-    const usedNames = new Set();
-    (reportData.tables || []).forEach((table, idx) => {
-      let base = (table.title || `Table${idx + 1}`).replace(/[\\/?*[\]:]/g, '').substring(0, 28) || `Table${idx + 1}`;
+    // One sheet per table (names de-duplicated so identical titles don't crash the export).
+    // Seed with every worksheet name that already exists (currently just 'Summary', added
+    // above by addSummarySheet()) so a table titled "Summary" can't collide with it.
+    const usedNames = new Set(wb.worksheets.map(w => w.name.toLowerCase()));
+    exportTables(reportData).forEach((table, idx) => {
+      let base = (table.sheetName || table.title || `Table${idx + 1}`).replace(/[\\/?*[\]:]/g, '').substring(0, 28) || `Table${idx + 1}`;
       let name = base;
       let n = 2;
       while (usedNames.has(name.toLowerCase())) {
@@ -1110,9 +3728,11 @@
       const headerRow = ws.addRow(table.columns);
       styleHeaderRow(headerRow);
 
+      const TONE_ARGB = { good: GREEN, bad: RED, warn: 'FFE67E22', info: 'FF2E86DE', muted: TEXT_MUTED };
       table.rows.forEach((r, ri) => {
         const parsedRow = r.map(v => parseCellValue(v));
         const row = ws.addRow(parsedRow.map(p => p.value));
+        const kind = (table.rowKinds || [])[ri];
         row.eachCell((cell, colNum) => {
           const p = parsedRow[colNum - 1] || { negative: false };
           cell.border = thinBorder();
@@ -1124,6 +3744,22 @@
           if (ri % 2 === 1) {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
           }
+          // v3.2 row kinds / cell tones — mirrors what the PDF shows
+          if (kind === 'section') {
+            cell.font = { size: 9.5, bold: true, color: { argb: GREEN } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE4EEE8' } };
+          } else if (kind === 'subtotal' || kind === 'total') {
+            cell.font = { size: 9.5, bold: true, color: { argb: p.negative ? RED : (kind === 'total' ? GREEN : 'FF1F2937') } };
+            cell.border = { ...thinBorder(), top: { style: 'thin', color: { argb: 'FF9DB3A6' } } };
+            if (kind === 'total') cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GREEN_LIGHT } };
+          } else if (kind === 'pct' || kind === 'note') {
+            cell.font = { size: 9.5, color: { argb: TEXT_MUTED } };
+          } else if (kind === 'line' && colNum === 1) {
+            cell.alignment = { ...(cell.alignment || {}), indent: 1 };
+          }
+          const tone = (table._tones || {})['b' + ri + ',' + (colNum - 1)];
+          if (tone && TONE_ARGB[tone]) cell.font = { size: 9.5, bold: true, color: { argb: TONE_ARGB[tone] } };
+          if ((table._bolds || {})['b' + ri + ',' + (colNum - 1)]) cell.font = { ...cell.font, bold: true };
         });
       });
 
@@ -1147,7 +3783,7 @@
         const maxLen = table.rows.reduce((m, r) => Math.max(m, String(r[i] === undefined || r[i] === null ? '' : r[i]).length), headerLen);
         col.width = Math.min(Math.max(maxLen + 4, 12), 40);
       });
-      ws.views = [{ state: 'frozen', ySplit: 4 }];
+      ws.views = [{ state: 'frozen', ySplit: 4, showGridLines: false }];
     });
 
     // Fallback: if there was no Summary sheet to carry the logo (a report with
@@ -1178,17 +3814,47 @@
     return s;
   }
 
-  function tableToCSV(table) {
+  function tableToCSV(table, opts) {
+    const w = table.columns.length;
+    // Every row is padded / trimmed to the header width so the file stays rectangular.
+    const fit = r => { const c = (r || []).slice(0, w); while (c.length < w) c.push(''); return c; };
     const rows = [table.columns].concat(table.rows.slice());
-    if (table.totalsRow) rows.push(table.totalsRow);
-    return rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+    if (table.totalsRow && !(opts && opts.excludeTotals)) rows.push(table.totalsRow);
+    return rows.map(r => fit(r).map(csvEscape).join(',')).join('\r\n');
   }
 
-  // generateCSV(reportData)                    -> all tables, one file, blank-line separated
-  // generateCSV(reportData, { tableIndex: 1 })  -> just tables[1]
+  // generateCSV(reportData)                       -> all tables, one file, blank-line separated
+  // generateCSV(reportData, { tableIndex: 1 })     -> just tables[1]
+  // generateCSV(reportData, { perTable: true })    -> one CSV file per table (structured,
+  //                                                    better for automated processing than
+  //                                                    the blank-line-separated all-in-one file)
+  //                                                    RECOMMENDED for anything imported elsewhere;
+  //                                                    add excludeTotals: true for pure data rows.
+  // An empty report downloads a one-row "No data" CSV (same message as the PDF / Excel empty state).
   function generateCSV(reportData, options = {}) {
-    const tables = reportData.tables || [];
-    if (!tables.length) throw new Error('ReportEngine.generateCSV: reportData.tables is empty');
+    validateReportData(reportData);
+    reportData = normalizeReportData(reportData);
+    const tables = exportTables(reportData);
+    if (reportData.status === 'empty' || !tables.length) {
+      const msg = reportData.emptyMessage || `There were no recorded transactions for ${reportData.period || 'this period'}.`;
+      const csv = [['Report', 'Period', 'Status', 'Message'],
+        [reportData.title || reportData.module || 'Report', reportData.period || '', 'No data', msg]]
+        .map(r => r.map(csvEscape).join(',')).join('\r\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const fileName = safeFileName(`${reportData.module || 'report'}_no-data_${reportData.period || ''}`) + '.csv';
+      triggerDownload(blob, fileName);
+      return options.perTable ? [fileName] : fileName;
+    }
+
+    if (options.perTable) {
+      return tables.map((t, idx) => {
+        const csv = tableToCSV(t, options);
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const fileName = safeFileName(`${reportData.module || 'report'}_${t.title || `table${idx + 1}`}_${reportData.period || ''}`) + '.csv';
+        triggerDownload(blob, fileName);
+        return fileName;
+      });
+    }
 
     let csv, suffix;
     if (options.tableIndex !== undefined) {
@@ -1208,6 +3874,5173 @@
     return fileName;
   }
 
+  // ============================================================
+  // MODULE PRESETS (v3.2)
+  // ------------------------------------------------------------
+  // One function per planned module design (see "Mena BMS — PDF Export Design Plan").
+  // A preset takes the module's own already-computed figures and returns a complete
+  // reportData object — it owns the design decisions (which KPIs, which charts, which
+  // tables, titles, colours, row caps); the page owns the numbers.
+  //
+  //     const data = ReportEngine.presets.purchases({ period: 'September 2026', ... });
+  //     await ReportEngine.generatePDF(data, { type: 'summary' });
+  //
+  // Every preset accepts the same common fields:
+  //   period, currency ('ETB'), generatedBy, generatedRole, generatedAt, company,
+  //   footer ({ notes, qrText, ... } merged over the default footer), insights (an array
+  //   that replaces the auto-generated Key Insights), status:'empty' for no data.
+  // Money is passed as plain numbers; the preset formats it.
+  // ============================================================
+  const fmt = {
+    // 1234.5 -> "1,234.50"; negatives get a minus sign: -1,234.50 (never "-0" for a value that rounds to zero).
+    n(v, d) {
+      const dec = d === undefined ? 0 : d;
+      const num = Number(v);
+      if (!Number.isFinite(num)) return '—';
+      const s = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+      return num < 0 && /[1-9]/.test(s) ? `-${s}` : s;
+    },
+    money(v) { return fmt.n(v, 0); },
+    money2(v) { return fmt.n(v, 2); },
+    pct(v, d) { const num = Number(v); return Number.isFinite(num) ? `${num.toFixed(d === undefined ? 1 : d)}%` : '—'; },
+    signedPct(v, d) { const num = Number(v); return Number.isFinite(num) ? `${num > 0 ? '+' : ''}${num.toFixed(d === undefined ? 1 : d)}%` : '—'; },
+    share(part, whole) { return whole ? (part / whole) * 100 : 0; }
+  };
+
+  const PALETTE = THEME.palette.concat(['#A3B18A', '#6B7280']);
+
+  function presetBase(input, module, title) {
+    const i = input || {};
+    const footer = Object.assign({
+      preparedBy: 'Business Management System',
+      company: 'MENA Injera & Derkosh',
+      notes: ['Negative values are shown with a minus sign.']
+    }, i.footer || {});
+    const base = {
+      module,
+      title: title || `${module} Report`,
+      period: i.period || '',
+      currency: i.currency || 'ETB',
+      generatedBy: i.generatedBy,
+      generatedRole: i.generatedRole,
+      generatedAt: i.generatedAt,
+      footer
+    };
+    if (i.company) base.company = i.company;
+    if (i.status === 'empty') {
+      base.status = 'empty';
+      if (i.emptyMessage) base.emptyMessage = i.emptyMessage;
+    }
+    return base;
+  }
+
+  const sumBy = (arr, f) => (arr || []).reduce((a, x) => a + (Number(f(x)) || 0), 0);
+
+  // Groups rows by a key and sums a value — returns [{ name, amount, count }] sorted desc.
+  function groupSum(rows, keyFn, valFn) {
+    const map = new Map();
+    (rows || []).forEach(r => {
+      const k = keyFn(r) || 'Other';
+      const cur = map.get(k) || { name: k, amount: 0, count: 0 };
+      cur.amount += Number(valFn(r)) || 0;
+      cur.count += 1;
+      map.set(k, cur);
+    });
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  }
+
+  // Sums values by day for an ISO-date field -> { labels: ['1','2',...], values: [...] }
+  // Covers every day from the first to the last date seen, so a quiet day shows as 0
+  // instead of being silently skipped (which would make a trend line lie).
+  function dailySeries(rows, dateFn, valFn) {
+    const byDay = new Map();
+    (rows || []).forEach(r => {
+      const d = String(dateFn(r) || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      byDay.set(d, (byDay.get(d) || 0) + (Number(valFn(r)) || 0));
+    });
+    const keys = Array.from(byDay.keys()).sort();
+    if (!keys.length) return { labels: [], values: [] };
+    const labels = [], values = [];
+    const cur = new Date(keys[0] + 'T00:00:00Z');
+    const end = new Date(keys[keys.length - 1] + 'T00:00:00Z');
+    while (cur <= end) {
+      const k = cur.toISOString().slice(0, 10);
+      labels.push(String(cur.getUTCDate()));
+      values.push(byDay.get(k) || 0);
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return { labels, values };
+  }
+
+  function shortDate(iso) {
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(iso || '');
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[2]) - 1];
+    return `${Number(m[3])} ${mon}`;
+  }
+
+  const presets = {};
+
+  // ---- shared helpers for the presets below ----
+  const hasNum = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+  // v3.30: a preset input that should be a list but arrives as anything else is treated as empty, never a crash
+  const asArr = v => (Array.isArray(v) ? v : []);
+  const avgOf = (arr, f) => {
+    const vals = (arr || []).map(f).filter(hasNum).map(Number);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  // Keeps the biggest n groups and folds the rest into one "Other" slice, so a donut never
+  // gets more slices than it can label legibly at summary-page size.
+  function topWithOther(groups, n) {
+    if (!groups || groups.length <= n) return groups || [];
+    const head = groups.slice(0, n - 1);
+    const rest = groups.slice(n - 1);
+    return head.concat([{ name: 'Other', amount: sumBy(rest, g => g.amount), count: sumBy(rest, g => g.count) }]);
+  }
+  // Averages a value per ISO date -> { labels: ['3 Sep', ...], values: [...] }, in date order.
+  // Unlike dailySeries it does NOT fill quiet days — right for averages/ratios (yield, cost
+  // per unit) where a missing day means "no data", not zero.
+  function dateAvgSeries(rows, dateFn, valFn) {
+    const by = new Map();
+    (rows || []).forEach(r => {
+      const d = String(dateFn(r) || '').slice(0, 10);
+      const v = valFn(r);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !hasNum(v)) return;
+      const cur = by.get(d) || { sum: 0, n: 0 };
+      cur.sum += Number(v); cur.n += 1; by.set(d, cur);
+    });
+    const keys = Array.from(by.keys()).sort();
+    return { labels: keys.map(shortDate), values: keys.map(k => by.get(k).sum / by.get(k).n) };
+  }
+
+
+  // ---------------------------------------------------------------
+  // 2. PURCHASES — "What are we spending money on, and is anything about to need
+  //    approval or attention?"
+  //
+  // input: {
+  //   ledger: [{ date:'2026-09-03', supplier, category, description?, cost,
+  //              type?: 'raw'|'operating'|'other', status?: 'pending'|'approved'|..., large?: bool }],
+  //   previousTotal?, previousLabel? ('Aug'),
+  //   approvalThreshold?   // ETB — expenses at/above this are "large"
+  //   totals?: { total, rawMaterials, operating, largePending }  // override derived figures
+  // }
+  // ---------------------------------------------------------------
+  presets.purchases = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Purchases', 'Purchases Report');
+    if (base.status === 'empty') return base;
+
+    const ledger = asArr(i.ledger).slice();
+    const kindOf = r => r.type || (/raw|teff|rice|blend|grain|flour|ingredient/i.test(r.category || '') ? 'raw'
+      : /operat|transport|utilit|fuel|rent|repair|maint/i.test(r.category || '') ? 'operating' : 'other');
+    const tot = Object.assign({}, i.totals);
+    const total = tot.total !== undefined ? tot.total : sumBy(ledger, r => r.cost);
+    const raw = tot.rawMaterials !== undefined ? tot.rawMaterials : sumBy(ledger.filter(r => kindOf(r) === 'raw'), r => r.cost);
+    const oper = tot.operating !== undefined ? tot.operating : sumBy(ledger.filter(r => kindOf(r) === 'operating'), r => r.cost);
+    const isLargePending = r => String(r.status || '').toLowerCase() === 'pending' &&
+      (r.large || (i.approvalThreshold && Number(r.cost) >= i.approvalThreshold));
+    const pendingRows = ledger.filter(isLargePending);
+    const pendingAmt = tot.largePending !== undefined ? tot.largePending : sumBy(pendingRows, r => r.cost);
+    const pendingCnt = tot.largePending !== undefined ? (i.largePendingCount || 0) : pendingRows.length;
+
+    const prev = i.previousTotal;
+    const change = prev ? ((total - prev) / prev) * 100 : null;
+
+    const cats = groupSum(ledger, r => r.category, r => r.cost);
+    const sups = groupSum(ledger, r => r.supplier, r => r.cost);
+    const trend = (i.trend && i.trend.labels && i.trend.labels.length) ? i.trend : dailySeries(ledger, r => r.date, r => r.cost);
+
+    base.kpis = [
+      { label: 'Total Purchases (This Month)', value: fmt.money(total), unit: base.currency, color: '#1D5C38',
+        delta: change === null ? undefined : `${fmt.signedPct(change)} vs ${i.previousLabel || 'last month'}` },
+      { label: 'Raw Materials', value: fmt.money(raw), unit: base.currency, color: '#2E86DE',
+        delta: total ? `${fmt.pct(fmt.share(raw, total), 0)} of purchases` : undefined },
+      { label: 'Operating Expenses', value: fmt.money(oper), unit: base.currency, color: '#C89B3C',
+        delta: total ? `${fmt.pct(fmt.share(oper, total), 0)} of purchases` : undefined },
+      { label: 'Large Expenses Pending', value: fmt.money(pendingAmt), unit: base.currency, color: '#C0392B',
+        delta: pendingCnt ? `${pendingCnt} awaiting approval` : 'Nothing pending', deltaTone: pendingCnt ? 'warn' : 'good' }
+    ];
+
+    base.charts = [];
+    if (trend.labels && trend.labels.length) {
+      base.charts.push({ type: 'line', title: 'Purchase Trend', subtitle: `${base.currency} per day`, labels: trend.labels, values: trend.values });
+    }
+    if (cats.length) {
+      base.charts.push({ type: 'doughnut', title: 'Spend by Category', labels: cats.map(c => c.name), values: cats.map(c => c.amount),
+        colors: PALETTE, centerLabel: { top: 'Total', value: fmt.money(total), bottom: base.currency } });
+    }
+
+    // Key Insights — generated from the figures above unless the page supplies its own.
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const ins = [];
+      if (change !== null) {
+        ins.push({ label: change > 10 ? 'Watch' : 'Spend', color: change > 10 ? '#C89B3C' : '#1D5C38',
+          text: `Purchases are ${change >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(change))} versus ${i.previousLabel || 'last month'} (${fmt.money(total)} ${base.currency}).` });
+      }
+      if (cats.length) {
+        ins.push({ label: 'Mix', color: '#2E86DE', text: `${cats[0].name} is the biggest category at ${fmt.pct(fmt.share(cats[0].amount, total), 0)} of spend.` });
+      }
+      if (pendingCnt) {
+        ins.push({ label: 'Approval', color: '#C0392B', text: `${pendingCnt} large expense${pendingCnt > 1 ? 's' : ''} (${fmt.money(pendingAmt)} ${base.currency}) still await${pendingCnt > 1 ? '' : 's'} approval.` });
+      }
+      if (sups.length && fmt.share(sups[0].amount, total) >= 40) {
+        ins.push({ label: 'Risk', color: '#8E44AD', text: `${sups[0].name} supplies ${fmt.pct(fmt.share(sups[0].amount, total), 0)} of purchases — a concentration worth watching.` });
+      }
+      base.insights = ins.slice(0, 4);
+    }
+
+    const byDateDesc = ledger.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    base.tables = [
+      { title: 'Purchase Ledger', summaryMaxRows: 4,
+        columns: ['Date', 'Supplier', 'Category', `Cost (${base.currency})`],
+        rows: byDateDesc.map(r => [shortDate(r.date), r.supplier || '', r.category || '', fmt.money2(r.cost)]),
+        columnAlign: [null, null, null, 'right'],
+        totalsRow: ['TOTAL', '', '', fmt.money2(sumBy(ledger, r => r.cost))] },
+      { title: 'Spend by Category', columns: ['Category', 'Purchases', `Spend (${base.currency})`, '% of Total'],
+        rows: cats.map(c => [c.name, String(c.count), fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, total))]),
+        columnAlign: [null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', String(ledger.length), fmt.money2(total), '100.0%'] }
+    ];
+    base.rankedList = { title: 'Top Suppliers by Spend', maxRows: 4,
+      items: sups.map((s, idx) => ({ rank: idx + 1, name: s.name, meta: `${s.count} purchase${s.count > 1 ? 's' : ''}`,
+        value: `${fmt.money(s.amount)} ${base.currency}`, sub: `${fmt.pct(fmt.share(s.amount, total))} of spend` })) };
+
+    // Detailed PDF / Excel only (v3.21). The Purchase Ledger and the full supplier list are already
+    // printed in full by the detailed PDF; these tables add the breakdowns the plan asks for.
+    const cur = base.currency;
+    const rowCost = r => Number(r.cost) || 0;
+    const dated = ledger.filter(r => /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '').slice(0, 10)));
+    const notes = [];
+    if (ledger.length) {
+      // Spend by type — the three KPI figures plus whatever is left, so the table always foots to the total.
+      const otherAmt = total - raw - oper;
+      base.tables.push({ title: 'Spend by Type', sheetName: 'By Type',
+        columns: ['Type', `Spend (${cur})`, '% of Total'],
+        rows: [['Raw materials', raw], ['Operating expenses', oper], ['Other / unallocated', otherAmt]]
+          .map(([n, v]) => [n, fmt.money2(v), total ? fmt.pct(fmt.share(v, total)) : '—']),
+        columnAlign: [null, 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(total), total ? '100.0%' : '—'] });
+      base.checks = (base.checks || []).concat([{ label: 'Total purchases: summary vs. purchase ledger', expected: total, actual: sumBy(ledger, rowCost) }]);
+
+      // Weekly trend (weeks start on Monday). Undated purchases cannot be placed on a week.
+      const weeks = new Map();
+      dated.forEach(r => {
+        const d = new Date(String(r.date).slice(0, 10) + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+        const k = d.toISOString().slice(0, 10), w = weeks.get(k) || { n: 0, amt: 0 };
+        w.n += 1; w.amt += rowCost(r); weeks.set(k, w);
+      });
+      if (weeks.size >= 2) {
+        const wk = Array.from(weeks.keys()).sort(), datedTotal = sumBy(dated, rowCost);
+        base.tables.push({ title: 'Purchase Trend by Week', sheetName: 'Weekly Trend',
+          columns: ['Week Starting', 'Purchases', `Spend (${cur})`, '% of Dated Spend'],
+          rows: wk.map(k => [shortDate(k), String(weeks.get(k).n), fmt.money2(weeks.get(k).amt), datedTotal ? fmt.pct(fmt.share(weeks.get(k).amt, datedTotal)) : '—']),
+          columnAlign: [null, 'right', 'right', 'right'],
+          totalsRow: ['TOTAL', String(dated.length), fmt.money2(datedTotal), datedTotal ? '100.0%' : '—'] });
+      }
+      if (dated.length < ledger.length) {
+        notes.push(`${plural(ledger.length - dated.length, 'purchase has', 'purchases have')} no valid date and ${ledger.length - dated.length === 1 ? 'is' : 'are'} left out of the weekly trend.`);
+      }
+
+      // Items within each category, when purchases carry a description.
+      if (ledger.some(r => r.description)) {
+        const byCat = new Map();
+        ledger.forEach(r => {
+          const c = r.category || 'Other', it = String(r.description || '').trim() || '(no description)';
+          const cg = byCat.get(c) || { name: c, amt: 0, items: new Map() };
+          const x = cg.items.get(it) || { n: 0, amt: 0 };
+          x.n += 1; x.amt += rowCost(r); cg.items.set(it, x); cg.amt += rowCost(r); byCat.set(c, cg);
+        });
+        const rowsI = [], kindsI = [];
+        Array.from(byCat.values()).sort((a, b) => b.amt - a.amt).forEach(cg => {
+          rowsI.push([cg.name, '', '', '']); kindsI.push('section');
+          Array.from(cg.items.entries()).sort((a, b) => b[1].amt - a[1].amt).forEach(([it, x]) => {
+            rowsI.push([it, String(x.n), fmt.money2(x.amt), total ? fmt.pct(fmt.share(x.amt, total)) : '—']); kindsI.push('line');
+          });
+          rowsI.push([`Subtotal — ${cg.name}`, String(sumBy(Array.from(cg.items.values()), x => x.n)), fmt.money2(cg.amt), total ? fmt.pct(fmt.share(cg.amt, total)) : '—']); kindsI.push('subtotal');
+        });
+        rowsI.push(['TOTAL', String(ledger.length), fmt.money2(sumBy(ledger, rowCost)), total ? fmt.pct(fmt.share(sumBy(ledger, rowCost), total)) : '—']); kindsI.push('total');
+        base.tables.push({ title: 'Item Breakdown by Category', sheetName: 'Items', columns: ['Category / Item', 'Purchases', `Spend (${cur})`, '% of Total'],
+          rows: rowsI, rowKinds: kindsI, columnAlign: [null, 'right', 'right', 'right'], statement: true });
+      }
+
+      // Approval status, and every purchase still awaiting approval.
+      const statusOf = r => String(r.status || '').trim();
+      if (ledger.some(r => statusOf(r))) {
+        const byS = new Map();
+        ledger.forEach(r => {
+          const k = statusOf(r) || 'No status', x = byS.get(k) || { n: 0, amt: 0 };
+          x.n += 1; x.amt += rowCost(r); byS.set(k, x);
+        });
+        const TONE = k => (/pend/i.test(k) ? 'warn' : /reject|cancel|void|declin/i.test(k) ? 'bad' : /approv|paid|complete/i.test(k) ? 'good' : 'muted');
+        base.tables.push({ title: 'Approval Status', sheetName: 'Status',
+          columns: ['Status', 'Purchases', `Amount (${cur})`, '% of Total'],
+          rows: Array.from(byS.entries()).sort((a, b) => b[1].amt - a[1].amt).map(([k, x]) => [{ v: k, tone: TONE(k) }, String(x.n), fmt.money2(x.amt), total ? fmt.pct(fmt.share(x.amt, total)) : '—']),
+          columnAlign: [null, 'right', 'right', 'right'],
+          totalsRow: ['TOTAL', String(ledger.length), fmt.money2(sumBy(ledger, rowCost)), total ? fmt.pct(fmt.share(sumBy(ledger, rowCost), total)) : '—'] });
+      }
+      const pendAll = ledger.filter(r => /pend/i.test(statusOf(r)))
+        .sort((a, b) => (isLargePending(b) ? 1 : 0) - (isLargePending(a) ? 1 : 0) || rowCost(b) - rowCost(a));
+      if (pendAll.length) {
+        const hasDesc = pendAll.some(r => r.description);
+        base.tables.push({ title: 'Awaiting Approval', sheetName: 'Pending',
+          columns: ['Date', 'Supplier', 'Category'].concat(hasDesc ? ['Description'] : [], [`Cost (${cur})`, 'Large']),
+          rows: pendAll.map(r => [isoOk(r.date) ? shortDate(r.date) : (r.date ? String(r.date) : '—'), r.supplier || '—', r.category || '—']
+            .concat(hasDesc ? [r.description || '—'] : [], [fmt.money2(rowCost(r)), isLargePending(r) ? { v: 'Large', tone: 'warn' } : '—'])),
+          columnAlign: [null, null, null].concat(hasDesc ? [null] : [], ['right', null]),
+          totalsRow: ['TOTAL', plural(pendAll.length, 'purchase'), ''].concat(hasDesc ? [''] : [], [fmt.money2(sumBy(pendAll, rowCost)), '']) });
+      }
+      if (tot.largePending !== undefined || pendingRows.length) {
+        base.checks.push({ label: 'Large expenses pending: summary vs. purchase ledger', expected: pendingAmt, actual: sumBy(pendingRows, rowCost) });
+      }
+      if (i.approvalThreshold) {
+        base.definitions = (base.definitions || []).concat([{ term: 'Large expense', text: `A pending purchase of ${fmt.money(i.approvalThreshold)} ${cur} or more, or one marked as large, which needs approval.` }]);
+      }
+    }
+    if (notes.length) base.notes = (base.notes || []).concat(notes);
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 3. PRODUCTION — "Are we producing efficiently, and what is each batch actually
+  //    costing us?"   (no donut by design — the cost breakdown is an exact-number table)
+  //
+  // input: {
+  //   batches: [{ date:'2026-09-03', batchNo:'B-0412', type:'Injera',
+  //               material, overhead, other?,      // ETB cost components
+  //               cost?,                            // v3.9: the BMS-CALCULATED total cost of the batch
+  //                                                 //   (incl. processing/delivery costs the BMS rolls in).
+  //                                                 //   When given it is used as-is — the engine does not
+  //                                                 //   recompute it from the components.
+  //               units,                            // injera produced
+  //               yieldPct, wac?,                   // wac = weighted-average cost (ETB), if tracked
+  //               rejected? }],                     // v3.24: units rejected in the batch, if recorded
+  //   targetYield?                // % — batches/averages below it are flagged
+  //   previousCostPerUnit?, previousLabel?          // for the cost-creep insight
+  //   unitLabel?                  // 'pcs' (default)
+  //   totals?: { batches, units, cost, yieldRate }  // override derived figures; totals.cost is the
+  //                                                 // BMS production cost for the period (preferred)
+  //   avgPrice?                   // v3.37: the BMS average selling price per injera this period (ETB);
+  //                               //   aliases sellingPrice / avgSellingPrice. Needed for Profit per Injera.
+  //   injeraRevenue?, injeraSold? // v3.37: alternative to avgPrice — price = revenue / units sold
+  // }
+  // v3.37: Cost per Injera = production cost / injera produced. Profit per Injera = average selling price
+  // less cost per injera; it is shown only when a selling price is supplied (never guessed).
+  // Cost source, in order: totals.cost, else the sum of each batch's cost (BMS `cost` when given,
+  // otherwise material + overhead + other). When no BMS cost was supplied the engine falls back
+  // to the component sum and says so in the footer; when the BMS total is larger than the visible
+  // components, the Cost Breakdown shows the difference as "Other / unallocated" so it still foots.
+  // ---------------------------------------------------------------
+  presets.production = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Production', 'Production Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const unit = i.unitLabel || 'pcs';
+    const target = hasNum(i.targetYield) ? Number(i.targetYield) : null;
+
+    const batches = asArr(i.batches).slice().sort((a, b) =>
+      String(a.date).localeCompare(String(b.date)) || String(a.batchNo).localeCompare(String(b.batchNo)));
+    const compOf = b => (Number(b.material) || 0) + (Number(b.overhead) || 0) + (Number(b.other) || 0);
+    // v3.9: a batch's BMS-calculated cost wins over the component sum (no second accounting engine).
+    const costOf = b => hasNum(b.cost) ? Number(b.cost) : compOf(b);
+    const perUnit = b => (Number(b.units) ? costOf(b) / Number(b.units) : null);
+
+    const tot = Object.assign({}, i.totals);
+    const matT = sumBy(batches, b => b.material), ohT = sumBy(batches, b => b.overhead), otT = sumBy(batches, b => b.other);
+    const nBatches = tot.batches !== undefined ? tot.batches : batches.length;
+    const units = tot.units !== undefined ? tot.units : sumBy(batches, b => b.units);
+    const totalCost = tot.cost !== undefined ? tot.cost : sumBy(batches, costOf);
+    const bmsCost = tot.cost !== undefined || (batches.length > 0 && batches.every(b => hasNum(b.cost)));
+    if (!bmsCost && batches.length) {
+      base.footer.notes = (base.footer.notes || []).concat(['Cost = material + overhead + other as supplied; no BMS batch cost was provided.']);
+    }
+    const yieldRate = tot.yieldRate !== undefined ? tot.yieldRate : avgOf(batches, b => b.yieldPct);
+    const costPerUnit = units ? totalCost / units : null;
+    const belowTarget = target !== null && yieldRate !== null && yieldRate < target;
+
+    // v3.37: profit per injera = average selling price less cost per injera. The price is the BMS figure
+    // (input.avgPrice / sellingPrice / avgSellingPrice) or injeraRevenue / injeraSold; the engine never guesses one.
+    const priceIn = [i.avgPrice, i.sellingPrice, i.avgSellingPrice].find(hasNum);
+    const sellPrice = priceIn !== undefined ? Number(priceIn)
+      : (hasNum(i.injeraRevenue) && hasNum(i.injeraSold) && Number(i.injeraSold) > 0 ? Number(i.injeraRevenue) / Number(i.injeraSold) : null);
+    const profitPerUnit = sellPrice !== null && costPerUnit !== null ? sellPrice - costPerUnit : null;
+    const unitMargin = profitPerUnit !== null && sellPrice > 0 ? (profitPerUnit / sellPrice) * 100 : null;
+    const prevCostPU = hasNum(i.previousCostPerUnit) && Number(i.previousCostPerUnit) > 0 ? Number(i.previousCostPerUnit) : null;
+    const costPUChg = prevCostPU !== null && costPerUnit !== null ? pctChg(costPerUnit, prevCostPU) : null;
+
+    base.kpis = [
+      { label: 'Total Batches', value: String(nBatches), unit: nBatches === 1 ? 'batch' : 'batches', color: '#1D5C38',
+        delta: nBatches ? `${fmt.money(units / nBatches)} ${unit} per batch` : undefined },
+      { label: 'Injera Produced', value: fmt.money(units), unit, color: '#2E86DE' },
+      { label: 'Production Cost', value: fmt.money(totalCost), unit: cur, color: '#C89B3C',
+        delta: nBatches ? `${fmt.money(totalCost / nBatches)} per batch` : undefined },
+      { label: 'Yield Rate', value: yieldRate === null ? '—' : fmt.pct(yieldRate), color: belowTarget ? '#C0392B' : '#8E44AD',
+        delta: target !== null ? (belowTarget ? `Below ${fmt.pct(target, 0)} target` : `On/above ${fmt.pct(target, 0)} target`) : undefined,
+        deltaTone: target !== null ? (belowTarget ? 'warn' : 'good') : undefined }
+    ];
+    // v3.37: the two per-injera figures get their own cards (six cards in one row, like the Dashboard).
+    if (costPerUnit !== null) {
+      base.kpis.push({ label: 'Cost per Injera', value: fmt.n(costPerUnit, 2), unit: cur, color: '#E67E22',
+        delta: costPUChg !== null ? `${fmt.signedPct(costPUChg)} vs ${i.previousLabel || 'last month'}`
+          : (matT > 0 && totalCost > 0 ? `${fmt.pct(fmt.share(matT, totalCost), 0)} is material` : undefined),
+        deltaTone: costPUChg !== null ? (costPUChg <= 0 ? 'good' : 'warn') : undefined });
+      if (profitPerUnit !== null) {
+        base.kpis.push({ label: 'Profit per Injera', value: fmt.n(profitPerUnit, 2), unit: cur, color: profitPerUnit < 0 ? '#C0392B' : '#1D5C38',
+          delta: unitMargin !== null ? `${fmt.pct(unitMargin)} margin` : undefined, deltaTone: profitPerUnit < 0 ? 'warn' : 'good' });
+      } else if (batches.length) {
+        base.footer.notes = (base.footer.notes || []).concat(['Profit per injera is not shown: no average selling price was supplied for injera.']);
+      }
+    }
+
+    // Row 2 left: yield over time (one point per production day).
+    const yTrend = dateAvgSeries(batches, b => b.date, b => b.yieldPct);
+    const uTrend = dailySeries(batches, b => b.date, b => b.units);
+    base.charts = [];
+    if (yTrend.labels.length) {
+      const chart = { type: 'line', title: 'Production / Yield Trend', subtitle: 'Average yield (%) per production day', labels: yTrend.labels };
+      if (target !== null) {
+        chart.series = [
+          { label: 'Yield %', values: yTrend.values, color: '#1D5C38', fill: true },
+          { label: 'Target', values: yTrend.values.map(() => target), color: '#C89B3C' }
+        ];
+      } else {
+        chart.values = yTrend.values;
+      }
+      base.charts.push(chart);
+    } else if (uTrend.labels.length) {
+      base.charts.push({ type: 'line', title: 'Production Trend', subtitle: `${unit} per day`, labels: uTrend.labels, values: uTrend.values });
+    }
+
+    // Row 2 middle: exact cost split (table, not a donut).
+    const costRows = [['Material', matT], ['Overhead', ohT]];
+    if (otT > 0) costRows.push(['Other', otT]);
+    // Keeps the table footing to the BMS total when it carries cost beyond the listed components.
+    const unallocated = totalCost - (matT + ohT + otT);
+    if (Math.abs(unallocated) > 0.5) costRows.push(['Other / unallocated', unallocated]);
+    base.panelTable = {
+      title: 'Cost Breakdown', subtitle: `Exact ${cur} per cost type`,
+      columns: ['Cost Type', `Amount (${cur})`, '% of Cost'],
+      rows: costRows.map(([n, v]) => [n, fmt.money2(v), fmt.pct(fmt.share(v, totalCost))]),
+      columnAlign: [null, 'right', 'right'],
+      totalsRow: ['TOTAL', fmt.money2(totalCost), totalCost ? '100.0%' : '—']
+    };
+
+    // Key Insights
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const ins = [];
+      if (yieldRate !== null) {
+        ins.push(belowTarget
+          ? { label: 'Watch', color: '#C0392B', text: `Average yield is ${fmt.pct(yieldRate)}, ${fmt.pct(target - yieldRate)} below the ${fmt.pct(target, 0)} target.` }
+          : { label: 'Yield', color: '#1D5C38', text: target !== null
+              ? `Average yield is ${fmt.pct(yieldRate)}, at or above the ${fmt.pct(target, 0)} target.`
+              : `Average yield across ${nBatches} batches is ${fmt.pct(yieldRate)}.` });
+      }
+      if (costPerUnit !== null) {
+        const prevC = i.previousCostPerUnit;
+        if (hasNum(prevC) && Number(prevC) > 0) {
+          const ch = ((costPerUnit - prevC) / prevC) * 100;
+          ins.push({ label: 'Cost', color: ch > 5 ? '#C89B3C' : '#2E86DE',
+            text: `Cost per injera is ${fmt.n(costPerUnit, 2)} ${cur}, ${ch >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(ch))} versus ${i.previousLabel || 'last month'}.` });
+        } else {
+          ins.push({ label: 'Cost', color: '#2E86DE', text: `Cost per injera averages ${fmt.n(costPerUnit, 2)} ${cur} — material is ${fmt.pct(fmt.share(matT, totalCost), 0)} of it.` });
+        }
+      }
+      if (profitPerUnit !== null) {
+        ins.push(profitPerUnit < 0
+          ? { label: 'Loss', color: '#C0392B', text: `Each injera is sold at a loss of ${fmt.n(Math.abs(profitPerUnit), 2)} ${cur}: ${fmt.n(sellPrice, 2)} ${cur} price against ${fmt.n(costPerUnit, 2)} ${cur} cost.` }
+          : { label: 'Profit', color: '#1D5C38', text: `Each injera earns ${fmt.n(profitPerUnit, 2)} ${cur}: ${fmt.n(sellPrice, 2)} ${cur} price less ${fmt.n(costPerUnit, 2)} ${cur} cost${unitMargin !== null ? ` (${fmt.pct(unitMargin, 0)} margin)` : ''}.` });
+      }
+      const priced = batches.filter(b => perUnit(b) !== null);
+      if (priced.length > 1 && costPerUnit !== null) {
+        const worst = priced.slice().sort((a, b) => perUnit(b) - perUnit(a))[0];
+        if (perUnit(worst) > costPerUnit * 1.1) {
+          ins.push({ label: 'Batch', color: '#C0392B', text: `Batch ${worst.batchNo || shortDate(worst.date)} cost ${fmt.n(perUnit(worst), 2)} ${cur} per injera — ${fmt.pct(((perUnit(worst) - costPerUnit) / costPerUnit) * 100, 0)} above the period average.` });
+        }
+      }
+      const lowY = target !== null ? batches.filter(b => hasNum(b.yieldPct) && Number(b.yieldPct) < target) : [];
+      if (lowY.length) {
+        ins.push({ label: 'Yield', color: '#8E44AD', text: `${lowY.length} of ${batches.length} batches finished below the yield target.` });
+      }
+      base.insights = ins.slice(0, 4);
+    }
+
+    // Row 3: the batch ledger (newest first). Cells below target / well above average cost are toned.
+    const desc = batches.slice().reverse();
+    base.tables = [
+      { title: 'Batch Ledger', summaryMaxRows: 5,
+        columns: ['Batch No.', 'Type', `Material (${cur})`, `Overhead (${cur})`, `Cost / Injera (${cur})`, 'Yield', `WAC (${cur})`],
+        rows: desc.map(b => {
+          const pu = perUnit(b);
+          const hot = pu !== null && costPerUnit !== null && pu > costPerUnit * 1.1;
+          const lowY = target !== null && hasNum(b.yieldPct) && Number(b.yieldPct) < target;
+          return [
+            b.batchNo || shortDate(b.date), b.type || 'Injera',
+            fmt.money2(b.material), fmt.money2(b.overhead),
+            pu === null ? '—' : (hot ? { v: fmt.n(pu, 2), tone: 'bad' } : fmt.n(pu, 2)),
+            hasNum(b.yieldPct) ? (lowY ? { v: fmt.pct(b.yieldPct), tone: 'warn' } : fmt.pct(b.yieldPct)) : '—',
+            hasNum(b.wac) ? fmt.n(b.wac, 2) : '—'
+          ];
+        }),
+        columnAlign: [null, null, 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', `${nBatches} batch${nBatches === 1 ? '' : 'es'}`, fmt.money2(matT), fmt.money2(ohT),
+          costPerUnit === null ? '—' : fmt.n(costPerUnit, 2), yieldRate === null ? '—' : fmt.pct(yieldRate), ''] }
+    ];
+
+    // Detailed PDF / Excel only (v3.17): every cost component per batch, the batch's total cost
+    // (BMS-calculated when supplied) and its cost per injera, so the Cost Breakdown can be traced.
+    if (batches.length) {
+      // v3.37: when a selling price is known each batch also shows its profit per injera (price less the batch's cost per injera).
+      const showProfit = sellPrice !== null;
+      const profCell = v => (v === null ? '—' : (v < 0 ? { v: fmt.n(v, 2), tone: 'bad' } : fmt.n(v, 2)));
+      base.tables.push({ title: 'Cost Detail by Batch', sheetName: 'Cost Detail',
+        columns: ['Date', 'Batch No.', `Units (${unit})`, `Material (${cur})`, `Overhead (${cur})`, `Other (${cur})`, `Total Cost (${cur})`, `Cost / Injera (${cur})`]
+          .concat(showProfit ? [`Profit / Injera (${cur})`] : []),
+        rows: desc.map(b => {
+          const pu = perUnit(b);
+          return [shortDate(b.date), b.batchNo || '—', hasNum(b.units) ? fmt.money(b.units) : '—',
+            fmt.money2(b.material), fmt.money2(b.overhead), fmt.money2(b.other), fmt.money2(costOf(b)), pu === null ? '—' : fmt.n(pu, 2)]
+            .concat(showProfit ? [profCell(pu === null ? null : sellPrice - pu)] : []);
+        }),
+        columnAlign: [null, null, 'right', 'right', 'right', 'right', 'right', 'right'].concat(showProfit ? ['right'] : []),
+        totalsRow: ['TOTAL', plural(nBatches, 'batch', 'batches'), fmt.money(units), fmt.money2(matT), fmt.money2(ohT), fmt.money2(otT), fmt.money2(totalCost),
+          costPerUnit === null ? '—' : fmt.n(costPerUnit, 2)].concat(showProfit ? [profCell(profitPerUnit)] : []) });
+
+      // v3.37: Unit Economics per Injera — what one injera costs (by component) and, when a selling price is
+      // known, what it earns. Component amounts are the Cost Breakdown figures divided by injera produced, so the
+      // two tables always agree; anything the BMS total carries beyond the listed components shows as "Other / unallocated".
+      if (units > 0) {
+        const comps = [['Material', matT], ['Overhead', ohT]];
+        if (otT > 0) comps.push(['Other', otT]);
+        const unalloc = totalCost - (matT + ohT + otT);
+        if (Math.abs(unalloc) > 0.5) comps.push(['Other / unallocated', unalloc]);
+        const priceBase = showProfit && sellPrice > 0;
+        const baseV = priceBase ? sellPrice : totalCost / units;
+        const pc = v => (baseV ? fmt.pct(fmt.share(v, baseV)) : '—');
+        const ueRows = [], ueKinds = [];
+        if (showProfit) { ueRows.push(['Average selling price', fmt.n(sellPrice, 2), sellPrice > 0 ? '100.0%' : '—']); ueKinds.push('line'); }
+        comps.forEach(([nm, v]) => { ueRows.push([`Cost: ${nm.toLowerCase()}`, fmt.n(v / units, 2), pc(v / units)]); ueKinds.push('line'); });
+        ueRows.push(['Cost per injera', fmt.n(costPerUnit, 2), pc(costPerUnit)]); ueKinds.push(showProfit ? 'subtotal' : 'total');
+        if (showProfit) {
+          ueRows.push(['Profit per injera', profitPerUnit < 0 ? { v: fmt.n(profitPerUnit, 2), tone: 'bad' } : fmt.n(profitPerUnit, 2), unitMargin === null ? '—' : fmt.pct(unitMargin)]);
+          ueKinds.push('total');
+        }
+        base.tables.push({ title: 'Unit Economics per Injera', sheetName: 'Unit Economics',
+          columns: [`Per injera (${cur})`, `Amount (${cur})`, priceBase ? '% of Price' : '% of Cost'],
+          rows: ueRows, rowKinds: ueKinds, statement: true, reconcile: false, columnAlign: [null, 'right', 'right'] });
+        base.definitions = (base.definitions || []).concat([
+          { term: 'Cost per injera', text: 'Production cost for the period divided by injera produced (the BMS batch cost when supplied, otherwise material + overhead + other).' }
+        ].concat(showProfit ? [
+          { term: 'Profit per injera', text: 'The average selling price per injera less the cost per injera. It is a gross figure per unit: it does not include selling or administrative costs the BMS does not allocate to batches.' }
+        ] : []));
+      }
+    }
+
+    // Detailed PDF / Excel only (v3.24): the day-by-day production record, then yield and rejects per batch.
+    // Yield is the BMS figure for each batch; the engine displays it and never recalculates it.
+    const rejOf = b => (hasNum(b.rejected) ? Number(b.rejected) : null);
+    const hasRej = batches.some(b => rejOf(b) !== null);
+    const hasYield = batches.some(b => hasNum(b.yieldPct));
+    const dayLabel = d => (isoOk(d) ? `${shortDate(d)} ${String(d).slice(0, 4)}` : (d ? String(d) : '—'));
+    if (batches.length) {
+      const byDay = new Map();
+      batches.forEach(b => {
+        const k = isoOk(b.date) ? String(b.date).slice(0, 10) : String(b.date || '');
+        const g = byDay.get(k) || { n: 0, units: 0, rej: 0, rejUnits: 0, rejN: 0, cost: 0, ys: [] };
+        g.n += 1; g.units += Number(b.units) || 0; g.cost += costOf(b);
+        if (rejOf(b) !== null) { g.rej += rejOf(b); g.rejUnits += Number(b.units) || 0; g.rejN += 1; }
+        if (hasNum(b.yieldPct)) g.ys.push(Number(b.yieldPct));
+        byDay.set(k, g);
+      });
+      const days = Array.from(byDay.keys()).sort();
+      const avg = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+      const tgt = v => (target !== null && v !== null && v < target ? { v: fmt.pct(v), tone: 'warn' } : (v === null ? '—' : fmt.pct(v)));
+      base.tables.push({ title: 'Production by Day', sheetName: 'By Day',
+        columns: ['Date', 'Batches', `Units (${unit})`].concat(hasRej ? [`Rejected (${unit})`] : [], hasYield ? ['Avg Yield'] : [], [`Cost (${cur})`, `Cost / Injera (${cur})`]),
+        rows: days.map(k => {
+          const g = byDay.get(k);
+          return [dayLabel(k), String(g.n), fmt.money(g.units)].concat(
+            hasRej ? [g.rejN ? fmt.money(g.rej) : '—'] : [],
+            hasYield ? [tgt(avg(g.ys))] : [],
+            [fmt.money2(g.cost), g.units ? fmt.n(g.cost / g.units, 2) : '—']);
+        }),
+        columnAlign: [null, 'right', 'right'].concat(hasRej ? ['right'] : [], hasYield ? ['right'] : [], ['right', 'right']),
+        totalsRow: ['TOTAL', String(batches.length), fmt.money(sumBy(batches, b => b.units))].concat(
+          hasRej ? [fmt.money(sumBy(batches.filter(b => rejOf(b) !== null), b => rejOf(b)))] : [],
+          hasYield ? [yieldRate === null ? '—' : fmt.pct(yieldRate)] : [],
+          [fmt.money2(sumBy(batches, costOf)), sumBy(batches, b => b.units) ? fmt.n(sumBy(batches, costOf) / sumBy(batches, b => b.units), 2) : '—']) });
+
+      if (hasRej || hasYield) {
+        const recorded = batches.filter(b => rejOf(b) !== null);
+        const recUnits = sumBy(recorded, b => b.units), recRej = sumBy(recorded, b => rejOf(b));
+        const rate = (rej, u) => (u > 0 ? fmt.pct(fmt.share(rej, u)) : '—');
+        base.tables.push({ title: hasRej ? 'Yield and Rejects by Batch' : 'Yield by Batch', sheetName: hasRej ? 'Yield and Rejects' : 'Yield',
+          columns: ['Date', 'Batch No.', `Units (${unit})`].concat(hasRej ? [`Rejected (${unit})`, `Good Units (${unit})`, 'Reject Rate'] : [],
+            hasYield ? ['Yield'].concat(target !== null ? ['vs. Target'] : []) : []),
+          rows: desc.map(b => {
+            const r = rejOf(b), u = Number(b.units) || 0, y = hasNum(b.yieldPct) ? Number(b.yieldPct) : null;
+            const bad = r !== null && u > 0 && r > u;
+            return [dayLabel(b.date), b.batchNo || '—', hasNum(b.units) ? fmt.money(b.units) : '—'].concat(
+              hasRej ? [r === null ? '—' : (bad ? { v: fmt.money(r), tone: 'bad' } : fmt.money(r)), r === null ? '—' : fmt.money(u - r), r === null ? '—' : rate(r, u)] : [],
+              hasYield ? [y === null ? '—' : (target !== null && y < target ? { v: fmt.pct(y), tone: 'warn' } : fmt.pct(y))].concat(
+                target !== null ? [y === null ? '—' : { v: `${y - target >= 0 ? '+' : ''}${fmt.n(y - target, 1)} pts`, tone: y < target ? 'bad' : 'good' }] : []) : []);
+          }),
+          columnAlign: [null, null, 'right'].concat(hasRej ? ['right', 'right', 'right'] : [], hasYield ? ['right'].concat(target !== null ? ['right'] : []) : []),
+          totalsRow: ['TOTAL', plural(batches.length, 'batch', 'batches'), fmt.money(sumBy(batches, b => b.units))].concat(
+            hasRej ? [recorded.length ? fmt.money(recRej) : '—', recorded.length ? fmt.money(recUnits - recRej) : '—', recorded.length ? rate(recRej, recUnits) : '—'] : [],
+            hasYield ? [yieldRate === null ? '—' : fmt.pct(yieldRate)].concat(target !== null ? [yieldRate === null ? '—' : `${yieldRate - target >= 0 ? '+' : ''}${fmt.n(yieldRate - target, 1)} pts`] : []) : []) });
+        if (hasRej) {
+          const missing = batches.length - recorded.length;
+          if (missing) base.notes = (base.notes || []).concat([`${plural(missing, 'batch has', 'batches have')} no rejected quantity recorded; ${missing === 1 ? 'it is' : 'they are'} left out of the rejected, good-units and reject-rate totals.`]);
+          const over = recorded.filter(b => rejOf(b) > (Number(b.units) || 0)).length;
+          if (over) base.notes = (base.notes || []).concat([`${plural(over, 'batch records', 'batches record')} more rejected units than units produced; please check the entries.`]);
+        }
+        if (hasYield) {
+          const noY = batches.filter(b => !hasNum(b.yieldPct)).length;
+          if (noY) base.notes = (base.notes || []).concat([`${plural(noY, 'batch has', 'batches have')} no yield recorded and ${noY === 1 ? 'is' : 'are'} left out of the average yield.`]);
+        }
+        base.definitions = (base.definitions || []).concat([
+          { term: 'Yield', text: 'The yield recorded in the BMS for each batch, shown as given. The period figure is the simple average of the batches that have one.' }
+        ].concat(hasRej ? [
+          { term: 'Rejected, good units and reject rate', text: 'Rejected units are those recorded against the batch. Good units are units produced less rejected. Reject rate is rejected as a percentage of units produced, for batches that record a rejected quantity only.' }
+        ] : []));
+      }
+
+      base.checks = (base.checks || []).concat([{ label: 'Injera produced: summary vs. batch detail', expected: units, actual: sumBy(batches, b => b.units), tolerance: 0.5 }]);
+      if (tot.cost !== undefined) {
+        base.checks.push({ label: 'Production cost: summary vs. batch detail', expected: totalCost, actual: sumBy(batches, costOf) });
+      }
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 4. DERKOSH — "Are we producing more Derkosh than we're selling, and is it profitable?"
+  //    (no donut by design — a single product line has no mix to show)
+  //
+  // input: {
+  //   production: [{ date:'2026-09-03', batchNo?:'D-118', quantity, cost? }],   // ETB cost of the batch
+  //   sales:      [{ date:'2026-09-04', customer, quantity, revenue, cogs? }],  // cogs = cost of those goods
+  //   unitLabel?                  // 'kg' (default) — Derkosh is sold by weight
+  //   openingStock?               // units on hand at period start (for the stock insight)
+  //   previousRevenue?, previousLabel?
+  //   unitCost?                   // v3.9: the BMS weighted-average Derkosh cost per unit (alias: wac)
+  //   totals?: { produced, sold, revenue, cogs, grossProfit }   // override derived figures
+  // }
+  // Gross profit = revenue - cost of goods sold. The engine only DISPLAYS COGS — the BMS owns the
+  // weighted-average costing. COGS source, in order: totals.cogs; the sales rows' own cogs; units
+  // sold x the BMS unitCost (WAC). Only when none of those is supplied does it fall back to units
+  // sold x this period's average production cost, and the footer then says the figure is an
+  // estimate. totals.grossProfit, when given, overrides everything.
+  // v3.37: Cost per kg and Profit per kg are per kg SOLD: profit per kg = gross profit / kg sold and
+  // cost per kg = average price - profit per kg, so price - cost = profit always ties to the Gross Profit card.
+  // ---------------------------------------------------------------
+  presets.derkosh = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Derkosh', 'Derkosh Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const unit = i.unitLabel || 'kg';
+    // Weights are often fractional (12.5 kg, 210.25 kg): show only the decimals a value really
+    // has (0, 1 or 2) so nothing is rounded away and whole numbers stay clean.
+    const qty = v => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '—';
+      const r = Math.round(n * 100) / 100;
+      return fmt.n(r, Number.isInteger(r) ? 0 : (Math.round(r * 10) / 10 === r ? 1 : 2));
+    };
+
+    const prod = asArr(i.production).slice().sort((a, b) =>
+      String(a.date).localeCompare(String(b.date)) || String(a.batchNo).localeCompare(String(b.batchNo)));
+    const sales = asArr(i.sales).slice();
+    const tot = Object.assign({}, i.totals);
+
+    const produced = tot.produced !== undefined ? tot.produced : sumBy(prod, p => p.quantity);
+    const sold = tot.sold !== undefined ? tot.sold : sumBy(sales, s => s.quantity);
+    const revenue = tot.revenue !== undefined ? tot.revenue : sumBy(sales, s => s.revenue);
+    const prodCost = sumBy(prod, p => p.cost);
+    const unitCost = produced && prodCost ? prodCost / produced : null; // this period's average batch cost (display only)
+    const wac = hasNum(i.unitCost) ? Number(i.unitCost) : (hasNum(i.wac) ? Number(i.wac) : null);
+    let cogs = null, cogsEstimated = false;
+    if (hasNum(tot.cogs)) {
+      cogs = Number(tot.cogs);
+    } else {
+      const withCogs = sales.filter(s => hasNum(s.cogs));
+      const knownCogs = sumBy(withCogs, s => s.cogs);
+      const restQty = Math.max(sold - sumBy(withCogs, s => s.quantity), 0);
+      if (withCogs.length && restQty <= 1e-9) {
+        cogs = knownCogs;                       // every unit sold carries a BMS cogs
+      } else if (wac !== null) {
+        cogs = knownCogs + restQty * wac;       // BMS weighted-average cost for the rest
+      } else if (unitCost !== null) {
+        cogs = knownCogs + restQty * unitCost;  // fallback — estimate, disclosed below
+        cogsEstimated = true;
+      } else if (withCogs.length) {
+        cogs = knownCogs;
+        cogsEstimated = true;
+      }
+    }
+    const grossProfit = tot.grossProfit !== undefined ? tot.grossProfit : (cogs === null ? null : revenue - cogs);
+    const margin = grossProfit !== null && revenue ? (grossProfit / revenue) * 100 : null;
+    if (cogsEstimated && tot.grossProfit === undefined && grossProfit !== null) {
+      base.footer.notes = (base.footer.notes || []).concat(['Gross profit uses estimated COGS (units sold × avg production cost); no BMS WAC supplied.']);
+    }
+    const sellThrough = produced ? (sold / produced) * 100 : null;
+    const avgPrice = sold ? revenue / sold : null;
+    const net = produced - sold; // > 0 means stock built up this period
+    // v3.37: per-kg economics on what was sold (see the input notes above).
+    const profitPerUnit = grossProfit !== null && sold > 0 ? grossProfit / sold : null;
+    const costPerUnitSold = profitPerUnit !== null && avgPrice !== null ? avgPrice - profitPerUnit : null;
+    const costIsEstimate = cogsEstimated && tot.grossProfit === undefined;
+
+    base.kpis = [
+      { label: 'Derkosh Produced', value: qty(produced), unit, color: '#C89B3C',
+        delta: prod.length ? `${prod.length} batch${prod.length > 1 ? 'es' : ''}` : undefined },
+      { label: 'Derkosh Sold', value: qty(sold), unit, color: '#2E86DE',
+        delta: sellThrough !== null ? `${fmt.pct(sellThrough, 0)} of production` : undefined },
+      { label: 'Derkosh Revenue', value: fmt.money(revenue), unit: cur, color: '#1D5C38',
+        delta: avgPrice !== null ? `${fmt.n(avgPrice, 2)} ${cur} per ${unit}` : undefined },
+      { label: 'Gross Profit', value: grossProfit === null ? '—' : fmt.money(grossProfit), unit: grossProfit === null ? undefined : cur,
+        color: grossProfit !== null && grossProfit < 0 ? '#C0392B' : '#8E44AD',
+        delta: margin !== null ? `${fmt.pct(margin)} margin` : undefined,
+        deltaTone: margin !== null ? (margin < 0 ? 'warn' : 'good') : undefined }
+    ];
+    // v3.37: the two per-kg figures get their own cards (six cards in one row, like the Dashboard).
+    if (costPerUnitSold !== null) {
+      base.kpis.push({ label: `Cost per ${unit}`, value: fmt.n(costPerUnitSold, 2), unit: cur, color: '#E67E22',
+        delta: costIsEstimate ? 'Estimated cost' : (avgPrice ? `${fmt.pct(fmt.share(costPerUnitSold, avgPrice), 0)} of price` : undefined),
+        deltaTone: costIsEstimate ? 'warn' : undefined });
+      base.kpis.push({ label: `Profit per ${unit}`, value: fmt.n(profitPerUnit, 2), unit: cur, color: profitPerUnit < 0 ? '#C0392B' : '#1D5C38',
+        delta: margin !== null ? `${fmt.pct(margin)} margin` : undefined, deltaTone: profitPerUnit < 0 ? 'warn' : 'good' });
+    }
+
+    // Row 2 left: production and sales on one shared day axis, so a widening gap between the
+    // two lines (stock building up) or a narrowing one (stock selling through) is visible.
+    const pBy = new Map(), sBy = new Map();
+    const addTo = (m, d, v) => { const k = String(d || '').slice(0, 10); if (/^\d{4}-\d{2}-\d{2}$/.test(k)) m.set(k, (m.get(k) || 0) + (Number(v) || 0)); };
+    prod.forEach(p => addTo(pBy, p.date, p.quantity));
+    sales.forEach(s => addTo(sBy, s.date, s.quantity));
+    const allKeys = Array.from(new Set(Array.from(pBy.keys()).concat(Array.from(sBy.keys())))).sort();
+    base.charts = [];
+    if (allKeys.length) {
+      // Running totals, not daily values: Derkosh is made in batches every few days, so a daily
+      // line would drop to zero between batches and say nothing. Cumulative lines make the
+      // question visible — the gap between them IS the stock built up (or sold through).
+      const labels = [], pv = [], sv = [];
+      let pRun = 0, sRun = 0;
+      const d = new Date(allKeys[0] + 'T00:00:00Z'), end = new Date(allKeys[allKeys.length - 1] + 'T00:00:00Z');
+      while (d <= end) {
+        const k = d.toISOString().slice(0, 10);
+        pRun += pBy.get(k) || 0; sRun += sBy.get(k) || 0;
+        labels.push(String(d.getUTCDate())); pv.push(pRun); sv.push(sRun);
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      base.charts.push({ type: 'line', title: 'Production vs. Sales Trend', subtitle: `Cumulative ${unit} — the gap is stock built up`, labels,
+        series: [{ label: 'Produced', values: pv, color: '#C89B3C' }, { label: 'Sold', values: sv, color: '#1D5C38' }] });
+    }
+
+    const custs = groupSum(sales, s => s.customer, s => s.revenue);
+    const custQty = new Map();
+    sales.forEach(s => { const k = s.customer || 'Other'; custQty.set(k, (custQty.get(k) || 0) + (Number(s.quantity) || 0)); });
+
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const ins = [];
+      if (produced || sold) {
+        const gap = Math.abs(net);
+        if (net > 0 && sellThrough !== null && sellThrough < 85) {
+          ins.push({ label: 'Stock', color: '#C89B3C', text: `Production exceeded sales by ${qty(gap)} ${unit} — only ${fmt.pct(sellThrough, 0)} of what was made was sold.` });
+        } else if (net < 0) {
+          ins.push({ label: 'Stock', color: '#C0392B', text: `Sales outran production by ${qty(gap)} ${unit}; the surplus came out of existing stock.` });
+        } else {
+          ins.push({ label: 'Stock', color: '#1D5C38', text: `Production and sales are closely matched — ${fmt.pct(sellThrough === null ? 0 : sellThrough, 0)} of output was sold.` });
+        }
+      }
+      if (margin !== null) {
+        ins.push({ label: 'Profit', color: margin < 0 ? '#C0392B' : '#8E44AD',
+          text: grossProfit < 0 ? `Derkosh sold at a gross loss of ${fmt.money(Math.abs(grossProfit))} ${cur} (${fmt.pct(margin)} margin).`
+            : `Gross profit is ${fmt.money(grossProfit)} ${cur} — a ${fmt.pct(margin)} margin on ${fmt.money(revenue)} ${cur} of revenue${profitPerUnit !== null ? `, about ${fmt.n(profitPerUnit, 2)} ${cur} per ${unit}` : ''}.` });
+      }
+      if (hasNum(i.previousRevenue) && Number(i.previousRevenue) > 0) {
+        const ch = ((revenue - i.previousRevenue) / i.previousRevenue) * 100;
+        ins.push({ label: ch < -10 ? 'Watch' : 'Revenue', color: ch < -10 ? '#C0392B' : '#2E86DE',
+          text: `Derkosh revenue is ${ch >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(ch))} versus ${i.previousLabel || 'last month'}.` });
+      }
+      if (custs.length > 1 && fmt.share(custs[0].amount, revenue) >= 40) {
+        ins.push({ label: 'Risk', color: '#8E44AD', text: `${custs[0].name} buys ${fmt.pct(fmt.share(custs[0].amount, revenue), 0)} of Derkosh revenue — a concentration worth watching.` });
+      }
+      base.insights = ins.slice(0, 4);
+    }
+
+    // Row 3: production records (newest first) + sales by customer
+    const costTot = prodCost;
+    base.tables = [
+      { title: 'Production Records', summaryMaxRows: 4,
+        columns: ['Date', 'Batch No.', `Quantity (${unit})`, `Cost (${cur})`, `Cost / ${unit} (${cur})`],
+        rows: prod.slice().reverse().map(p => [
+          shortDate(p.date), p.batchNo || '—', qty(p.quantity),
+          hasNum(p.cost) ? fmt.money2(p.cost) : '—',
+          hasNum(p.cost) && Number(p.quantity) ? fmt.n(p.cost / p.quantity, 2) : '—'
+        ]),
+        columnAlign: [null, null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', `${prod.length} batch${prod.length === 1 ? '' : 'es'}`, qty(produced), costTot ? fmt.money2(costTot) : '—', unitCost === null ? '—' : fmt.n(unitCost, 2)] }
+    ];
+    if (custs.length) base.rankedList = { title: 'Sales by Customer', maxRows: 4,
+      items: custs.map((c, idx) => ({ rank: idx + 1, name: c.name,
+        meta: `${c.count} order${c.count > 1 ? 's' : ''} · ${qty(custQty.get(c.name) || 0)} ${unit}`,
+        value: `${fmt.money(c.amount)} ${cur}`, sub: `${fmt.pct(fmt.share(c.amount, revenue))} of revenue` })) };
+
+    // Detailed PDF / Excel only (v3.19): revenue and gross profit, by customer and sale by sale.
+    // Cost per sale follows the Summary's order: the sale's own BMS cogs, else units x the BMS WAC,
+    // else units x this period's average production cost (the Summary footer already says when
+    // that estimate is in use). A sale with no cost at all shows "—", never a guessed profit.
+    if (sales.length) {
+      const saleCogs = s => {
+        if (hasNum(s.cogs)) return Number(s.cogs);
+        const q = Number(s.quantity);
+        if (!hasNum(s.quantity) || !Number.isFinite(q)) return null;
+        if (wac !== null) return q * wac;
+        if (unitCost !== null) return q * unitCost;
+        return null;
+      };
+      const revOf = s => (hasNum(s.revenue) ? Number(s.revenue) : null);
+      const gpTone = g => (g < 0 ? { v: fmt.money2(g), tone: 'bad' } : fmt.money2(g));
+      const margTone = m => (m < 0 ? { v: fmt.pct(m), tone: 'bad' } : fmt.pct(m));
+
+      const byC = new Map();
+      sales.forEach(s => {
+        const k = s.customer || 'Other';
+        const c = byC.get(k) || { name: k, n: 0, q: 0, rev: 0, revKnown: true, cogs: 0, cogsKnown: true };
+        c.n += 1; c.q += Number(s.quantity) || 0;
+        if (revOf(s) === null) c.revKnown = false; else c.rev += revOf(s);
+        const cg = saleCogs(s);
+        if (cg === null) c.cogsKnown = false; else c.cogs += cg;
+        byC.set(k, c);
+      });
+      const custRows = Array.from(byC.values()).sort((a, b) => b.rev - a.rev || String(a.name).localeCompare(String(b.name)));
+      base.tables.push({ title: 'Revenue and Gross Profit by Customer', sheetName: 'GP by Customer',
+        columns: ['Customer', 'Orders', `Quantity (${unit})`, `Revenue (${cur})`, '% of Revenue', `COGS (${cur})`, `Gross Profit (${cur})`, 'Margin'],
+        rows: custRows.map(c => {
+          const gp = c.revKnown && c.cogsKnown ? c.rev - c.cogs : null;
+          return [c.name, String(c.n), qty(c.q), c.revKnown ? fmt.money2(c.rev) : '—', c.revKnown ? fmt.pct(fmt.share(c.rev, revenue)) : '—',
+            c.cogsKnown ? fmt.money2(c.cogs) : '—', gp === null ? '—' : gpTone(gp), gp !== null && c.rev ? margTone((gp / c.rev) * 100) : '—'];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', String(sales.length), qty(sold), fmt.money2(revenue), revenue ? '100.0%' : '—', cogs === null ? '—' : fmt.money2(cogs),
+          grossProfit === null ? '—' : fmt.money2(grossProfit), margin === null ? '—' : fmt.pct(margin)] });
+
+      const ledger = sales.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.customer || '').localeCompare(String(b.customer || '')));
+      base.tables.push({ title: 'Sales Ledger with Gross Profit', sheetName: 'Sales Ledger',
+        columns: ['Date', 'Customer', `Qty (${unit})`, `Price (${cur}/${unit})`, `Revenue (${cur})`, `COGS (${cur})`, `Gross Profit (${cur})`, 'Margin'],
+        rows: ledger.map(s => {
+          const rv = revOf(s), cg = saleCogs(s), gp = rv !== null && cg !== null ? rv - cg : null, q = Number(s.quantity);
+          return [isoOk(s.date) ? shortDate(s.date) : (s.date ? String(s.date) : '—'), s.customer || '—', hasNum(s.quantity) ? qty(q) : '—',
+            rv !== null && hasNum(s.quantity) && q ? fmt.n(rv / q, 2) : '—', rv === null ? '—' : fmt.money2(rv), cg === null ? '—' : fmt.money2(cg),
+            gp === null ? '—' : gpTone(gp), gp !== null && rv ? margTone((gp / rv) * 100) : '—'];
+        }),
+        columnAlign: [null, null, 'right', 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', plural(sales.length, 'sale'), qty(sold), avgPrice === null ? '—' : fmt.n(avgPrice, 2), fmt.money2(revenue),
+          cogs === null ? '—' : fmt.money2(cogs), grossProfit === null ? '—' : fmt.money2(grossProfit), margin === null ? '—' : fmt.pct(margin)] });
+
+      const revSum = sumBy(ledger.filter(s => revOf(s) !== null), s => s.revenue);
+      base.checks = (base.checks || []).concat([{ label: 'Derkosh revenue: summary vs. sales ledger', expected: revenue, actual: revSum }]);
+      const costed = ledger.filter(s => revOf(s) !== null && saleCogs(s) !== null);
+      if (grossProfit !== null && costed.length === ledger.length) {
+        base.checks.push({ label: 'Derkosh gross profit: summary vs. sales ledger', expected: grossProfit, actual: sumBy(costed, s => revOf(s) - saleCogs(s)) });
+      }
+      const noCost = ledger.length - ledger.filter(s => saleCogs(s) !== null).length;
+      if (noCost) {
+        base.footer.notes = (base.footer.notes || []).concat([`${plural(noCost, 'sale has', 'sales have')} no cost figure, so ${noCost === 1 ? 'its' : 'their'} gross profit is shown as "—".`]);
+      }
+    }
+
+    // Detailed PDF / Excel only (v3.19): production and sales quantities, day by day. The chart on
+    // the Summary shows the gap as a shape; this shows it as exact quantities. Only days with
+    // production or sales are listed. "Running Net" is the cumulative gap (positive = stock built
+    // up this period, negative = sales came out of existing stock).
+    if (allKeys.length) {
+      let run = 0;
+      const netCell = v => (v < 0 ? { v: qty(v), tone: 'bad' } : qty(v));
+      const rowsQ = allKeys.map(k => {
+        const pq = pBy.get(k) || 0, sq = sBy.get(k) || 0;
+        run += pq - sq;
+        return [shortDate(k), pq ? qty(pq) : '—', sq ? qty(sq) : '—', netCell(pq - sq), netCell(run)];
+      });
+      const pSum = sumBy(prod, p => p.quantity), sSum = sumBy(sales, s => s.quantity);
+      base.tables.push({ title: 'Production vs. Sales Quantity', sheetName: 'Production vs Sales',
+        columns: ['Date', `Produced (${unit})`, `Sold (${unit})`, `Net (${unit})`, `Running Net (${unit})`],
+        rows: rowsQ, columnAlign: [null, 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', qty(produced), qty(sold), netCell(produced - sold), ''] });
+      base.checks = (base.checks || []).concat([
+        { label: 'Derkosh produced: summary vs. daily production', expected: produced, actual: pSum, tolerance: 0.01 },
+        { label: 'Derkosh sold: summary vs. daily sales', expected: sold, actual: sSum, tolerance: 0.01 }
+      ]);
+      const undated = prod.concat(sales).filter(r => !/^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '').slice(0, 10))).length;
+      if (undated) {
+        base.footer.notes = (base.footer.notes || []).concat([`${plural(undated, 'record has', 'records have')} no valid date and ${undated === 1 ? 'is' : 'are'} left out of the day-by-day quantity table.`]);
+      }
+      // Opening stock is optional input; the closing figure is plain arithmetic on supplied numbers.
+      if (hasNum(i.openingStock)) {
+        const open = Number(i.openingStock), close = open + produced - sold;
+        base.tables.push({ title: 'Stock Movement', sheetName: 'Stock Movement',
+          columns: ['Step', `Quantity (${unit})`], columnAlign: [null, 'right'], statement: true,
+          rowKinds: ['line', 'line', 'line', 'total'],
+          rows: [['Opening stock', qty(open)], ['Add: produced', qty(produced)], ['Less: sold', qty(-sold)],
+            ['Closing stock (calculated)', close < 0 ? { v: qty(close), tone: 'bad' } : qty(close)]] });
+        if (close < 0) {
+          base.footer.notes = (base.footer.notes || []).concat(['Calculated closing Derkosh stock is negative; check the opening stock and the recorded sales.']);
+        }
+      }
+    }
+
+    // Detailed PDF / Excel only (v3.37): price, cost and profit for ONE kg sold, so the per-kg cards can be traced.
+    // Cost is cost of goods sold per kg (the same COGS as the Summary); the memo lines show what this period's batches
+    // cost per kg and the BMS weighted-average cost when supplied, for comparison. Placed first among the detail tables.
+    if (costPerUnitSold !== null && avgPrice !== null && avgPrice > 0) {
+      const ueRows = [
+        ['Average selling price', fmt.n(avgPrice, 2), '100.0%'],
+        [costIsEstimate ? 'Cost of goods sold (estimated)' : 'Cost of goods sold', fmt.n(costPerUnitSold, 2), fmt.pct(fmt.share(costPerUnitSold, avgPrice))],
+        [`Profit per ${unit}`, profitPerUnit < 0 ? { v: fmt.n(profitPerUnit, 2), tone: 'bad' } : fmt.n(profitPerUnit, 2), fmt.pct(fmt.share(profitPerUnit, avgPrice))]
+      ];
+      const ueKinds = ['line', 'line', 'total'];
+      if (unitCost !== null) { ueRows.push([`Memo: production cost per ${unit}, this period's batches`, fmt.n(unitCost, 2), '']); ueKinds.push('pct'); }
+      if (wac !== null) { ueRows.push([`Memo: BMS weighted-average cost per ${unit}`, fmt.n(wac, 2), '']); ueKinds.push('pct'); }
+      base.tables.splice(1, 0, { title: `Unit Economics per ${unit}`, sheetName: 'Unit Economics',
+        columns: [`Per ${unit} sold`, `Amount (${cur})`, '% of Price'],
+        rows: ueRows, rowKinds: ueKinds, statement: true, reconcile: false, columnAlign: [null, 'right', 'right'] });
+      base.definitions = (base.definitions || []).concat([
+        { term: `Cost and profit per ${unit}`, text: `Per ${unit} sold: the average selling price (revenue divided by ${unit} sold), the cost of goods sold per ${unit} (the same cost of goods sold as the Summary, divided by ${unit} sold) and the gross profit per ${unit} (price less cost). It does not include operating expenses.` }
+      ]);
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 5. MILLING — "Is our blend conversion cost creeping up, and what did each run
+  //    actually cost?"   (no donut by design — one input becomes one output, there is
+  //    no mix to show; the real content is the cost trend and the exact run ledger)
+  //
+  // input: {
+  //   runs: [{ date:'2026-09-03', batchNo:'M-021',
+  //            teffKg?, riceKg?,          // inputs consumed (give both, or just inputKg)
+  //            inputKg?,                  // total input, if the page doesn't split teff / rice
+  //            blendKg,                   // blend produced
+  //            cost?, costPerKg?,         // ETB total cost of the run, or per kg (one is enough)
+  //            status?: 'Completed' | 'In Progress' | 'Pending' | 'Rejected' ... }],
+  //   previousCostPerKg?, previousLabel?   // ('Aug') — enables the month-over-month insight
+  //   unitLabel?                           // 'kg' (default)
+  //   totals?: { blend, costPerKg, runs, inventoryValue }   // override derived figures
+  // }
+  // Average cost / kg is weighted (total cost ÷ total blend), not an average of the run
+  // averages, so one small expensive run can't distort it. Inventory value generated is the
+  // total cost of the blend produced — what the runs add to inventory at cost.
+  // ---------------------------------------------------------------
+  presets.milling = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Milling', 'Milling Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const unit = i.unitLabel || 'kg';
+    // Weights are often fractional: show only the decimals a value really has (0, 1 or 2).
+    const qty = v => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '—';
+      const r = Math.round(n * 100) / 100;
+      return fmt.n(r, Number.isInteger(r) ? 0 : (Math.round(r * 10) / 10 === r ? 1 : 2));
+    };
+
+    const runs = asArr(i.runs).slice().sort((a, b) =>
+      String(a.date).localeCompare(String(b.date)) || String(a.batchNo).localeCompare(String(b.batchNo)));
+    const blendOf = r => Number(r.blendKg) || 0;
+    const costOf = r => hasNum(r.cost) ? Number(r.cost)
+      : (hasNum(r.costPerKg) ? Number(r.costPerKg) * blendOf(r) : null);
+    const perKg = r => {
+      if (hasNum(r.cost) && blendOf(r) > 0) return Number(r.cost) / blendOf(r);
+      return hasNum(r.costPerKg) ? Number(r.costPerKg) : null;
+    };
+    const inputOf = r => hasNum(r.inputKg) ? Number(r.inputKg)
+      : ((hasNum(r.teffKg) || hasNum(r.riceKg)) ? (Number(r.teffKg) || 0) + (Number(r.riceKg) || 0) : null);
+    const yieldOf = r => { const inp = inputOf(r); return inp && blendOf(r) ? (blendOf(r) / inp) * 100 : null; };
+
+    const tot = Object.assign({}, i.totals);
+    const nRuns = tot.runs !== undefined ? tot.runs : runs.length;
+    const blend = tot.blend !== undefined ? tot.blend : sumBy(runs, blendOf);
+    const costed = runs.filter(r => costOf(r) !== null);
+    const costSum = sumBy(costed, costOf);
+    const costedBlend = sumBy(costed, blendOf);
+    const avgCost = tot.costPerKg !== undefined ? Number(tot.costPerKg) : (costedBlend ? costSum / costedBlend : null);
+    const invValue = tot.inventoryValue !== undefined ? tot.inventoryValue : (costed.length ? costSum : null);
+    const withInput = runs.filter(r => inputOf(r) !== null);
+    const inputTotal = withInput.length ? sumBy(withInput, inputOf) : null;
+    const yieldRate = inputTotal ? (sumBy(withInput, blendOf) / inputTotal) * 100 : null;
+
+    const prevC = i.previousCostPerKg;
+    const momChange = avgCost !== null && hasNum(prevC) && Number(prevC) > 0 ? ((avgCost - prevC) / prevC) * 100 : null;
+
+    base.kpis = [
+      { label: 'Total Blend Produced', value: qty(blend), unit, color: '#1D5C38',
+        delta: nRuns ? `${qty(blend / nRuns)} ${unit} per run` : undefined },
+      { label: `Average Cost / ${unit}`, value: avgCost === null ? '—' : fmt.n(avgCost, 2),
+        unit: avgCost === null ? undefined : `${cur} / ${unit}`,
+        color: momChange !== null && momChange > 5 ? '#C0392B' : '#C89B3C',
+        delta: momChange !== null ? `${fmt.signedPct(momChange)} vs ${i.previousLabel || 'last month'}` : undefined,
+        deltaTone: momChange === null ? undefined : (momChange > 5 ? 'warn' : (momChange <= 0 ? 'good' : undefined)) },
+      { label: 'Conversion Runs This Month', value: String(nRuns), unit: nRuns === 1 ? 'run' : 'runs', color: '#2E86DE',
+        delta: inputTotal !== null ? `${qty(inputTotal)} ${unit} teff + rice used` : undefined },
+      { label: 'Inventory Value Generated', value: invValue === null ? '—' : fmt.money(invValue),
+        unit: invValue === null ? undefined : cur, color: '#8E44AD',
+        delta: invValue === null ? undefined : 'Added to inventory at cost' }
+    ];
+
+    // Row 2 left: cost per kg by run day. A day with two runs is cost-weighted (total cost /
+    // total blend), and a dashed-style average line makes any creep above the norm visible.
+    const byDay = new Map();
+    costed.forEach(r => {
+      const d = String(r.date || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !blendOf(r)) return;
+      const slot = byDay.get(d) || { c: 0, k: 0 };
+      slot.c += costOf(r); slot.k += blendOf(r); byDay.set(d, slot);
+    });
+    const dayKeys = Array.from(byDay.keys()).sort();
+    base.charts = [];
+    if (dayKeys.length) {
+      const vals = dayKeys.map(k => byDay.get(k).c / byDay.get(k).k);
+      const chart = { type: 'line', title: 'Cost per kg Trend', subtitle: `${cur} per ${unit}, by run day`, labels: dayKeys.map(shortDate) };
+      if (dayKeys.length > 1 && avgCost !== null && Number.isFinite(avgCost)) {
+        chart.series = [
+          { label: `Cost / ${unit}`, values: vals, color: '#1D5C38', fill: true },
+          { label: 'Period average', values: vals.map(() => avgCost), color: '#C89B3C' }
+        ];
+      } else {
+        chart.values = vals;
+      }
+      base.charts.push(chart);
+    }
+
+    // Key Insights — warnings first, so the four slots never bury a real problem.
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      const wAvg = list => {
+        const k = sumBy(list, blendOf);
+        return k ? sumBy(list, r => costOf(r)) / k : null;
+      };
+      const pk = costed.filter(r => blendOf(r) > 0);
+
+      if (momChange !== null) {
+        (momChange > 5 ? warns : infos).push({ label: momChange > 5 ? 'Watch' : 'Cost', color: momChange > 5 ? '#C0392B' : '#1D5C38',
+          text: `Average blend cost is ${fmt.n(avgCost, 2)} ${cur} per ${unit}, ${momChange >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(momChange))} versus ${i.previousLabel || 'last month'}.` });
+      }
+      // Creep inside the period: first half of the runs vs the second half.
+      if (pk.length >= 4) {
+        const mid = Math.floor(pk.length / 2);
+        const a = wAvg(pk.slice(0, mid)), b = wAvg(pk.slice(mid));
+        if (a && b) {
+          const ch = ((b - a) / a) * 100;
+          if (ch >= 5) warns.push({ label: 'Creep', color: '#C89B3C', text: `Cost per ${unit} rose from ${fmt.n(a, 2)} to ${fmt.n(b, 2)} ${cur} across the month (${fmt.signedPct(ch)}).` });
+          else if (ch <= -5) infos.push({ label: 'Cost', color: '#1D5C38', text: `Cost per ${unit} eased from ${fmt.n(a, 2)} to ${fmt.n(b, 2)} ${cur} across the month (${fmt.signedPct(ch)}).` });
+          else if (momChange === null) infos.push({ label: 'Cost', color: '#2E86DE', text: `Cost per ${unit} is steady across the month, within ${fmt.n(Math.max(Math.abs(ch), 0.1), 1)}% from first half to second.` });
+        }
+      }
+      // Latest run vs the recent average of up to five runs before it.
+      let latestFlagged = false;
+      if (pk.length >= 3) {
+        const latest = pk[pk.length - 1];
+        const recent = wAvg(pk.slice(Math.max(0, pk.length - 6), pk.length - 1));
+        if (recent) {
+          const ch = ((perKg(latest) - recent) / recent) * 100;
+          if (ch >= 5) {
+            latestFlagged = true;
+            warns.push({ label: 'Latest run', color: '#C0392B', text: `Run ${latest.batchNo || shortDate(latest.date)} cost ${fmt.n(perKg(latest), 2)} ${cur} per ${unit} — ${fmt.pct(ch, 0)} above the recent average of ${fmt.n(recent, 2)}.` });
+          }
+        }
+      }
+      // An unusually low-yield run (more than 3 points under the period yield).
+      if (yieldRate !== null) {
+        const lows = withInput.filter(r => yieldOf(r) !== null && yieldOf(r) < yieldRate - 3)
+          .sort((x, y) => yieldOf(x) - yieldOf(y));
+        if (lows.length) {
+          const w = lows[0];
+          warns.push({ label: 'Yield', color: '#8E44AD', text: `Run ${w.batchNo || shortDate(w.date)} turned ${fmt.pct(yieldOf(w))} of its input into blend, ${fmt.n(yieldRate - yieldOf(w), 1)} points below the ${fmt.pct(yieldRate)} average${lows.length > 1 ? ` (${lows.length} runs were low)` : ''}.` });
+        }
+      }
+      // The single most expensive run, unless the latest-run warning already covers it.
+      if (pk.length > 1 && avgCost) {
+        const worst = pk.slice().sort((x, y) => perKg(y) - perKg(x))[0];
+        if (perKg(worst) > avgCost * 1.1 && !(latestFlagged && worst === pk[pk.length - 1])) {
+          warns.push({ label: 'Run', color: '#C0392B', text: `Run ${worst.batchNo || shortDate(worst.date)} cost ${fmt.n(perKg(worst), 2)} ${cur} per ${unit} — ${fmt.pct(((perKg(worst) - avgCost) / avgCost) * 100, 0)} above the period average.` });
+        }
+      }
+      if (momChange === null && avgCost !== null && nRuns) {
+        infos.push({ label: 'Output', color: '#1D5C38', text: `${qty(blend)} ${unit} of blend from ${nRuns} run${nRuns === 1 ? '' : 's'} at an average ${fmt.n(avgCost, 2)} ${cur} per ${unit}.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // Row 3: the conversion run ledger (newest first). A run well above the average cost is toned.
+    const hotCut = avgCost !== null && Number.isFinite(avgCost) ? avgCost * 1.1 : null;
+    const statusTone = s => /reject|fail|cancel|void/i.test(s) ? 'bad'
+      : /complete|done|finish|approv|stock/i.test(s) ? 'good'
+      : /progress|pending|draft|running|partial|queue/i.test(s) ? 'warn' : 'muted';
+    const allSplit = runs.length > 0 && runs.every(r => hasNum(r.teffKg) && hasNum(r.riceKg));
+    const usedTotal = allSplit ? `${qty(sumBy(runs, r => r.teffKg))} + ${qty(sumBy(runs, r => r.riceKg))}`
+      : (inputTotal === null ? '—' : qty(inputTotal));
+    base.tables = [
+      { title: 'Conversion Run Ledger', summaryMaxRows: 5,
+        columns: ['Batch', `Teff + Rice Used (${unit})`, `Blend Produced (${unit})`, `Cost / ${unit} (${cur})`, 'Status'],
+        rows: runs.slice().reverse().map(r => {
+          const c = perKg(r);
+          const inp = inputOf(r);
+          const used = hasNum(r.teffKg) && hasNum(r.riceKg) ? `${qty(r.teffKg)} + ${qty(r.riceKg)}` : (inp === null ? '—' : qty(inp));
+          const st = r.status ? String(r.status) : '';
+          return [
+            r.batchNo ? (r.date ? `${r.batchNo} (${shortDate(r.date)})` : String(r.batchNo)) : shortDate(r.date),
+            used,
+            hasNum(r.blendKg) ? qty(r.blendKg) : '—',
+            c === null ? '—' : (hotCut !== null && c > hotCut ? { v: fmt.n(c, 2), tone: 'bad' } : fmt.n(c, 2)),
+            st ? { v: st, tone: statusTone(st) } : '—'
+          ];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', null],
+        totalsRow: ['TOTAL', usedTotal, qty(blend), avgCost === null ? '—' : fmt.n(avgCost, 2), `${nRuns} run${nRuns === 1 ? '' : 's'}`] }
+    ];
+
+    // Detailed PDF / Excel only (v3.20): every run with its inputs, yield and cost, the teff / rice
+    // split, and how the inventory value generated is made up. The BMS owns the costing; every cost
+    // shown is the run's own cost (or cost per kg x blend). A run with no cost shows "—".
+    if (runs.length) {
+      const hasTeff = runs.some(r => hasNum(r.teffKg)), hasRice = runs.some(r => hasNum(r.riceKg));
+      const hasInput = runs.some(r => inputOf(r) !== null);
+      const hasYield = runs.some(r => yieldOf(r) !== null);
+      const hasStatus = runs.some(r => r.status);
+      const cols = ['Date', 'Batch'].concat(hasTeff ? [`Teff (${unit})`] : [], hasRice ? [`Rice (${unit})`] : [],
+        hasInput ? [`Total Input (${unit})`] : [], [`Blend (${unit})`], hasYield ? ['Yield'] : [], [`Total Cost (${cur})`, `Cost / ${unit} (${cur})`], hasStatus ? ['Status'] : []);
+      const align = [null, null].concat(hasTeff ? ['right'] : [], hasRice ? ['right'] : [], hasInput ? ['right'] : [], ['right'], hasYield ? ['right'] : [], ['right', 'right'], hasStatus ? [null] : []);
+      const lowYield = yieldRate !== null ? yieldRate - 3 : null;
+      const rowsD = runs.map(r => {
+        const c = costOf(r), pk = perKg(r), yv = yieldOf(r), st = r.status ? String(r.status) : '';
+        return [isoOk(r.date) ? shortDate(r.date) : (r.date ? String(r.date) : '—'), r.batchNo || '—']
+          .concat(hasTeff ? [hasNum(r.teffKg) ? qty(r.teffKg) : '—'] : [], hasRice ? [hasNum(r.riceKg) ? qty(r.riceKg) : '—'] : [],
+            hasInput ? [inputOf(r) === null ? '—' : qty(inputOf(r))] : [], [hasNum(r.blendKg) ? qty(r.blendKg) : '—'],
+            hasYield ? [yv === null ? '—' : (lowYield !== null && yv < lowYield ? { v: fmt.pct(yv), tone: 'warn' } : fmt.pct(yv))] : [],
+            [c === null ? '—' : fmt.money2(c), pk === null ? '—' : (hotCut !== null && pk > hotCut ? { v: fmt.n(pk, 2), tone: 'bad' } : fmt.n(pk, 2))],
+            hasStatus ? [st ? { v: st, tone: statusTone(st) } : '—'] : []);
+      });
+      const totRow = ['TOTAL', plural(runs.length, 'run')].concat(
+        hasTeff ? [qty(sumBy(runs, r => r.teffKg))] : [], hasRice ? [qty(sumBy(runs, r => r.riceKg))] : [],
+        hasInput ? [inputTotal === null ? '—' : qty(sumBy(runs.filter(r => inputOf(r) !== null), inputOf))] : [], [qty(blend)],
+        hasYield ? [yieldRate === null ? '—' : fmt.pct(yieldRate)] : [],
+        [costed.length ? fmt.money2(costSum) : '—', avgCost === null ? '—' : fmt.n(avgCost, 2)], hasStatus ? [''] : []);
+      base.tables.push({ title: 'Conversion Detail by Run', sheetName: 'Run Detail', columns: cols, rows: rowsD, columnAlign: align, totalsRow: totRow });
+
+      // Inputs used: teff vs. rice, over the runs that record both.
+      const split = runs.filter(r => hasNum(r.teffKg) || hasNum(r.riceKg));
+      if (split.length) {
+        const tK = sumBy(split, r => r.teffKg), rK = sumBy(split, r => r.riceKg), allK = tK + rK;
+        base.tables.push({ title: 'Inputs Used', sheetName: 'Inputs',
+          columns: ['Input', `Quantity (${unit})`, '% of Input'],
+          rows: [['Teff', qty(tK), allK ? fmt.pct(fmt.share(tK, allK)) : '—'], ['Rice', qty(rK), allK ? fmt.pct(fmt.share(rK, allK)) : '—']],
+          columnAlign: [null, 'right', 'right'], totalsRow: ['TOTAL INPUT', qty(allK), allK ? '100.0%' : '—'] });
+        if (split.length < runs.length) {
+          base.notes = (base.notes || []).concat([`${plural(runs.length - split.length, 'run has', 'runs have')} no teff / rice split, so ${runs.length - split.length === 1 ? 'it is' : 'they are'} left out of the Inputs Used table.`]);
+        }
+      }
+
+      // How the headline cost figures are made up.
+      const rowsC = [['Conversion runs', String(nRuns)], [`Blend produced (${unit})`, qty(blend)],
+        [`Blend from runs with a cost (${unit})`, costed.length ? qty(costedBlend) : '—'],
+        [`Total conversion cost (${cur})`, costed.length ? fmt.money2(costSum) : '—'],
+        [`Average cost per ${unit} (${cur})`, avgCost === null ? '—' : fmt.n(avgCost, 2)],
+        [`Inventory value generated (${cur})`, invValue === null ? '—' : fmt.money2(invValue)]];
+      const kindsC = ['line', 'line', 'line', 'line', 'line', 'total'];
+      base.tables.push({ title: 'Cost and Inventory Value', sheetName: 'Cost Summary', columns: ['Figure', 'Value'], rows: rowsC, rowKinds: kindsC,
+        columnAlign: [null, 'right'], statement: true });
+
+      const uncosted = runs.length - costed.length;
+      if (uncosted) {
+        base.notes = (base.notes || []).concat([`${plural(uncosted, 'run has', 'runs have')} no cost figure and ${uncosted === 1 ? 'is' : 'are'} left out of the average cost and the inventory value generated.`]);
+      }
+      base.checks = (base.checks || []).concat([{ label: 'Blend produced: summary vs. run detail', expected: blend, actual: sumBy(runs, blendOf), tolerance: 0.01 }]);
+      if (invValue !== null && costed.length) {
+        base.checks.push({ label: 'Inventory value generated: summary vs. run costs', expected: invValue, actual: costSum });
+      }
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Cost per kg', text: 'Total conversion cost divided by total blend produced, so a small expensive run cannot distort the average.' },
+        { term: 'Yield', text: 'Blend produced as a percentage of total teff and rice used in the run.' },
+        { term: 'Inventory value generated', text: 'Total cost of the blend produced in the period, which is what the runs add to inventory at cost.' }
+      ]);
+    }
+    return base;
+  };
+
+  // ---- shared helpers for the v3.3 presets (Inventory onward) ----
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const isoOk = s => /^\d{4}-\d{2}-\d{2}/.test(String(s || ''));
+  // Whole days from one ISO date to another (negative when `toISO` is earlier).
+  const dayDiff = (fromISO, toISO) =>
+    Math.round((Date.parse(String(toISO).slice(0, 10) + 'T00:00:00Z') - Date.parse(String(fromISO).slice(0, 10) + 'T00:00:00Z')) / 86400000);
+  // Quantities are often fractional: show only the decimals a value really has (0, 1 or 2).
+  const qtyFmt = v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    const r = Math.round(n * 100) / 100;
+    return fmt.n(r, Number.isInteger(r) ? 0 : (Math.round(r * 10) / 10 === r ? 1 : 2));
+  };
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+  // Percent change from `before` to `now`, or null when it can't be computed honestly.
+  const pctChg = (now, before) =>
+    hasNum(now) && hasNum(before) && Number(before) !== 0 ? ((Number(now) - Number(before)) / Math.abs(Number(before))) * 100 : null;
+
+  // ---------------------------------------------------------------
+  // 6. INVENTORY — "What needs attention right now, and is anything getting more
+  //    expensive?"   (no stock-aging or value donuts by design — stock status is urgent and
+  //    exact, so it is a table and a Reorder Now list)
+  //
+  // input: {
+  //   items: [{ name, unit?:'kg', category?,
+  //             closing,                 // closing stock on hand
+  //             reorderLevel?,           // at or below this => Reorder Now
+  //             daysOfSupply?,           // or give dailyUsage and it is closing / dailyUsage
+  //             dailyUsage?,
+  //             expiryDate?:'2026-10-20', expiringSoon?: bool,
+  //             unitCost?, value?,       // optional — only used for the "stock value" note
+  //             status?: 'Out of Stock'|'Reorder Now'|'Low Stock'|'OK' }],   // optional override
+  //   priceHistory?: [{ date:'2026-09-03', item:'Teff', price }],   // purchase / WAC price points
+  //   trendItems?: ['Teff', 'Rice'],  // which items to plot (default: up to 3 biggest movers)
+  //   asOf?: '2026-09-30',            // "today" for expiry maths (default: the current date)
+  //   expiringDays?: 30,              // expiry window for the Expiring Soon KPI
+  //   lowStockBuffer?: 0.25,          // Low Stock = above reorder level but within +25% of it
+  //   totals?: { items, low, reorder, expiring }      // override derived counts
+  //   // v3.23 (detailed PDF / Excel only, each optional):
+  //   // items[].opening?, items[].received?, items[].used?, items[].adjustments? (signed)
+  //   movements?: [{ date:'2026-09-03', item:'Teff', type?:'Received'|'Used'|'Adjustment'|..., qty,
+  //                  direction?:'in'|'out', reference?, balanceAfter? }]
+  // }
+  // Status rules: closing <= 0 => Out of Stock; <= reorder level => Reorder Now; within the
+  // buffer above it => Low Stock; otherwise OK. Reorder Now KPI counts Out of Stock too.
+  // The price chart plots one item as an actual price; with several items it plots % change
+  // since each item's first record, so a spike on a cheap input is as visible as on a dear one.
+  // ---------------------------------------------------------------
+  presets.inventory = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Inventory', 'Inventory Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const asOf = isoOk(i.asOf) ? String(i.asOf).slice(0, 10) : todayISO();
+    const buffer = hasNum(i.lowStockBuffer) ? Number(i.lowStockBuffer) : 0.25;
+    const expiryWindow = hasNum(i.expiringDays) ? Number(i.expiringDays) : 30;
+    const STATE_LABEL = { out: 'Out of Stock', reorder: 'Reorder Now', low: 'Low Stock', ok: 'OK' };
+    const STATE_TONE = { out: 'bad', reorder: 'bad', low: 'warn', ok: 'good' };
+    const STATE_RANK = { out: 0, reorder: 1, low: 2, ok: 3 };
+
+    const items = asArr(i.items).map(it => {
+      const closing = Number(it.closing) || 0;
+      const rl = hasNum(it.reorderLevel) ? Number(it.reorderLevel) : null;
+      const usage = hasNum(it.dailyUsage) ? Number(it.dailyUsage) : null;
+      const dos = hasNum(it.daysOfSupply) ? Number(it.daysOfSupply) : (usage && usage > 0 ? closing / usage : null);
+      const said = String(it.status || '');
+      let state = /out of stock|empty|nil/i.test(said) ? 'out' : /reorder/i.test(said) ? 'reorder'
+        : /low/i.test(said) ? 'low' : /^(ok|good|healthy|adequate|in stock)$/i.test(said.trim()) ? 'ok' : null;
+      if (!state) {
+        state = closing <= 0 ? 'out' : (rl !== null && closing <= rl) ? 'reorder'
+          : (rl !== null && closing <= rl * (1 + buffer)) ? 'low' : 'ok';
+      }
+      const left = isoOk(it.expiryDate) ? dayDiff(asOf, it.expiryDate) : null;
+      const expiring = it.expiringSoon !== undefined ? !!it.expiringSoon : (left !== null && left <= expiryWindow);
+      const value = hasNum(it.value) ? Number(it.value) : (hasNum(it.unitCost) ? closing * Number(it.unitCost) : null);
+      return { name: it.name || 'Item', unit: it.unit || '', category: it.category, closing, rl, dos, state, left, expiring, expiry: it.expiryDate, value,
+        opening: hasNum(it.opening) ? Number(it.opening) : null, received: hasNum(it.received) ? Number(it.received) : null,
+        used: hasNum(it.used) ? Number(it.used) : null, adj: hasNum(it.adjustments) ? Number(it.adjustments) : null };
+    });
+
+    const tot = Object.assign({}, i.totals);
+    const nItems = tot.items !== undefined ? tot.items : items.length;
+    const lowN = tot.low !== undefined ? tot.low : items.filter(x => x.state === 'low').length;
+    const needNow = items.filter(x => x.state === 'out' || x.state === 'reorder');
+    const reorderN = tot.reorder !== undefined ? tot.reorder : needNow.length;
+    const outN = items.filter(x => x.state === 'out').length;
+    const expItems = items.filter(x => x.expiring).sort((a, b) => (a.left === null ? 1e9 : a.left) - (b.left === null ? 1e9 : b.left));
+    const expN = tot.expiring !== undefined ? tot.expiring : expItems.length;
+    const expired = expItems.filter(x => x.left !== null && x.left < 0).length;
+    const hasExpiryData = items.some(x => x.left !== null);
+    const cats = new Set(items.map(x => x.category).filter(Boolean));
+    const valued = items.filter(x => x.value !== null);
+    const stockValue = valued.length ? sumBy(valued, x => x.value) : null;
+    const unitOf = x => x.unit ? ` ${x.unit}` : '';
+    const dosFmt = d => d === 0 ? '0' : fmt.n(d, d < 10 ? 1 : 0);
+
+    base.kpis = [
+      { label: 'Total Items', value: String(nItems), unit: nItems === 1 ? 'item' : 'items', color: '#1D5C38',
+        delta: stockValue !== null ? `Stock value ${fmt.money(stockValue)} ${cur}` : (cats.size > 1 ? `${cats.size} categories` : undefined) },
+      { label: 'Low Stock Items', value: String(lowN), unit: lowN === 1 ? 'item' : 'items', color: '#C89B3C',
+        delta: lowN ? 'Running down toward reorder level' : 'Nothing running low', deltaTone: lowN ? 'warn' : 'good' },
+      { label: 'Reorder Now Items', value: String(reorderN), unit: reorderN === 1 ? 'item' : 'items', color: reorderN ? '#C0392B' : '#2E86DE',
+        delta: reorderN ? (outN ? `${outN} out of stock` : 'At or below reorder level') : 'Nothing to reorder', deltaTone: reorderN ? 'warn' : 'good' },
+      { label: 'Expiring Soon', value: String(expN), unit: expN === 1 ? 'item' : 'items', color: '#8E44AD',
+        delta: expN ? (expired ? `${expired} already expired` : `Within ${expiryWindow} days`) : (hasExpiryData ? `None within ${expiryWindow} days` : 'No expiry dates tracked'),
+        deltaTone: expN ? 'warn' : undefined }
+    ];
+
+    // ---- Row 2 left: price trend ----
+    const byItem = new Map();
+    asArr(i.priceHistory).forEach(p => {
+      if (!p || !p.item || !isoOk(p.date) || !hasNum(p.price)) return;
+      const m = byItem.get(p.item) || new Map();
+      m.set(String(p.date).slice(0, 10), Number(p.price)); // same day twice: the later entry wins
+      byItem.set(p.item, m);
+    });
+    const series = new Map(); // name -> sorted [[date, price], ...]
+    byItem.forEach((m, name) => series.set(name, Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]))));
+    const moves = [];
+    series.forEach((pts, name) => {
+      if (pts.length < 2) return;
+      const ch = pctChg(pts[pts.length - 1][1], pts[0][1]);
+      if (ch !== null) moves.push({ name, ch, pts });
+    });
+    moves.sort((a, b) => Math.abs(b.ch) - Math.abs(a.ch) || b.pts.length - a.pts.length);
+
+    let picked = [];
+    if (Array.isArray(i.trendItems) && i.trendItems.length) {
+      const lc = new Map(Array.from(series.keys()).map(k => [k.toLowerCase(), k]));
+      picked = i.trendItems.map(n => lc.get(String(n).toLowerCase())).filter(Boolean);
+    } else {
+      picked = moves.slice(0, 3).map(m => m.name);
+    }
+    base.charts = [];
+    if (picked.length) {
+      const sel = picked.map(n => ({ name: n, pts: series.get(n) }));
+      const dates = Array.from(new Set([].concat(...sel.map(s => s.pts.map(p => p[0]))))).sort();
+      // Start where every plotted item has a record, so no line is drawn from data that is not there;
+      // only when that leaves a single point do we start earlier and hold each first price flat.
+      const firstShared = sel.map(s => s.pts[0][0]).sort().pop();
+      let start = dates.filter(d => d >= firstShared);
+      if (start.length < 2) start = dates;
+      const priceAt = (pts, d) => { let v = pts[0][1]; for (const p of pts) { if (p[0] <= d) v = p[1]; else break; } return v; };
+      if (sel.length === 1) {
+        const vals = start.map(d => priceAt(sel[0].pts, d));
+        base.charts.push({ type: 'line', title: 'Price Trend', subtitle: `${sel[0].name} — ${cur} per unit`, labels: start.map(shortDate), values: vals });
+      } else {
+        base.charts.push({ type: 'line', title: 'Price Trend', subtitle: '% change since first record in view', labels: start.map(shortDate),
+          series: sel.map((s, idx) => {
+            const first = priceAt(s.pts, start[0]);
+            return { label: s.name, color: PALETTE[idx % PALETTE.length], fill: false,
+              values: start.map(d => first ? Math.round(((priceAt(s.pts, d) - first) / first) * 10000) / 100 : 0) };
+          }) });
+      }
+    }
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      const outs = items.filter(x => x.state === 'out');
+      if (outs.length) {
+        warns.push({ label: 'Out of stock', color: '#C0392B', text: `${plural(outs.length, 'item is', 'items are')} out of stock: ${outs.slice(0, 3).map(x => x.name).join(', ')}${outs.length > 3 ? ` and ${outs.length - 3} more` : ''}.` });
+      }
+      const reorderOnly = items.filter(x => x.state === 'reorder').sort((a, b) => (a.dos === null ? 1e9 : a.dos) - (b.dos === null ? 1e9 : b.dos));
+      if (reorderOnly.length) {
+        const t = reorderOnly[0];
+        warns.push({ label: 'Reorder', color: '#C0392B', text: `${plural(reorderOnly.length, 'item is', 'items are')} at or below reorder level${reorderOnly.length > 1 ? ' — ' : ': '}${reorderOnly.length > 1 ? 'most urgent is ' : ''}${t.name} (${qtyFmt(t.closing)}${unitOf(t)} left${t.dos !== null ? `, about ${dosFmt(t.dos)} days of supply` : ''}).` });
+      }
+      if (moves.length && Math.abs(moves[0].ch) >= 5) {
+        const m = moves[0], a = m.pts[0], b = m.pts[m.pts.length - 1];
+        const up = m.ch > 0;
+        (up ? warns : infos).push({ label: 'Price', color: up ? (m.ch >= 10 ? '#C0392B' : '#C89B3C') : '#1D5C38',
+          text: `${m.name} price ${up ? 'rose' : 'fell'} ${fmt.pct(Math.abs(m.ch))} — from ${fmt.n(a[1], 2)} to ${fmt.n(b[1], 2)} ${cur} since ${shortDate(a[0])}.` });
+      }
+      if (expItems.length) {
+        const e = expItems[0];
+        const when = e.left === null ? '' : e.left < 0 ? ` (expired ${shortDate(e.expiry)})` : ` (${shortDate(e.expiry)})`;
+        warns.push({ label: 'Expiry', color: '#8E44AD', text: `${expired ? plural(expItems.length, 'item is', 'items are') + ` expired or expire${expItems.length === 1 ? 's' : ''}` : plural(expItems.length, 'item expires', 'items expire')} within ${expiryWindow} days — first is ${e.name}${when}.` });
+      }
+      if (lowN && !warns.length) {
+        infos.push({ label: 'Low stock', color: '#C89B3C', text: `${plural(lowN, 'item is', 'items are')} running low but still above reorder level.` });
+      }
+      if (!warns.length) {
+        infos.push({ label: 'Stock', color: '#1D5C38', text: `${nItems === 1 ? 'The only item is' : `All ${nItems} items are`} above reorder level${expN ? '' : ' and nothing is close to expiry'}.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: stock status table (most urgent first) + Reorder Now list ----
+    const sorted = items.slice().sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state]
+      || (a.dos === null ? 1e9 : a.dos) - (b.dos === null ? 1e9 : b.dos) || String(a.name).localeCompare(String(b.name)));
+    base.tables = [
+      { title: 'Stock Status', summaryMaxRows: 5,
+        columns: ['Item', 'Closing', 'Reorder Level', 'Days of Supply', 'Status'],
+        rows: sorted.map(x => [
+          x.unit ? `${x.name} (${x.unit})` : x.name,
+          qtyFmt(x.closing),
+          x.rl === null ? '—' : qtyFmt(x.rl),
+          x.dos === null ? '—' : dosFmt(x.dos),
+          { v: STATE_LABEL[x.state], tone: STATE_TONE[x.state] }
+        ]),
+        columnAlign: [null, 'right', 'right', 'right', null],
+        totalsRow: ['TOTAL', '', '', '', plural(nItems, 'item')] }
+    ];
+    if (expItems.length) {
+      base.tables.push({ title: 'Expiring Soon', columns: ['Item', 'Expiry Date', 'Days Left', 'Closing'],
+        rows: expItems.map(x => [
+          x.unit ? `${x.name} (${x.unit})` : x.name,
+          isoOk(x.expiry) ? shortDate(x.expiry) : '—',
+          x.left === null ? '—' : (x.left < 0 ? { v: 'Expired', tone: 'bad' } : { v: String(x.left), tone: x.left <= 7 ? 'bad' : 'warn' }),
+          qtyFmt(x.closing)
+        ]),
+        columnAlign: [null, null, 'right', 'right'] });
+    }
+    // Detailed PDF / Excel only (v3.18): how each material's price moved over the period.
+    if (series.size) {
+      const rowsP = Array.from(series.entries()).map(([name, pts]) => {
+        const a = pts[0], b = pts[pts.length - 1];
+        const ch = pts.length > 1 ? pctChg(b[1], a[1]) : null;
+        return { name, n: pts.length, a, b, ch };
+      }).sort((x, y) => Math.abs(y.ch === null ? 0 : y.ch) - Math.abs(x.ch === null ? 0 : x.ch) || x.name.localeCompare(y.name));
+      base.tables.push({ title: 'Price Movement by Item', sheetName: 'Prices',
+        columns: ['Item', 'Records', `First Price (${cur})`, `Latest Price (${cur})`, 'Change'],
+        rows: rowsP.map(r => [r.name, String(r.n), `${fmt.n(r.a[1], 2)} (${shortDate(r.a[0])})`, `${fmt.n(r.b[1], 2)} (${shortDate(r.b[0])})`,
+          r.ch === null ? '—' : (r.ch >= 10 ? { v: fmt.signedPct(r.ch), tone: 'bad' } : fmt.signedPct(r.ch))]),
+        columnAlign: [null, 'right', 'right', 'right', 'right'] });
+    }
+    // Detailed PDF / Excel only (v3.23): how stock moved, how far short of the reorder level each tight
+    // item is, and the movement records behind the figures. Nothing is drawn for data the page did not pass.
+    const dateFull = iso => isoOk(iso) ? `${shortDate(iso)} ${String(iso).slice(0, 4)}` : '—';
+    const keyOf = v => String(v || '').trim().toLowerCase();
+    const nameCell = x => x.unit ? `${x.name} (${x.unit})` : x.name;
+    const sgn = v => (v > 0 ? '+' : '') + qtyFmt(v);
+    const byKey = new Map(items.map(x => [keyOf(x.name), x]));
+    const IN_RX = /receiv|purchase|production|produced|opening|transfer in|\bin\b|\badd/i;
+    const OUT_RX = /\bused?\b|usage|issue|consum|\bsales?\b|\bsold\b|waste|damage|spoil|expired|transfer out|\bout\b|write.?off/i;
+    const mv = [];
+    (Array.isArray(i.movements) ? i.movements : []).forEach(m => {
+      if (!m || !m.item || !hasNum(m.qty)) return;
+      const q = Number(m.qty), type = String(m.type || ''), said = String(m.direction || '');
+      let kind;
+      if (/^in/i.test(said)) kind = 'in';
+      else if (/^out/i.test(said)) kind = 'out';
+      else if (/adjust|correction|stock.?take|recount/i.test(type)) kind = 'adj';
+      else if (OUT_RX.test(type)) kind = 'out';
+      else if (IN_RX.test(type)) kind = 'in';
+      else kind = q < 0 ? 'out' : 'in';
+      mv.push({ date: isoOk(m.date) ? String(m.date).slice(0, 10) : null, item: String(m.item), kind,
+        type: type || (kind === 'in' ? 'Received' : kind === 'out' ? 'Used' : 'Adjustment'),
+        signed: kind === 'adj' ? q : (kind === 'in' ? Math.abs(q) : -Math.abs(q)),
+        ref: m.reference ? String(m.reference) : '', bal: hasNum(m.balanceAfter) ? Number(m.balanceAfter) : null });
+    });
+    const mvBy = new Map();
+    mv.forEach(m => {
+      const k = keyOf(m.item), a = mvBy.get(k) || { inn: 0, out: 0, adj: 0 };
+      if (m.kind === 'in') a.inn += m.signed; else if (m.kind === 'out') a.out += -m.signed; else a.adj += m.signed;
+      mvBy.set(k, a);
+    });
+
+    // Opening + received - used (+ adjustments) = calculated closing, beside the reported closing.
+    const flow = items.map(x => {
+      const d = mvBy.get(keyOf(x.name));
+      const received = x.received !== null ? x.received : (mv.length ? (d ? d.inn : 0) : null);
+      const used = x.used !== null ? x.used : (mv.length ? (d ? d.out : 0) : null);
+      const adj = x.adj !== null ? x.adj : (mv.length ? (d ? d.adj : 0) : null);
+      const calc = x.opening !== null && received !== null && used !== null ? x.opening + received - used + (adj || 0) : null;
+      return { x, received, used, adj, calc, diff: calc === null ? null : x.closing - calc };
+    }).sort((a, b) => String(a.x.name).localeCompare(String(b.x.name)));
+    if (flow.some(f => f.x.opening !== null || f.received !== null || f.used !== null)) {
+      const showAdj = flow.some(f => f.adj !== null && Math.abs(f.adj) > 0.005);
+      const showCalc = flow.some(f => f.calc !== null);
+      const q = v => v === null ? '—' : qtyFmt(v);
+      base.tables.push({ title: 'Stock Movement by Item', sheetName: 'Stock Movement',
+        columns: ['Item', 'Opening', 'Received', 'Used'].concat(showAdj ? ['Adjustments'] : [], showCalc ? ['Calculated Closing'] : [], ['Reported Closing'], showCalc ? ['Difference'] : []),
+        rows: flow.map(f => [nameCell(f.x), q(f.x.opening), q(f.received), q(f.used)].concat(
+          showAdj ? [f.adj === null ? '—' : sgn(f.adj)] : [],
+          showCalc ? [q(f.calc)] : [],
+          [qtyFmt(f.x.closing)],
+          showCalc ? [f.diff === null ? '—' : (Math.abs(f.diff) < 0.005 ? '0' : { v: sgn(f.diff), tone: 'bad' })] : [])),
+        columnAlign: [null].concat(['right', 'right', 'right'], showAdj ? ['right'] : [], showCalc ? ['right'] : [], ['right'], showCalc ? ['right'] : []) });
+      const rebuilt = flow.filter(f => f.calc !== null);
+      if (rebuilt.length) {
+        base.checks = (base.checks || []).concat([{ label: 'Stock movement: items whose calculated closing differs from the reported closing',
+          expected: 0, actual: rebuilt.filter(f => Math.abs(f.diff) >= 0.005).length, tolerance: 0 }]);
+      }
+      const noRebuild = flow.length - rebuilt.length;
+      if (noRebuild) {
+        base.notes = (base.notes || []).concat([`${plural(noRebuild, 'item has', 'items have')} no opening, received or used figure, so ${noRebuild === 1 ? 'its' : 'their'} closing stock could not be rebuilt from movements.`]);
+      }
+      // When both the item figures and the movement records were supplied, they should agree.
+      const both = flow.filter(f => f.x.received !== null && f.x.used !== null && mvBy.has(keyOf(f.x.name)));
+      if (both.length) {
+        const off = both.filter(f => { const d = mvBy.get(keyOf(f.x.name)); return Math.abs(f.x.received - d.inn) >= 0.005 || Math.abs(f.x.used - d.out) >= 0.005; }).length;
+        base.checks = (base.checks || []).concat([{ label: 'Received and used: item figures vs. movement records (items that differ)', expected: 0, actual: off, tolerance: 0 }]);
+      }
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Calculated closing', text: 'Opening stock plus received, less used, plus adjustments. A difference from the reported closing means the records do not fully explain the stock on hand, for example wastage, a missing record or an uncounted adjustment.' },
+        { term: 'Received and used', text: 'Taken from each item\'s own figures when given, otherwise added up from the movement records. A record with no stated direction or recognised type is read as stock in when positive and stock out when negative.' }
+      ]);
+    }
+
+    // Items at, below or close to the reorder level: how far, how long the stock lasts, last receipt.
+    const tight = items.filter(x => x.state !== 'ok').sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state]
+      || (a.dos === null ? 1e9 : a.dos) - (b.dos === null ? 1e9 : b.dos) || String(a.name).localeCompare(String(b.name)));
+    const lastIn = new Map();
+    mv.filter(m => m.kind === 'in' && m.date).forEach(m => { const k = keyOf(m.item); if (!lastIn.has(k) || m.date > lastIn.get(k)) lastIn.set(k, m.date); });
+    // Without receipt dates this would only repeat the Stock Status table, so it is drawn only when it adds the last receipt.
+    if (tight.length && lastIn.size) {
+      const showCat = tight.some(x => x.category), showLast = true;
+      base.tables.push({ title: 'Low Stock and Reorder Detail', sheetName: 'Low Stock',
+        columns: ['Item'].concat(showCat ? ['Category'] : [], ['Closing', 'Reorder Level', 'vs. Reorder Level', 'Days of Supply'], showLast ? ['Last Received'] : [], ['Status']),
+        rows: tight.map(x => {
+          const gap = x.rl === null ? null : x.closing - x.rl;
+          return [nameCell(x)].concat(showCat ? [x.category || '—'] : [], [qtyFmt(x.closing), x.rl === null ? '—' : qtyFmt(x.rl),
+            gap === null ? '—' : { v: sgn(gap), tone: gap <= 0 ? 'bad' : 'warn' }, x.dos === null ? '—' : dosFmt(x.dos)],
+            showLast ? [lastIn.has(keyOf(x.name)) ? dateFull(lastIn.get(keyOf(x.name))) : '—'] : [], [{ v: STATE_LABEL[x.state], tone: STATE_TONE[x.state] }]);
+        }),
+        columnAlign: [null].concat(showCat ? [null] : [], ['right', 'right', 'right', 'right'], showLast ? ['right'] : [], [null]) });
+      base.definitions = (base.definitions || []).concat([
+        { term: 'vs. reorder level', text: 'Closing stock minus the reorder level. Negative (red) means the item is below the level at which it should be reordered.' }
+      ]);
+    }
+
+    // Every movement, oldest first, so a figure above can be traced to its records.
+    if (mv.length) {
+      const ledger = mv.slice().sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.item.localeCompare(b.item));
+      const showRef = ledger.some(m => m.ref), showBal = ledger.some(m => m.bal !== null);
+      const unitOf2 = n => { const x = byKey.get(keyOf(n)); return x && x.unit ? ` ${x.unit}` : ''; };
+      const cols = ['Date', 'Item', 'Type', 'Quantity'].concat(showRef ? ['Reference'] : [], showBal ? ['Balance After'] : []);
+      base.tables.push({ title: 'Inventory Movement Records', sheetName: 'Movements', columns: cols,
+        rows: ledger.map(m => {
+          const qv = `${sgn(m.signed)}${unitOf2(m.item)}`;
+          return [m.date ? dateFull(m.date) : '—', m.item, m.type, m.kind === 'in' ? { v: qv, tone: 'good' } : qv]
+            .concat(showRef ? [m.ref || '—'] : [], showBal ? [m.bal === null ? '—' : qtyFmt(m.bal)] : []);
+        }),
+        columnAlign: [null, null, null, 'right'].concat(showRef ? [null] : [], showBal ? ['right'] : []),
+        totalsRow: ['TOTAL', '', '', plural(ledger.length, 'record')].concat(showRef ? [''] : [], showBal ? [''] : []) });
+      const stray = Array.from(new Set(ledger.filter(m => !byKey.has(keyOf(m.item))).map(m => m.item)));
+      if (stray.length) {
+        base.notes = (base.notes || []).concat([`${plural(stray.length, 'item')} in the movement records ${stray.length === 1 ? 'is' : 'are'} not in the stock list: ${stray.slice(0, 3).join(', ')}${stray.length > 3 ? ` and ${stray.length - 3} more` : ''}.`]);
+      }
+      const undated = ledger.filter(m => !m.date).length;
+      if (undated) base.notes = (base.notes || []).concat([`${plural(undated, 'movement record has', 'movement records have')} no valid date and ${undated === 1 ? 'is' : 'are'} listed last.`]);
+    }
+    const urgent = needNow.slice().sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state]
+      || (a.dos === null ? 1e9 : a.dos) - (b.dos === null ? 1e9 : b.dos)
+      || (a.rl ? a.closing / a.rl : 0) - (b.rl ? b.closing / b.rl : 0));
+    if (urgent.length) {
+      base.rankedList = { title: 'Reorder Now', maxRows: 4,
+        items: urgent.map((x, idx) => ({ rank: idx + 1, name: x.name,
+          meta: x.rl === null ? 'No reorder level set' : `Reorder level ${qtyFmt(x.rl)}${unitOf(x)}`,
+          value: `${qtyFmt(x.closing)}${unitOf(x)}`,
+          sub: x.state === 'out' ? 'Out of stock' : (x.dos !== null ? `${dosFmt(x.dos)} days of supply` : 'Below reorder level') })) };
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 7. OVERHEAD — "Is our overhead cost under control, and what is it made up of?"
+  //    (no donut by design — the labor / non-labor split is a small exact-number table)
+  //
+  // input: {
+  //   entries: [{ date?, name,            // employee, or the payee for a non-wage cost
+  //               role?,                  // job title (wage rows)
+  //               category,               // 'Wages', 'Rent', 'Electricity', ...
+  //               channel,                // 'Cash' | 'Bank' | 'Mobile' ...
+  //               amount,                 // what the entry costs the business (ETB)
+  //               grossPay?,              // gross pay before deductions; falls back to amount on wage rows
+  //               kind?: 'labor'|'other' }],   // else guessed from the category (wage, salary, payroll ...)
+  //   monthly?: [{ label:'Jul', total, labor? }],   // oldest first, INCLUDING the current month last
+  //   days?,                              // days the daily rate is spread over (production or calendar days)
+  //   previousTotal?, previousLabel?,     // else taken from the month before the last in `monthly`
+  //   productionUnits?, previousUnits?, unitLabel?   // enables the "overhead vs. output" insight
+  //   totals?: { total, labor, grossPay, dailyRate }  // override derived figures
+  // }
+  // ---------------------------------------------------------------
+  presets.overhead = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Overhead', 'Overhead Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const unit = i.unitLabel || 'injera';
+
+    const LABOR_RE = /wage|salar|payroll|labou?r|overtime|bonus|allowance|pension|staff/i;
+    const entries = asArr(i.entries).map(e => Object.assign({}, e, {
+      isLabor: e.kind ? e.kind === 'labor' : LABOR_RE.test(e.category || ''),
+      amt: Number(e.amount) || 0
+    }));
+    const laborRows = entries.filter(e => e.isLabor);
+    const otherRows = entries.filter(e => !e.isLabor);
+
+    const tot = Object.assign({}, i.totals);
+    const total = tot.total !== undefined ? tot.total : sumBy(entries, e => e.amt);
+    const labor = tot.labor !== undefined ? tot.labor : sumBy(laborRows, e => e.amt);
+    const nonLabor = total - labor;
+    const grossPay = tot.grossPay !== undefined ? tot.grossPay : sumBy(laborRows, e => hasNum(e.grossPay) ? e.grossPay : e.amt);
+    const days = hasNum(i.days) && Number(i.days) > 0 ? Number(i.days) : null;
+    const dailyRate = tot.dailyRate !== undefined ? Number(tot.dailyRate) : (days ? total / days : null);
+    const people = new Set(laborRows.map(e => String(e.name || '').trim().toLowerCase()).filter(Boolean)).size;
+
+    const monthly = asArr(i.monthly).filter(m => m && m.label !== undefined && hasNum(m.total));
+    const prevTotal = hasNum(i.previousTotal) ? Number(i.previousTotal)
+      : (monthly.length >= 2 ? Number(monthly[monthly.length - 2].total) : null);
+    const prevLabel = i.previousLabel || (monthly.length >= 2 ? String(monthly[monthly.length - 2].label) : 'last month');
+    const change = prevTotal ? pctChg(total, prevTotal) : null;
+
+    base.kpis = [
+      { label: 'Total Monthly Overhead', value: fmt.money(total), unit: cur, color: '#1D5C38',
+        delta: change === null ? undefined : `${fmt.signedPct(change)} vs ${prevLabel}`,
+        deltaTone: change === null ? undefined : (change > 5 ? 'warn' : (change <= 0 ? 'good' : undefined)) },
+      { label: 'Labor (Wages) Cost', value: fmt.money(labor), unit: cur, color: '#2E86DE',
+        delta: total ? `${fmt.pct(fmt.share(labor, total), 0)} of overhead` : undefined },
+      { label: 'Daily Overhead Rate', value: dailyRate === null ? '—' : fmt.n(dailyRate, dailyRate < 100 ? 2 : 0),
+        unit: dailyRate === null ? undefined : `${cur} / day`, color: '#C89B3C',
+        delta: dailyRate === null ? 'Number of days not provided'
+          : (hasNum(i.productionUnits) && Number(i.productionUnits) > 0 ? `${fmt.n(total / Number(i.productionUnits), 2)} ${cur} per ${unit}` : (days ? `Spread over ${plural(days, 'day')}` : undefined)) },
+      { label: 'Total Gross Pay', value: fmt.money(grossPay), unit: cur, color: '#8E44AD',
+        delta: people ? plural(people, 'employee') : undefined }
+    ];
+
+    // ---- Row 2 left: month-over-month trend ----
+    base.charts = [];
+    if (monthly.length >= 2) {
+      const withLabor = monthly.every(m => hasNum(m.labor));
+      const chart = { type: 'line', title: 'Overhead Trend', subtitle: `${cur} per month`, labels: monthly.map(m => String(m.label)) };
+      if (withLabor) {
+        chart.series = [
+          { label: 'Total overhead', values: monthly.map(m => Number(m.total)), color: '#1D5C38', fill: true },
+          { label: 'Labor', values: monthly.map(m => Number(m.labor)), color: '#C89B3C' }
+        ];
+      } else {
+        chart.values = monthly.map(m => Number(m.total));
+      }
+      base.charts.push(chart);
+    }
+
+    // ---- Row 2 middle: labor vs. non-labor split, as an exact table ----
+    const otherCats = groupSum(otherRows, e => e.category, e => e.amt);
+    const catRows = topWithOther(otherCats, 3);
+    const panelRows = [['Labor (Wages)', fmt.money2(labor), fmt.pct(fmt.share(labor, total))],
+      ['Non-Labor', fmt.money2(nonLabor), fmt.pct(fmt.share(nonLabor, total))]];
+    const panelKinds = ['subtotal', 'subtotal'];
+    catRows.forEach(c => { panelRows.push([c.name, fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, total))]); panelKinds.push('line'); });
+    base.panelTable = {
+      title: 'Labor vs. Non-Labor Split', subtitle: `Exact ${cur} per cost type`,
+      columns: ['Cost Type', `Amount (${cur})`, '% of Overhead'],
+      rows: panelRows, rowKinds: panelKinds, summaryMaxRows: 7,
+      columnAlign: [null, 'right', 'right'],
+      totalsRow: ['TOTAL', fmt.money2(total), total ? '100.0%' : '—']
+    };
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      if (change !== null) {
+        (change > 5 ? warns : infos).push({ label: change > 5 ? 'Watch' : 'Overhead', color: change > 5 ? '#C0392B' : '#1D5C38',
+          text: `Overhead is ${fmt.money(total)} ${cur}, ${change >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(change))} versus ${prevLabel}.` });
+      }
+      if (hasNum(i.productionUnits) && hasNum(i.previousUnits) && Number(i.productionUnits) > 0 && Number(i.previousUnits) > 0 && prevTotal) {
+        const perNow = total / Number(i.productionUnits), perBefore = prevTotal / Number(i.previousUnits);
+        const rateCh = pctChg(perNow, perBefore), volCh = pctChg(i.productionUnits, i.previousUnits);
+        if (rateCh !== null && volCh !== null) {
+          if (rateCh > 3 && rateCh > volCh + 3) {
+            warns.push({ label: 'Rate', color: '#C89B3C', text: `Overhead per ${unit} rose ${fmt.pct(rateCh)} to ${fmt.n(perNow, 2)} ${cur} — output moved ${fmt.signedPct(volCh)}, so overhead is growing faster than production.` });
+          } else {
+            infos.push({ label: 'Rate', color: '#2E86DE', text: `Overhead per ${unit} is ${fmt.n(perNow, 2)} ${cur} (${fmt.signedPct(rateCh)} vs ${prevLabel}), with output ${fmt.signedPct(volCh)}.` });
+          }
+        }
+      }
+      if (monthly.length >= 4) {
+        const last3 = monthly.slice(-3).map(m => Number(m.total));
+        if (last3[0] < last3[1] && last3[1] < last3[2]) {
+          warns.push({ label: 'Trend', color: '#C89B3C', text: `Overhead has risen every month since ${monthly[monthly.length - 3].label}: ${last3.map(v => fmt.money(v)).join(', ')} ${cur}.` });
+        }
+      }
+      if (total && labor) {
+        infos.push({ label: 'Labor', color: '#2E86DE', text: `Labor is ${fmt.pct(fmt.share(labor, total), 0)} of overhead (${fmt.money(labor)} ${cur})${people ? ` across ${plural(people, 'employee')}` : ''}.` });
+      }
+      if (otherCats.length && total) {
+        infos.push({ label: 'Largest', color: '#8E44AD', text: `${otherCats[0].name} is the biggest non-labor cost at ${fmt.money(otherCats[0].amount)} ${cur} (${fmt.pct(fmt.share(otherCats[0].amount, total), 0)} of overhead).` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: payroll / overhead ledger (wages first, biggest first) ----
+    const ordered = laborRows.slice().sort((a, b) => b.amt - a.amt).concat(otherRows.slice().sort((a, b) => b.amt - a.amt));
+    base.tables = [
+      { title: 'Payroll / Overhead Ledger', summaryMaxRows: 6,
+        columns: ['Employee / Payee', 'Role', 'Category', 'Channel', `Amount (${cur})`],
+        rows: ordered.map(e => [e.name || '—', e.role || '—', e.category || '—', e.channel || '—', fmt.money2(e.amt)]),
+        columnAlign: [null, null, null, null, 'right'],
+        totalsRow: ['TOTAL', plural(entries.length, 'entry', 'entries'), '', '', fmt.money2(sumBy(entries, e => e.amt))] }
+    ];
+
+    // Detailed PDF / Excel only (v3.17): every category with its share, and the month-by-month history.
+    const entriesTotal = sumBy(entries, e => e.amt);
+    const allCats = groupSum(entries, e => e.category, e => e.amt);
+    if (allCats.length) {
+      const laborCats = new Set(laborRows.map(e => e.category || 'Other'));
+      base.tables.push({ title: 'Overhead by Category', sheetName: 'By Category',
+        columns: ['Category', 'Type', 'Entries', `Amount (${cur})`, '% of Overhead'],
+        rows: allCats.map(c => [c.name, laborCats.has(c.name) ? 'Labor' : 'Non-labor', String(c.count), fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, entriesTotal))]),
+        columnAlign: [null, null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', '', String(entries.length), fmt.money2(entriesTotal), entriesTotal ? '100.0%' : '—'] });
+    }
+    if (monthly.length >= 2) {
+      base.tables.push({ title: 'Monthly Overhead', sheetName: 'Monthly',
+        columns: ['Month', `Total (${cur})`, `Labor (${cur})`, `Non-Labor (${cur})`, 'Change vs Prior'],
+        rows: monthly.map((m, k) => {
+          const t = Number(m.total), prev = k ? Number(monthly[k - 1].total) : null;
+          const ch = prev ? pctChg(t, prev) : null;
+          return [String(m.label), fmt.money2(t), hasNum(m.labor) ? fmt.money2(m.labor) : '—', hasNum(m.labor) ? fmt.money2(t - Number(m.labor)) : '—',
+            ch === null ? '—' : (ch > 5 ? { v: fmt.signedPct(ch), tone: 'warn' } : fmt.signedPct(ch))];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right'] });
+    }
+
+    // Detailed PDF / Excel only (v3.27): payroll person by person, spending by payment channel, and checks.
+    if (laborRows.length) {
+      const pe = new Map();
+      laborRows.forEach(e => {
+        const nm = String(e.name || '').trim() || 'Unnamed', k = nm.toLowerCase();
+        const g = pe.get(k) || { name: nm, role: '', n: 0, gross: 0, cost: 0 };
+        g.n += 1; g.gross += hasNum(e.grossPay) ? Number(e.grossPay) : e.amt; g.cost += e.amt;
+        if (!g.role && String(e.role || '').trim()) g.role = String(e.role).trim();
+        pe.set(k, g);
+      });
+      const people2 = Array.from(pe.values()).sort((a, b) => b.cost - a.cost || a.name.localeCompare(b.name));
+      const laborRowsTotal = sumBy(laborRows, e => e.amt);
+      base.tables.push({ title: 'Labor Cost by Employee', sheetName: 'By Employee',
+        columns: ['Employee', 'Role', 'Entries', `Gross Pay (${cur})`, `Cost to Business (${cur})`, '% of Labor'],
+        rows: people2.map(g => [g.name, g.role || '—', String(g.n), fmt.money2(g.gross), fmt.money2(g.cost), laborRowsTotal ? fmt.pct(fmt.share(g.cost, laborRowsTotal)) : '—']),
+        columnAlign: [null, null, 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', plural(people2.length, 'employee'), String(laborRows.length), fmt.money2(sumBy(people2, g => g.gross)), fmt.money2(laborRowsTotal), laborRowsTotal ? '100.0%' : '—'] });
+      const unnamed = laborRows.filter(e => !String(e.name || '').trim()).length;
+      if (unnamed) base.notes = (base.notes || []).concat([`${plural(unnamed, 'labor entry has', 'labor entries have')} no employee name and ${unnamed === 1 ? 'is' : 'are'} grouped as "Unnamed".`]);
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Gross pay and cost to business', text: 'Gross pay is the pay before deductions where it was supplied, otherwise the cost of the entry. Cost to business is what the entry costs the business and is the amount used in every overhead total.' }
+      ]);
+    }
+    if (entries.some(e => String(e.channel || '').trim())) {
+      const chs = new Map();
+      entries.forEach(e => {
+        const k = String(e.channel || '').trim() || 'Not stated', g = chs.get(k) || { name: k, n: 0, labor: 0, other: 0 };
+        g.n += 1; if (e.isLabor) g.labor += e.amt; else g.other += e.amt; chs.set(k, g);
+      });
+      const chList = Array.from(chs.values()).sort((a, b) => (b.labor + b.other) - (a.labor + a.other) || a.name.localeCompare(b.name));
+      base.tables.push({ title: 'Overhead by Payment Channel', sheetName: 'By Channel',
+        columns: ['Channel', 'Entries', `Labor (${cur})`, `Non-Labor (${cur})`, `Total (${cur})`, '% of Overhead'],
+        rows: chList.map(g => [g.name, String(g.n), fmt.money2(g.labor), fmt.money2(g.other), fmt.money2(g.labor + g.other), entriesTotal ? fmt.pct(fmt.share(g.labor + g.other, entriesTotal)) : '—']),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', String(entries.length), fmt.money2(sumBy(chList, g => g.labor)), fmt.money2(sumBy(chList, g => g.other)), fmt.money2(entriesTotal), entriesTotal ? '100.0%' : '—'] });
+      const ns = entries.filter(e => !String(e.channel || '').trim()).length;
+      if (ns) base.notes = (base.notes || []).concat([`${plural(ns, 'entry has', 'entries have')} no payment channel and ${ns === 1 ? 'is' : 'are'} shown as "Not stated".`]);
+    }
+    if (entries.length) {
+      if (tot.total !== undefined) base.checks = (base.checks || []).concat([{ label: 'Total overhead: summary vs. entry detail', expected: total, actual: entriesTotal }]);
+      if (tot.labor !== undefined) base.checks = (base.checks || []).concat([{ label: 'Labor cost: summary vs. entry detail', expected: labor, actual: sumBy(laborRows, e => e.amt) }]);
+    }
+    if (monthly.length >= 2 && entries.length) {
+      base.checks = (base.checks || []).concat([{ label: 'Total overhead: entry detail vs. current month in the monthly history', expected: Number(monthly[monthly.length - 1].total), actual: entriesTotal }]);
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 8. PETTY CASH — "Where is the day-to-day cash going, and is it in line with what we
+  //    expect?"   (BOTH charts kept: pace of spending is a trend question and "where is it
+  //    leaking" is a genuine proportion question over a handful of categories)
+  //
+  // input: {
+  //   transactions: [{ date:'2026-09-03', description, amount, category?, channel?:'Cash',
+  //                    receiptRef? }],
+  //   remaining?,                     // cash left at the end of the period (best: the page's own figure)
+  //   openingBalance?, replenishments?,   // else remaining = opening + replenishments - spent
+  //   days?,                          // days the daily average is spread over; default = first to
+  //                                   //   last transaction date, inclusive (pass it for a full month)
+  //   previousSpent?, previousLabel?,
+  //   totals?: { spent, remaining }   // override derived figures
+  // }
+  // ---------------------------------------------------------------
+  presets.pettycash = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Petty Cash', 'Petty Cash Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+
+    const tx = asArr(i.transactions).map(t => Object.assign({}, t, { amt: Number(t.amount) || 0 }));
+    const tot = Object.assign({}, i.totals);
+    const spent = tot.spent !== undefined ? tot.spent : sumBy(tx, t => t.amt);
+    const fund = hasNum(i.openingBalance) ? Number(i.openingBalance) + (Number(i.replenishments) || 0) : null;
+    const remaining = tot.remaining !== undefined ? Number(tot.remaining)
+      : hasNum(i.remaining) ? Number(i.remaining) : (fund !== null ? fund - spent : null);
+    const dated = tx.filter(t => isoOk(t.date)).map(t => String(t.date).slice(0, 10)).sort();
+    const days = hasNum(i.days) && Number(i.days) > 0 ? Number(i.days)
+      : (dated.length ? dayDiff(dated[0], dated[dated.length - 1]) + 1 : null);
+    const dailyAvg = days ? spent / days : null;
+    const biggest = tx.slice().sort((a, b) => b.amt - a.amt)[0] || null;
+    const leftPct = fund ? (remaining / fund) * 100 : null;
+    const prev = hasNum(i.previousSpent) ? Number(i.previousSpent) : null;
+    const change = prev ? pctChg(spent, prev) : null;
+    const shorten = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 3).trimEnd() + '...' : s; };
+
+    base.kpis = [
+      { label: 'Petty Cash Spent', value: fmt.money(spent), unit: cur, color: '#C89B3C',
+        delta: change === null ? plural(tx.length, 'transaction') : `${fmt.signedPct(change)} vs ${i.previousLabel || 'last month'}`,
+        deltaTone: change === null ? undefined : (change > 10 ? 'warn' : (change <= 0 ? 'good' : undefined)) },
+      { label: 'Remaining Cash', value: remaining === null ? '—' : fmt.money(remaining), unit: remaining === null ? undefined : cur,
+        color: remaining !== null && remaining < 0 ? '#C0392B' : '#1D5C38',
+        delta: leftPct !== null ? `${fmt.pct(leftPct, 0)} of ${fmt.money(fund)} ${cur} float` : undefined,
+        deltaTone: leftPct === null ? undefined : (leftPct < 20 ? 'warn' : 'good') },
+      { label: 'Daily Avg. Spent', value: dailyAvg === null ? '—' : fmt.money(dailyAvg), unit: dailyAvg === null ? undefined : `${cur} / day`,
+        color: '#2E86DE', delta: days ? `Over ${plural(days, 'day')}` : undefined },
+      { label: 'Largest Expense', value: biggest ? fmt.money(biggest.amt) : '—', unit: biggest ? cur : undefined, color: '#8E44AD',
+        delta: biggest ? `${shorten(biggest.description || biggest.category || 'Expense', 26)}${isoOk(biggest.date) ? ` · ${shortDate(biggest.date)}` : ''}` : undefined }
+    ];
+
+    // ---- Row 2: daily spending (bar, the peak day highlighted) + top categories (donut) ----
+    base.charts = [];
+    const daily = dailySeries(tx, t => t.date, t => t.amt);
+    if (daily.labels.length) {
+      const peak = daily.values.indexOf(Math.max.apply(null, daily.values));
+      const chart = { type: 'bar', title: 'Daily Spending Trend', subtitle: `${cur} per day`, labels: daily.labels, values: daily.values, barColor: '#1D5C38' };
+      if (daily.values.length > 1 && daily.values[peak] > 0) { chart.highlightIndex = peak; chart.highlightColor = '#C89B3C'; }
+      base.charts.push(chart);
+    }
+    const cats = groupSum(tx, t => t.category, t => t.amt);
+    if (cats.length >= 2) {
+      const shown = topWithOther(cats, 6);
+      base.charts.push({ type: 'doughnut', title: 'Top Spending Categories', labels: shown.map(c => c.name), values: shown.map(c => c.amount),
+        colors: PALETTE, centerLabel: { top: 'Total', value: fmt.money(spent), bottom: cur } });
+    }
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      if (remaining !== null && remaining < 0) {
+        warns.push({ label: 'Overspent', color: '#C0392B', text: `Petty cash is overdrawn by ${fmt.money(Math.abs(remaining))} ${cur}.` });
+      } else if (leftPct !== null && leftPct < 20) {
+        warns.push({ label: 'Low cash', color: '#C0392B', text: `Only ${fmt.money(remaining)} ${cur} (${fmt.pct(leftPct, 0)} of the float) is left.` });
+      }
+      if (cats.length >= 2 && fmt.share(cats[0].amount, spent) >= 40) {
+        warns.push({ label: 'Category', color: '#C89B3C', text: `${cats[0].name} takes ${fmt.pct(fmt.share(cats[0].amount, spent), 0)} of petty cash spending (${fmt.money(cats[0].amount)} ${cur}).` });
+      }
+      // Skipped when the category warning above already is this one expense (same amount, same share).
+      const sameAsCategory = cats.length >= 2 && fmt.share(cats[0].amount, spent) >= 40 && cats[0].count === 1;
+      if (biggest && tx.length >= 4 && spent && fmt.share(biggest.amt, spent) >= 25 && !sameAsCategory) {
+        warns.push({ label: 'Large', color: '#8E44AD', text: `One expense — ${shorten(biggest.description || 'unnamed', 40)} — is ${fmt.pct(fmt.share(biggest.amt, spent), 0)} of everything spent (${fmt.money(biggest.amt)} ${cur}).` });
+      }
+      const noRef = tx.filter(t => !String(t.receiptRef || '').trim());
+      if (tx.length && noRef.length) {
+        warns.push({ label: 'Receipts', color: '#C0392B', text: `${noRef.length} of ${tx.length} transactions (${fmt.money(sumBy(noRef, t => t.amt))} ${cur}) have no receipt reference.` });
+      }
+      if (change !== null) {
+        (change > 10 ? warns : infos).push({ label: change > 10 ? 'Watch' : 'Spend', color: change > 10 ? '#C89B3C' : '#1D5C38',
+          text: `Spending is ${change >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(change))} versus ${i.previousLabel || 'last month'}.` });
+      }
+      if (dailyAvg !== null && daily.labels.length > 1) {
+        infos.push({ label: 'Pace', color: '#2E86DE', text: `Spending averages ${fmt.money(dailyAvg)} ${cur} a day; the busiest day was ${fmt.money(Math.max.apply(null, daily.values))} ${cur}.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: the auditable transaction ledger (newest first) ----
+    const desc = tx.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    base.tables = [
+      { title: 'Transaction Ledger', summaryMaxRows: 6,
+        columns: ['Date', 'Description', `Amount (${cur})`, 'Channel', 'Receipt Ref.'],
+        rows: desc.map(t => [
+          isoOk(t.date) ? shortDate(t.date) : '—', t.description || '—', fmt.money2(t.amt), t.channel || '—',
+          String(t.receiptRef || '').trim() ? String(t.receiptRef).trim() : { v: 'Missing', tone: 'warn' }
+        ]),
+        columnAlign: [null, null, 'right', null, null],
+        totalsRow: ['TOTAL', plural(tx.length, 'transaction'), fmt.money2(sumBy(tx, t => t.amt)), '', ''] }
+    ];
+
+    // Detailed PDF / Excel only (v3.18): every category, and the ten largest single expenses.
+    if (cats.length) {
+      const catTotal = sumBy(tx, t => t.amt);
+      base.tables.push({ title: 'Spending by Category', sheetName: 'By Category',
+        columns: ['Category', 'Transactions', `Amount (${cur})`, '% of Spending'],
+        rows: cats.map(c => [c.name, String(c.count), fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, catTotal))]),
+        columnAlign: [null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', String(tx.length), fmt.money2(catTotal), catTotal ? '100.0%' : '—'] });
+    }
+    if (tx.length > 1) {
+      const big = tx.slice().sort((a, b) => b.amt - a.amt).slice(0, 10);
+      base.tables.push({ title: 'Largest Expenses', sheetName: 'Largest',
+        columns: ['Date', 'Description', 'Category', `Amount (${cur})`, '% of Spending'],
+        rows: big.map(t => [isoOk(t.date) ? shortDate(t.date) : '—', t.description || '—', t.category || '—', fmt.money2(t.amt), fmt.pct(fmt.share(t.amt, sumBy(tx, x => x.amt)))]),
+        columnAlign: [null, null, null, 'right', 'right'] });
+    }
+
+    // Detailed PDF / Excel only (v3.26): how the remaining cash is reached, day-by-day and channel spending,
+    // and receipt coverage. Each table appears only when the page supplied what it needs.
+    const reported = tot.remaining !== undefined ? Number(tot.remaining) : (hasNum(i.remaining) ? Number(i.remaining) : null);
+    if (fund !== null) {
+      const calc = fund - spent;
+      const rowsP = [['Opening balance', fmt.money2(Number(i.openingBalance))], ['Add: replenishments', fmt.money2(Number(i.replenishments) || 0)],
+        ['Funds available', fmt.money2(fund)], ['Less: petty cash spent', fmt.money2(spent)], ['Calculated remaining cash', fmt.money2(calc)]];
+      const kindsP = ['line', 'line', 'subtotal', 'line', 'total'];
+      if (reported !== null) {
+        rowsP.push(['Remaining cash reported', fmt.money2(reported)], ['Difference (reported less calculated)', Math.abs(reported - calc) < 0.005 ? fmt.money2(0) : { v: fmt.money2(reported - calc), tone: 'bad' }]);
+        kindsP.push('line', 'line');
+        base.checks = (base.checks || []).concat([{ label: 'Remaining cash: reported vs. opening + replenishments - spent', expected: reported, actual: calc }]);
+      }
+      base.tables.push({ title: 'Cash Position Calculation', sheetName: 'Cash Position', columns: ['Figure', `Amount (${cur})`], rows: rowsP, rowKinds: kindsP,
+        columnAlign: [null, 'right'], statement: true });
+    } else if (reported !== null) {
+      base.notes = (base.notes || []).concat(['No opening balance was supplied, so the remaining cash is shown as reported and could not be rebuilt from the opening balance, replenishments and spending.']);
+    }
+    if (tot.spent !== undefined && tx.length) {
+      base.checks = (base.checks || []).concat([{ label: 'Petty cash spent: summary vs. transaction ledger', expected: spent, actual: sumBy(tx, t => t.amt) }]);
+    }
+
+    if (tx.length) {
+      const byDay = new Map();
+      tx.forEach(t => { const k = isoOk(t.date) ? String(t.date).slice(0, 10) : ''; const g = byDay.get(k) || { n: 0, amt: 0 }; g.n += 1; g.amt += t.amt; byDay.set(k, g); });
+      const dayKeys = Array.from(byDay.keys()).filter(k => k).sort().concat(byDay.has('') ? [''] : []);
+      let run = 0;
+      const showLeft = fund !== null;
+      base.tables.push({ title: 'Spending by Day', sheetName: 'By Day',
+        columns: ['Date', 'Transactions', `Amount (${cur})`, `Running Total (${cur})`].concat(showLeft ? [`Cash Left (${cur})`] : []),
+        rows: dayKeys.map(k => {
+          const g = byDay.get(k); run += g.amt;
+          return [k ? `${shortDate(k)} ${k.slice(0, 4)}` : 'No date', String(g.n), fmt.money2(g.amt), fmt.money2(run)].concat(showLeft ? [fund - run < 0 ? { v: fmt.money2(fund - run), tone: 'bad' } : fmt.money2(fund - run)] : []);
+        }),
+        columnAlign: [null, 'right', 'right', 'right'].concat(showLeft ? ['right'] : []),
+        totalsRow: ['TOTAL', String(tx.length), fmt.money2(sumBy(tx, t => t.amt)), ''].concat(showLeft ? [''] : []) });
+      if (byDay.has('')) base.notes = (base.notes || []).concat([`${plural(byDay.get('').n, 'transaction has', 'transactions have')} no valid date and ${byDay.get('').n === 1 ? 'is' : 'are'} listed last.`]);
+
+      if (tx.some(t => String(t.channel || '').trim())) {
+        const ch = groupSum(tx, t => String(t.channel || '').trim() || 'Not stated', t => t.amt);
+        base.tables.push({ title: 'Spending by Channel', sheetName: 'By Channel',
+          columns: ['Channel', 'Transactions', `Amount (${cur})`, '% of Spending'],
+          rows: ch.map(c => [c.name, String(c.count), fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, sumBy(tx, t => t.amt)))]),
+          columnAlign: [null, 'right', 'right', 'right'],
+          totalsRow: ['TOTAL', String(tx.length), fmt.money2(sumBy(tx, t => t.amt)), sumBy(tx, t => t.amt) ? '100.0%' : '—'] });
+      }
+
+      const hasRef = t => !!String(t.receiptRef || '').trim();
+      const withR = tx.filter(hasRef), without = tx.filter(t => !hasRef(t)), allAmt = sumBy(tx, t => t.amt);
+      base.tables.push({ title: 'Receipt Coverage', sheetName: 'Receipts',
+        columns: ['Receipt Reference', 'Transactions', `Amount (${cur})`, '% of Spending'],
+        rows: [['Recorded', String(withR.length), fmt.money2(sumBy(withR, t => t.amt)), allAmt ? fmt.pct(fmt.share(sumBy(withR, t => t.amt), allAmt)) : '—'],
+          [without.length ? { v: 'Missing', tone: 'warn' } : 'Missing', String(without.length), fmt.money2(sumBy(without, t => t.amt)), allAmt ? fmt.pct(fmt.share(sumBy(without, t => t.amt), allAmt)) : '—']],
+        columnAlign: [null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', String(tx.length), fmt.money2(allAmt), allAmt ? '100.0%' : '—'] });
+      if (without.length) {
+        const wo = without.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || b.amt - a.amt);
+        base.tables.push({ title: 'Transactions Without Receipt Reference', sheetName: 'No Receipt',
+          columns: ['Date', 'Description', 'Category', `Amount (${cur})`],
+          rows: wo.map(t => [isoOk(t.date) ? `${shortDate(t.date)} ${String(t.date).slice(0, 4)}` : '—', t.description || '—', t.category || '—', fmt.money2(t.amt)]),
+          columnAlign: [null, null, null, 'right'],
+          totalsRow: ['TOTAL', plural(wo.length, 'transaction'), '', fmt.money2(sumBy(wo, t => t.amt))] });
+        base.checks = (base.checks || []).concat([{ label: 'Missing receipts: coverage table vs. listed transactions', expected: sumBy(without, t => t.amt), actual: sumBy(wo, t => t.amt) }]);
+      }
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 9. CUSTOMERS — "Who owes us money, how overdue is it, and who should we be worried
+  //    about?"   (one chart only: A/R aging is a bucketed comparison, which a bar shows
+  //    better than a table; everything else is exact numbers or a ranking)
+  //
+  // input: {
+  //   customers: [{ name,
+  //                 revenue?, creditSales?,     // this period, ETB
+  //                 outstanding,                // A/R balance now, ETB
+  //                 terms?: 'Net 30' | 'Cash',  // payment terms
+  //                 daysToPay?,                 // how many days this customer typically takes to pay
+  //                 status?: 'Current'|'Overdue'|'At Risk'|...,   // optional override
+  //                 buckets?: { current, d30, d60, d90 },         // this customer's A/R by age
+  //                 orders?, lastOrder?: '2026-09-21',            // v3.37: how many orders, and the date of the last one
+  //                 previousRevenue? }],                          // v3.37: this customer's revenue last period (growth / lapsed buyers)
+  //   invoices?: [{ customer, amount, days? | invoiceDate?, reference? }],   // open invoices — the aging is
+  //                                                                //   built from these (or from buckets)
+  //   aging?: { current, d30, d60, d90 },         // override the chart's bucket totals
+  //   previousAging?: { current, d30, d60, d90 }, // last month's, enables "bucket growing" insight
+  //   previousOutstanding?, previousRevenue?, previousLabel?,
+  //   asOf?: '2026-09-30',                        // for invoiceDate -> days
+  //   totals?: { customers, revenue, credit, outstanding }
+  // }
+  // Aging buckets are days since the invoice date: Current = under 30 days, then 30+, 60+, 90+.
+  // Status when not supplied: from the customer's oldest open invoice against their terms
+  // (30 days when no terms are given) — Current, Overdue (<30 days past terms) or At Risk.
+  // ---------------------------------------------------------------
+  presets.customers = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Customers', 'Customers Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const asOf = isoOk(i.asOf) ? String(i.asOf).slice(0, 10) : todayISO();
+    const BUCKETS = ['current', 'd30', 'd60', 'd90'];
+    const BUCKET_LABELS = ['Current', '30+ days', '60+ days', '90+ days'];
+    const BUCKET_COLORS = ['#1D5C38', '#C89B3C', '#E67E22', '#C0392B'];
+    const bucketOf = d => d >= 90 ? 'd90' : d >= 60 ? 'd60' : d >= 30 ? 'd30' : 'current';
+    const emptyB = () => ({ current: 0, d30: 0, d60: 0, d90: 0 });
+    const termsDays = t => {
+      const s = String(t || '');
+      if (/cash|prepaid|immediate|cod/i.test(s)) return 0;
+      const m = s.match(/(\d+)/);
+      return m ? Number(m[1]) : null;
+    };
+    const toneOf = s => /risk|critical|default|bad|doubtful|90/i.test(s) ? 'bad'
+      : /overdue|slow|late|watch|warn|60|30/i.test(s) ? 'warn'
+      : /current|good|paid|settled|ok|on time|clear/i.test(s) ? 'good' : 'muted';
+
+    // ---- per-customer figures + aging ----
+    const key = n => String(n || '').trim().toLowerCase();
+    const inv = asArr(i.invoices).map(v => {
+      const days = hasNum(v.days) ? Number(v.days) : (isoOk(v.invoiceDate) ? dayDiff(v.invoiceDate, asOf) : null);
+      return { customer: v.customer, amt: Number(v.amount) || 0, days };
+    });
+    const custs = asArr(i.customers).map(c => {
+      const mine = inv.filter(v => key(v.customer) === key(c.name) && v.days !== null);
+      const b = emptyB();
+      if (c.buckets) BUCKETS.forEach(k => { b[k] = Number(c.buckets[k]) || 0; });
+      else mine.forEach(v => { b[bucketOf(v.days)] += v.amt; });
+      const oldest = mine.length ? Math.max.apply(null, mine.map(v => v.days))
+        : (c.buckets ? (b.d90 > 0 ? 90 : b.d60 > 0 ? 60 : b.d30 > 0 ? 30 : (sumBy(BUCKETS, k => b[k]) > 0 ? 0 : null)) : null);
+      const ordersIn = [c.orders, c.orderCount].find(hasNum);
+      const lastIn = [c.lastOrder, c.lastPurchase, c.lastOrderDate].find(isoOk);
+      return { name: c.name || 'Customer', revenue: Number(c.revenue) || 0, credit: Number(c.creditSales) || 0, out: Number(c.outstanding) || 0,
+        terms: c.terms, daysToPay: hasNum(c.daysToPay) ? Number(c.daysToPay) : null, status: c.status, b, oldest,
+        orders: ordersIn !== undefined ? Number(ordersIn) : null, last: lastIn ? String(lastIn).slice(0, 10) : null,
+        prevRev: hasNum(c.previousRevenue) ? Number(c.previousRevenue) : null };
+    });
+
+    const tot = Object.assign({}, i.totals);
+    const nCust = tot.customers !== undefined ? tot.customers : custs.length;
+    const revenue = tot.revenue !== undefined ? tot.revenue : sumBy(custs, c => c.revenue);
+    const credit = tot.credit !== undefined ? tot.credit : sumBy(custs, c => c.credit);
+    const outstanding = tot.outstanding !== undefined ? tot.outstanding : sumBy(custs, c => c.out);
+    const buying = custs.filter(c => c.revenue > 0).length;
+
+    // Aging totals: explicit override, else the sum of per-customer buckets.
+    let aging = null;
+    if (i.aging) { aging = emptyB(); BUCKETS.forEach(k => { aging[k] = Number(i.aging[k]) || 0; }); }
+    else if (custs.some(c => BUCKETS.some(k => c.b[k] > 0))) {
+      aging = emptyB();
+      custs.forEach(c => BUCKETS.forEach(k => { aging[k] += c.b[k]; }));
+      // Invoices for customers that are not in the customers list still belong in the aging.
+      const known = new Set(custs.map(c => key(c.name)));
+      inv.filter(v => v.days !== null && !known.has(key(v.customer))).forEach(v => { aging[bucketOf(v.days)] += v.amt; });
+    }
+    const agedTotal = aging ? sumBy(BUCKETS, k => aging[k]) : 0;
+    const aged30 = aging ? aging.d30 + aging.d60 + aging.d90 : 0;
+    const aged60 = aging ? aging.d60 + aging.d90 : 0;
+    if (aging && outstanding - agedTotal > 1 && !i.aging) {
+      base.footer.notes = (base.footer.notes || []).concat([
+        `${fmt.money(outstanding - agedTotal)} ${cur} of receivables has no invoice age and is not in the aging chart.`]);
+    }
+
+    const prevOut = hasNum(i.previousOutstanding) ? Number(i.previousOutstanding) : null;
+    const outCh = prevOut ? pctChg(outstanding, prevOut) : null;
+    const revCh = hasNum(i.previousRevenue) && Number(i.previousRevenue) > 0 ? pctChg(revenue, i.previousRevenue) : null;
+    const prevLabel = i.previousLabel || 'last month';
+
+    base.kpis = [
+      { label: 'Total Customers', value: String(nCust), unit: nCust === 1 ? 'customer' : 'customers', color: '#1D5C38',
+        delta: buying ? `${buying} bought this month` : undefined },
+      { label: 'Total Revenue', value: fmt.money(revenue), unit: cur, color: '#2E86DE',
+        delta: revCh === null ? undefined : `${fmt.signedPct(revCh)} vs ${prevLabel}`,
+        deltaTone: revCh === null ? undefined : (revCh < -10 ? 'warn' : (revCh >= 0 ? 'good' : undefined)) },
+      { label: 'Credit Sales', value: fmt.money(credit), unit: cur, color: '#C89B3C',
+        delta: revenue ? `${fmt.pct(fmt.share(credit, revenue), 0)} of revenue` : undefined },
+      { label: 'Outstanding A/R', value: fmt.money(outstanding), unit: cur, color: outstanding && aged60 > 0 ? '#C0392B' : '#8E44AD',
+        delta: outCh !== null ? `${fmt.signedPct(outCh)} vs ${prevLabel}`
+          : (aging && agedTotal ? `${fmt.money(aged30)} ${cur} is 30+ days old` : undefined),
+        deltaTone: outCh !== null ? (outCh > 10 ? 'warn' : (outCh <= 0 ? 'good' : undefined))
+          : (aging && agedTotal ? (aged30 / agedTotal >= 0.25 ? 'warn' : 'good') : undefined) }
+    ];
+
+    // ---- Row 2 left: A/R aging by bucket ----
+    base.charts = [];
+    if (aging && agedTotal > 0) {
+      base.charts.push({ type: 'bar', title: 'A/R Aging by Bucket', subtitle: `${cur} outstanding, by days since invoice`,
+        labels: BUCKET_LABELS, values: BUCKETS.map(k => aging[k]), colors: BUCKET_COLORS });
+    }
+
+    // ---- Debtors ----
+    const termsOf = c => termsDays(c.terms);
+    const statusOf = c => {
+      if (c.status) return { text: String(c.status), tone: toneOf(String(c.status)) };
+      if (c.out <= 0) return { text: 'Settled', tone: 'good' };
+      const td = termsOf(c) === null ? 30 : termsOf(c);
+      if (c.oldest !== null) {
+        const over = c.oldest - td;
+        return over <= 0 ? { text: 'Current', tone: 'good' } : over < 30 ? { text: 'Overdue', tone: 'warn' } : { text: 'At Risk', tone: 'bad' };
+      }
+      if (c.daysToPay !== null && termsOf(c) !== null && c.daysToPay > termsOf(c)) return { text: 'Slow Payer', tone: 'warn' };
+      return { text: 'Open', tone: 'muted' };
+    };
+    const debtors = custs.filter(c => c.out > 0).sort((a, b) => b.out - a.out);
+
+    // ---- Buyers (v3.37): who buys the most, how concentrated revenue is, who has stopped buying ----
+    // The report used to look at customers only as debtors. These answer the other half: the biggest buyers (by revenue
+    // this period), the top-3 share, buyers who also owe, customers who bought last period but not this one, and
+    // (when the page gives orders / last order / previous revenue) order counts, last purchase and growth.
+    const buyers = custs.filter(c => c.revenue > 0).sort((a, b) => b.revenue - a.revenue || String(a.name).localeCompare(String(b.name)));
+    const buyersTotal = sumBy(buyers, c => c.revenue);
+    const buyBase = revenue > 0 ? revenue : buyersTotal;
+    const topN = k => sumBy(buyers.slice(0, k), c => c.revenue);
+    const lapsed = custs.filter(c => c.revenue <= 0 && c.prevRev !== null && c.prevRev > 0).sort((a, b) => b.prevRev - a.prevRev);
+    const buyerIns = [];
+    if (buyers.length && buyBase > 0) {
+      const t1 = buyers[0], s1 = fmt.share(t1.revenue, buyBase);
+      buyerIns.push({ label: s1 >= 40 && buyers.length > 1 ? 'Dependence' : 'Top buyer', color: s1 >= 40 && buyers.length > 1 ? '#8E44AD' : '#1D5C38',
+        text: `${t1.name} is the top buyer: ${fmt.money(t1.revenue)} ${cur}, ${fmt.pct(s1, 0)} of revenue${s1 >= 40 && buyers.length > 1 ? ' — a heavy reliance on one customer' : ''}${t1.out > 0 ? `; still owes ${fmt.money(t1.out)} ${cur}` : ''}.` });
+      if (lapsed.length) {
+        buyerIns.push({ label: 'Lapsed', color: '#C89B3C', text: `${lapsed[0].name}${lapsed.length > 1 ? ` and ${plural(lapsed.length - 1, 'other')}` : ''} bought in ${prevLabel} (${fmt.money(sumBy(lapsed, c => c.prevRev))} ${cur}) but not this period.` });
+      }
+      const movers = custs.filter(c => c.revenue > 0 && c.prevRev !== null && c.prevRev > 0).map(c => ({ name: c.name, was: c.prevRev, now: c.revenue, ch: pctChg(c.revenue, c.prevRev), diff: c.revenue - c.prevRev }));
+      const drop = movers.filter(m => m.ch <= -25).sort((a, b) => a.diff - b.diff)[0];
+      const rise = movers.filter(m => m.ch >= 25).sort((a, b) => b.diff - a.diff)[0];
+      if (drop) buyerIns.push({ label: 'Buying less', color: '#E67E22', text: `${drop.name} bought ${fmt.pct(Math.abs(drop.ch), 0)} less than in ${prevLabel} (${fmt.money(drop.was)} to ${fmt.money(drop.now)} ${cur}).` });
+      if (buyers.length >= 4) {
+        buyerIns.push({ label: 'Buyers', color: '#2E86DE', text: `The top 3 buyers bring ${fmt.pct(fmt.share(topN(3), buyBase), 0)} of revenue; ${buyers.length} customers bought in total.` });
+      }
+      if (rise) buyerIns.push({ label: 'Growing', color: '#1D5C38', text: `${rise.name} is growing: ${fmt.pct(rise.ch, 0)} more than in ${prevLabel} (${fmt.money(rise.was)} to ${fmt.money(rise.now)} ${cur}).` });
+      if (!lapsed.length && nCust > buyers.length && buyers.length > 0) {
+        buyerIns.push({ label: 'Inactive', color: '#6B7280', text: `${nCust - buyers.length} of ${nCust} customers did not buy this period.` });
+      }
+    }
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      if (aging && agedTotal > 0 && aged60 > 0) {
+        warns.push({ label: aging.d90 > 0 ? 'Overdue' : 'Aging', color: aging.d90 > 0 ? '#C0392B' : '#C89B3C',
+          text: `${fmt.money(aged60)} ${cur} (${fmt.pct(fmt.share(aged60, agedTotal), 0)} of A/R) is 60+ days old${aging.d90 > 0 ? `, ${fmt.money(aging.d90)} of it past 90 days` : ''}.` });
+      } else if (aging && agedTotal > 0 && aged30 > 0) {
+        infos.push({ label: 'Aging', color: '#C89B3C', text: `${fmt.money(aged30)} ${cur} (${fmt.pct(fmt.share(aged30, agedTotal), 0)} of A/R) is 30+ days old; nothing is past 60 days.` });
+      }
+      if (aging && i.previousAging) {
+        const grow = BUCKETS.map((k, idx) => ({ k, idx, now: aging[k], was: Number(i.previousAging[k]) || 0 }))
+          .filter(g => g.k !== 'current' && g.was > 0 && g.now > g.was && g.now >= agedTotal * 0.05)
+          .map(g => Object.assign(g, { ch: pctChg(g.now, g.was) })).sort((a, b) => b.ch - a.ch)[0];
+        if (grow && grow.ch >= 25) {
+          warns.push({ label: 'Bucket', color: '#E67E22', text: `The ${BUCKET_LABELS[grow.idx]} bucket grew ${fmt.pct(grow.ch, 0)} versus ${prevLabel} (${fmt.money(grow.was)} to ${fmt.money(grow.now)} ${cur}).` });
+        }
+      }
+      if (outCh !== null) {
+        (outCh > 10 ? warns : infos).push({ label: outCh > 10 ? 'Watch' : 'A/R', color: outCh > 10 ? '#C89B3C' : '#1D5C38',
+          text: `Outstanding A/R is ${fmt.money(outstanding)} ${cur}, ${outCh >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(outCh))} versus ${prevLabel}.` });
+      }
+      if (debtors.length > 1 && outstanding && fmt.share(debtors[0].out, outstanding) >= 40) {
+        warns.push({ label: 'Risk', color: '#8E44AD', text: `${debtors[0].name} owes ${fmt.pct(fmt.share(debtors[0].out, outstanding), 0)} of all receivables (${fmt.money(debtors[0].out)} ${cur}).` });
+      }
+      const slow = custs.filter(c => c.out > 0 && c.daysToPay !== null && termsOf(c) !== null && c.daysToPay > termsOf(c));
+      if (slow.length) {
+        warns.push({ label: 'Slow', color: '#C89B3C', text: `${plural(slow.length, 'customer pays', 'customers pay')} later than their terms${slow.length === 1 ? ` (${slow[0].name}: ${fmt.n(slow[0].daysToPay, 0)} days vs ${termsOf(slow[0])})` : ''}.` });
+      }
+      if (debtors.length) {
+        infos.push({ label: 'Owing', color: '#2E86DE', text: `${plural(debtors.length, 'customer has', 'customers have')} an open balance, out of ${nCust} in total${credit && revenue ? `; credit is ${fmt.pct(fmt.share(credit, revenue), 0)} of sales` : ''}.` });
+      }
+      // v3.37: the page used to be all about debtors. Receivables keep their warnings first, but buyers always get
+      // at least two of the four slots (more when there are few receivable flags).
+      const arIns = warns.concat(infos);
+      const takeB = Math.min(buyerIns.length, Math.max(2, 4 - arIns.length));
+      base.insights = arIns.slice(0, 4 - takeB).concat(buyerIns.slice(0, takeB));
+    }
+
+    // ---- Row 3: aging detail table (biggest balance first) + Top Debtors ----
+    base.tables = [
+      { title: 'Aging Detail', summaryMaxRows: 5,
+        columns: ['Customer', `Outstanding (${cur})`, 'Days to Pay', 'Status', 'Terms'],
+        rows: debtors.map(c => {
+          const st = statusOf(c);
+          return [c.name, fmt.money2(c.out), c.daysToPay === null ? '—' : fmt.n(c.daysToPay, 0), { v: st.text, tone: st.tone }, c.terms || '—'];
+        }),
+        columnAlign: [null, 'right', 'right', null, null],
+        totalsRow: ['TOTAL', fmt.money2(sumBy(debtors, c => c.out)), '', plural(debtors.length, 'customer'), ''] }
+    ];
+    // Detailed PDF / Excel only (v3.18): the aging buckets as exact figures (the chart shows only shape).
+    if (aging && agedTotal > 0) {
+      base.tables.push({ title: 'A/R Aging by Bucket', sheetName: 'Aging Buckets',
+        columns: ['Age', `Amount (${cur})`, '% of Aged A/R'],
+        rows: BUCKETS.map((k, n) => [BUCKET_LABELS[n], fmt.money2(aging[k]), fmt.pct(fmt.share(aging[k], agedTotal))]),
+        columnAlign: [null, 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(agedTotal), '100.0%'] });
+    }
+    // Detailed PDF / Excel only (v3.25): the aging per customer, payment terms against actual behaviour,
+    // revenue and credit sales per customer, and each open invoice. Each appears only when the page passed its data.
+    const dFull = iso => (isoOk(iso) ? `${shortDate(iso)} ${String(iso).slice(0, 4)}` : '—');
+    const agedOf = b => sumBy(BUCKETS, k => b[k]);
+    const known = new Set(custs.map(c => key(c.name)));
+    const ageRows = custs.filter(c => agedOf(c.b) > 0 || c.out > 0).map(c => ({ name: c.name, b: c.b, out: c.out }));
+    const extra = new Map();
+    inv.filter(v => v.days !== null && !known.has(key(v.customer))).forEach(v => {
+      const nm = String(v.customer || 'Unknown customer'), r = extra.get(nm) || { name: nm, b: emptyB(), out: 0 };
+      r.b[bucketOf(v.days)] += v.amt; r.out += v.amt; extra.set(nm, r);
+    });
+    extra.forEach(r => ageRows.push(r));
+    ageRows.sort((a, b) => b.out - a.out || String(a.name).localeCompare(String(b.name)));
+    if (ageRows.some(r => agedOf(r.b) > 0)) {
+      const noAge = ageRows.map(r => Math.max(r.out - agedOf(r.b), 0));
+      const showNoAge = noAge.some(v => v > 1);
+      base.tables.push({ title: 'Customer Aging Detail', sheetName: 'Customer Aging',
+        columns: ['Customer'].concat(BUCKET_LABELS.map(l => `${l} (${cur})`), [`Total (${cur})`], showNoAge ? [`No Invoice Age (${cur})`] : []),
+        rows: ageRows.map((r, n) => {
+          const cells = BUCKETS.map(k => (r.b[k] > 0 ? (k === 'd90' ? { v: fmt.money2(r.b[k]), tone: 'bad' } : (k === 'd60' ? { v: fmt.money2(r.b[k]), tone: 'warn' } : fmt.money2(r.b[k]))) : fmt.money2(0)));
+          return [r.name].concat(cells, [fmt.money2(agedOf(r.b) + (showNoAge ? noAge[n] : 0))], showNoAge ? [fmt.money2(noAge[n])] : []);
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right'].concat(showNoAge ? ['right'] : []),
+        totalsRow: ['TOTAL'].concat(BUCKETS.map(k => fmt.money2(sumBy(ageRows, r => r.b[k]))),
+          [fmt.money2(sumBy(ageRows, r => agedOf(r.b)) + (showNoAge ? sumBy(noAge, v => v) : 0))], showNoAge ? [fmt.money2(sumBy(noAge, v => v))] : []) });
+      if (i.aging) {
+        base.checks = (base.checks || []).concat([{ label: 'Aged A/R: summary vs. customer aging detail', expected: agedTotal, actual: sumBy(ageRows, r => agedOf(r.b)) }]);
+      }
+    }
+
+    const behave = custs.filter(c => c.terms || c.daysToPay !== null);
+    if (behave.length) {
+      const lateOf = c => (c.daysToPay !== null && termsOf(c) !== null ? c.daysToPay - termsOf(c) : null);
+      const showOld = behave.some(c => c.oldest !== null);
+      const sortedB = behave.slice().sort((a, b) => (lateOf(b) === null ? -1e9 : lateOf(b)) - (lateOf(a) === null ? -1e9 : lateOf(a)) || b.out - a.out || String(a.name).localeCompare(String(b.name)));
+      const paying = behave.filter(c => c.daysToPay !== null);
+      base.tables.push({ title: 'Payment Terms and Behaviour', sheetName: 'Payment Behaviour',
+        columns: ['Customer', 'Terms', 'Typical Days to Pay', 'Days Late vs. Terms'].concat(showOld ? ['Oldest Open Invoice (days)'] : [], [`Outstanding (${cur})`, 'Status']),
+        rows: sortedB.map(c => {
+          const l = lateOf(c), st = statusOf(c);
+          return [c.name, c.terms || '—', c.daysToPay === null ? '—' : fmt.n(c.daysToPay, 0),
+            l === null ? '—' : (l > 0 ? { v: `${fmt.n(l, 0)} late`, tone: l >= 15 ? 'bad' : 'warn' } : (l < 0 ? { v: `${fmt.n(Math.abs(l), 0)} early`, tone: 'good' } : 'On time'))]
+            .concat(showOld ? [c.oldest === null ? '—' : String(c.oldest)] : [], [fmt.money2(c.out), { v: st.text, tone: st.tone }]);
+        }),
+        columnAlign: [null, null, 'right', 'right'].concat(showOld ? ['right'] : [], ['right', null]),
+        totalsRow: ['AVERAGE / TOTAL', '', paying.length ? fmt.n(avgOf(paying, c => c.daysToPay), 1) : '—', ''].concat(showOld ? [''] : [], [fmt.money2(sumBy(sortedB, c => c.out)), '']) });
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Days late vs. terms', text: 'The customer\'s typical days to pay less the days allowed by their terms (Cash counts as 0 days). Shown only when both are known. The average in the totals row is the simple average of the customers that have a days-to-pay figure.' }
+      ]);
+    }
+
+    const sellers = custs.filter(c => c.revenue > 0 || c.credit > 0).sort((a, b) => b.revenue - a.revenue || b.credit - a.credit || String(a.name).localeCompare(String(b.name)));
+    if (sellers.length) {
+      const revRows = sumBy(sellers, c => c.revenue);
+      base.tables.push({ title: 'Customer Revenue and Credit Sales', sheetName: 'Revenue and Credit',
+        columns: ['Customer', `Revenue (${cur})`, '% of Revenue', `Credit Sales (${cur})`, 'Credit % of Sales', `Outstanding A/R (${cur})`],
+        rows: sellers.map(c => [c.name, fmt.money2(c.revenue), revRows ? fmt.pct(fmt.share(c.revenue, revRows)) : '—', fmt.money2(c.credit),
+          c.revenue > 0 ? fmt.pct(Math.min(fmt.share(c.credit, c.revenue), 100), 0) : '—', c.out > 0 ? fmt.money2(c.out) : fmt.money2(0)]),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(revRows), revRows ? '100.0%' : '—', fmt.money2(sumBy(sellers, c => c.credit)),
+          revRows ? fmt.pct(Math.min(fmt.share(sumBy(sellers, c => c.credit), revRows), 100), 0) : '—', fmt.money2(sumBy(sellers, c => c.out))] });
+      if (tot.revenue !== undefined) base.checks = (base.checks || []).concat([{ label: 'Revenue: summary vs. customer detail', expected: revenue, actual: revRows }]);
+      if (tot.credit !== undefined) base.checks = (base.checks || []).concat([{ label: 'Credit sales: summary vs. customer detail', expected: credit, actual: sumBy(sellers, c => c.credit) }]);
+    }
+
+    const invDetail = asArr(i.invoices).map(v => {
+      const days = hasNum(v.days) ? Number(v.days) : (isoOk(v.invoiceDate) ? dayDiff(v.invoiceDate, asOf) : null);
+      const c = custs.find(x => key(x.name) === key(v.customer));
+      const td = c ? termsOf(c) : null;
+      return { customer: v.customer || '—', amt: Number(v.amount) || 0, days, date: isoOk(v.invoiceDate) ? String(v.invoiceDate).slice(0, 10) : null,
+        ref: v.reference || v.invoiceNo || v.number || '', past: days !== null && td !== null ? days - td : null };
+    }).filter(v => v.days !== null && v.amt !== 0).sort((a, b) => b.days - a.days || b.amt - a.amt);
+    if (invDetail.length) {
+      const showDate = invDetail.some(v => v.date), showRef = invDetail.some(v => v.ref), showPast = invDetail.some(v => v.past !== null);
+      base.tables.push({ title: 'Open Invoices', sheetName: 'Open Invoices',
+        columns: [].concat(showDate ? ['Invoice Date'] : [], showRef ? ['Reference'] : [], ['Customer', 'Age (days)', 'Bucket'], showPast ? ['Past Terms By (days)'] : [], [`Amount (${cur})`]),
+        rows: invDetail.map(v => [].concat(showDate ? [dFull(v.date)] : [], showRef ? [String(v.ref || '—')] : [], [v.customer,
+          v.days >= 60 ? { v: String(v.days), tone: 'bad' } : (v.days >= 30 ? { v: String(v.days), tone: 'warn' } : String(v.days)), BUCKET_LABELS[BUCKETS.indexOf(bucketOf(v.days))]],
+          showPast ? [v.past === null ? '—' : (v.past > 0 ? { v: String(v.past), tone: 'warn' } : '0')] : [], [fmt.money2(v.amt)])),
+        columnAlign: [].concat(showDate ? [null] : [], showRef ? [null] : [], [null, 'right', null], showPast ? ['right'] : [], ['right']),
+        totalsRow: ['TOTAL', plural(invDetail.length, 'invoice')].concat(
+          new Array([].concat(showDate ? [1] : [], showRef ? [1] : [], [1, 1, 1], showPast ? [1] : []).length - 2).fill(''), [fmt.money2(sumBy(invDetail, v => v.amt))]) });
+      base.checks = (base.checks || []).concat([{ label: 'Outstanding A/R: summary vs. open invoices', expected: outstanding, actual: sumBy(invDetail, v => v.amt) }]);
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Aging buckets', text: 'Days since the invoice date: Current is under 30 days, then 30+, 60+ and 90+ days. "Past terms by" is the invoice age less the days allowed by the customer\'s terms.' }
+      ]);
+    }
+    if (debtors.length) {
+      base.rankedList = { title: 'Top Debtors', maxRows: 4,
+        items: debtors.map((c, idx) => ({ rank: idx + 1, name: c.name,
+          meta: [c.terms, c.oldest !== null ? `oldest ${c.oldest} days` : null].filter(Boolean).join(' · ') || undefined,
+          value: `${fmt.money(c.out)} ${cur}`, sub: `${fmt.pct(fmt.share(c.out, outstanding))} of A/R` })) };
+    }
+
+    // ---- Top Buyers (v3.37) ----
+    // Summary page: a compact ranking in the Row-2 middle slot (shown when there is no second chart). Detailed PDF / Excel:
+    // the full ranking, the revenue concentration and the customers with no purchases, placed first among the detail tables.
+    if (buyers.length) {
+      base.panelTable = { title: 'Top Buyers', sheetName: 'Top Buyers (Summary)', subtitle: 'Who buys the most this period', summaryMaxRows: 5,
+        columns: ['Customer', `Revenue (${cur})`, '% of Rev.'],
+        rows: buyers.map((c, idx) => [idx === 0 ? { v: c.name, bold: true } : c.name, fmt.money(c.revenue), fmt.pct(fmt.share(c.revenue, buyBase))]),
+        columnAlign: [null, 'right', 'right'] };
+
+      const newTables = [];
+      const showOrders = buyers.some(c => c.orders !== null && c.orders > 0);
+      const showLast = buyers.some(c => c.last);
+      const showChg = buyers.some(c => c.prevRev !== null);
+      const showDays = buyers.some(c => c.daysToPay !== null);
+      const cols = ['#', 'Customer', `Revenue (${cur})`, '% of Revenue', 'Cumulative %']
+        .concat(showOrders ? ['Orders', `Avg Order (${cur})`] : [], showChg ? [`vs. ${prevLabel}`] : [], showLast ? ['Last Order'] : [], [`Owes (${cur})`], showDays ? ['Typical Days to Pay'] : []);
+      const owesIdx = cols.indexOf(`Owes (${cur})`);
+      let cum = 0;
+      const withOrders = buyers.filter(c => c.orders !== null && c.orders > 0);
+      newTables.push({ title: 'Top Buyers — Full Ranking', sheetName: 'Top Buyers', additive: [2, owesIdx],
+        columns: cols,
+        rows: buyers.map((c, idx) => {
+          cum += fmt.share(c.revenue, buyBase);
+          const ch = c.prevRev !== null ? (c.prevRev > 0 ? pctChg(c.revenue, c.prevRev) : null) : undefined;
+          const chgCell = c.prevRev === null ? '—' : (c.prevRev === 0 ? { v: 'New', tone: 'good' }
+            : { v: fmt.signedPct(ch, 0), tone: ch <= -25 ? 'bad' : (ch >= 25 ? 'good' : 'muted') });
+          return [String(idx + 1), idx === 0 ? { v: c.name, bold: true } : c.name, fmt.money2(c.revenue), fmt.pct(fmt.share(c.revenue, buyBase)), fmt.pct(Math.min(cum, 100))]
+            .concat(showOrders ? [c.orders !== null && c.orders > 0 ? String(c.orders) : '—', c.orders !== null && c.orders > 0 ? fmt.money2(c.revenue / c.orders) : '—'] : [],
+              showChg ? [chgCell] : [], showLast ? [c.last ? `${shortDate(c.last)} ${c.last.slice(0, 4)}` : '—'] : [],
+              [c.out > 0 ? fmt.money2(c.out) : fmt.money2(0)], showDays ? [c.daysToPay === null ? '—' : fmt.n(c.daysToPay, 0)] : []);
+        }),
+        columnAlign: [null, null, 'right', 'right', 'right'].concat(showOrders ? ['right', 'right'] : [], showChg ? ['right'] : [], showLast ? ['right'] : [], ['right'], showDays ? ['right'] : []),
+        totalsRow: ['', 'TOTAL', fmt.money2(buyersTotal), fmt.pct(fmt.share(buyersTotal, buyBase)), '']
+          .concat(showOrders ? [withOrders.length ? String(sumBy(withOrders, c => c.orders)) : '—', withOrders.length ? fmt.money2(sumBy(withOrders, c => c.revenue) / sumBy(withOrders, c => c.orders)) : '—'] : [],
+            showChg ? [''] : [], showLast ? [''] : [], [fmt.money2(sumBy(buyers, c => c.out))], showDays ? [''] : []) });
+      if (showOrders && withOrders.length < buyers.length) {
+        base.notes = (base.notes || []).concat([`${plural(buyers.length - withOrders.length, 'buyer has', 'buyers have')} no order count recorded; ${buyers.length - withOrders.length === 1 ? 'it is' : 'they are'} left out of the orders totals.`]);
+      }
+
+      if (buyers.length >= 2) {
+        const steps = [1, 3, 5, 10].filter(k => k < buyers.length);
+        newTables.push({ title: 'Revenue Concentration', sheetName: 'Concentration',
+          columns: ['Group', 'Customers', `Revenue (${cur})`, '% of Revenue'],
+          rows: steps.map(k => [k === 1 ? 'Top buyer' : `Top ${k} buyers`, String(k), fmt.money2(topN(k)), fmt.pct(fmt.share(topN(k), buyBase))])
+            .concat([['All buyers', String(buyers.length), fmt.money2(buyersTotal), fmt.pct(fmt.share(buyersTotal, buyBase))],
+              ['Average per buying customer', '', fmt.money2(buyersTotal / buyers.length), '']]),
+          columnAlign: [null, 'right', 'right', 'right'], reconcile: false });
+      }
+
+      const idle = custs.filter(c => c.revenue <= 0).sort((a, b) => (b.prevRev || 0) - (a.prevRev || 0) || b.out - a.out || String(a.name).localeCompare(String(b.name)));
+      if (idle.length) {
+        const showPrev = idle.some(c => c.prevRev !== null), showLastI = idle.some(c => c.last);
+        const idleCols = ['Customer'].concat(showPrev ? [`${prevLabel} Revenue (${cur})`] : [], showLastI ? ['Last Order'] : [], [`Owes (${cur})`]);
+        newTables.push({ title: 'Customers With No Purchases This Period', sheetName: 'No Purchases', additive: [idleCols.length - 1],
+          columns: idleCols,
+          rows: idle.map(c => [c.name].concat(showPrev ? [c.prevRev === null ? '—' : fmt.money2(c.prevRev)] : [],
+            showLastI ? [c.last ? `${shortDate(c.last)} ${c.last.slice(0, 4)}` : '—'] : [], [c.out > 0 ? fmt.money2(c.out) : fmt.money2(0)])),
+          columnAlign: [null].concat(showPrev ? ['right'] : [], showLastI ? ['right'] : [], ['right']),
+          totalsRow: [plural(idle.length, 'customer')].concat(showPrev ? [''] : [], showLastI ? [''] : [], [fmt.money2(sumBy(idle, c => c.out))]) });
+      }
+      base.tables.splice(1, 0, ...newTables);
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Top buyers', text: 'Customers ranked by revenue in the period. The share is of the period\'s total revenue; Cumulative % adds the shares down the ranking, so the row for the third buyer shows what the top three bring together.' },
+        { term: 'Owes', text: 'The customer\'s outstanding A/R balance today, shown beside what they bought so the biggest buyers who also owe money are easy to see.' }
+      ]);
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 10. SUPPLIERS — "Are our suppliers' prices fair, and who are we most dependent on?"
+  //     (no donut by design — supplier comparison needs exact numbers: price vs. market,
+  //     on-time %, not a proportion chart)
+  //
+  // input: {
+  //   purchases: [{ date:'2026-09-03', supplier, quantity, unitPrice?, amount?,   // amount wins
+  //                 item?, ref?,                // v3.19: shown in the detailed purchase table when present
+  //                 paid?,                      // ETB paid so far on this purchase (or status:'Paid')
+  //                 onTime?: bool, delayDays? }],   // delivery record (delayDays <= 0 counts as on time)
+  //   suppliers?: [{ name, onTimePct?, avgPrice?, spend?, quantity?, purchases? }],   // extra detail / overrides
+  //   totalSuppliers?,              // all registered suppliers (default: distinct names seen)
+  //   marketAvg?,                   // ETB per unit; default = weighted average over every supplier
+  //   priceHistory?: [{ date, supplier, price }],   // default: unit prices taken from `purchases`
+  //   unitLabel?: 'kg', product?: 'Blend',
+  //   previousTotal?, previousAvgPrice?, previousLabel?,
+  //   totals?: { suppliers, total, avgPrice, paid }   // override derived figures
+  // }
+  // When no marketAvg is given the "market" is this period's weighted average across all
+  // suppliers, and a footer note says so.
+  // ---------------------------------------------------------------
+  presets.suppliers = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Suppliers', 'Suppliers Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const unit = i.unitLabel || 'kg';
+    const product = i.product || 'Blend';
+    const prevLabel = i.previousLabel || 'last month';
+
+    const sup = new Map();
+    const slot = n => {
+      const k = n || 'Unknown';
+      if (!sup.has(k)) sup.set(k, { name: k, spend: 0, qty: 0, pSpend: 0, pQty: 0, count: 0, paid: 0, otYes: 0, otN: 0, pts: new Map(), rows: [] });
+      return sup.get(k);
+    };
+    const purchases = i.purchases || [];
+    let paidKnown = i.paid !== undefined || (i.totals && i.totals.paid !== undefined);
+    purchases.forEach(p => {
+      const s = slot(p.supplier);
+      const q = Number(p.quantity) || 0;
+      const amt = hasNum(p.amount) ? Number(p.amount) : (hasNum(p.unitPrice) ? q * Number(p.unitPrice) : 0);
+      s.spend += amt; s.qty += q; s.count += 1;
+      if (q > 0) { s.pSpend += amt; s.pQty += q; }
+      if (hasNum(p.paid)) { s.paid += Number(p.paid); paidKnown = true; }
+      else if (/^paid$/i.test(String(p.status || ''))) { s.paid += amt; paidKnown = true; }
+      const ot = p.onTime !== undefined ? !!p.onTime : (hasNum(p.delayDays) ? Number(p.delayDays) <= 0 : null);
+      if (ot !== null) { s.otN += 1; if (ot) s.otYes += 1; }
+      const price = hasNum(p.unitPrice) ? Number(p.unitPrice) : (q > 0 ? amt / q : null);
+      // v3.19: keep the purchase itself for the detailed supplier tables.
+      s.rows.push({ date: p.date, item: p.item || p.description || '', ref: p.ref || p.reference || p.invoice || p.id || '',
+        q, price, amt, paid: hasNum(p.paid) ? Number(p.paid) : (/^paid$/i.test(String(p.status || '')) ? amt : 0),
+        ot, delay: hasNum(p.delayDays) ? Number(p.delayDays) : null });
+      if (price !== null && isoOk(p.date)) {
+        const d = String(p.date).slice(0, 10), cur_ = s.pts.get(d) || { v: 0, w: 0 };
+        const w = q > 0 ? q : 1; cur_.v += price * w; cur_.w += w; s.pts.set(d, cur_);
+      }
+    });
+    asArr(i.suppliers).forEach(x => {
+      if (!x || !x.name) return;
+      const s = slot(x.name);
+      if (hasNum(x.spend) && !s.count) { s.spend = Number(x.spend); s.count = Number(x.purchases) || 0; s.qty = Number(x.quantity) || 0; }
+      if (hasNum(x.avgPrice)) s.avgOverride = Number(x.avgPrice);
+      if (hasNum(x.onTimePct)) s.onTimeOverride = Number(x.onTimePct);
+    });
+    // Manual price history replaces the points taken from the purchases.
+    if (Array.isArray(i.priceHistory) && i.priceHistory.length) {
+      sup.forEach(s => s.pts = new Map());
+      i.priceHistory.forEach(p => {
+        if (!p || !p.supplier || !isoOk(p.date) || !hasNum(p.price)) return;
+        slot(p.supplier).pts.set(String(p.date).slice(0, 10), { v: Number(p.price), w: 1 });
+      });
+    }
+
+    const list = Array.from(sup.values()).map(s => Object.assign(s, {
+      avg: s.avgOverride !== undefined ? s.avgOverride : (s.pQty > 0 ? s.pSpend / s.pQty : null),
+      onTime: s.onTimeOverride !== undefined ? s.onTimeOverride : (s.otN ? (s.otYes / s.otN) * 100 : null)
+    })).sort((a, b) => b.spend - a.spend || String(a.name).localeCompare(String(b.name)));
+    const active = list.filter(s => s.spend > 0 || s.count > 0);
+
+    const tot = Object.assign({}, i.totals);
+    const total = tot.total !== undefined ? tot.total : sumBy(list, s => s.spend);
+    const pSpendAll = sumBy(list, s => s.pSpend), pQtyAll = sumBy(list, s => s.pQty);
+    const avgPrice = tot.avgPrice !== undefined ? Number(tot.avgPrice) : (pQtyAll > 0 ? pSpendAll / pQtyAll : null);
+    const paid = tot.paid !== undefined ? tot.paid : (i.paid !== undefined ? Number(i.paid) : (paidKnown ? sumBy(list, s => s.paid) : null));
+    const nSuppliers = tot.suppliers !== undefined ? tot.suppliers : (hasNum(i.totalSuppliers) ? Number(i.totalSuppliers) : list.length);
+    const market = hasNum(i.marketAvg) ? Number(i.marketAvg) : avgPrice;
+    const marketDerived = !hasNum(i.marketAvg);
+    const vsMarket = s => (s.avg !== null && market) ? pctChg(s.avg, market) : null;
+    const prevTotal = hasNum(i.previousTotal) ? Number(i.previousTotal) : null;
+    const totalCh = prevTotal ? pctChg(total, prevTotal) : null;
+    const priceCh = hasNum(i.previousAvgPrice) && avgPrice !== null ? pctChg(avgPrice, i.previousAvgPrice) : null;
+    const owed = paid !== null ? Math.max(total - paid, 0) : null;
+    const allOt = sumBy(list, s => s.otN) ? (sumBy(list, s => s.otYes) / sumBy(list, s => s.otN)) * 100 : null;
+    if (marketDerived && list.filter(s => s.avg !== null).length > 1) {
+      base.footer.notes = (base.footer.notes || []).concat(['"Market avg." is this period\'s weighted average price across all suppliers.']);
+    }
+
+    base.kpis = [
+      { label: 'Total Suppliers', value: String(nSuppliers), unit: nSuppliers === 1 ? 'supplier' : 'suppliers', color: '#1D5C38',
+        delta: active.length ? `${active.length} supplied this month` : undefined },
+      { label: 'Total Purchases (This Month)', value: fmt.money(total), unit: cur, color: '#2E86DE',
+        delta: totalCh === null ? undefined : `${fmt.signedPct(totalCh)} vs ${prevLabel}` },
+      { label: `Avg. Purchase Price (${product})`, value: avgPrice === null ? '—' : fmt.n(avgPrice, 2), unit: avgPrice === null ? undefined : `${cur} / ${unit}`,
+        color: priceCh !== null && priceCh > 3 ? '#C0392B' : '#C89B3C',
+        delta: priceCh === null ? undefined : `${fmt.signedPct(priceCh)} vs ${prevLabel}`,
+        deltaTone: priceCh === null ? undefined : (priceCh > 3 ? 'warn' : (priceCh <= 0 ? 'good' : undefined)) },
+      { label: 'Amount Paid', value: paid === null ? '—' : fmt.money(paid), unit: paid === null ? undefined : cur, color: '#8E44AD',
+        delta: owed === null ? undefined : (owed > 0.5 ? `${fmt.money(owed)} ${cur} still owed` : 'Fully paid'), deltaTone: owed === null ? undefined : (owed > 0.5 ? 'warn' : 'good') }
+    ];
+
+    // ---- Row 2 left: price trend (the biggest suppliers by spend that have >= 2 price dates) ----
+    const priced = list.filter(s => s.pts.size >= 2).slice(0, 3);
+    base.charts = [];
+    if (priced.length) {
+      const sel = priced.map(s => ({ name: s.name, pts: Array.from(s.pts.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([d, o]) => [d, o.v / o.w]) }));
+      const dates = Array.from(new Set([].concat(...sel.map(s => s.pts.map(p => p[0]))))).sort();
+      const firstShared = sel.map(s => s.pts[0][0]).sort().pop();
+      let start = dates.filter(d => d >= firstShared);
+      if (start.length < 2) start = dates;
+      const priceAt = (pts, d) => { let v = pts[0][1]; for (const p of pts) { if (p[0] <= d) v = p[1]; else break; } return v; };
+      const round2 = v => Math.round(v * 100) / 100;
+      const series = sel.map((s, idx) => ({ label: s.name, color: PALETTE[idx % PALETTE.length], fill: sel.length === 1, values: start.map(d => round2(priceAt(s.pts, d))) }));
+      if (hasNum(i.marketAvg)) series.push({ label: 'Market avg.', color: '#C89B3C', values: start.map(() => round2(Number(i.marketAvg))) });
+      base.charts.push({ type: 'line', title: 'Price Trend', subtitle: `${cur} per ${unit}, by purchase date`, labels: start.map(shortDate), series });
+    }
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      const above = active.filter(s => vsMarket(s) !== null && vsMarket(s) >= 5 && s.spend > 0).sort((a, b) => vsMarket(b) - vsMarket(a));
+      if (above.length && (!marketDerived || list.filter(s => s.avg !== null).length > 1)) {
+        const s = above[0];
+        warns.push({ label: 'Price', color: '#C0392B', text: `${s.name} averages ${fmt.n(s.avg, 2)} ${cur} per ${unit}, ${fmt.pct(vsMarket(s))} above the ${marketDerived ? 'all-supplier' : 'market'} average of ${fmt.n(market, 2)}${above.length > 1 ? ` (${above.length - 1} more supplier${above.length > 2 ? 's' : ''} also above)` : ''}.` });
+      }
+      const hikes = list.map(s => {
+        const pts = Array.from(s.pts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        return pts.length >= 2 ? { s, a: pts[0], b: pts[pts.length - 1], ch: pctChg(pts[pts.length - 1][1].v / pts[pts.length - 1][1].w, pts[0][1].v / pts[0][1].w) } : null;
+      }).filter(h => h && h.ch !== null && h.ch >= 5).sort((x, y) => y.ch - x.ch);
+      if (hikes.length) {
+        const h = hikes[0];
+        warns.push({ label: 'Hike', color: '#C89B3C', text: `${h.s.name} raised its price ${fmt.pct(h.ch)} between ${shortDate(h.a[0])} and ${shortDate(h.b[0])} (${fmt.n(h.a[1].v / h.a[1].w, 2)} to ${fmt.n(h.b[1].v / h.b[1].w, 2)} ${cur} per ${unit}).` });
+      }
+      if (active.length > 1 && total && fmt.share(active[0].spend, total) >= 40) {
+        warns.push({ label: 'Risk', color: '#8E44AD', text: `${active[0].name} supplies ${fmt.pct(fmt.share(active[0].spend, total), 0)} of purchases (${fmt.money(active[0].spend)} ${cur}) — a dependency worth managing.` });
+      }
+      const late = active.filter(s => s.onTime !== null && s.onTime < 80).sort((a, b) => a.onTime - b.onTime);
+      if (late.length) {
+        warns.push({ label: 'Delivery', color: '#C0392B', text: `${late[0].name} delivered on time only ${fmt.pct(late[0].onTime, 0)} of the time${late.length > 1 ? ` (${late.length - 1} more supplier${late.length > 2 ? 's are' : ' is'} below 80%)` : ''}.` });
+      }
+      if (priceCh !== null && Math.abs(priceCh) >= 1) {
+        (priceCh > 3 ? warns : infos).push({ label: priceCh > 3 ? 'Watch' : 'Price', color: priceCh > 3 ? '#C89B3C' : '#1D5C38',
+          text: `The average ${product.toLowerCase()} price is ${fmt.n(avgPrice, 2)} ${cur} per ${unit}, ${priceCh >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(priceCh))} versus ${prevLabel}.` });
+      }
+      if (owed !== null && owed > 0.5) {
+        infos.push({ label: 'Unpaid', color: '#2E86DE', text: `${fmt.money(owed)} ${cur} of this month's purchases is still unpaid (${fmt.pct(fmt.share(owed, total), 0)}).` });
+      }
+      if (!warns.length && !infos.length && active.length) {
+        infos.push({ label: 'Suppliers', color: '#1D5C38', text: `${plural(active.length, 'supplier')} supplied ${fmt.money(total)} ${cur} this month; no price or delivery concerns stand out.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: supplier comparison (by spend) + Top Suppliers by Spend ----
+    const vsCell = s => {
+      const v = vsMarket(s);
+      if (v === null) return '—';
+      return { v: fmt.signedPct(v), tone: v >= 5 ? 'bad' : v >= 2 ? 'warn' : v <= -2 ? 'good' : undefined };
+    };
+    const otCell = s => s.onTime === null ? '—' : { v: fmt.pct(s.onTime, 0), tone: s.onTime < 80 ? 'bad' : s.onTime < 90 ? 'warn' : 'good' };
+    base.tables = [
+      { title: 'Supplier Comparison', summaryMaxRows: 5,
+        columns: ['Supplier', `Avg Price (${cur}/${unit})`, 'vs. Market Avg.', 'On-Time Delivery'],
+        rows: list.map(s => [s.name, s.avg === null ? '—' : fmt.n(s.avg, 2), vsCell(s), otCell(s)]),
+        columnAlign: [null, 'right', 'right', 'right'],
+        totalsRow: ['ALL SUPPLIERS', avgPrice === null ? '—' : fmt.n(avgPrice, 2), hasNum(i.marketAvg) && avgPrice !== null ? fmt.signedPct(pctChg(avgPrice, market)) : '—', allOt === null ? '—' : fmt.pct(allOt, 0)] }
+    ];
+    if (active.length) {
+      base.rankedList = { title: 'Top Suppliers by Spend', maxRows: 4,
+        items: active.map((s, idx) => ({ rank: idx + 1, name: s.name,
+          meta: `${plural(s.count, 'purchase')}${s.qty ? ` · ${qtyFmt(s.qty)} ${unit}` : ''}`,
+          value: `${fmt.money(s.spend)} ${cur}`, sub: `${fmt.pct(fmt.share(s.spend, total))} of spend` })) };
+    }
+
+    // Detailed PDF / Excel only (v3.19): purchases grouped by supplier.
+    // Per-purchase payment columns appear only when at least one purchase carries a payment record
+    // (a bare totals.paid has no per-supplier split to show).
+    const perPaid = purchases.some(p => p && (hasNum(p.paid) || /^paid$/i.test(String(p.status || ''))));
+    if (active.length) {
+      const qtyOf = s => (s.qty > 0 ? qtyFmt(s.qty) : '—');
+      const owedOf = s => Math.max(s.spend - s.paid, 0);
+      base.tables.push({ title: 'Purchases by Supplier', sheetName: 'By Supplier',
+        columns: ['Supplier', 'Purchases', `Quantity (${unit})`, `Total (${cur})`, '% of Spend', `Avg Price (${cur}/${unit})`]
+          .concat(perPaid ? [`Paid (${cur})`, `Owed (${cur})`] : [], ['On-Time Delivery']),
+        rows: active.map(s => [s.name, String(s.count), qtyOf(s), fmt.money2(s.spend), fmt.pct(fmt.share(s.spend, total)), s.avg === null ? '—' : fmt.n(s.avg, 2)]
+          .concat(perPaid ? [fmt.money2(s.paid), owedOf(s) > 0.5 ? { v: fmt.money2(owedOf(s)), tone: 'warn' } : fmt.money2(owedOf(s))] : [], [otCell(s)])),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right'].concat(perPaid ? ['right', 'right'] : [], ['right']),
+        totalsRow: ['ALL SUPPLIERS', String(sumBy(active, s => s.count)), sumBy(active, s => s.qty) > 0 ? qtyFmt(sumBy(active, s => s.qty)) : '—',
+          fmt.money2(total), total ? '100.0%' : '—', avgPrice === null ? '—' : fmt.n(avgPrice, 2)]
+          .concat(perPaid ? [paid === null ? '—' : fmt.money2(paid), owed === null ? '—' : fmt.money2(owed)] : [], [allOt === null ? '—' : fmt.pct(allOt, 0)]) });
+    }
+
+    // Every purchase, grouped under its supplier (biggest spender first), subtotal per supplier.
+    const withRows = active.filter(s => s.rows.length);
+    if (withRows.length) {
+      const hasItem = withRows.some(s => s.rows.some(r => r.item));
+      const hasRef = withRows.some(s => s.rows.some(r => r.ref));
+      const hasDeliv = withRows.some(s => s.otN > 0 || s.rows.some(r => r.ot !== null));
+      const cols = ['Date'].concat(hasItem ? ['Item'] : [], hasRef ? ['Reference'] : [],
+        [`Qty (${unit})`, `Unit Price (${cur}/${unit})`, `Amount (${cur})`], perPaid ? [`Paid (${cur})`] : [], hasDeliv ? ['Delivery'] : []);
+      const align = [null].concat(hasItem ? [null] : [], hasRef ? [null] : [], ['right', 'right', 'right'], perPaid ? ['right'] : [], hasDeliv ? [null] : []);
+      const mk = (c0, item, ref, q, pr, amt, pd, dl) => [c0].concat(hasItem ? [item] : [], hasRef ? [ref] : [], [q, pr, amt], perPaid ? [pd] : [], hasDeliv ? [dl] : []);
+      const dlOf = r => (r.ot === null ? '—' : (r.ot ? { v: 'On time', tone: 'good' }
+        : { v: r.delay !== null && r.delay > 0 ? `${fmt.n(r.delay, 0)} d late` : 'Late', tone: 'bad' }));
+      const avgOf_ = rows => {
+        const wq = sumBy(rows.filter(r => r.q > 0), r => r.q), wa = sumBy(rows.filter(r => r.q > 0), r => r.amt);
+        return wq > 0 ? fmt.n(wa / wq, 2) : '—';
+      };
+      const rowsOut = [], kinds = [];
+      let allRows = [];
+      withRows.forEach(s => {
+        const rs = s.rows.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || b.amt - a.amt);
+        allRows = allRows.concat(rs);
+        rowsOut.push(mk(`${s.name} (${plural(rs.length, 'purchase')})`, '', '', '', '', '', '', '')); kinds.push('section');
+        rs.forEach(r => {
+          rowsOut.push(mk(isoOk(r.date) ? shortDate(r.date) : (r.date ? String(r.date) : '—'), r.item || '—', r.ref || '—',
+            r.q > 0 ? qtyFmt(r.q) : '—', r.price === null ? '—' : fmt.n(r.price, 2), fmt.money2(r.amt), fmt.money2(r.paid), dlOf(r)));
+          kinds.push('line');
+        });
+        const sq = sumBy(rs, r => r.q);
+        rowsOut.push(mk('Subtotal', '', '', sq > 0 ? qtyFmt(sq) : '—', avgOf_(rs), fmt.money2(sumBy(rs, r => r.amt)), fmt.money2(sumBy(rs, r => r.paid)),
+          s.onTime === null ? '' : `${fmt.pct(s.onTime, 0)} on time`)); kinds.push('subtotal');
+      });
+      const gq = sumBy(allRows, r => r.q), gAmt = sumBy(allRows, r => r.amt);
+      rowsOut.push(mk('TOTAL', '', '', gq > 0 ? qtyFmt(gq) : '—', avgOf_(allRows), fmt.money2(gAmt), fmt.money2(sumBy(allRows, r => r.paid)),
+        allOt === null ? '' : `${fmt.pct(allOt, 0)} on time`)); kinds.push('total');
+      base.tables.push({ title: 'Purchase Detail by Supplier', sheetName: 'Supplier Detail', columns: cols, rows: rowsOut, rowKinds: kinds, columnAlign: align });
+      base.checks = (base.checks || []).concat([{ label: 'Total purchases: summary vs. purchase detail by supplier', expected: total, actual: gAmt }]);
+      if (perPaid && paid !== null) {
+        base.checks.push({ label: 'Amount paid: summary vs. purchase detail by supplier', expected: paid, actual: sumBy(allRows, r => r.paid) });
+      }
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 11. LOANS — "What do we owe, when is it due, and are we on track?"
+  //     (NO chart, by design: a loan has a known payoff curve and the repayment schedule shows
+  //     it exactly. Row 2 is Key Insights at full width; Row 3 is two tables side by side — the
+  //     loan register and the repayment schedule — via reportData.summaryTables = 2)
+  //
+  // input: {
+  //   loans: [{ lender, principal, rate,            // rate = annual interest, in %
+  //             termMonths, outstanding,
+  //             interestPaid? }],                   // interest paid to date on this loan
+  //   schedule: [{ lender?, dueDate:'2026-10-12', principal, interest,   // the instalment's two parts
+  //                balanceAfter?,                    // balance after this payment is made
+  //                paid?: bool, paidDate?,
+  //                status?: 'Paid'|'Overdue'|'Due Soon'|'Upcoming' }],    // else derived from the dates
+  //   asOf?: '2026-09-30',          // "today" (default: the current date)
+  //   dueSoonDays?: 7,              // a payment this close is "Due Soon"
+  //   totals?: { outstanding, interestPaid }   // override derived figures
+  // }
+  // Schedule order: payments still to be made, earliest first (overdue ones therefore lead),
+  // then the paid ones, most recent first — so the summary page's first rows are the ones a
+  // person needs before paying. The detailed PDF and Excel carry every row in that order.
+  // When the schedule covers more than one lender, a "Loan" column is added.
+  // ---------------------------------------------------------------
+  presets.loans = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Loans', 'Loans Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const asOf = isoOk(i.asOf) ? String(i.asOf).slice(0, 10) : todayISO();
+    const soon = hasNum(i.dueSoonDays) ? Number(i.dueSoonDays) : 7;
+    const dateFull = iso => isoOk(iso) ? `${shortDate(iso)} ${String(iso).slice(0, 4)}` : '—';
+    const termText = m => !hasNum(m) ? '—' : (Number(m) >= 24 && Number(m) % 12 === 0 ? `${Number(m) / 12} yrs` : `${Number(m)} mo`);
+    const TONE = { Paid: 'good', Overdue: 'bad', 'Due Soon': 'warn', Upcoming: 'muted' };
+
+    const loans = asArr(i.loans).map(l => ({ lender: l.lender || 'Lender', principal: Number(l.principal) || 0, rate: hasNum(l.rate) ? Number(l.rate) : null,
+      term: l.termMonths, out: Number(l.outstanding) || 0, interestPaid: hasNum(l.interestPaid) ? Number(l.interestPaid) : null }));
+
+    const sched = asArr(i.schedule).filter(r => r && isoOk(r.dueDate)).map(r => {
+      const p = Number(r.principal) || 0, n = Number(r.interest) || 0;
+      const due = String(r.dueDate).slice(0, 10);
+      const said = String(r.status || '');
+      let status = /paid/i.test(said) && !/unpaid/i.test(said) ? 'Paid' : /overdue|late/i.test(said) ? 'Overdue'
+        : /soon/i.test(said) ? 'Due Soon' : /upcoming|pending|scheduled/i.test(said) ? null : null;
+      if (!status) {
+        if (r.paid || isoOk(r.paidDate)) status = 'Paid';
+        else {
+          const left = dayDiff(asOf, due);
+          status = left < 0 ? 'Overdue' : left <= soon ? 'Due Soon' : 'Upcoming';
+        }
+      }
+      return { lender: r.lender, due, p, n, pay: hasNum(r.payment) ? Number(r.payment) : p + n, bal: hasNum(r.balanceAfter) ? Number(r.balanceAfter) : null, status, left: dayDiff(asOf, due),
+        paidOn: isoOk(r.paidDate) ? String(r.paidDate).slice(0, 10) : null };
+    });
+    const unpaid = sched.filter(r => r.status !== 'Paid').sort((a, b) => a.due.localeCompare(b.due));
+    const paidRows = sched.filter(r => r.status === 'Paid').sort((a, b) => b.due.localeCompare(a.due));
+    const ordered = unpaid.concat(paidRows);
+    const overdue = sched.filter(r => r.status === 'Overdue').sort((a, b) => a.due.localeCompare(b.due));
+
+    const tot = Object.assign({}, i.totals);
+    const outstanding = tot.outstanding !== undefined ? tot.outstanding : sumBy(loans, l => l.out);
+    const principalAll = sumBy(loans, l => l.principal);
+    // Interest paid to date: the loans' own figures where given; for a loan without one, the interest
+    // on that lender's paid instalments (all paid instalments when no loan gives a figure at all).
+    const keyOf = v => String(v || '').trim().toLowerCase();
+    const fromLoans = loans.some(l => l.interestPaid !== null);
+    const interestPaid = tot.interestPaid !== undefined ? tot.interestPaid
+      : (fromLoans ? sumBy(loans, l => l.interestPaid !== null ? l.interestPaid
+          : sumBy(paidRows.filter(r => keyOf(r.lender) === keyOf(l.lender) || (!r.lender && loans.length === 1)), r => r.n))
+        : sumBy(paidRows, r => r.n));
+    const repaidPct = principalAll > 0 ? Math.min(Math.max((1 - outstanding / principalAll) * 100, 0), 100) : null;
+
+    // Next payment: the earliest not-yet-due instalment (all loans falling on that date are added up).
+    const upcoming = unpaid.filter(r => r.left >= 0);
+    const nextDate = upcoming.length ? upcoming[0].due : null;
+    const nextRows = nextDate ? upcoming.filter(r => r.due === nextDate) : [];
+    const nextAmt = sumBy(nextRows, r => r.pay);
+    const nextLeft = nextRows.length ? nextRows[0].left : null;
+    const nextWho = nextRows.length > 1 ? plural(nextRows.length, 'loan') : (nextRows.length ? (nextRows[0].lender || (loans.length === 1 ? loans[0].lender : '')) : '');
+    const overdueAmt = sumBy(overdue, r => r.pay);
+
+    base.kpis = [
+      { label: 'Total Outstanding Balance', value: fmt.money(outstanding), unit: cur, color: '#1D5C38',
+        delta: repaidPct !== null ? `${fmt.pct(repaidPct, 0)} of principal repaid` : (loans.length ? plural(loans.length, 'loan') : undefined) },
+      { label: 'Total Interest Paid (To Date)', value: fmt.money(interestPaid), unit: cur, color: '#C89B3C',
+        delta: !fromLoans && tot.interestPaid === undefined && paidRows.length ? `Across ${plural(paidRows.length, 'payment')}` : undefined },
+      { label: 'Next Payment Due', value: nextDate ? shortDate(nextDate) : '—', unit: nextDate ? `${fmt.money(nextAmt)} ${cur}` : undefined,
+        color: nextLeft !== null && nextLeft <= soon ? '#C0392B' : '#2E86DE',
+        delta: nextDate ? `${nextLeft === 0 ? 'Due today' : `In ${plural(nextLeft, 'day')}`}${nextWho ? ` · ${nextWho}` : ''}` : 'No payments scheduled',
+        deltaTone: nextLeft !== null && nextLeft <= soon ? 'warn' : undefined },
+      { label: 'Overdue Payments', value: String(overdue.length), unit: overdue.length === 1 ? 'payment' : 'payments', color: overdue.length ? '#C0392B' : '#1D5C38',
+        delta: overdue.length ? `${fmt.money(overdueAmt)} ${cur} overdue` : 'All payments on track', deltaTone: overdue.length ? 'warn' : 'good' }
+    ];
+
+    base.charts = [];   // none, by design
+
+    // ---- Key Insights (full width) — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      const who = r => r.lender ? ` to ${r.lender}` : '';
+      if (overdue.length) {
+        const o = overdue[0];
+        warns.push({ label: 'Overdue', color: '#C0392B', text: `${plural(overdue.length, 'payment is', 'payments are')} overdue (${fmt.money(overdueAmt)} ${cur}) — the oldest, ${fmt.money(o.pay)} ${cur}${who(o)}, was due ${dateFull(o.due)}, ${plural(Math.abs(o.left), 'day')} ago.` });
+      }
+      if (nextDate) {
+        (nextLeft <= soon ? warns : infos).push({ label: 'Next payment', color: nextLeft <= soon ? '#C89B3C' : '#2E86DE',
+          text: `${fmt.money(nextAmt)} ${cur} falls due on ${dateFull(nextDate)} (${nextLeft === 0 ? 'today' : `in ${plural(nextLeft, 'day')}`})${nextRows.length === 1 ? who(nextRows[0]) : ` across ${plural(nextRows.length, 'loan')}`}.` });
+        const in30 = upcoming.filter(r => r.left <= 30);
+        if (in30.length > nextRows.length) {
+          infos.push({ label: 'Next 30 days', color: '#8E44AD', text: `${fmt.money(sumBy(in30, r => r.pay))} ${cur} is due over the next 30 days across ${plural(in30.length, 'payment')}.` });
+        }
+      }
+      if (repaidPct !== null && loans.length) {
+        infos.push({ label: 'Progress', color: '#1D5C38', text: `${fmt.pct(repaidPct, 0)} of the ${fmt.money(principalAll)} ${cur} borrowed has been repaid; ${fmt.money(outstanding)} ${cur} remains${interestPaid ? `, with ${fmt.money(interestPaid)} ${cur} paid in interest so far` : ''}.` });
+      }
+      if (unpaid.length) {
+        const last = unpaid[unpaid.length - 1];
+        const months = Math.max(Math.round(dayDiff(asOf, last.due) / 30.4), 0);
+        if (months > 0) infos.push({ label: 'Payoff', color: '#2E86DE', text: `The schedule runs to ${dateFull(last.due)} — about ${plural(months, 'month')} from now${loans.length === 1 ? '' : ' for the longest loan'}.` });
+      }
+      if (loans.length > 1) {
+        const hi = loans.filter(l => l.rate !== null).sort((a, b) => b.rate - a.rate)[0];
+        if (hi) infos.push({ label: 'Rate', color: '#C89B3C', text: `The highest rate is ${hi.lender} at ${fmt.pct(hi.rate)}, with ${fmt.money(hi.out)} ${cur} outstanding.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: register | schedule (two tables, no ranked list) ----
+    base.summaryTables = 2;
+    base.summaryTableSplit = 0.46;
+    base.tables = [
+      { title: 'Loan Register', summaryMaxRows: 5,
+        columns: ['Lender', `Principal (${cur})`, 'Interest Rate', 'Term', `Outstanding Balance (${cur})`],
+        rows: loans.map(l => [l.lender, fmt.money2(l.principal), l.rate === null ? '—' : fmt.pct(l.rate), termText(l.term), fmt.money2(l.out)]),
+        columnAlign: [null, 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(principalAll), '', '', fmt.money2(outstanding)],
+        additive: [1, 4] } // principal and outstanding balance both add up across loans
+    ];
+    const multi = new Set(sched.map(r => r.lender).filter(Boolean)).size > 1;
+    const rowOf = r => {
+      const cells = [dateFull(r.due)];
+      if (multi) cells.push(r.lender || '—');
+      cells.push(fmt.money2(r.p), fmt.money2(r.n), r.bal === null ? '—' : fmt.money2(r.bal), { v: r.status, tone: TONE[r.status] });
+      return cells;
+    };
+    base.tables.push({ title: 'Repayment Schedule', summaryMaxRows: 6,
+      columns: multi ? ['Due Date', 'Loan', `Principal Portion (${cur})`, `Interest Portion (${cur})`, `Balance After Payment (${cur})`, 'Status']
+        : ['Due Date', `Principal Portion (${cur})`, `Interest Portion (${cur})`, `Balance After Payment (${cur})`, 'Status'],
+      rows: ordered.map(rowOf),
+      columnAlign: multi ? [null, null, 'right', 'right', 'right', null] : [null, 'right', 'right', 'right', null],
+      totalsRow: multi ? ['TOTAL', '', fmt.money2(sumBy(ordered, r => r.p)), fmt.money2(sumBy(ordered, r => r.n)), '', plural(ordered.length, 'payment')]
+        : ['TOTAL', fmt.money2(sumBy(ordered, r => r.p)), fmt.money2(sumBy(ordered, r => r.n)), '', plural(ordered.length, 'payment')] });
+
+    // Detailed PDF / Excel only (v3.22). The register and the full schedule are printed above; these
+    // tables add the per-loan position, the overdue and paid detail, and the forward view.
+    const belongs = (r, l) => keyOf(r.lender) === keyOf(l.lender) || (!r.lender && loans.length === 1);
+    const lenderCell = r => r.lender || (loans.length === 1 ? loans[0].lender : '—');
+    if (loans.length) {
+      const pos = loans.map(l => {
+        const mine = sched.filter(r => belongs(r, l));
+        const repaid = Math.max(l.principal - l.out, 0);
+        const intPaid = l.interestPaid !== null ? l.interestPaid : sumBy(mine.filter(r => r.status === 'Paid'), r => r.n);
+        const nxt = mine.filter(r => r.status !== 'Paid' && r.left >= 0).sort((a, b) => a.due.localeCompare(b.due))[0];
+        const od = mine.filter(r => r.status === 'Overdue');
+        return { l, repaid, intPaid, nxt, odAmt: sumBy(od, r => r.pay), odN: od.length };
+      });
+      const knownInt = pos.every(x => x.l.interestPaid !== null || sched.length);
+      base.tables.push({ title: 'Loan Position by Loan', sheetName: 'Loan Position',
+        columns: ['Lender', `Principal (${cur})`, `Principal Repaid (${cur})`, '% Repaid', `Outstanding (${cur})`, `Interest Paid (${cur})`, 'Next Due', `Overdue (${cur})`],
+        rows: pos.map(x => [x.l.lender, fmt.money2(x.l.principal), fmt.money2(x.repaid), x.l.principal > 0 ? fmt.pct(Math.min(fmt.share(x.repaid, x.l.principal), 100), 0) : '—',
+          fmt.money2(x.l.out), (x.l.interestPaid !== null || sched.length) ? fmt.money2(x.intPaid) : '—', x.nxt ? `${shortDate(x.nxt.due)} (${fmt.money(x.nxt.pay)})` : '—',
+          x.odAmt > 0 ? { v: `${fmt.money2(x.odAmt)} (${x.odN})`, tone: 'bad' } : fmt.money2(0)]),
+        columnAlign: [null, 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(principalAll), fmt.money2(sumBy(pos, x => x.repaid)), principalAll > 0 ? fmt.pct(Math.min(fmt.share(sumBy(pos, x => x.repaid), principalAll), 100), 0) : '—',
+          fmt.money2(sumBy(loans, l => l.out)), knownInt ? fmt.money2(sumBy(pos, x => x.intPaid)) : '—', '', fmt.money2(overdueAmt)] });
+      if (knownInt) {
+        base.checks = (base.checks || []).concat([{ label: 'Interest paid: summary vs. per-loan detail', expected: interestPaid, actual: sumBy(pos, x => x.intPaid) }]);
+      }
+      if (sched.length) {
+        base.checks = (base.checks || []).concat([{ label: 'Outstanding balance: summary vs. principal still to pay in the schedule', expected: outstanding, actual: sumBy(unpaid, r => r.p) }]);
+      }
+    }
+
+    if (overdue.length) {
+      base.tables.push({ title: 'Overdue Payments', sheetName: 'Overdue',
+        columns: ['Due Date'].concat(multi ? ['Loan'] : [], [`Principal (${cur})`, `Interest (${cur})`, `Total Due (${cur})`, 'Days Overdue']),
+        rows: overdue.map(r => [dateFull(r.due)].concat(multi ? [lenderCell(r)] : [], [fmt.money2(r.p), fmt.money2(r.n), fmt.money2(r.pay), { v: String(Math.abs(r.left)), tone: 'bad' }])),
+        columnAlign: [null].concat(multi ? [null] : [], ['right', 'right', 'right', 'right']),
+        totalsRow: ['TOTAL'].concat(multi ? [plural(overdue.length, 'payment')] : [], [fmt.money2(sumBy(overdue, r => r.p)), fmt.money2(sumBy(overdue, r => r.n)), fmt.money2(overdueAmt), multi ? '' : plural(overdue.length, 'payment')]) });
+      base.checks = (base.checks || []).concat([{ label: 'Overdue amount: summary vs. overdue payments table', expected: overdueAmt, actual: sumBy(overdue, r => r.pay) }]);
+    }
+
+    if (paidRows.length) {
+      const hasPaidOn = paidRows.some(r => r.paidOn);
+      const late = r => (r.paidOn ? dayDiff(r.due, r.paidOn) : null);
+      const lateCell = r => {
+        const d = late(r);
+        return d === null ? '—' : (d > 0 ? { v: `${d} late`, tone: 'bad' } : (d < 0 ? { v: `${Math.abs(d)} early`, tone: 'good' } : 'On time'));
+      };
+      const pm = paidRows.slice().sort((a, b) => a.due.localeCompare(b.due));
+      base.tables.push({ title: 'Payments Made', sheetName: 'Payments Made',
+        columns: ['Due Date'].concat(hasPaidOn ? ['Paid On'] : [], multi ? ['Loan'] : [], [`Principal (${cur})`, `Interest (${cur})`, `Total Paid (${cur})`], hasPaidOn ? ['Days (early / late)'] : []),
+        rows: pm.map(r => [dateFull(r.due)].concat(hasPaidOn ? [r.paidOn ? dateFull(r.paidOn) : '—'] : [], multi ? [lenderCell(r)] : [],
+          [fmt.money2(r.p), fmt.money2(r.n), fmt.money2(r.pay)], hasPaidOn ? [lateCell(r)] : [])),
+        columnAlign: [null].concat(hasPaidOn ? [null] : [], multi ? [null] : [], ['right', 'right', 'right'], hasPaidOn ? ['right'] : []),
+        totalsRow: ['TOTAL'].concat(hasPaidOn ? [''] : [], multi ? [plural(pm.length, 'payment')] : [], [fmt.money2(sumBy(pm, r => r.p)), fmt.money2(sumBy(pm, r => r.n)), fmt.money2(sumBy(pm, r => r.pay))], hasPaidOn ? [multi ? '' : plural(pm.length, 'payment')] : []) });
+    }
+
+    if (unpaid.length) {
+      const byM = new Map();
+      unpaid.forEach(r => {
+        const k = r.due.slice(0, 7), m = byM.get(k) || { n: 0, p: 0, i: 0, od: 0 };
+        m.n += 1; m.p += r.p; m.i += r.n; if (r.status === 'Overdue') m.od += r.pay; byM.set(k, m);
+      });
+      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const hasOd = Array.from(byM.values()).some(m => m.od > 0);
+      base.tables.push({ title: 'Still to Pay by Month', sheetName: 'Still to Pay',
+        columns: ['Month', 'Payments', `Principal (${cur})`, `Interest (${cur})`, `Total (${cur})`].concat(hasOd ? [`Of Which Overdue (${cur})`] : []),
+        rows: Array.from(byM.keys()).sort().map(k => {
+          const m = byM.get(k);
+          return [`${MON[Number(k.slice(5, 7)) - 1]} ${k.slice(0, 4)}`, String(m.n), fmt.money2(m.p), fmt.money2(m.i), fmt.money2(m.p + m.i)]
+            .concat(hasOd ? [m.od > 0 ? { v: fmt.money2(m.od), tone: 'bad' } : fmt.money2(0)] : []);
+        }),
+        columnAlign: ['', 'right', 'right', 'right', 'right'].map(a => a || null).concat(hasOd ? ['right'] : []),
+        totalsRow: ['TOTAL', String(unpaid.length), fmt.money2(sumBy(unpaid, r => r.p)), fmt.money2(sumBy(unpaid, r => r.n)), fmt.money2(sumBy(unpaid, r => r.pay))].concat(hasOd ? [fmt.money2(overdueAmt)] : []) });
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Overdue', text: `An unpaid instalment whose due date is before ${dateFull(asOf)}.` },
+        { term: 'Due soon', text: `An unpaid instalment due within ${plural(soon, 'day')} of ${dateFull(asOf)}.` }
+      ]);
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 12. PROFIT DISTRIBUTION — "How much cash can we actually distribute, and how is it
+  //     split between owners?"   (both charts kept by design: the cash in/out trend is a real
+  //     trend question, and the shareholder split is a real, fixed-ratio proportion — the
+  //     80/20 ownership — not decoration)
+  //
+  // input: {
+  //   trend?: [{ label:'Jun', cashIn, cashOut }],        // cash in vs. cash out per period
+  //   daily?: [{ date:'2026-09-03', cashIn, cashOut }],   // ...or per-day rows (quiet days = 0)
+  //   netCashProfit?,            // else total cash in - total cash out from trend / daily
+  //   distributable?,            // the amount the page says can be paid out
+  //   closingCash?,
+  //   ownerInjections?,          // else the sum of `injections`
+  //   injections?: [{ date, owner, amount }],
+  //   previousDistributable?, previousInjections?, previousLabel?,   // for the "vs. last month" notes
+  //   shareholders: [{ name, sharePct }],                 // ownership split, e.g. 80 / 20
+  //   distributions: [{ date, shareholder, pct?, amount,  // the distribution record
+  //                     status?: 'Paid'|'Approved'|'Pending'|'Cancelled' }],
+  //   calculation?: [{ label, amount?, note?,             // v3.19: the BMS's own steps for the
+  //                    kind?: 'line'|'subtotal'|'total'|'section'|'note'|'pct' }],   // distributable amount
+  //   closingCashByChannel?: [{ channel, amount }],       // v3.19: Cash / Bank / Mobile ...
+  //   totals?: { netCashProfit, distributable, closingCash, ownerInjections }   // override
+  // }
+  // v3.19 (detailed PDF / Excel only): the BMS owns the distributable-amount logic. When it passes
+  // `calculation`, the engine prints those steps as given. Without it the engine only lays out the
+  // figures it was handed (cash in, cash out, net cash profit, distributable, closing cash) and
+  // never invents an intermediate step.
+  // A figure the page does not supply shows as "—" rather than being guessed. The donut uses
+  // the shareholders' ownership shares; without them it falls back to each shareholder's
+  // distributed amount. Cancelled distributions stay in the history table (marked) but are not
+  // counted in its total.
+  // ---------------------------------------------------------------
+  presets.profit = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Profit Distribution', 'Profit Distribution Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const num = v => (hasNum(v) ? Number(v) : null);
+    const lower = s => String(s || '').trim().toLowerCase();
+    const dateFull = iso => isoOk(iso) ? `${shortDate(iso)} ${String(iso).slice(0, 4)}` : '—';
+    const pctText = p => p === null ? '—' : fmt.pct(p, Number.isInteger(p) ? 0 : 1);
+    const prevLabel = i.previousLabel || 'last month';
+
+    // ---- cash in vs. cash out, per period ----
+    let periods = [];
+    if (Array.isArray(i.trend) && i.trend.length) {
+      periods = i.trend.map((p, idx) => ({ label: String(p.label !== undefined && p.label !== null ? p.label : idx + 1),
+        cashIn: Number(p.cashIn) || 0, cashOut: Number(p.cashOut) || 0 }));
+    } else if (Array.isArray(i.daily) && i.daily.length) {
+      const ins = dailySeries(i.daily, r => r.date, r => r.cashIn);
+      const outs = dailySeries(i.daily, r => r.date, r => r.cashOut);
+      periods = ins.labels.map((l, k) => ({ label: l, cashIn: ins.values[k], cashOut: outs.values[k] }));
+    }
+    const totalIn = sumBy(periods, p => p.cashIn);
+    const totalOut = sumBy(periods, p => p.cashOut);
+
+    // ---- the four headline figures ----
+    const tot = Object.assign({}, i.totals);
+    const injections = asArr(i.injections).filter(x => x && hasNum(x.amount)).map(x => ({ date: x.date, owner: x.owner, amt: Number(x.amount) }));
+    const netProfit = tot.netCashProfit !== undefined ? num(tot.netCashProfit)
+      : hasNum(i.netCashProfit) ? Number(i.netCashProfit) : (periods.length ? totalIn - totalOut : null);
+    const distributable = tot.distributable !== undefined ? num(tot.distributable) : num(i.distributable);
+    const closing = tot.closingCash !== undefined ? num(tot.closingCash) : num(i.closingCash);
+    const injected = tot.ownerInjections !== undefined ? num(tot.ownerInjections)
+      : hasNum(i.ownerInjections) ? Number(i.ownerInjections) : (injections.length ? sumBy(injections, x => x.amt) : null);
+    const prevDist = num(i.previousDistributable);
+    const prevInj = num(i.previousInjections);
+    const distChange = distributable !== null && prevDist !== null ? pctChg(distributable, prevDist) : null;
+
+    // ---- the distribution record ----
+    const shareholders = asArr(i.shareholders).filter(s => s && s.name).map(s => ({ name: String(s.name), pct: num(s.sharePct) }));
+    const normStatus = s => {
+      const t = String(s || '').trim();
+      if (!t) return '';
+      if (/cancel|reject|void/i.test(t)) return 'Cancelled';
+      if (/unpaid|pend|draft|open|due/i.test(t)) return 'Pending';
+      if (/paid|complete|distributed|done|settled/i.test(t)) return 'Paid';
+      if (/approv|schedul/i.test(t)) return 'Approved';
+      return t;
+    };
+    const TONE = { Paid: 'good', Approved: 'info', Pending: 'warn', Cancelled: 'muted' };
+    const dists = asArr(i.distributions).map(d => {
+      const who = d.shareholder || d.shareholderName || 'Shareholder';
+      const owner = shareholders.find(s => lower(s.name) === lower(who));
+      return { date: d.date, who, amt: Number(d.amount) || 0, status: normStatus(d.status),
+        pct: hasNum(d.pct) ? Number(d.pct) : (owner ? owner.pct : null) };
+    });
+    const live = dists.filter(d => d.status !== 'Cancelled');
+    const cancelled = dists.length - live.length;
+    const pending = dists.filter(d => d.status === 'Pending');
+
+    base.kpis = [
+      { label: 'Net Cash Profit', value: netProfit === null ? '—' : fmt.money(netProfit), unit: netProfit === null ? undefined : cur,
+        color: netProfit !== null && netProfit < 0 ? '#C0392B' : '#1D5C38',
+        delta: periods.length ? `${fmt.money(totalIn)} in · ${fmt.money(totalOut)} out` : undefined },
+      { label: 'Distributable Amount', value: distributable === null ? '—' : fmt.money(distributable), unit: distributable === null ? undefined : cur,
+        color: '#C89B3C',
+        delta: distChange !== null ? `${fmt.signedPct(distChange)} vs ${prevLabel}`
+          : (distributable !== null && netProfit > 0 ? `${fmt.pct(fmt.share(distributable, netProfit), 0)} of net cash profit` : undefined),
+        deltaTone: distChange === null ? undefined : (distChange >= 0 ? 'good' : 'warn') },
+      { label: 'Closing Cash', value: closing === null ? '—' : fmt.money(closing), unit: closing === null ? undefined : cur,
+        color: closing !== null && closing < 0 ? '#C0392B' : '#2E86DE',
+        delta: closing !== null && distributable !== null
+          ? (closing >= distributable ? 'Covers the distributable amount' : `${fmt.money(distributable - closing)} ${cur} short of distributable`) : undefined,
+        deltaTone: closing !== null && distributable !== null ? (closing >= distributable ? 'good' : 'warn') : undefined },
+      { label: 'Owner Injections', value: injected === null ? '—' : fmt.money(injected), unit: injected === null ? undefined : cur,
+        color: '#8E44AD',
+        delta: injections.length ? plural(injections.length, 'injection') : undefined }
+    ];
+
+    // ---- Row 2: cash in vs. out (line; bars when there is only one period) + shareholder split (donut) ----
+    base.charts = [];
+    if (periods.length) {
+      const series = [
+        { label: 'Cash In', values: periods.map(p => p.cashIn), color: '#1D5C38' },
+        { label: 'Cash Out', values: periods.map(p => p.cashOut), color: '#C0392B' }
+      ];
+      base.charts.push({ type: periods.length >= 2 ? 'line' : 'bar', title: 'Cash In vs. Cash Out Trend', subtitle: `${cur} per period`,
+        labels: periods.map(p => p.label), series });
+    }
+    let slices = [];
+    if (shareholders.length >= 2 && shareholders.every(s => s.pct !== null && s.pct > 0)) {
+      slices = shareholders.map(s => ({ name: `${s.name} (${pctText(s.pct)})`, value: s.pct }));
+    } else {
+      const byOwner = groupSum(live.filter(d => d.amt > 0), d => d.who, d => d.amt);
+      if (byOwner.length >= 2) slices = byOwner.map(o => ({ name: o.name, value: o.amount }));
+    }
+    if (slices.length >= 2) {
+      const ratio = shareholders.length >= 2 && shareholders.every(s => s.pct !== null) ? shareholders.map(s => pctText(s.pct).replace('%', '')).join(' / ') : null;
+      base.charts.push({ type: 'doughnut', title: 'Distribution Split by Shareholder', labels: slices.map(s => s.name), values: slices.map(s => s.value),
+        colors: PALETTE,
+        centerLabel: distributable !== null ? { top: 'Distributable', value: fmt.money(distributable), bottom: cur }
+          : (ratio ? { top: 'Ownership', value: ratio, bottom: '%' } : undefined) });
+    }
+
+    // ---- Key Insights — warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      if (netProfit !== null && netProfit <= 0) {
+        warns.push({ label: 'No profit', color: '#C0392B', text: `Cash going out exceeded cash coming in by ${fmt.money(Math.abs(netProfit))} ${cur}, so there is no cash profit to distribute this period.` });
+      }
+      if (distributable !== null && closing !== null && distributable > closing) {
+        warns.push({ label: 'Cash short', color: '#C0392B', text: `The distributable amount (${fmt.money(distributable)} ${cur}) is more than the cash on hand (${fmt.money(closing)} ${cur}) — paying it all out would overdraw the business.` });
+      }
+      if (distChange !== null && distChange <= -10) {
+        warns.push({ label: 'Down', color: '#C89B3C', text: `The distributable amount is down ${fmt.pct(Math.abs(distChange))} from ${prevLabel} (${fmt.money(prevDist)} to ${fmt.money(distributable)} ${cur}).` });
+      } else if (distChange !== null && distChange >= 10) {
+        infos.push({ label: 'Up', color: '#1D5C38', text: `The distributable amount is up ${fmt.pct(distChange)} on ${prevLabel} (${fmt.money(prevDist)} to ${fmt.money(distributable)} ${cur}).` });
+      }
+      if (injected !== null && injected > 0) {
+        const bigInj = injections.slice().sort((a, b) => b.amt - a.amt)[0];
+        const whoDid = bigInj && bigInj.owner ? `, the largest from ${bigInj.owner}${isoOk(bigInj.date) ? ` on ${dateFull(bigInj.date)}` : ''}` : '';
+        if (prevInj !== null && injected > prevInj * 1.5) {
+          warns.push({ label: 'Injection', color: '#8E44AD', text: `Owner injections are ${fmt.money(injected)} ${cur}, up from ${fmt.money(prevInj)} ${cur} in ${prevLabel}${whoDid}.` });
+        } else if (totalIn > 0 && fmt.share(injected, totalIn) >= 20) {
+          warns.push({ label: 'Injection', color: '#8E44AD', text: `Owner injections of ${fmt.money(injected)} ${cur} equal ${fmt.pct(fmt.share(injected, totalIn), 0)} of this period's cash in${whoDid}.` });
+        } else {
+          infos.push({ label: 'Injection', color: '#8E44AD', text: `Owners put in ${fmt.money(injected)} ${cur} this period${whoDid}.` });
+        }
+      }
+      if (pending.length) {
+        warns.push({ label: 'Pending', color: '#C89B3C', text: `${plural(pending.length, 'distribution is', 'distributions are')} still pending (${fmt.money(sumBy(pending, d => d.amt))} ${cur}).` });
+      }
+      if (distributable !== null && distributable > 0 && shareholders.length >= 2 && shareholders.every(s => s.pct !== null)) {
+        infos.push({ label: 'Split', color: '#2E86DE', text: `At the current ownership split, ${fmt.money(distributable)} ${cur} divides as ${shareholders.slice(0, 3).map(s => `${s.name} ${pctText(s.pct)} (${fmt.money(distributable * s.pct / 100)} ${cur})`).join(', ')}.` });
+      }
+      const lossPeriods = periods.filter(p => p.cashOut > p.cashIn).length;
+      if (periods.length >= 3 && lossPeriods > 0 && !(netProfit !== null && netProfit <= 0)) {
+        infos.push({ label: 'Trend', color: '#2E86DE', text: `Cash out was higher than cash in in ${lossPeriods} of ${periods.length} periods.` });
+      }
+      base.insights = warns.concat(infos).slice(0, 4);
+    }
+
+    // ---- Row 3: the exact distribution record (newest first) ----
+    const hist = dists.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    base.tables = [
+      { title: 'Distribution History', summaryMaxRows: 6,
+        columns: ['Date', 'Shareholder', 'Distribution %', `Amount (${cur})`, 'Status'],
+        rows: hist.map(d => [dateFull(d.date), d.who, pctText(d.pct), fmt.money2(d.amt),
+          d.status ? { v: d.status, tone: TONE[d.status] } : '—']),
+        columnAlign: [null, null, 'right', 'right', null],
+        totalsRow: ['TOTAL', plural(live.length, 'distribution'), '', fmt.money2(sumBy(live, d => d.amt)), ''],
+        reconcile: false // the total leaves out cancelled rows that the table still lists, so rows != total by design
+      }
+    ];
+    if (cancelled) {
+      base.footer.notes = (base.footer.notes || []).concat([`${plural(cancelled, 'cancelled distribution is', 'cancelled distributions are')} listed but not counted in the total.`]);
+    }
+
+    // ---- Detailed PDF / Excel only (v3.19) ----
+    // 1) How the distributable amount comes about.
+    const calcRows = [], calcKinds = [];
+    const addCalc = (kind, label, amount, basis) => {
+      calcRows.push([label, amount === null ? (kind === 'section' || kind === 'note' ? '' : '—') : fmt.money2(amount), basis || '']);
+      calcKinds.push(kind);
+    };
+    if (Array.isArray(i.calculation) && i.calculation.length) {
+      const KINDS = ['line', 'subtotal', 'total', 'section', 'note', 'pct'];
+      i.calculation.forEach(st => {
+        if (!st || !st.label) return;
+        addCalc(KINDS.indexOf(st.kind) >= 0 ? st.kind : 'line', String(st.label), hasNum(st.amount) ? Number(st.amount) : null, st.note ? String(st.note) : '');
+      });
+    } else if (netProfit !== null || distributable !== null || closing !== null || periods.length) {
+      if (periods.length) {
+        addCalc('line', 'Total cash in', totalIn, plural(periods.length, 'period') + ' of cash movements');
+        addCalc('line', 'Less: total cash out', -totalOut, '');
+      }
+      const netDerived = periods.length && netProfit !== null && Math.abs(netProfit - (totalIn - totalOut)) <= 1;
+      addCalc('subtotal', 'Net cash profit', netProfit,
+        netProfit === null ? 'Not supplied' : (netDerived ? 'Cash in less cash out'
+          : (periods.length ? 'As reported by the BMS (differs from cash in less cash out)' : 'As reported by the BMS')));
+      addCalc('total', 'Distributable amount', distributable,
+        distributable === null ? 'Not supplied'
+          : `As reported by the BMS${netProfit !== null && netProfit > 0 ? ` (${fmt.pct(fmt.share(distributable, netProfit), 0)} of net cash profit)` : ''}`);
+      addCalc('line', 'Closing cash', closing, closing === null ? 'Not supplied' : '');
+      if (closing !== null && distributable !== null) {
+        addCalc('subtotal', 'Closing cash less distributable amount', closing - distributable,
+          closing >= distributable ? 'Cash covers the distributable amount' : 'Cash does not cover the distributable amount');
+      }
+      if (injected !== null) addCalc('line', 'Owner injections in the period (for reference)', injected, 'Shown separately; not added or subtracted in this table');
+      if (dists.length) {
+        addCalc('line', 'Distributions recorded (cancelled excluded)', sumBy(live, d => d.amt), plural(live.length, 'distribution'));
+        if (pending.length) addCalc('line', 'of which still pending', sumBy(pending, d => d.amt), plural(pending.length, 'distribution'));
+      }
+    }
+    base.tables = base.tables || [];
+    if (calcRows.length) {
+      base.tables.push({ title: 'Distributable Amount Calculation', sheetName: 'Calculation',
+        columns: ['Step', `Amount (${cur})`, 'Basis'], rows: calcRows, rowKinds: calcKinds,
+        columnAlign: [null, 'right', null], statement: true });
+    }
+
+    // 2) The ownership split against what has actually been recorded.
+    if (shareholders.length) {
+      const allPct = shareholders.every(s => s.pct !== null);
+      const pctSum = sumBy(shareholders, s => s.pct);
+      const known = new Set(shareholders.map(s => lower(s.name)));
+      const stray = live.filter(d => !known.has(lower(d.who)));
+      base.tables.push({ title: 'Shareholder Split', sheetName: 'Shareholders',
+        columns: ['Shareholder', 'Ownership %', `Share of Distributable (${cur})`, `Recorded Distributions (${cur})`, `Of Which Pending (${cur})`],
+        rows: shareholders.map(s => {
+          const mine = live.filter(d => lower(d.who) === lower(s.name));
+          return [s.name, pctText(s.pct), distributable !== null && s.pct !== null ? fmt.money2(distributable * s.pct / 100) : '—',
+            fmt.money2(sumBy(mine, d => d.amt)), fmt.money2(sumBy(mine.filter(d => d.status === 'Pending'), d => d.amt))];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', allPct ? pctText(pctSum) : '—', distributable !== null && allPct ? fmt.money2(distributable * pctSum / 100) : '—',
+          fmt.money2(sumBy(live, d => d.amt)), fmt.money2(sumBy(pending, d => d.amt))] });
+      const notes = [];
+      if (allPct && Math.abs(pctSum - 100) > 0.01) notes.push(`Ownership shares add up to ${pctText(pctSum)}, not 100%.`);
+      if (stray.length) notes.push(`${plural(stray.length, 'distribution is', 'distributions are')} recorded for a shareholder who is not in the ownership list (${fmt.money2(sumBy(stray, d => d.amt))} ${cur}).`);
+      if (notes.length) base.footer.notes = (base.footer.notes || []).concat(notes);
+    }
+
+    // 3) Cash in vs. cash out as exact figures (the chart shows only the shape).
+    if (periods.length) {
+      let labels = periods.map(p => p.label);
+      if (!(Array.isArray(i.trend) && i.trend.length)) {
+        const ds = asArr(i.daily).map(r => String((r && r.date) || '').slice(0, 10)).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+        if (ds.length) {
+          const out = [], d = new Date(ds[0] + 'T00:00:00Z'), end = new Date(ds[ds.length - 1] + 'T00:00:00Z');
+          while (d <= end) { out.push(shortDate(d.toISOString().slice(0, 10))); d.setUTCDate(d.getUTCDate() + 1); }
+          if (out.length === periods.length) labels = out;
+        }
+      }
+      const netCell = v => (v < 0 ? { v: fmt.money2(v), tone: 'bad' } : fmt.money2(v));
+      base.tables.push({ title: 'Cash In vs. Cash Out by Period', sheetName: 'Cash In-Out',
+        columns: ['Period', `Cash In (${cur})`, `Cash Out (${cur})`, `Net (${cur})`],
+        rows: periods.map((p, k) => [labels[k], fmt.money2(p.cashIn), fmt.money2(p.cashOut), netCell(p.cashIn - p.cashOut)]),
+        columnAlign: [null, 'right', 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(totalIn), fmt.money2(totalOut), netCell(totalIn - totalOut)],
+        additive: [1, 2, 3] });
+      if (tot.netCashProfit !== undefined || hasNum(i.netCashProfit)) {
+        base.checks = (base.checks || []).concat([{ label: 'Net cash profit: summary vs. cash in less cash out', expected: netProfit, actual: totalIn - totalOut }]);
+      }
+    }
+
+    // 4) Owner injections, one line each.
+    if (injections.length) {
+      const inj = injections.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      base.tables.push({ title: 'Owner Injections', sheetName: 'Injections',
+        columns: ['Date', 'Owner', `Amount (${cur})`],
+        rows: inj.map(x => [dateFull(x.date), x.owner || '—', fmt.money2(x.amt)]),
+        columnAlign: [null, null, 'right'],
+        totalsRow: ['TOTAL', plural(inj.length, 'injection'), injected === null ? '—' : fmt.money2(injected)] });
+    }
+
+    // 5) Closing cash by channel — only when the page supplies it.
+    const chan = (Array.isArray(i.closingCashByChannel) ? i.closingCashByChannel : []).filter(c => c && c.channel && hasNum(c.amount));
+    if (chan.length) {
+      base.tables.push({ title: 'Closing Cash by Channel', sheetName: 'Closing Cash',
+        columns: ['Channel', `Closing Cash (${cur})`],
+        rows: chan.map(c => [String(c.channel), Number(c.amount) < 0 ? { v: fmt.money2(c.amount), tone: 'bad' } : fmt.money2(c.amount)]),
+        columnAlign: [null, 'right'],
+        totalsRow: ['TOTAL', closing !== null ? fmt.money2(closing) : fmt.money2(sumBy(chan, c => c.amount))] });
+      if (closing !== null) {
+        base.checks = (base.checks || []).concat([{ label: 'Closing cash: summary vs. channel detail', expected: closing, actual: sumBy(chan, c => c.amount) }]);
+      }
+    }
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 13. DASHBOARD — "How is the whole business doing right now, across every module at
+  //     once?"   Six KPIs (breadth, not depth) drawn as one tight row of six cards; a
+  //     whole-business revenue trend, an expense-split donut (a real "where does our money
+  //     go" question at business level), cross-module Key Insights, and a one-row-per-module
+  //     summary table.
+  //
+  // input: {
+  //   totals: { revenue, netProfit, grossProfit, cashBalance, outstanding, derkoshStock },
+  //   previous?: { revenue, netProfit, grossProfit, cashBalance, outstanding, derkoshStock },
+  //   previousLabel?: 'Aug',              // default 'last month'
+  //   derkoshUnit?: 'pcs',                // unit shown on the Derkosh stock card
+  //   derkoshDailySales?,                 // units sold per day -> "days of cover" insight
+  //   revenueTrend?: [{ label:'Apr', amount }],           // revenue per period, or
+  //   revenue?: [{ date:'2026-09-03', amount }],          // revenue per day (quiet days = 0)
+  //   expenses?: [{ name:'Raw materials', amount }],      // where the money went (the donut)
+  //   modules?: [{ name:'Sales', metric:'Total Revenue',  // one row per module, headline number
+  //                value,                                   // a number, or text such as '12 items'
+  //                unit?,                                   // default: the currency; '' for none
+  //                previous?, lowerIsBetter?,               // drives the "vs. Prior" column
+  //                status?: 'OK'|'Watch'|'Alert' | { text, tone } }],
+  //   summaryRows?: 8                     // module rows on the summary page (rest: detailed PDF)
+  //   expenseTrend?: [{ label, amount }]  // v3.29: expenses per period, matched to revenueTrend by label
+  //   alerts?: [{ module, issue, detail, tone?:'bad'|'warn' }]   // v3.29: extra rows for Items Needing Attention
+  //   totals.expenses?                    // v3.29: checked against the expense split
+  //   productMix?: [{ name:'Injera', revenue, previousRevenue?, grossProfit? }, ...]   // v3.37: revenue by product, or the
+  //   injeraRevenue?, derkoshRevenue?     //   shortcut for the two products (+ previousInjeraRevenue / previousDerkoshRevenue,
+  //                                       //   injeraGrossProfit / derkoshGrossProfit). Gives the "Product mix" insight
+  //                                       //   (e.g. Injera 78% · Derkosh 22%) and the detailed "Product Mix" table and chart.
+  // }
+  // Without `modules`, a short table is built from the six headline totals. A figure that is
+  // not supplied shows as "—" rather than being guessed. Totals fall back to the revenue series
+  // for revenue only.
+  // ---------------------------------------------------------------
+  presets.dashboard = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Dashboard', 'Business Dashboard');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const num = v => (hasNum(v) ? Number(v) : null);
+    const T = i.totals || {};
+    const P = i.previous || {};
+    const prevLabel = i.previousLabel || 'last month';
+    const unitD = i.derkoshUnit || 'pcs';
+    // Large figures are shortened (12.5M) so six cards stay legible; everything else is exact.
+    const big = v => (Math.abs(v) >= 10000000 ? `${fmt.n(v / 1000000, 1)}M` : fmt.money(v));
+
+    // ---- revenue over time ----
+    let tr = { labels: [], values: [] };
+    if (Array.isArray(i.revenueTrend) && i.revenueTrend.length) {
+      tr.labels = i.revenueTrend.map((p, k) => String(p.label !== undefined && p.label !== null ? p.label : k + 1));
+      tr.values = i.revenueTrend.map(p => Number(p.amount !== undefined ? p.amount : p.value) || 0);
+    } else if (Array.isArray(i.revenue) && i.revenue.length) {
+      tr = dailySeries(i.revenue, r => r.date, r => r.amount);
+    }
+
+    const revenue = num(T.revenue) !== null ? num(T.revenue) : (tr.values.length ? sumBy(tr.values, v => v) : null);
+    const net = num(T.netProfit), gross = num(T.grossProfit), cash = num(T.cashBalance);
+    const ar = num(T.outstanding), stock = num(T.derkoshStock);
+    const chg = (now, before) => (now !== null && num(before) !== null ? pctChg(now, num(before)) : null);
+    const revChg = chg(revenue, P.revenue), netChg = chg(net, P.netProfit), grossChg = chg(gross, P.grossProfit);
+    const cashChg = chg(cash, P.cashBalance), arChg = chg(ar, P.outstanding), stockChg = chg(stock, P.derkoshStock);
+    const netMargin = net !== null && revenue ? fmt.share(net, revenue) : null;
+    const grossMargin = gross !== null && revenue ? fmt.share(gross, revenue) : null;
+    const arShare = ar !== null && revenue ? fmt.share(ar, revenue) : null;
+    const vs = c => `${fmt.signedPct(c)} vs ${prevLabel}`;
+    const up = c => (c === null ? undefined : (c >= 0 ? 'good' : 'warn'));
+    const downIsGood = c => (c === null ? undefined : (c <= 0 ? 'good' : 'warn'));
+
+    base.kpis = [
+      { label: 'Total Revenue', value: revenue === null ? '—' : big(revenue), unit: revenue === null ? undefined : cur, color: '#1D5C38',
+        delta: revChg !== null ? vs(revChg) : undefined, deltaTone: up(revChg) },
+      { label: 'Net Profit', value: net === null ? '—' : big(net), unit: net === null ? undefined : cur, color: net !== null && net < 0 ? '#C0392B' : '#2E86DE',
+        delta: netChg !== null ? vs(netChg) : (netMargin !== null ? `${fmt.pct(netMargin)} net margin` : undefined),
+        deltaTone: netChg !== null ? up(netChg) : (netMargin !== null ? (netMargin >= 0 ? 'good' : 'warn') : undefined) },
+      { label: 'Gross Profit', value: gross === null ? '—' : big(gross), unit: gross === null ? undefined : cur, color: '#C89B3C',
+        delta: grossChg !== null ? vs(grossChg) : (grossMargin !== null ? `${fmt.pct(grossMargin)} gross margin` : undefined),
+        deltaTone: grossChg !== null ? up(grossChg) : undefined },
+      { label: 'Cash Balance', value: cash === null ? '—' : big(cash), unit: cash === null ? undefined : cur, color: cash !== null && cash < 0 ? '#C0392B' : '#1D5C38',
+        delta: cashChg !== null ? vs(cashChg) : undefined, deltaTone: up(cashChg) },
+      { label: 'Outstanding A/R', value: ar === null ? '—' : big(ar), unit: ar === null ? undefined : cur, color: '#8E44AD',
+        delta: arChg !== null ? vs(arChg) : (arShare !== null ? `${fmt.pct(arShare, 0)} of revenue` : undefined),
+        deltaTone: arChg !== null ? downIsGood(arChg) : undefined },
+      { label: 'Derkosh Stock', value: stock === null ? '—' : qtyFmt(stock), unit: stock === null ? undefined : unitD, color: '#E67E22',
+        delta: stockChg !== null ? vs(stockChg) : undefined }
+    ];
+
+    // ---- Row 2: revenue trend + expense split ----
+    base.charts = [];
+    if (tr.labels.length) {
+      base.charts.push({ type: tr.labels.length >= 3 ? 'line' : 'bar', title: 'Revenue Trend',
+        subtitle: `${cur} per ${Array.isArray(i.revenueTrend) && i.revenueTrend.length ? 'period' : 'day'}`,
+        labels: tr.labels, values: tr.values, barColor: '#1D5C38' });
+    }
+    const spend = asArr(i.expenses).filter(e => e && Number(e.amount) > 0).map(e => ({ name: String(e.name || 'Other'), amount: Number(e.amount), count: 1 }))
+      .sort((a, b) => b.amount - a.amount);
+    const spendTotal = sumBy(spend, e => e.amount);
+    if (spend.length >= 2) {
+      const shown = topWithOther(spend, 6);
+      base.charts.push({ type: 'doughnut', title: 'Expense Split', labels: shown.map(e => e.name), values: shown.map(e => e.amount),
+        colors: PALETTE, centerLabel: { top: 'Total', value: big(spendTotal), bottom: cur } });
+    }
+
+    // ---- the module table ----
+    const TONE_WORDS = [[/alert|bad|overdue|loss|critical|short|reorder|out of|over budget|miss/i, 'bad'],
+      [/watch|warn|low|due|pending|rising|expiring|behind|at risk|under/i, 'warn'],
+      [/ok|good|on track|healthy|profit|clear|paid|beat|on target|current/i, 'good']];
+    const toneOfText = t => { const hit = TONE_WORDS.find(w => w[0].test(t)); return hit ? hit[1] : undefined; };
+    let mods = asArr(i.modules).filter(m => m && m.name);
+    if (!mods.length) {
+      const auto = [
+        ['Sales', 'Total Revenue', revenue, P.revenue, false],
+        ['Profit & Loss', 'Net Profit', net, P.netProfit, false],
+        ['Cash Flow', 'Cash Balance', cash, P.cashBalance, false],
+        ['Customers', 'Outstanding A/R', ar, P.outstanding, true],
+        ['Derkosh', 'Stock on Hand', stock, P.derkoshStock, false]
+      ];
+      mods = auto.filter(a => a[2] !== null).map(a => ({ name: a[0], metric: a[1], value: a[2], previous: a[3], lowerIsBetter: a[4],
+        unit: a[0] === 'Derkosh' ? unitD : undefined }));
+    }
+    const modRows = mods.map(m => {
+      const isNum = hasNum(m.value);
+      const unit = m.unit === undefined ? cur : m.unit;
+      const c = isNum && hasNum(m.previous) ? pctChg(Number(m.value), Number(m.previous)) : null;
+      let vsCell = '—';
+      if (c !== null) {
+        const better = m.lowerIsBetter ? c < 0 : c > 0;
+        vsCell = Math.abs(c) < 0.05 ? { v: fmt.signedPct(0), tone: 'muted' } : { v: fmt.signedPct(c), tone: better ? 'good' : 'warn' };
+      }
+      let st = '—';
+      if (m.status && typeof m.status === 'object') st = { v: m.status.text, tone: m.status.tone };
+      else if (m.status) st = { v: String(m.status), tone: toneOfText(String(m.status)) };
+      return { name: m.name, tone: st && st.tone, row: [m.name, m.metric || '—', isNum ? (Number.isInteger(Number(m.value)) ? fmt.money(m.value) : fmt.n(m.value, 2)) : String(m.value === undefined || m.value === null ? '—' : m.value),
+        unit || '', vsCell, st] };
+    });
+
+    // ---- Product mix (v3.37): revenue by product, as supplied by the page. Nothing is guessed. ----
+    let mixRows = asArr(i.productMix).filter(p => p && p.name && hasNum(p.revenue) && Number(p.revenue) >= 0)
+      .map(p => ({ name: String(p.name), rev: Number(p.revenue), prev: hasNum(p.previousRevenue) ? Number(p.previousRevenue) : null, gp: hasNum(p.grossProfit) ? Number(p.grossProfit) : null }));
+    if (!mixRows.length) {
+      mixRows = [['Injera', i.injeraRevenue, i.previousInjeraRevenue, i.injeraGrossProfit], ['Derkosh', i.derkoshRevenue, i.previousDerkoshRevenue, i.derkoshGrossProfit]]
+        .filter(r => hasNum(r[1]) && Number(r[1]) >= 0)
+        .map(r => ({ name: r[0], rev: Number(r[1]), prev: hasNum(r[2]) ? Number(r[2]) : null, gp: hasNum(r[3]) ? Number(r[3]) : null }));
+    }
+    mixRows.sort((a, b) => b.rev - a.rev || String(a.name).localeCompare(String(b.name)));
+    const mixSum = sumBy(mixRows, r => r.rev);
+    // When the total revenue is larger than the products listed, the rest is shown as "Other revenue" so shares foot to 100%.
+    const mixOther = revenue !== null && revenue - mixSum > 1 ? revenue - mixSum : 0;
+    const mixBase = mixSum + mixOther;
+    const mixPrevAll = mixRows.length && mixRows.every(r => r.prev !== null) ? sumBy(mixRows, r => r.prev) : 0;
+    const mixPrevBase = mixPrevAll > 0 && num(P.revenue) !== null && num(P.revenue) > mixPrevAll ? num(P.revenue) : mixPrevAll;
+    const mixIns = (() => {
+      const live = mixRows.filter(r => r.rev > 0);
+      if (!live.length || !mixBase) return null;
+      const parts = live.slice(0, 3).map(r => `${r.name} ${fmt.pct(fmt.share(r.rev, mixBase), 0)}`).join(' · ');
+      let tail = '';
+      if (mixPrevAll > 0) {
+        const mv = mixRows.map(r => ({ name: r.name, d: fmt.share(r.rev, mixBase) - fmt.share(r.prev, mixPrevBase) }))
+          .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))[0];
+        if (mv && Math.abs(mv.d) >= 1) tail = ` ${mv.name} is ${mv.d > 0 ? 'up' : 'down'} ${fmt.n(Math.abs(mv.d), 1)} points on ${prevLabel}.`;
+      }
+      return { label: 'Mix', color: '#2E86DE', text: `Product mix: ${parts} of revenue${mixOther > 0 ? ' (the rest is other revenue)' : ''}.${tail}` };
+    })();
+
+    // ---- Key Insights — cross-module flags, warnings first ----
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const warns = [], infos = [];
+      if (arChg !== null && cashChg !== null && arChg > 0 && cashChg < 0) {
+        warns.push({ label: 'Collections', color: '#C0392B', text: `Outstanding A/R is up ${fmt.pct(arChg)} while the cash balance is down ${fmt.pct(Math.abs(cashChg))} versus ${prevLabel} — money is being earned faster than it is collected.` });
+      }
+      if (net !== null && net < 0) {
+        warns.push({ label: 'Loss', color: '#C0392B', text: `The business made a net loss of ${fmt.money(Math.abs(net))} ${cur} this period${revenue ? ` (${fmt.pct(Math.abs(netMargin))} of revenue)` : ''}.` });
+      }
+      if (arShare !== null && arShare >= 25 && !(arChg !== null && cashChg !== null && arChg > 0 && cashChg < 0)) {
+        warns.push({ label: 'A/R', color: '#8E44AD', text: `Customers owe ${fmt.money(ar)} ${cur} — ${fmt.pct(arShare, 0)} of this period's revenue is still uncollected.` });
+      }
+      if (revChg !== null && revChg <= -10) {
+        warns.push({ label: 'Revenue', color: '#C89B3C', text: `Revenue is down ${fmt.pct(Math.abs(revChg))} on ${prevLabel} (${fmt.money(P.revenue)} to ${fmt.money(revenue)} ${cur}).` });
+      } else if (revChg !== null && revChg >= 10) {
+        infos.push({ label: 'Revenue', color: '#1D5C38', text: `Revenue is up ${fmt.pct(revChg)} on ${prevLabel} (${fmt.money(P.revenue)} to ${fmt.money(revenue)} ${cur}).` });
+      }
+      const flagged = modRows.filter(m => m.tone === 'bad' || m.tone === 'warn');
+      if (flagged.length) {
+        const worst = flagged.filter(m => m.tone === 'bad').concat(flagged.filter(m => m.tone === 'warn'));
+        warns.push({ label: 'Attention', color: '#C89B3C', text: `${plural(flagged.length, 'module needs', 'modules need')} attention: ${worst.slice(0, 3).map(m => m.name).join(', ')}${worst.length > 3 ? ` and ${worst.length - 3} more` : ''}.` });
+      }
+      if (hasNum(i.derkoshDailySales) && Number(i.derkoshDailySales) > 0 && stock !== null) {
+        const cover = stock / Number(i.derkoshDailySales);
+        if (cover < 7) warns.push({ label: 'Derkosh', color: '#E67E22', text: `Derkosh stock covers only about ${plural(Math.round(cover), 'day')} of sales at the current pace.` });
+        else if (cover > 60) infos.push({ label: 'Derkosh', color: '#E67E22', text: `Derkosh stock is about ${Math.round(cover)} days of sales — production is running ahead of demand.` });
+      }
+      if (grossMargin !== null && netMargin !== null) {
+        infos.push({ label: 'Margins', color: '#2E86DE', text: `Gross margin is ${fmt.pct(grossMargin)} and net margin ${fmt.pct(netMargin)} on ${fmt.money(revenue)} ${cur} of revenue.` });
+      }
+      if (spend.length >= 2 && fmt.share(spend[0].amount, spendTotal) >= 50) {
+        infos.push({ label: 'Spending', color: '#2E86DE', text: `${spend[0].name} is ${fmt.pct(fmt.share(spend[0].amount, spendTotal), 0)} of all expenses (${fmt.money(spend[0].amount)} of ${fmt.money(spendTotal)} ${cur}).` });
+      }
+      // v3.37: the product mix always keeps one of the four slots (warnings still come first).
+      const restIns = warns.concat(infos);
+      base.insights = mixIns ? restIns.slice(0, 3).concat([mixIns]) : restIns.slice(0, 4);
+    }
+
+    // ---- Row 3: cross-module summary, one row per module ----
+    base.tables = [
+      { title: 'Cross-Module Summary', summaryMaxRows: hasNum(i.summaryRows) ? Number(i.summaryRows) : 8,
+        columns: ['Module', 'Headline Metric', 'Value', 'Unit', 'vs. Prior', 'Status'],
+        rows: modRows.map(m => m.row),
+        columnAlign: [null, null, 'right', null, 'right', null] }
+    ];
+
+    // Detailed PDF / Excel only (v3.29): the headline figures against the prior period, exact expense
+    // shares, revenue against expenses per period, and the items behind each cross-module flag.
+    const fv = (v, unit) => (unit === cur ? fmt.n(v, 2) : qtyFmt(v));
+    const heads = [['Total Revenue', revenue, P.revenue, cur, false], ['Net Profit', net, P.netProfit, cur, false],
+      ['Gross Profit', gross, P.grossProfit, cur, false], ['Cash Balance', cash, P.cashBalance, cur, false],
+      ['Outstanding A/R', ar, P.outstanding, cur, true], ['Derkosh Stock', stock, P.derkoshStock, unitD, false]].filter(h => h[1] !== null);
+    if (heads.some(h => num(h[2]) !== null)) {
+      base.tables.push({ title: `Headline Figures vs. ${prevLabel}`, sheetName: 'Headline Figures',
+        columns: ['Figure', 'This Period', prevLabel, 'Change', 'Change %'],
+        rows: heads.map(h => {
+          const now = h[1], was = num(h[2]), unit = h[3];
+          if (was === null) return [`${h[0]} (${unit})`, fv(now, unit), '—', '—', '—'];
+          const d = now - was, ch = pctChg(now, was), better = h[4] ? d < 0 : d > 0, flat = Math.abs(d) < 0.005;
+          return [`${h[0]} (${unit})`, fv(now, unit), fv(was, unit), flat ? fv(0, unit) : { v: `${d > 0 ? '+' : ''}${fv(d, unit)}`, tone: better ? 'good' : 'warn' },
+            ch === null ? '—' : (flat ? fmt.signedPct(0) : { v: fmt.signedPct(ch), tone: better ? 'good' : 'warn' })];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right'] });
+    }
+    if (spend.length) {
+      base.tables.push({ title: 'Expense Split', sheetName: 'Expense Split',
+        columns: ['Expense', `Amount (${cur})`, '% of Expenses'],
+        rows: spend.map(e => [e.name, fmt.money2(e.amount), fmt.pct(fmt.share(e.amount, spendTotal))]),
+        columnAlign: [null, 'right', 'right'],
+        totalsRow: ['TOTAL', fmt.money2(spendTotal), '100.0%'] });
+      if (num(T.expenses) !== null) base.checks = (base.checks || []).concat([{ label: 'Total expenses: summary vs. expense split', expected: num(T.expenses), actual: spendTotal }]);
+    }
+    const expT = Array.isArray(i.expenseTrend) ? i.expenseTrend.filter(p => p && hasNum(p.amount !== undefined ? p.amount : p.value)) : [];
+    if (expT.length && Array.isArray(i.revenueTrend) && i.revenueTrend.length) {
+      const lab = (p, k) => String(p.label !== undefined && p.label !== null ? p.label : k + 1);
+      const rv = new Map(), ex = new Map(), order = [];
+      i.revenueTrend.forEach((p, k) => { const l = lab(p, k); if (!rv.has(l)) order.push(l); rv.set(l, (rv.get(l) || 0) + (Number(p.amount !== undefined ? p.amount : p.value) || 0)); });
+      expT.forEach((p, k) => { const l = lab(p, k); if (!rv.has(l) && !ex.has(l)) order.push(l); ex.set(l, (ex.get(l) || 0) + Number(p.amount !== undefined ? p.amount : p.value)); });
+      const both = order.filter(l => rv.has(l) && ex.has(l));
+      base.tables.push({ title: 'Revenue vs. Expenses by Period', sheetName: 'Revenue vs Expenses',
+        columns: ['Period', `Revenue (${cur})`, `Expenses (${cur})`, `Result (${cur})`, 'Result % of Revenue'],
+        rows: order.map(l => {
+          const r = rv.has(l) ? rv.get(l) : null, e = ex.has(l) ? ex.get(l) : null, d = r !== null && e !== null ? r - e : null;
+          return [l, r === null ? '—' : fmt.money2(r), e === null ? '—' : fmt.money2(e),
+            d === null ? '—' : (d < 0 ? { v: fmt.money2(d), tone: 'bad' } : fmt.money2(d)),
+            d === null || !r ? '—' : fmt.pct(fmt.share(d, r))];
+        }),
+        columnAlign: [null, 'right', 'right', 'right', 'right'],
+        totalsRow: ['TOTAL (periods with both)', fmt.money2(sumBy(both, l => rv.get(l))), fmt.money2(sumBy(both, l => ex.get(l))),
+          fmt.money2(sumBy(both, l => rv.get(l) - ex.get(l))), sumBy(both, l => rv.get(l)) ? fmt.pct(fmt.share(sumBy(both, l => rv.get(l) - ex.get(l)), sumBy(both, l => rv.get(l)))) : '—'] });
+      if (both.length >= 2) {
+        base.charts.push({ type: 'bar', detailOnly: true, title: 'Revenue vs. Expenses', subtitle: `${cur} per period`, labels: both,
+          series: [{ label: 'Revenue', values: both.map(l => rv.get(l)), color: '#1D5C38' }, { label: 'Expenses', values: both.map(l => ex.get(l)), color: '#C89B3C' }] });
+      }
+      if (both.length < order.length) {
+        base.notes = (base.notes || []).concat([`${plural(order.length - both.length, 'period appears', 'periods appear')} in only one of the revenue and expense series and ${order.length - both.length === 1 ? 'is' : 'are'} left out of the totals and the chart.`]);
+      }
+    }
+
+    // Items needing attention: every flagged module, the cross-module alerts with their figures, and the page's own alerts.
+    const attn = [];
+    modRows.filter(m => m.tone === 'bad' || m.tone === 'warn').sort((a, b) => (a.tone === 'bad' ? 0 : 1) - (b.tone === 'bad' ? 0 : 1)).forEach(m => {
+      const val = m.row[2] + (m.row[3] && /^[\d,.\-]+$/.test(String(m.row[2])) ? ` ${m.row[3]}` : ''), vsT = m.row[4] && m.row[4].v ? ` (${m.row[4].v} vs. prior)` : '';
+      attn.push([m.name, m.row[1], `${val}${vsT}`, m.row[5]]);
+    });
+    if (arChg !== null && cashChg !== null && arChg > 0 && cashChg < 0) {
+      attn.push(['Customers / Cash Flow', 'Collections', `A/R ${fmt.money(P.outstanding)} to ${fmt.money(ar)} ${cur} (${fmt.signedPct(arChg)}); cash ${fmt.money(P.cashBalance)} to ${fmt.money(cash)} ${cur} (${fmt.signedPct(cashChg)})`, { v: 'Alert', tone: 'bad' }]);
+    }
+    if (net !== null && net < 0) attn.push(['Profit & Loss', 'Net loss', `${fmt.money(Math.abs(net))} ${cur}${revenue ? ` (${fmt.pct(Math.abs(netMargin))} of revenue)` : ''}`, { v: 'Alert', tone: 'bad' }]);
+    if (revChg !== null && revChg <= -10 && !modRows.some(m => /^sales$/i.test(String(m.name)) && (m.tone === 'bad' || m.tone === 'warn'))) attn.push(['Sales', 'Revenue down', `${fmt.money(P.revenue)} to ${fmt.money(revenue)} ${cur} (${fmt.signedPct(revChg)})`, { v: 'Watch', tone: 'warn' }]);
+    (Array.isArray(i.alerts) ? i.alerts : []).filter(a => a && (a.issue || a.detail)).forEach(a => {
+      attn.push([String(a.module || '—'), String(a.issue || '—'), String(a.detail || '—'), a.tone === 'bad' ? { v: 'Alert', tone: 'bad' } : (a.tone === 'warn' ? { v: 'Watch', tone: 'warn' } : { v: 'Note', tone: 'muted' })]);
+    });
+    if (attn.length) {
+      base.tables.push({ title: 'Items Needing Attention', sheetName: 'Attention', columns: ['Module', 'Item', 'Detail', 'Status'], rows: attn, columnAlign: [null, null, null, null] });
+    }
+
+    // Detailed PDF / Excel only (v3.37): the product mix as exact figures and a donut. Placed first among the detail tables.
+    // Columns for the prior period and for gross profit appear only when every product carries them.
+    if (mixRows.length && mixBase > 0) {
+      const hasPrev = mixPrevAll > 0, hasGP = mixRows.every(r => r.gp !== null);
+      const rowsMix = mixRows.map(r => ({ name: r.name, rev: r.rev, prev: r.prev, gp: r.gp }));
+      if (mixOther > 0) rowsMix.push({ name: 'Other revenue', rev: mixOther, prev: null, gp: null });
+      const mixTotal = sumBy(rowsMix, r => r.rev);
+      const chgCell = d => (Math.abs(d) < 0.05 ? { v: '0.0 pts', tone: 'muted' } : { v: `${d > 0 ? '+' : ''}${fmt.n(d, 1)} pts`, tone: d > 0 ? 'good' : 'warn' });
+      base.tables.splice(1, 0, { title: 'Product Mix', sheetName: 'Product Mix',
+        columns: ['Product', `Revenue (${cur})`, '% of Revenue']
+          .concat(hasPrev ? [`${prevLabel} Revenue (${cur})`, `${prevLabel} Share`, 'Share Change'] : [], hasGP ? [`Gross Profit (${cur})`, 'Margin'] : []),
+        rows: rowsMix.map(r => [r.name, fmt.money2(r.rev), fmt.pct(fmt.share(r.rev, mixBase))].concat(
+          hasPrev ? (r.prev === null ? ['—', '—', '—'] : [fmt.money2(r.prev), fmt.pct(fmt.share(r.prev, mixPrevBase)), chgCell(fmt.share(r.rev, mixBase) - fmt.share(r.prev, mixPrevBase))]) : [],
+          hasGP ? (r.gp === null ? ['—', '—'] : [r.gp < 0 ? { v: fmt.money2(r.gp), tone: 'bad' } : fmt.money2(r.gp), r.rev > 0 ? fmt.pct(fmt.share(r.gp, r.rev)) : '—']) : [])),
+        columnAlign: [null, 'right', 'right'].concat(hasPrev ? ['right', 'right', 'right'] : [], hasGP ? ['right', 'right'] : []),
+        additive: [1],
+        totalsRow: ['TOTAL', fmt.money2(mixTotal), '100.0%'].concat(
+          hasPrev ? [mixOther > 0 ? '—' : fmt.money2(mixPrevAll), mixOther > 0 ? '—' : '100.0%', ''] : [],
+          hasGP ? [mixOther > 0 ? '—' : fmt.money2(sumBy(rowsMix, r => r.gp)), mixOther > 0 ? '—' : (mixTotal ? fmt.pct(fmt.share(sumBy(rowsMix, r => r.gp), mixTotal)) : '—')] : []) });
+      if (rowsMix.filter(r => r.rev > 0).length >= 2) {
+        base.charts.push({ type: 'doughnut', detailOnly: true, title: 'Product Mix', subtitle: 'Share of revenue', labels: rowsMix.map(r => r.name), values: rowsMix.map(r => r.rev),
+          colors: PALETTE, centerLabel: { top: 'Revenue', value: big(mixTotal), bottom: cur } });
+      }
+      if (revenue !== null) base.checks = (base.checks || []).concat([{ label: 'Total revenue: summary vs. product mix', expected: revenue, actual: mixTotal }]);
+      if (mixOther > 0) {
+        base.notes = (base.notes || []).concat([`${fmt.money(mixOther)} ${cur} of total revenue is not assigned to a product in the mix and is shown as "Other revenue".`]);
+      }
+    }
+    return base;
+  };
+
+  // ===============================================================
+  // STATEMENT-SHAPED MODULES (v3.5 onward) — Cash Flow, Profit & Loss, Budget
+  // ---------------------------------------------------------------
+  // v3.9: these three keep their formal statement (IAS 7 / IAS 2 / line-by-line variance) intact
+  // but now follow the same page as every other module — KPI cards, one main chart, Key
+  // Insights and a compact table on the summary page — and the detailed PDF opens with the
+  // full statement, then trends, breakdowns, transactions and exceptions. Pass
+  // layout:'statement' to any of them to get the old statement-only page (v3.5-v3.8).
+  // The page supplies the figures; the preset owns the layout, subtotals, percentages and notes.
+  // ===============================================================
+
+  // In a statement a zero is an en dash (easier to scan than a column of 0.00); negatives go
+  // with a minus sign, and the engine paints negative values red on statement tables.
+  const stm = (v, d) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    if (Math.abs(n) < 0.005) return '–';
+    return fmt.n(n, d === undefined ? 2 : d);
+  };
+  const sumVec = v => v.reduce((a, b) => a + b, 0);
+  // Percentages follow the same rule as amounts: a minus sign for a negative (never "-0.0%").
+  const stmPct = v => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    const r = Number(n.toFixed(1));
+    return r < 0 ? `-${Math.abs(r).toFixed(1)}%` : `${r.toFixed(1)}%`;
+  };
+  // Profit is green and loss is red: wraps a cell's text in a toned cell by the sign of `n`
+  // (zero stays neutral). The engine turns it into coloured bold text; Excel/CSV get the text.
+  const tc = (text, n) => (n > 0.004 ? { v: text, tone: 'good' } : (n < -0.004 ? { v: text, tone: 'bad' } : text));
+
+  // ---------------------------------------------------------------
+  // CASH FLOW — "Where did our cash actually come from and go, by channel, this month?"
+  //   v3.9 summary page: Row 1 five KPI cards (Opening, Total Inflow, Total Outflow, Net Cash
+  //   Flow, Closing); Row 2 an Inflow vs. Outflow chart by channel + Key Insights; Row 3 the
+  //   channel table (Opening / Inflow / Outflow / Closing). The detailed PDF then prints the
+  //   full IAS 7 Direct Method statement (opening -> operating / investing / financing ->
+  //   closing, by channel), the trend charts, the inflow and outflow transaction tables, the
+  //   opening-balance reconciliation and an exceptions table.
+  //
+  // input: {
+  //   opening:   { cash, bank, mobile },              // this month's opening balance per channel
+  //   operating: [{ label, cash, bank, mobile }],     // direct-method lines: receipts are POSITIVE,
+  //   investing: [{ label, cash, bank, mobile }],     //   payments are NEGATIVE. A channel left out
+  //   financing: [{ label, cash, bank, mobile }],     //   of a line counts as 0.
+  //   previousClosing?: { cash, bank, mobile },       // last month's COMPUTED closing — enables the
+  //                                                   //   reconciliation table
+  //   closing?: { cash, bank, mobile },               // the page's own closing figure, cross-checked
+  //                                                   //   against the statement's computed one
+  //   previousLabel?: 'Aug',  tolerance?: 0.01        // ETB difference still counted as reconciled
+  //   -- new in v3.9 (all optional; anything left out is simply not drawn) --
+  //   previous?: { inflow, outflow }                  // last month's totals: adds "vs Aug" to those cards
+  //   history?: [{ label:'Apr', inflow, outflow }]    // EARLIER months, oldest first (this month is added
+  //                                                   //   automatically) -> detailed-PDF trend charts
+  //   monthLabel?: 'Sep'                              // short name of this month on the trend charts
+  //   inflows?:  [{ date, description, channel, amount, activity?, reference? }]   // transactions behind
+  //   outflows?: [{ date, description, channel, amount, activity?, reference? }]   //   the statement
+  //                                                   //   (amounts as positive numbers; activity is
+  //                                                   //   'operating' | 'investing' | 'financing' and
+  //                                                   //   adds the v3.30 "Cash Movements by Activity")
+  //   largeThreshold?: 50000                          // one movement at/above this is listed as large
+  //                                                   //   (default: 25% of that side's total)
+  //   layout?: 'statement'                            // the old statement-only page (v3.5-v3.8)
+  // }
+  // The closing balance is always computed (opening + net movement) so the statement foots; if
+  // the page supplies its own `closing` and it disagrees, a note says so rather than hiding it.
+  // ---------------------------------------------------------------
+  const CF_CHANNELS = [['cash', 'Cash'], ['bank', 'Bank'], ['mobile', 'Mobile']];
+
+  presets.cashflow = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Cash Flow', 'Cash Flow Statement');
+    if (base.status === 'empty') return base;
+    const legacy = i.layout === 'statement';
+    const cur = base.currency;
+    const prevLabel = i.previousLabel || 'last month';
+    const tol = hasNum(i.tolerance) ? Math.abs(Number(i.tolerance)) : 0.01;
+    const chv = (o, k) => (o && hasNum(o[k]) ? Number(o[k]) : 0);
+    const vec = o => CF_CHANNELS.map(([k]) => chv(o, k));
+    const colSum = rows => CF_CHANNELS.map(([k]) => sumBy(rows, r => chv(r, k)));
+    const listOf = a => (Array.isArray(a) ? a : []).filter(r => r && r.label);
+    const money = v => fmt.n(v, 0);
+
+    const opening = vec(i.opening);
+    const rows = [], kinds = [];
+    const push = (label, vals, kind, toned) => {
+      const cell = v => (toned ? tc(stm(v), v) : stm(v));
+      rows.push([label].concat(vals.map(cell), [cell(sumVec(vals))]));
+      kinds.push(kind);
+    };
+    const section = label => { rows.push([label, '', '', '', '']); kinds.push('section'); };
+    const noteRow = text => { rows.push([text, '', '', '', '']); kinds.push('note'); };
+
+    push('Opening cash balance', opening, 'subtotal');
+    const activities = [
+      ['A. Operating activities', 'operating', 'Net cash from operating activities', 'No operating activity recorded this month'],
+      ['B. Investing activities', 'investing', 'Net cash from investing activities', 'No investing activity recorded this month'],
+      ['C. Financing activities', 'financing', 'Net cash from financing activities', 'No financing activity recorded this month']
+    ];
+    const nets = {};
+    const allLines = [];
+    activities.forEach(([title, key, netLabel, emptyText]) => {
+      const list = listOf(i[key]);
+      section(title);
+      if (list.length) list.forEach(r => push(r.label, vec(r), 'line')); else noteRow(emptyText);
+      nets[key] = colSum(list);
+      push(netLabel, nets[key], 'subtotal');
+      list.forEach(r => allLines.push(r));
+    });
+    const net = CF_CHANNELS.map((_, c) => nets.operating[c] + nets.investing[c] + nets.financing[c]);
+    const closing = CF_CHANNELS.map((_, c) => opening[c] + net[c]);
+    push('Net change in cash', net, 'subtotal', true);
+    push('CLOSING CASH BALANCE', closing, 'total');
+
+    const head = ['Particulars'].concat(CF_CHANNELS.map(([, l]) => `${l} (${cur})`), [`Total (${cur})`]);
+    const mainTable = { title: 'Cash Flow Statement', columns: head, rows, rowKinds: kinds,
+      columnAlign: [null, 'right', 'right', 'right', 'right'] };
+
+    // ---- per-channel reconciliation of the opening balance ----
+    const pc = i.previousClosing && typeof i.previousClosing === 'object' ? i.previousClosing : null;
+    let recon = null, reconTable = null;
+    if (pc) {
+      const per = CF_CHANNELS.map(([k, label], c) => {
+        const have = hasNum(pc[k]);
+        const diff = have ? opening[c] - Number(pc[k]) : null;
+        return { label, have, prev: have ? Number(pc[k]) : null, open: opening[c], diff, ok: have && Math.abs(diff) <= tol };
+      });
+      const status = p => (!p.have ? { v: 'No prior data', tone: 'muted' } : (p.ok ? { v: 'Reconciled', tone: 'good' } : { v: 'Difference', tone: 'bad' }));
+      const allHave = per.every(p => p.have);
+      const sumPrev = sumBy(per, p => p.prev || 0);
+      const sumDiff = sumBy(per, p => p.diff || 0);
+      const allOk = allHave && per.every(p => p.ok);
+      reconTable = {
+        title: `Channel Reconciliation — Opening Balance vs. ${prevLabel} Closing`, sheetName: 'Reconciliation',
+        columns: ['Channel', `Opening Balance (${cur})`, `${prevLabel} Closing (${cur})`, `Difference (${cur})`, 'Status'],
+        rows: per.map(p => [p.label, stm(p.open), p.have ? stm(p.prev) : '—', p.have ? stm(p.diff) : '—', status(p)]),
+        columnAlign: [null, 'right', 'right', 'right', null],
+        totalsRow: ['TOTAL', stm(sumVec(opening)), allHave ? stm(sumPrev) : '—', allHave ? stm(sumDiff) : '—',
+          allOk ? { v: 'Reconciled', tone: 'good' } : (allHave ? { v: 'Difference', tone: 'bad' } : { v: 'Incomplete', tone: 'muted' })]
+      };
+      recon = per;
+    }
+
+    // ---- totals used by the cards, the chart and the channel table ----
+    const inflowBy = CF_CHANNELS.map(([k]) => sumBy(allLines, r => Math.max(chv(r, k), 0)));
+    const outflowBy = CF_CHANNELS.map(([k]) => sumBy(allLines, r => Math.max(-chv(r, k), 0)));
+    const inflowT = sumVec(inflowBy), outflowT = sumVec(outflowBy);
+    const openT = sumVec(opening), closeT = sumVec(closing), netT = sumVec(net);
+    const opTotal = sumVec(nets.operating);
+    const chg = pctChg(closeT, openT);
+
+    // ---- notes shared by both layouts ----
+    const checks = [];
+    CF_CHANNELS.forEach(([, label], c) => {
+      if (closing[c] < -tol) checks.push({ label: 'Alert', color: '#C0392B',
+        text: `${label} closing balance is negative (${fmt.n(closing[c], 2)} ${cur}) — check for an unrecorded receipt or a transfer between channels.` });
+    });
+    let reconOk = null;
+    if (recon) {
+      const off = recon.filter(p => p.have && !p.ok);
+      if (off.length) {
+        checks.push({ label: 'Check', color: '#C0392B',
+          text: `Opening balance does not match ${prevLabel}'s closing for ${off.map(p => `${p.label} (${fmt.n(p.diff, 2)} ${cur})`).join(', ')}.` });
+        reconOk = false;
+      } else if (recon.every(p => p.have)) {
+        reconOk = true;
+      }
+    }
+    let closingBad = [];
+    if (i.closing && typeof i.closing === 'object') {
+      closingBad = CF_CHANNELS.map(([k, label], c) => ({ label, d: hasNum(i.closing[k]) ? Number(i.closing[k]) - closing[c] : 0 }))
+        .filter(x => Math.abs(x.d) > tol);
+      if (closingBad.length) checks.push({ label: 'Check', color: '#C0392B',
+        text: `The closing balance reported for ${closingBad.map(x => `${x.label} (${fmt.n(x.d, 2)} ${cur})`).join(', ')} differs from the statement's computed closing balance.` });
+    }
+    const movement = Math.abs(closeT - openT) > tol
+      ? { label: closeT < openT ? 'Cash' : 'Growth', color: closeT < openT ? '#C89B3C' : '#1D5C38',
+          text: `Total cash ${closeT < openT ? 'fell' : 'rose'}${chg === null ? '' : ' ' + fmt.pct(Math.abs(chg))} over the month, from ${fmt.n(openT, 2)} to ${fmt.n(closeT, 2)} ${cur}.` }
+      : null;
+    const operating = opTotal < -tol
+      ? { label: 'Watch', color: '#C89B3C', text: `Operating activities used ${fmt.n(Math.abs(opTotal), 2)} ${cur} of cash this month.` }
+      : (opTotal > tol ? { label: 'Operating', color: '#1D5C38', text: `Operating activities generated ${fmt.n(opTotal, 2)} ${cur} of cash this month.` } : null);
+    const topCh = closeT > tol ? CF_CHANNELS.map(([, label], c) => ({ label, v: closing[c] })).sort((a, b) => b.v - a.v)[0] : null;
+
+    if (legacy) {
+      // ---- the v3.5-v3.8 statement-only page ----
+      base.tables = [mainTable];
+      if (reconTable) base.tables.push(reconTable);
+      base.layout = 'statement';
+      base.statementTitle = 'Cash Flow Statement';
+      base.statementBasis = `IAS 7 — Direct Method · ${base.period || 'this period'} · Amounts in ${cur}`;
+      base.insightsTitle = 'Notes';
+      if (i.insights) {
+        base.insights = i.insights;
+      } else {
+        const notes = checks.slice();
+        if (reconOk) notes.splice(checks.filter(n => /negative/.test(n.text)).length, 0, { label: 'Reconciled', color: '#1D5C38', text: `Opening balances for all three channels match ${prevLabel}'s computed closing balances.` });
+        if (operating) notes.push(operating);
+        if (movement) notes.push(movement);
+        if (topCh && fmt.share(topCh.v, closeT) >= 60) notes.push({ label: 'Mix', color: '#2E86DE', text: `${topCh.label} holds ${fmt.pct(fmt.share(topCh.v, closeT), 0)} of closing cash.` });
+        base.insights = notes.slice(0, 4);
+      }
+      base.footer.notes = (base.footer.notes || []).concat([
+        'Receipts are positive amounts and payments are negative amounts (minus sign, shown in red). A dash means no movement.'
+      ]);
+      return base;
+    }
+
+    // ================= v3.9 layout =================
+    const dateCell = d => (isoOk(d) ? shortDate(d) : (d ? String(d) : '—'));
+    const chanLabel = s => {
+      const t = String(s || '').trim().toLowerCase();
+      if (/^cash|petty/.test(t)) return 'Cash';
+      if (/bank|transfer|cheque|check|cbe|abyssinia|awash|dashen/.test(t)) return 'Bank';
+      if (/mobile|telebirr|birr|wallet|momo|pesa/.test(t)) return 'Mobile';
+      return null;
+    };
+    const actOf = s => {
+      const t = String(s || '').trim().toLowerCase();
+      return /^oper/.test(t) ? 'operating' : (/^inv/.test(t) ? 'investing' : (/^fin/.test(t) ? 'financing' : null));
+    };
+    const txOf = list => (Array.isArray(list) ? list : []).filter(r => r && hasNum(r.amount)).map(r => ({
+      date: r.date, desc: String(r.description || r.label || '').trim(), ch: chanLabel(r.channel), rawCh: r.channel, amt: Math.abs(Number(r.amount)),
+      act: actOf(r.activity), ref: r.reference ? String(r.reference) : ''
+    })).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || b.amt - a.amt);
+    const txIn = txOf(i.inflows), txOut = txOf(i.outflows);
+
+    // ---- Row 1: five cards ----
+    const prevIn = i.previous && hasNum(i.previous.inflow) ? Number(i.previous.inflow) : null;
+    const prevOut = i.previous && hasNum(i.previous.outflow) ? Number(i.previous.outflow) : null;
+    const vs = (now, was, upGood) => {
+      const c = pctChg(now, was);
+      return c === null ? {} : { delta: `${fmt.signedPct(c)} vs ${prevLabel}`, deltaTone: (upGood ? c >= 0 : c <= 0) ? 'good' : 'warn' };
+    };
+    base.kpis = [
+      Object.assign({ label: 'Opening Cash Balance', value: money(openT), unit: cur, color: '#2D6A4F' },
+        reconOk === true ? { delta: `Matches ${prevLabel} closing`, deltaTone: 'good' }
+          : (reconOk === false ? { delta: `Differs from ${prevLabel} closing`, deltaTone: 'warn' } : {})),
+      Object.assign({ label: 'Total Cash Inflow', value: money(inflowT), unit: cur, color: '#2E86DE' }, vs(inflowT, prevIn, true)),
+      Object.assign({ label: 'Total Cash Outflow', value: money(outflowT), unit: cur, color: '#C0392B' }, vs(outflowT, prevOut, false)),
+      { label: 'Net Cash Flow', value: money(netT), unit: cur, color: netT < 0 ? '#C0392B' : '#E67E22',
+        delta: Math.abs(netT) <= tol ? 'No net movement' : (netT > 0 ? 'Cash increased' : 'Cash decreased'), deltaTone: netT >= 0 ? 'good' : 'warn' },
+      { label: 'Closing Cash Balance', value: money(closeT), unit: cur, color: closeT < 0 ? '#C0392B' : '#2D6A4F',
+        delta: chg === null ? undefined : `${fmt.signedPct(chg)} vs opening`, deltaTone: closeT >= openT ? 'good' : 'warn' }
+    ];
+
+    // ---- Row 2: chart + Key Insights ----
+    // the story of the month in one picture: opening cash, then what operating, investing and
+    // financing each added or took away, ending at closing cash (the same order as the IAS 7 statement)
+    const invT = sumVec(nets.investing), finT = sumVec(nets.financing);
+    const s1 = openT + opTotal, s2 = s1 + invT;
+    const span = (a, b) => [Math.min(a, b), Math.max(a, b)];
+    const sg = v => (Math.abs(v) < 0.005 ? '0' : (v > 0 ? '+' : '') + abbrNum(v, true));
+    base.charts = [{ type: 'bar', style: 'clean', minimal: true, precise: true, title: 'From Opening to Closing Cash', subtitle: `${cur}, ${base.period || 'this period'}`,
+      labels: ['Opening', 'Operating', 'Investing', 'Financing', 'Closing'],
+      values: [openT, opTotal, invT, finT, closeT],
+      ranges: [span(0, openT), span(openT, s1), span(s1, s2), span(s2, closeT), span(0, closeT)],
+      labelTexts: [abbrNum(openT, true), sg(opTotal), sg(invT), sg(finT), abbrNum(closeT, true)],
+      connectors: [openT, s1, s2, closeT],
+      colors: ['#A9CDB9', opTotal >= 0 ? '#3FA37A' : '#E0634D', invT >= 0 ? '#3FA37A' : '#E0634D', finT >= 0 ? '#3FA37A' : '#E0634D', closeT < 0 ? '#C0392B' : '#14532D'] }];
+
+    // detailed-only trend charts
+    const hist = (Array.isArray(i.history) ? i.history : []).filter(h => h && hasNum(h.inflow) && hasNum(h.outflow));
+    if (hist.length) {
+      const m = String(base.period || '').match(/^[A-Za-z]{3}/);
+      const curLabel = i.monthLabel || (m ? m[0] : 'This month');
+      const labels = hist.map(h => String(h.label)).concat([curLabel]);
+      const ins = hist.map(h => Number(h.inflow)).concat([inflowT]);
+      const outs = hist.map(h => Number(h.outflow)).concat([outflowT]);
+      // inflow rises above the baseline, outflow hangs below it, and the dark line is what was left
+      const netBy = ins.map((v, k) => v - outs[k]);
+      base.charts.push({ type: 'bar', style: 'clean', minimal: true, precise: true, stacked: true, detailOnly: true, title: 'Monthly Cash Flow',
+        subtitle: `${cur} per month — inflow above the line, outflow below it, net cash flow written under each month`,
+        labels: labels.map((l, k) => [l, (netBy[k] > 0 ? '+' : '') + abbrNum(netBy[k], true)]),
+        series: [{ label: 'Inflow', values: ins, color: '#3FA37A' }, { label: 'Outflow', values: outs.map(v => -v), color: '#E0634D' }] });
+    }
+    base.charts.push({ type: 'bar', style: 'clean', minimal: true, precise: true, horizontal: true, detailOnly: true, title: 'Opening vs. Closing Cash by Channel',
+      subtitle: cur, labels: CF_CHANNELS.map(([, l]) => l),
+      series: [{ label: 'Opening', values: opening, color: '#BFD8C9' }, { label: 'Closing', values: closing, color: '#14532D' }] });
+    base.detailChartsTitle = 'Trends';
+
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const notes = checks.slice();
+      if (movement) notes.push(movement);
+      if (topCh) notes.push({ label: 'Channel', color: '#2E86DE',
+        text: `${topCh.label} holds the most cash at the close: ${fmt.n(topCh.v, 2)} ${cur} (${fmt.pct(fmt.share(topCh.v, closeT), 0)} of the total).` });
+      if (operating) notes.push(operating);
+      if (reconOk) notes.push({ label: 'Reconciled', color: '#1D5C38', text: `Opening balances for all three channels match ${prevLabel}'s computed closing balances.` });
+      base.insights = notes.slice(0, 4);
+    }
+
+    // ---- Row 3: the channel table ----
+    const channelTable = {
+      title: 'Cash Position by Channel', sheetName: 'Channel Summary',
+      columns: ['Channel', `Opening (${cur})`, `Inflow (${cur})`, `Outflow (${cur})`, `Closing (${cur})`],
+      rows: CF_CHANNELS.map(([, label], c) => [label, stm(opening[c]), stm(inflowBy[c]), stm(outflowBy[c]), stm(closing[c])]),
+      totalsRow: ['Total', stm(openT), stm(inflowT), stm(outflowT), stm(closeT)],
+      columnAlign: [null, 'right', 'right', 'right', 'right'],
+      statement: true,
+      additive: [1, 2, 3, 4] // opening, inflow, outflow and closing all add up across channels
+    };
+
+    // ---- detailed PDF + Excel ----
+    const fullStatement = Object.assign({}, mainTable, { title: 'Cash Flow Statement — IAS 7 Direct Method', sheetName: 'Cash Flow Statement', statement: true, beforeCharts: true });
+    base.tables = [channelTable, fullStatement];
+
+    const txTable = (title, list, what) => ({
+      title, sheetName: what === 'Source' ? 'Inflows' : 'Outflows', columns: ['Date', `Description / ${what}`, 'Channel', `Amount (${cur})`],
+      rows: list.map(t => [dateCell(t.date), t.desc || '—', t.ch || (t.rawCh ? String(t.rawCh) : '—'), stm(t.amt)]),
+      totalsRow: ['TOTAL', '', '', stm(sumBy(list, t => t.amt))],
+      columnAlign: [null, null, null, 'right']
+    });
+    // ---- v3.30: movement by date and channel, channel tie-out, and activity detail ----
+    const allTx = txIn.map(t => Object.assign({ dir: 1 }, t)).concat(txOut.map(t => Object.assign({ dir: -1 }, t)));
+    const chNames = CF_CHANNELS.map(([, l]) => l);
+    const dayKey = t => (isoOk(t.date) ? String(t.date).slice(0, 10) : '');
+    if (allTx.length) {
+      // (a) every day with cash movement: net by channel, inflow, outflow, net and the running balance
+      const days = Array.from(new Set(allTx.map(dayKey))).sort((a, b) => (a === '' ? 1 : (b === '' ? -1 : a.localeCompare(b))));
+      const hasOther = allTx.some(t => !t.ch);
+      let run = openT;
+      const dRows = days.map(d => {
+        const list = allTx.filter(t => dayKey(t) === d);
+        const per = chNames.map(n => sumBy(list.filter(t => t.ch === n), t => t.dir * t.amt));
+        const other = sumBy(list.filter(t => !t.ch), t => t.dir * t.amt);
+        const dIn = sumBy(list.filter(t => t.dir > 0), t => t.amt), dOut = sumBy(list.filter(t => t.dir < 0), t => t.amt);
+        run += dIn - dOut;
+        return [d ? dateCell(d) : 'No date'].concat(per.map(v => tc(stm(v), v)), hasOther ? [tc(stm(other), other)] : [],
+          [stm(dIn), stm(dOut), tc(stm(dIn - dOut), dIn - dOut), stm(run)]);
+      });
+      const perTot = chNames.map(n => sumBy(allTx.filter(t => t.ch === n), t => t.dir * t.amt));
+      const otherTot = sumBy(allTx.filter(t => !t.ch), t => t.dir * t.amt);
+      const tIn = sumBy(txIn, t => t.amt), tOut = sumBy(txOut, t => t.amt);
+      base.tables.push({
+        title: 'Cash Movement by Date and Channel', sheetName: 'Movement by Date',
+        columns: ['Date'].concat(chNames.map(n => `${n} Net (${cur})`), hasOther ? [`Unassigned Net (${cur})`] : [], [`Inflow (${cur})`, `Outflow (${cur})`, `Net (${cur})`, `Running Balance (${cur})`]),
+        rows: dRows,
+        totalsRow: ['TOTAL'].concat(perTot.map(v => stm(v)), hasOther ? [stm(otherTot)] : [], [stm(tIn), stm(tOut), stm(tIn - tOut), '']),
+        columnAlign: [null].concat(new Array(dRows[0].length - 1).fill('right'))
+      });
+      const undatedN = allTx.filter(t => !dayKey(t)).length;
+      if (undatedN) base.notes = (base.notes || []).concat([`${plural(undatedN, 'cash movement has', 'cash movements have')} no valid date and ${undatedN === 1 ? 'is' : 'are'} listed last in the movement by date.`]);
+      if (txIn.length && txOut.length) {
+        base.checks = (base.checks || []).concat([{ label: 'Closing cash: opening + all dated movements vs. statement closing', expected: closeT, actual: openT + tIn - tOut }]);
+      }
+      if (hasOther) base.notes = (base.notes || []).concat([`${plural(allTx.filter(t => !t.ch).length, 'cash movement has', 'cash movements have')} no recognised channel and ${allTx.filter(t => !t.ch).length === 1 ? 'is' : 'are'} shown as Unassigned.`]);
+      base.definitions = (base.definitions || []).concat([
+        { term: 'Running balance', text: 'The opening cash balance plus every inflow and minus every outflow up to and including that day, across all channels.' }
+      ]);
+
+      // (b) the transaction lists tied back to each channel's inflow and outflow on the statement
+      const hasIn = txIn.length > 0, hasOut = txOut.length > 0;
+      const tie = [];
+      chNames.forEach((n, c) => {
+        const ti = sumBy(txIn.filter(t => t.ch === n), t => t.amt), to = sumBy(txOut.filter(t => t.ch === n), t => t.amt);
+        tie.push({ n, ti, si: inflowBy[c], to, so: outflowBy[c] });
+        if (hasIn) base.checks = (base.checks || []).concat([{ label: `${n} inflow: statement vs. transaction detail`, expected: inflowBy[c], actual: ti }]);
+        if (hasOut) base.checks = (base.checks || []).concat([{ label: `${n} outflow: statement vs. transaction detail`, expected: outflowBy[c], actual: to }]);
+      });
+      const unIn = sumBy(txIn.filter(t => !t.ch), t => t.amt), unOut = sumBy(txOut.filter(t => !t.ch), t => t.amt);
+      const tieRow = (n, ti, si, to, so, unknownStmt) => {
+        const dI = hasIn && !unknownStmt ? ti - si : 0, dO = hasOut && !unknownStmt ? to - so : 0;
+        const diff = unknownStmt ? null : dI - dO;
+        return [n, hasIn ? stm(ti) : '—', hasIn && !unknownStmt ? stm(si) : '—', hasOut ? stm(to) : '—', hasOut && !unknownStmt ? stm(so) : '—',
+          diff === null ? { v: 'Not on statement', tone: 'warn' } : (Math.abs(dI) <= 0.5 && Math.abs(dO) <= 0.5 ? { v: 'Matches', tone: 'good' } : { v: 'Differs', tone: 'bad' })];
+      };
+      const tieRows = tie.map(t => tieRow(t.n, t.ti, t.si, t.to, t.so, false));
+      if (unIn || unOut) tieRows.push(tieRow('No recognised channel', unIn, 0, unOut, 0, true));
+      base.tables.push({
+        title: 'Transaction Detail vs. Statement by Channel', sheetName: 'Channel Tie-out',
+        columns: ['Channel', `Inflow: Transactions (${cur})`, `Inflow: Statement (${cur})`, `Outflow: Transactions (${cur})`, `Outflow: Statement (${cur})`, 'Status'],
+        rows: tieRows,
+        columnAlign: [null, 'right', 'right', 'right', 'right', null]
+      });
+
+      // (c) the same movements grouped by activity, when the page marks each one
+      if (allTx.some(t => t.act)) {
+        const aRows = [], aKinds = [];
+        const pad4 = label => [label, '', '', ''];
+        let grand = 0, grandN = 0;
+        activities.concat([['Not classified', null, null, null]]).forEach(([title, key]) => {
+          const list = allTx.filter(t => (key ? t.act === key : !t.act))
+            .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || b.amt - a.amt);
+          if (!list.length) return;
+          const sub = sumBy(list, t => t.dir * t.amt);
+          aRows.push(pad4(title)); aKinds.push('section');
+          list.forEach(t => {
+            aRows.push([dateCell(t.date), (t.desc || '—') + (t.ref ? ` (${t.ref})` : ''), t.ch || (t.rawCh ? String(t.rawCh) : '—'), tc(stm(t.dir * t.amt), t.dir * t.amt)]);
+            aKinds.push('line');
+          });
+          aRows.push(['Net ' + (key ? title.replace(/^[A-C]\. /, '').toLowerCase() : 'unclassified movements'), '', '', tc(stm(sub), sub)]); aKinds.push('subtotal');
+          grand += sub; grandN += list.length;
+          if (key) base.checks = (base.checks || []).concat([{ label: `${title.replace(/^[A-C]\. /, '')}: statement vs. transaction detail`, expected: sumVec(nets[key]), actual: sub }]);
+        });
+        aRows.push([`Net movement (${plural(grandN, 'record')})`, '', '', tc(stm(grand), grand)]); aKinds.push('total');
+        base.tables.push({
+          title: 'Cash Movements by Activity', sheetName: 'By Activity',
+          columns: ['Date', 'Description / Source or Category', 'Channel', `Receipt / (Payment) (${cur})`],
+          rows: aRows, rowKinds: aKinds, columnAlign: [null, null, null, 'right'], statement: true
+        });
+        const unc = allTx.filter(t => !t.act).length;
+        if (unc) base.notes = (base.notes || []).concat([`${plural(unc, 'cash movement is', 'cash movements are')} not marked operating, investing or financing and ${unc === 1 ? 'is' : 'are'} listed as Not classified.`]);
+      }
+    }
+
+    if (txIn.length) base.tables.push(txTable('Cash Inflows — Detail', txIn, 'Source'));
+    if (txOut.length) base.tables.push(txTable('Cash Outflows — Detail', txOut, 'Category'));
+    if (reconTable) base.tables.push(reconTable);
+
+    // exceptions
+    const exc = [];
+    CF_CHANNELS.forEach(([, label], c) => {
+      if (closing[c] < -tol) exc.push(['Negative balance', `${label} closing balance is below zero.`, stm(closing[c]), 'bad']);
+    });
+    if (recon) recon.filter(p => p.have && !p.ok).forEach(p =>
+      exc.push(['Opening mismatch', `${p.label} opening balance differs from ${prevLabel}'s computed closing.`, stm(p.diff), 'bad']));
+    closingBad.forEach(x => exc.push(['Closing mismatch', `Reported ${x.label} closing differs from the computed statement.`, stm(x.d), 'bad']));
+    if (txIn.length && Math.abs(sumBy(txIn, t => t.amt) - inflowT) > Math.max(tol, 0.5)) {
+      exc.push(['Detail mismatch', `Inflow transactions total ${fmt.n(sumBy(txIn, t => t.amt), 2)} but the statement shows ${fmt.n(inflowT, 2)}.`, stm(sumBy(txIn, t => t.amt) - inflowT), 'warn']);
+    }
+    if (txOut.length && Math.abs(sumBy(txOut, t => t.amt) - outflowT) > Math.max(tol, 0.5)) {
+      exc.push(['Detail mismatch', `Outflow transactions total ${fmt.n(sumBy(txOut, t => t.amt), 2)} but the statement shows ${fmt.n(outflowT, 2)}.`, stm(sumBy(txOut, t => t.amt) - outflowT), 'warn']);
+    }
+    const incomplete = txIn.concat(txOut).filter(t => !t.ch || !t.desc).length;
+    if (incomplete) exc.push(['Incomplete record', `${plural(incomplete, 'transaction')} ${incomplete === 1 ? 'has' : 'have'} no recognised channel or no description.`, '', 'warn']);
+    [['Large inflow', txIn, inflowT], ['Large outflow', txOut, outflowT]].forEach(([type, list, total]) => {
+      const limit = hasNum(i.largeThreshold) ? Number(i.largeThreshold) : (list.length >= 4 ? total * 0.25 : Infinity);
+      list.filter(t => t.amt >= limit).sort((a, b) => b.amt - a.amt).slice(0, 3).forEach(t =>
+        exc.push([type, `${t.desc || 'Unnamed movement'} (${t.ch || 'channel not set'}, ${dateCell(t.date)})`, stm(t.amt), 'info']));
+    });
+    base.tables.push({
+      title: 'Exceptions and Unusual Movements', sheetName: 'Exceptions',
+      columns: ['Type', 'Detail', `Amount (${cur})`],
+      rows: exc.length ? exc.map(e => [{ v: e[0], tone: e[3] }, e[1], e[2]]) : [[{ v: 'None', tone: 'good' }, 'Nothing unusual was found for this period.', '']],
+      columnAlign: [null, null, 'right']
+    });
+
+    base.footer.notes = (base.footer.notes || []).concat([
+      'Cash flow counts money actually received and paid: a credit sale is not an inflow until it is collected. Loan principal is a financing outflow; loan interest is a P&L expense.'
+    ]);
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // PROFIT & LOSS — "Are we actually profitable this month, and where does the margin go?"
+  //   v3.9 summary page: Row 1 six cards (Revenue, Cost of Goods Sold, Gross Profit, Operating
+  //   Expenses, Net Profit, Net Margin); Row 2 a Revenue / Costs / Net Profit chart + Key
+  //   Insights; Row 3 a compact P&L table (This Month, % of Revenue, Year-to-Date). The detailed
+  //   PDF then prints the full statement, a period comparison, the trend and expense charts,
+  //   the revenue breakdown by product, the expense breakdown and data notes.
+  //   IAS 2 basis throughout: production overhead lives in cost of goods sold, never in
+  //   operating expenses.
+  //
+  // input: {
+  //   revenue: [{ label, month, ytd? }],    // e.g. Injera sales, Derkosh sales
+  //   cogs:    [{ label, month, ytd? }],    // materials, direct labour AND production overhead
+  //   opex:    [{ label, month, ytd? }],    // selling / admin / finance — NOT production overhead
+  //   previous?: { revenue, grossProfit, netProfit },   // last month's totals — enables comparisons
+  //   previousLabel?: 'Aug',  monthLabel?: 'This Month',  ytdLabel?: 'Year-to-Date'
+  //   -- new in v3.9 (all optional; anything left out is simply not drawn) --
+  //   history?: [{ label:'Apr', revenue, netProfit, grossProfit? }]   // EARLIER months, oldest first
+  //                                          // (this month is added automatically) -> trend charts
+  //   monthShort?: 'Sep'                     // short name of this month on the trend charts
+  //   products?: [{ name:'Injera', revenue?, quantity?, unit?:'pcs', cogs? }]
+  //                                          // revenue breakdown; quantity adds Quantity + Avg. Price,
+  //                                          // cogs (on EVERY product) adds product gross profit
+  //   transactions?: [{ line, section?:'revenue'|'cogs'|'opex', date, description, amount, reference? }]
+  //                                          // v3.28: the records behind each statement line (detailed PDF / Excel)
+  //   layout?: 'statement'                   // the old statement-only page (v3.5-v3.8)
+  // }
+  // Costs are entered and shown as positive amounts and deducted in the subtotals. The
+  // Year-to-Date columns appear only when EVERY line carries a `ytd` figure — a half-filled
+  // column would silently understate the totals, so it is left out (and a footer note says so).
+  // An opex line whose label contains "overhead" is flagged: under IAS 2 it belongs in COGS.
+  // Nothing is shown as zero when it is really unknown: no previous period -> no comparison,
+  // no product costs -> no product margin, and the Data Notes table says so.
+  // ---------------------------------------------------------------
+  presets.pl = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Profit & Loss', 'Profit & Loss Statement');
+    if (base.status === 'empty') return base;
+    const legacy = i.layout === 'statement';
+    const cur = base.currency;
+    const prevLabel = i.previousLabel || 'last month';
+    const mOf = r => (hasNum(r.month) ? Number(r.month) : (hasNum(r.amount) ? Number(r.amount) : 0));
+    const yOf = r => (hasNum(r.ytd) ? Number(r.ytd) : 0);
+    const lines = k => (Array.isArray(i[k]) ? i[k] : []).filter(r => r && r.label);
+    const rev = lines('revenue'), cogs = lines('cogs'), opex = lines('opex');
+    const everyLine = rev.concat(cogs, opex);
+    const hasYtd = everyLine.length > 0 && everyLine.every(r => hasNum(r.ytd));
+    const partialYtd = !hasYtd && everyLine.some(r => hasNum(r.ytd));
+
+    const revM = sumBy(rev, mOf), revY = sumBy(rev, yOf);
+    const cogsM = sumBy(cogs, mOf), cogsY = sumBy(cogs, yOf);
+    const opexM = sumBy(opex, mOf), opexY = sumBy(opex, yOf);
+    const gpM = revM - cogsM, gpY = revY - cogsY;
+    const npM = gpM - opexM, npY = gpY - opexY;
+    const pc = (v, whole) => (whole ? stmPct(fmt.share(v, whole)) : '—');
+
+    const rows = [], kinds = [];
+    // `toned` colours the row green (profit) or red (loss) — used for gross and net profit only
+    const add = (label, m, y, kind, toned, sink) => {
+      const t = (text, n) => (toned ? tc(text, n) : text);
+      const r = [t(label, m), t(stm(m), m), t(pc(m, revM), m), hasYtd ? t(stm(y), y) : '', hasYtd ? t(pc(y, revY), y) : ''];
+      if (sink) { sink.rows.push(r); sink.kinds.push(kind); } else { rows.push(r); kinds.push(kind); }
+    };
+    const section = label => { rows.push([label, '', '', '', '']); kinds.push('section'); };
+    const noteRow = text => { rows.push([text, '', '', '', '']); kinds.push('note'); };
+    const margin = (label, m, y) => {
+      rows.push([label, tc(pc(m, revM), revM ? m : 0), '', hasYtd ? tc(pc(y, revY), revY ? y : 0) : '', '']);
+      kinds.push('pct');
+    };
+    const block = (title, list, totalLabel, totM, totY, emptyText) => {
+      section(title);
+      if (list.length) list.forEach(r => add(r.label, mOf(r), yOf(r), 'line')); else noteRow(emptyText);
+      add(totalLabel, totM, totY, 'subtotal');
+    };
+
+    block('Revenue', rev, 'Total revenue', revM, revY, 'No revenue recorded this month');
+    block('Cost of goods sold (IAS 2 — includes production overhead)', cogs, 'Total cost of goods sold', cogsM, cogsY, 'No cost of goods sold recorded this month');
+    add(gpM < 0 ? 'GROSS LOSS' : 'GROSS PROFIT', gpM, gpY, 'subtotal', true);
+    margin('Gross profit margin', gpM, gpY);
+    block('Operating expenses', opex, 'Total operating expenses', opexM, opexY, 'No operating expenses recorded this month');
+    add(npM < 0 ? 'NET LOSS' : 'NET PROFIT', npM, npY, 'total', true);
+    margin('Net profit margin', npM, npY);
+    rows.push(['IAS 2 basis: overhead is in COGS, not OpEx.', '', '', '', '']);
+    kinds.push('note');
+
+    const head = ['Particulars', `${i.monthLabel || 'This Month'} (${cur})`, '% of Revenue'];
+    if (hasYtd) head.push(`${i.ytdLabel || 'Year-to-Date'} (${cur})`, '% of Revenue');
+    const cut = r => (hasYtd ? r : r.slice(0, 3));
+    const align = hasYtd ? [null, 'right', 'right', 'right', 'right'] : [null, 'right', 'right'];
+    const fullTable = { title: 'Profit & Loss Statement', columns: head, rows: rows.map(cut), rowKinds: kinds, columnAlign: align };
+
+    // ---- previous period (totals only; costs are derived from them) ----
+    const pv = i.previous && typeof i.previous === 'object' ? i.previous : null;
+    const pRev = pv && hasNum(pv.revenue) ? Number(pv.revenue) : null;
+    const pGp = pv && hasNum(pv.grossProfit) ? Number(pv.grossProfit) : null;
+    const pNp = pv && hasNum(pv.netProfit) ? Number(pv.netProfit) : null;
+    const pCogs = pRev !== null && pGp !== null ? pRev - pGp : null;
+    const pOpex = pGp !== null && pNp !== null ? pGp - pNp : null;
+    const gmNow = revM > 0 ? fmt.share(gpM, revM) : null, nmNow = revM > 0 ? fmt.share(npM, revM) : null;
+    const gmWas = pRev ? fmt.share(pGp, pRev) : null, nmWas = pRev && pNp !== null ? fmt.share(pNp, pRev) : null;
+
+    // ---- notes ----
+    const ohd = opex.find(r => /overhead/i.test(r.label));
+    const costs = cogs.map(r => ({ label: r.label, v: mOf(r) })).concat(opex.map(r => ({ label: r.label, v: mOf(r) }))).sort((a, b) => b.v - a.v);
+    const checkNote = ohd ? { label: 'Check', color: '#C0392B',
+      text: `"${ohd.label}" is listed under operating expenses. Under IAS 2, production overhead belongs in cost of goods sold, so gross profit may be overstated.` } : null;
+    const profitNote = (revM > 0 || npM !== 0)
+      ? (npM < 0 ? { label: 'Loss', color: '#C0392B',
+          text: `The business made a net loss of ${fmt.n(Math.abs(npM), 2)} ${cur} this month${revM ? ` (${fmt.pct(Math.abs(fmt.share(npM, revM)))} of revenue)` : ''}.` }
+        : { label: 'Profit', color: '#1D5C38',
+          text: `Net profit is ${fmt.n(npM, 2)} ${cur}${revM ? `, ${fmt.pct(fmt.share(npM, revM))} of revenue` : ''}.` })
+      : null;
+    const costNote = (revM > 0 && costs.length && costs[0].v > 0)
+      ? { label: 'Cost', color: '#2E86DE', text: `${costs[0].label} is the largest cost at ${fmt.pct(fmt.share(costs[0].v, revM))} of revenue.` } : null;
+    const ytdNote = (hasYtd && revY > 0)
+      ? { label: 'YTD', color: '#8E44AD', text: `Year to date, ${npY < 0 ? 'the net loss is ' + fmt.n(Math.abs(npY), 2) : 'net profit is ' + fmt.n(npY, 2)} ${cur} (${fmt.pct(fmt.share(npY, revY))} of revenue).` } : null;
+    const rc = pctChg(revM, pRev);
+    const npc = pNp !== null && pNp > 0 ? pctChg(npM, pNp) : null;
+    const marginNote = (gmNow !== null && gmWas !== null && Math.abs(gmNow - gmWas) >= 0.1)
+      ? { label: gmNow < gmWas ? 'Margin' : 'Growth', color: gmNow < gmWas ? '#C89B3C' : '#1D5C38',
+          text: `Gross margin is ${fmt.pct(gmNow)}, ${gmNow < gmWas ? 'down' : 'up'} ${Math.abs(gmNow - gmWas).toFixed(1)} points from ${fmt.pct(gmWas)} in ${prevLabel}.` } : null;
+
+    if (legacy) {
+      base.tables = [fullTable];
+      base.layout = 'statement';
+      base.statementTitle = 'Profit & Loss Statement';
+      base.statementBasis = `IAS 2 basis — overhead is part of cost of goods sold · ${base.period || 'this period'} · Amounts in ${cur}`;
+      base.insightsTitle = 'Notes';
+      if (i.insights) {
+        base.insights = i.insights;
+      } else {
+        const notes = [];
+        if (checkNote) notes.push(checkNote);
+        if (profitNote) notes.push(profitNote);
+        if (rc !== null) notes.push({ label: rc < 0 ? 'Watch' : 'Revenue', color: rc < 0 ? '#C89B3C' : '#1D5C38',
+          text: `Revenue is ${rc >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(rc))} versus ${prevLabel} (${fmt.n(revM, 2)} ${cur}).` });
+        if (marginNote) notes.push(marginNote);
+        if (costNote) notes.push(costNote);
+        if (ytdNote) notes.push(ytdNote);
+        base.insights = notes.slice(0, 4);
+      }
+      base.footer.notes = (base.footer.notes || []).concat([
+        'Costs are shown as positive amounts and deducted in the subtotals. Percentages are of total revenue. Profit is green and loss is red.'
+      ].concat(partialYtd ? ['Year-to-Date columns are omitted because not every line had a year-to-date figure.'] : []));
+      return base;
+    }
+
+    // ================= v3.9 layout =================
+    const money = v => fmt.n(v, 0);
+    const lossGood = (v) => (v < 0 ? '#C0392B' : '#1D5C38');
+    const vsPrev = (now, was, upGood) => {
+      const c = pctChg(now, was);
+      return c === null ? null : { delta: `${fmt.signedPct(c)} vs ${prevLabel}`, deltaTone: (upGood ? c >= 0 : c <= 0) ? 'good' : 'warn' };
+    };
+    const ofRev = v => (revM > 0 ? { delta: `${fmt.pct(fmt.share(v, revM))} of revenue` } : {});
+    base.kpis = [
+      Object.assign({ label: 'Revenue', value: money(revM), unit: cur, color: '#2D6A4F' }, vsPrev(revM, pRev, true) || {}),
+      Object.assign({ label: 'Cost of Goods Sold', value: money(cogsM), unit: cur, color: '#C89B3C' }, vsPrev(cogsM, pCogs, false) || ofRev(cogsM)),
+      Object.assign({ label: gpM < 0 ? 'Gross Loss' : 'Gross Profit', value: money(gpM), unit: cur, color: lossGood(gpM) },
+        gmNow !== null ? { delta: `${fmt.pct(gmNow)} gross margin`, deltaTone: gpM >= 0 ? 'good' : 'warn' } : {}),
+      Object.assign({ label: 'Operating Expenses', value: money(opexM), unit: cur, color: '#E67E22' }, vsPrev(opexM, pOpex, false) || ofRev(opexM)),
+      Object.assign({ label: npM < 0 ? 'Net Loss' : 'Net Profit', value: money(npM), unit: cur, color: lossGood(npM) },
+        vsPrev(npM, pNp !== null && pNp > 0 ? pNp : null, true) || (nmNow !== null ? { delta: `${fmt.pct(nmNow)} of revenue`, deltaTone: npM >= 0 ? 'good' : 'warn' } : {})),
+      Object.assign({ label: 'Net Margin', value: nmNow === null ? '—' : fmt.pct(nmNow), color: '#8E44AD' },
+        nmNow !== null && nmWas !== null ? { delta: `${nmNow - nmWas >= 0 ? '+' : '-'}${Math.abs(nmNow - nmWas).toFixed(1)} pts vs ${prevLabel}`, deltaTone: nmNow >= nmWas ? 'good' : 'warn' } : {})
+    ];
+
+    // a waterfall: revenue steps down through costs to gross profit, then through operating
+    // expenses to net profit — shows where the money went instead of five unrelated bars
+    const span = (a, b) => [Math.min(a, b), Math.max(a, b)];
+    base.charts = [{ type: 'bar', style: 'clean', minimal: true, precise: true, title: 'Revenue, Costs and Net Profit', subtitle: `${cur}, ${base.period || 'this period'}`,
+      labels: ['Revenue', 'Cost of goods sold', gpM < 0 ? 'Gross loss' : 'Gross profit', 'Operating expenses', npM < 0 ? 'Net loss' : 'Net profit'],
+      values: [revM, -cogsM, gpM, -opexM, npM],
+      ranges: [span(0, revM), span(revM, gpM), span(0, gpM), span(gpM, npM), span(0, npM)],
+      labelValues: [revM, -cogsM, gpM, -opexM, npM],
+      connectors: [revM, gpM, gpM, npM],
+      colors: ['#14532D', '#E2A93B', gpM < 0 ? '#C0392B' : '#3FA37A', '#E8825F', npM < 0 ? '#C0392B' : '#14532D'] }];
+
+    // detailed-only charts: monthly trend, gross vs net, expense split
+    const hist = (Array.isArray(i.history) ? i.history : []).filter(h => h && hasNum(h.revenue) && hasNum(h.netProfit));
+    const mm = String(base.period || '').match(/^[A-Za-z]{3}/);
+    const curShort = i.monthShort || (mm ? mm[0] : 'This month');
+    if (hist.length) {
+      const labels = hist.map(h => String(h.label)).concat([curShort]);
+      // revenue as bars (left axis) with net profit as a line on its own right-hand axis, because
+      // profit is a fraction of revenue and would otherwise be squashed flat along the bottom
+      base.charts.push({ type: 'bar', style: 'clean', detailOnly: true, title: 'Revenue and Net Profit Trend', subtitle: `${cur} per month — revenue (bars, left axis), net profit (line, right axis)`, labels,
+        labelSeries: [1],
+        series: [{ label: 'Revenue', type: 'bar', values: hist.map(h => Number(h.revenue)).concat([revM]), color: '#A9D6BC' },
+                 { label: 'Net profit', type: 'line', axis: 'right', values: hist.map(h => Number(h.netProfit)).concat([npM]), color: '#1B4332' }] });
+      if (hist.every(h => hasNum(h.grossProfit))) {
+        base.charts.push({ type: 'bar', style: 'clean', minimal: true, precise: true, detailOnly: true, title: 'Gross Profit vs. Net Profit', subtitle: `${cur} per month`, labels,
+          series: [{ label: 'Gross profit', values: hist.map(h => Number(h.grossProfit)).concat([gpM]), color: '#A9CDB9' },
+                   { label: 'Net profit', values: hist.map(h => Number(h.netProfit)).concat([npM]), color: '#14532D' }] });
+      }
+    }
+    const costGroups = costs.filter(c => c.v > 0).map(c => ({ name: c.label, amount: c.v, count: 1 }));
+    if (costGroups.length >= 2) {
+      const shown = topWithOther(costGroups, 6);
+      const costTotal = sumBy(shown, c => c.amount);
+      base.charts.push({ type: 'doughnut', style: 'clean', detailOnly: true, title: 'Where the Money Went', subtitle: 'Share of total costs',
+        labels: shown.map(c => `${c.name} · ${fmt.pct(fmt.share(c.amount, costTotal), 0)}`), values: shown.map(c => c.amount),
+        colors: ['#14532D', '#3FA37A', '#A9CDB9', '#E2A93B', '#E8825F', '#8FB8A0'], centerLabel: { top: 'Total costs', value: money(cogsM + opexM), bottom: cur } });
+    }
+    base.detailChartsTitle = 'Trends and Breakdowns';
+
+    // Key Insights
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const notes = [];
+      if (checkNote) notes.push(checkNote);
+      if (profitNote) notes.push(profitNote);
+      if (rc !== null || npc !== null) {
+        const parts = [];
+        if (rc !== null) parts.push(`Revenue is ${rc >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(rc))}`);
+        if (npc !== null) parts.push(`${rc !== null ? 'net profit' : 'Net profit'} is ${npc >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(npc))}`);
+        const bad = (rc !== null && rc < 0) || (npc !== null && npc < 0);
+        notes.push({ label: bad ? 'Watch' : 'Revenue', color: bad ? '#C89B3C' : '#1D5C38', text: `${parts.join(' and ')} versus ${prevLabel}.` });
+      }
+      if (costNote) notes.push(costNote);
+      if (marginNote) notes.push(marginNote);
+      if (ytdNote) notes.push(ytdNote);
+      base.insights = notes.slice(0, 4);
+    }
+
+    // Row 3: compact table
+    const compact = { rows: [], kinds: [] };
+    add('Revenue', revM, revY, 'line', false, compact);
+    add('Cost of goods sold', cogsM, cogsY, 'line', false, compact);
+    add(gpM < 0 ? 'GROSS LOSS' : 'GROSS PROFIT', gpM, gpY, 'subtotal', true, compact);
+    add('Operating expenses', opexM, opexY, 'line', false, compact);
+    add(npM < 0 ? 'NET LOSS' : 'NET PROFIT', npM, npY, 'total', true, compact);
+    const compactTable = { title: 'Key Lines', columns: head, rows: compact.rows.map(cut), rowKinds: compact.kinds, columnAlign: align, statement: true };
+
+    // ---- detailed tables ----
+    const full = Object.assign({}, fullTable, { title: 'Profit & Loss Statement — IAS 2 Basis', sheetName: 'P&L Statement', statement: true, beforeCharts: true });
+    base.tables = [compactTable, full];
+
+    // period comparison
+    if (pRev !== null && pGp !== null && pNp !== null) {
+      const cmp = [], ck = [];
+      const chgCell = (now, was, kind) => {
+        const d = now - was;
+        const good = kind === 'cost' ? d <= 0 : d >= 0;
+        const text = stm(d);
+        return Math.abs(d) < 0.005 ? text : { v: text, tone: good ? 'good' : 'bad' };
+      };
+      const pcell = (now, was, kind) => {
+        const c = pctChg(now, was);
+        if (c === null) return 'n/a';
+        const text = fmt.signedPct(c);
+        return Math.abs(now - was) < 0.005 ? text : { v: text, tone: (kind === 'cost' ? now - was <= 0 : now - was >= 0) ? 'good' : 'bad' };
+      };
+      const line = (label, now, was, kind, rowKind) => { cmp.push([label, stm(now), stm(was), chgCell(now, was, kind), pcell(now, was, kind)]); ck.push(rowKind || 'line'); };
+      line('Revenue', revM, pRev, 'profit');
+      line('Cost of goods sold', cogsM, pCogs, 'cost');
+      line(gpM < 0 ? 'Gross loss' : 'Gross profit', gpM, pGp, 'profit', 'subtotal');
+      line('Operating expenses', opexM, pOpex, 'cost');
+      line(npM < 0 ? 'Net loss' : 'Net profit', npM, pNp, 'profit', 'total');
+      if (gmNow !== null && gmWas !== null) { cmp.push(['Gross margin', fmt.pct(gmNow), fmt.pct(gmWas), `${gmNow - gmWas >= 0 ? '+' : '-'}${Math.abs(gmNow - gmWas).toFixed(1)} pts`, '']); ck.push('pct'); }
+      if (nmNow !== null && nmWas !== null) { cmp.push(['Net margin', fmt.pct(nmNow), fmt.pct(nmWas), `${nmNow - nmWas >= 0 ? '+' : '-'}${Math.abs(nmNow - nmWas).toFixed(1)} pts`, '']); ck.push('pct'); }
+      base.tables.push({ title: `Period Comparison — vs. ${prevLabel}`, columns: ['Item', `This Month (${cur})`, `${prevLabel} (${cur})`, `Change (${cur})`, 'Change %'],
+        rows: cmp, rowKinds: ck, columnAlign: [null, 'right', 'right', 'right', 'right'], statement: true });
+    }
+
+    // revenue breakdown
+    const prodIn = Array.isArray(i.products) ? i.products.filter(p => p && p.name) : [];
+    const prods = (prodIn.length ? prodIn : rev.map(r => ({ name: r.label, revenue: mOf(r) }))).map(p => {
+      const line = rev.find(r => String(r.label).toLowerCase().startsWith(String(p.name).toLowerCase()));
+      return { name: String(p.name), revenue: hasNum(p.revenue) ? Number(p.revenue) : (line ? mOf(line) : null),
+        qty: hasNum(p.quantity) ? Number(p.quantity) : null, unit: p.unit ? String(p.unit) : '', cogs: hasNum(p.cogs) ? Number(p.cogs) : null };
+    }).filter(p => p.revenue !== null);
+    let productCostMissing = false;
+    if (prods.length) {
+      const withQty = prods.every(p => p.qty !== null && p.qty > 0);
+      const withCost = prods.every(p => p.cogs !== null);
+      productCostMissing = !withCost;
+      const totRev = sumBy(prods, p => p.revenue);
+      const cols = ['Product', `Revenue (${cur})`, 'Share'];
+      if (withQty) cols.push('Quantity Sold', `Avg. Price (${cur})`);
+      if (withCost) cols.push(`COGS (${cur})`, `Gross Profit (${cur})`, 'Margin');
+      const mk = p => {
+        const r = [p.name, stm(p.revenue), stmPct(fmt.share(p.revenue, totRev))];
+        if (withQty) r.push(`${qtyFmt(p.qty)}${p.unit ? ' ' + p.unit : ''}`, `${fmt.n(p.revenue / p.qty, 2)}${p.unit ? ' / ' + p.unit : ''}`);
+        if (withCost) { const g = p.revenue - p.cogs; r.push(stm(p.cogs), tc(stm(g), g), p.revenue ? tc(stmPct(fmt.share(g, p.revenue)), g) : '—'); }
+        return r;
+      };
+      const tot = ['TOTAL', stm(totRev), '100.0%'];
+      if (withQty) tot.push('', '');
+      if (withCost) { const c = sumBy(prods, p => p.cogs), g = totRev - c; tot.push(stm(c), stm(g), totRev ? stmPct(fmt.share(g, totRev)) : '—'); }
+      base.tables.push({ title: 'Revenue Breakdown by Product', columns: cols, rows: prods.map(mk), totalsRow: tot,
+        columnAlign: [null].concat(cols.slice(1).map(() => 'right')), statement: true });
+    }
+
+    // expense breakdown
+    if (cogs.length || opex.length) {
+      const totC = cogsM + opexM;
+      const erow = (type, r) => [r.label, type, stm(mOf(r)), pc(mOf(r), revM), totC ? stmPct(fmt.share(mOf(r), totC)) : '—'];
+      base.tables.push({ title: 'Expense Breakdown',
+        columns: ['Expense', 'Type', `Amount (${cur})`, '% of Revenue', '% of Total Costs'],
+        rows: cogs.map(r => erow('Cost of goods sold', r)).concat(opex.map(r => erow('Operating', r))),
+        totalsRow: ['TOTAL COSTS', '', stm(totC), pc(totC, revM), totC ? '100.0%' : '—'],
+        columnAlign: [null, null, 'right', 'right', 'right'], statement: true });
+    }
+
+    // supporting transactions behind each statement line (v3.28; detailed PDF / Excel only)
+    const txIn = Array.isArray(i.transactions) ? i.transactions.filter(t => t && t.line && hasNum(t.amount)) : [];
+    if (txIn.length) {
+      const SECS = [['revenue', 'Revenue', rev], ['cogs', 'Cost of goods sold', cogs], ['opex', 'Operating expenses', opex]];
+      const norm = v => String(v).trim().toLowerCase();
+      const used = new Set(), prRows = [], prKinds = [], unmatchedLines = [];
+      const hasRef = txIn.some(t => t.reference), cols = ['Date', 'Description'].concat(hasRef ? ['Reference'] : [], [`Amount (${cur})`]);
+      const pad = (first, last) => [first].concat(new Array(cols.length - 2).fill(''), [last]);
+      let shown = 0;
+      const sectionOf = t => (['revenue', 'cogs', 'opex'].includes(norm(t.section || '')) ? norm(t.section) : null);
+      SECS.forEach(([sk, secTitle, list]) => {
+        let secSum = 0, secN = 0;
+        list.forEach(l => {
+          const mine = txIn.filter((t, idx) => !used.has(idx) && norm(t.line) === norm(l.label) && (!sectionOf(t) || sectionOf(t) === sk));
+          if (!mine.length) { unmatchedLines.push(l.label); return; }
+          mine.forEach(t => used.add(txIn.indexOf(t)));
+          const sorted = mine.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+          const sub = sumBy(sorted, t => t.amount);
+          prRows.push(pad(`${l.label} (${secTitle})`, '')); prKinds.push('section');
+          sorted.forEach(t => {
+            prRows.push([isoOk(t.date) ? `${shortDate(t.date)} ${String(t.date).slice(0, 4)}` : (t.date ? String(t.date) : '—'), String(t.description || '—')].concat(hasRef ? [String(t.reference || '—')] : [], [stm(t.amount)]));
+            prKinds.push('line');
+          });
+          prRows.push(pad(`Total ${l.label}`, stm(sub))); prKinds.push('subtotal');
+          shown += sorted.length; secSum += sub; secN += sorted.length;
+          base.checks = (base.checks || []).concat([{ label: `${l.label}: statement vs. supporting transactions`, expected: mOf(l), actual: sub }]);
+        });
+        if (secN) { prRows.push(pad(`Total ${secTitle.toLowerCase()} transactions (${plural(secN, 'record')})`, stm(secSum))); prKinds.push('total'); }
+      });
+      const strays = txIn.filter((t, idx) => !used.has(idx));
+      if (prRows.length) {
+        base.tables.push({ title: 'Supporting Transactions by Line', sheetName: 'Transactions', columns: cols, rows: prRows, rowKinds: prKinds,
+          columnAlign: [null, null].concat(hasRef ? [null] : [], ['right']), statement: true });
+      }
+      if (unmatchedLines.length) {
+        base.notes = (base.notes || []).concat([`${plural(unmatchedLines.length, 'statement line has', 'statement lines have')} no supporting transactions: ${unmatchedLines.slice(0, 4).join(', ')}${unmatchedLines.length > 4 ? ` and ${unmatchedLines.length - 4} more` : ''}.`]);
+      }
+      if (strays.length) {
+        const names = Array.from(new Set(strays.map(t => String(t.line)))).slice(0, 3).join(', ');
+        base.notes = (base.notes || []).concat([`${plural(strays.length, 'transaction')} did not match any statement line and ${strays.length === 1 ? 'is' : 'are'} not listed: ${names}.`]);
+      }
+    }
+
+    // data notes
+    const dn = [];
+    const addNote = (type, text, tone) => dn.push([{ v: type, tone: tone || 'muted' }, text]);
+    if (!pv || pRev === null || pGp === null || pNp === null) addNote('Comparison', `No complete ${prevLabel} figures were supplied, so period comparisons are unavailable (shown as unavailable, not zero).`, 'warn');
+    if (checkNote) addNote('Basis', checkNote.text, 'bad');
+    if (!rev.length) addNote('Missing', 'No revenue was recorded for this period.', 'warn');
+    if (!cogs.length) addNote('Missing', 'No cost of goods sold was recorded, so gross profit equals revenue.', 'warn');
+    if (!opex.length) addNote('Missing', 'No operating expenses were recorded for this period.', 'warn');
+    if (partialYtd) addNote('Year to date', 'Year-to-Date columns are omitted because not every line had a year-to-date figure.', 'warn');
+    if (prods.length && productCostMissing) addNote('Product cost', 'Product-level profit is not shown: product costs are not available or not reliably attributed to each product.', 'muted');
+    if (rc !== null && Math.abs(rc) >= 20) addNote('Unusual change', `Revenue moved ${fmt.signedPct(rc)} versus ${prevLabel} — worth confirming that all sales were recorded in the right month.`, 'warn');
+    if (npc !== null && Math.abs(npc) >= 30) addNote('Unusual change', `Net profit moved ${fmt.signedPct(npc)} versus ${prevLabel}.`, 'warn');
+    if (!dn.length) addNote('All clear', 'No missing data or unusual changes were found.', 'good');
+    base.tables.push({ title: 'Data Notes', columns: ['Type', 'Note'], rows: dn });
+
+    base.footer.notes = (base.footer.notes || []).concat([
+      'Costs are shown as positive amounts and deducted in the subtotals. Percentages are of total revenue. Expenses are those incurred in the period (IAS 2 basis), not simply cash paid.'
+    ].concat(partialYtd ? ['Year-to-Date columns are omitted because not every line had a year-to-date figure.'] : []));
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // BUDGET — "Where did we beat, miss, or stay on budget this month, and is it getting
+  //   better or worse?"
+  //   v3.9 summary page: Row 1 five cards (Revenue vs Budget, Expenses vs Budget, Net Result vs
+  //   Budget, Lines Over Budget, Largest Gap); Row 2 a Budget vs. Actual chart by section + Key
+  //   Insights; Row 3 a compact table of section totals with the net result. The detailed PDF
+  //   then prints the full line-by-line table (with the Trend column), variance and utilization
+  //   charts, a monthly comparison, a Variance Explanation and the transactions behind the
+  //   significant variances.
+  //
+  // input: {
+  //   sections: [{ title: 'Revenue', type?: 'income' | 'expense',     // else guessed from the title
+  //                lines: [{ label, budget, actual,
+  //                          previousBudget?, previousActual? }] }],   // last month's, for the Trend column
+  //   tolerancePct?: 2,          // within +/- this % of budget counts as On Target
+  //   previousLabel?: 'Aug',     // names the Trend column; default 'Prior Month'
+  //   varianceSign?: 'favourable' | 'raw',  // default 'favourable' (see below)
+  //   netLabel?: overrides the net line's label (default NET PROFIT, or NET LOSS when actual is negative)
+  //   -- new in v3.9 (all optional; anything left out is simply not drawn) --
+  //   monthly?: [{ label:'Jul', budget, actual }],   // month-by-month totals for the monthly chart + table
+  //   monthlyKind?: 'expense' | 'income',            // how to read monthly variance (default 'expense')
+  //   monthlyTitle?: 'Total expenses',               // what the monthly rows add up
+  //   transactions?: [{ line, section?, date, description, amount, reference? }]  // v3.30: the records
+  //                                                  //   behind EVERY line (checked against its actual)
+  //   layout?: 'statement'                           // the old statement-only page (v3.5-v3.8)
+  // }
+  // Variance is FAVOURABLE-POSITIVE by default: income above budget and expense below budget
+  // are positive; the opposite is a red negative — so red always means "worse than
+  // plan", for income and expense lines alike. Pass varianceSign:'raw' for Actual - Budget.
+  // Status: income lines are Beat / On Target / Miss; expense lines are Under / On Target / Over.
+  // Trend compares how far each line was from budget this month against last month, in
+  // percentage points (Better by / Steady / Worse by); it needs previousBudget and previousActual.
+  // The net line (income minus expense) is added when both kinds of section are present.
+  // Revenue and expenses are never added together into one "total variance": they are read
+  // separately, and only the net result combines them.
+  // ---------------------------------------------------------------
+  presets.budget = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Budget', 'Budget vs. Actual');
+    if (base.status === 'empty') return base;
+    const legacy = i.layout === 'statement';
+    const cur = base.currency;
+    const tol = hasNum(i.tolerancePct) ? Math.abs(Number(i.tolerancePct)) : 2;
+    const raw = i.varianceSign === 'raw';
+    const trendName = i.previousLabel || 'Prior Month';
+    const N = v => (hasNum(v) ? Number(v) : 0);
+    const money = v => fmt.n(v, 0);
+    const kindOf = s => (s.type === 'expense' || s.type === 'income' ? s.type
+      : (/expens|cost|spend|purchase|overhead|wage|payroll/i.test(s.title || '') ? 'expense' : 'income'));
+
+    // favourable variance of one figure pair (net / income lines: higher is better)
+    const fav = (kind, budget, actual) => (kind === 'expense' ? budget - actual : actual - budget);
+    const pctOf = (v, budget) => (budget ? (v / Math.abs(budget)) * 100 : null);
+    const statusOf = (kind, budget, actual) => {
+      const f = fav(kind, budget, actual), p = pctOf(f, budget);
+      if (budget ? Math.abs(p) <= tol : Math.abs(f) < 0.005) return 'On Target';
+      if (f > 0) return kind === 'expense' ? 'Under' : 'Beat';
+      return kind === 'expense' ? 'Over' : 'Miss';
+    };
+    const TONE = { 'Beat': 'good', 'Under': 'good', 'On Target': 'info', 'Over': 'bad', 'Miss': 'bad' };
+    // trend: change in favourable variance %, this month minus last month, in points
+    const trendOf = (kind, budget, actual, pb, pa) => {
+      if (!hasNum(pb) || !hasNum(pa) || !Number(pb) || !budget) return null;
+      return pctOf(fav(kind, budget, actual), budget) - pctOf(fav(kind, Number(pb), Number(pa)), Number(pb));
+    };
+    const trendCell = d => (d === null ? '—'
+      : (d >= 0.5 ? { v: `Better by ${d.toFixed(1)} pts`, tone: 'good' }
+        : (d <= -0.5 ? { v: `Worse by ${Math.abs(d).toFixed(1)} pts`, tone: 'bad' } : { v: 'Steady', tone: 'muted' })));
+
+    const rows = [], kinds = [], scored = [], secTotals = [], dataGaps = [];
+    const figures = (kind, label, budget, actual, trend, rowKind) => {
+      const f = fav(kind, budget, actual);
+      const shown = raw ? actual - budget : f;
+      const p = pctOf(shown, budget);
+      const st = statusOf(kind, budget, actual);
+      rows.push([label, stm(budget), stm(actual), stm(shown), p === null ? '—' : stmPct(p), trendCell(trend), { v: st, tone: TONE[st] }]);
+      kinds.push(rowKind);
+      return { label, kind, budget, actual, fav: f, favPct: pctOf(f, budget), status: st, trend };
+    };
+    const section = title => { rows.push([title, '', '', '', '', '', '']); kinds.push('section'); };
+    const noteRow = text => { rows.push([text, '', '', '', '', '', '']); kinds.push('note'); };
+
+    const sections = (Array.isArray(i.sections) ? i.sections : []).filter(s => s && s.title);
+    const tot = { income: { b: 0, a: 0, pb: 0, pa: 0, prev: true, n: 0 }, expense: { b: 0, a: 0, pb: 0, pa: 0, prev: true, n: 0 } };
+    sections.forEach(s => {
+      const kind = kindOf(s);
+      const lines = (Array.isArray(s.lines) ? s.lines : []).filter(l => l && l.label);
+      section(s.title);
+      let b = 0, a = 0, pb = 0, pa = 0, prev = lines.length > 0;
+      if (!lines.length) noteRow('No lines recorded');
+      lines.forEach(l => {
+        const lb = N(l.budget), la = N(l.actual);
+        if (!hasNum(l.budget) || (Number(l.budget) === 0 && la !== 0)) dataGaps.push({ line: l.label, what: 'No budget set' });
+        else if (!hasNum(l.actual)) dataGaps.push({ line: l.label, what: 'Actual not recorded' });
+        const tr = trendOf(kind, lb, la, l.previousBudget, l.previousActual);
+        scored.push(figures(kind, l.label, lb, la, tr, 'line'));
+        b += lb; a += la;
+        if (hasNum(l.previousBudget) && hasNum(l.previousActual)) { pb += Number(l.previousBudget); pa += Number(l.previousActual); } else prev = false;
+      });
+      figures(kind, `Total ${s.title.toLowerCase()}`, b, a, prev ? trendOf(kind, b, a, pb, pa) : null, 'subtotal');
+      secTotals.push({ title: s.title, kind, b, a });
+      const T = tot[kind]; T.b += b; T.a += a; T.n += lines.length;
+      if (prev) { T.pb += pb; T.pa += pa; } else T.prev = false;
+    });
+
+    let net = null;
+    if (tot.income.n && tot.expense.n) {
+      const nb = tot.income.b - tot.expense.b, na = tot.income.a - tot.expense.a;
+      const hasPrev = tot.income.prev && tot.expense.prev;
+      net = figures('income', i.netLabel || (na < 0 ? 'NET LOSS' : 'NET PROFIT'), nb, na,
+        hasPrev ? trendOf('income', nb, na, tot.income.pb - tot.expense.pb, tot.income.pa - tot.expense.pa) : null, 'total');
+      // profit green, loss red: colour the label and the actual figure of the net row
+      const last = rows[rows.length - 1];
+      last[0] = tc(last[0], na); last[2] = tc(last[2], na);
+    }
+
+    const fullTable = { title: 'Budget vs. Actual', rowKinds: kinds, rows,
+      columns: ['Particulars', `Budget (${cur})`, `Actual (${cur})`, `Variance (${cur})`, 'Variance %', `Trend vs. ${trendName}`, 'Status'],
+      columnAlign: [null, 'right', 'right', 'right', 'right', null, null] };
+
+    // ---- findings used by the notes, cards and explanation ----
+    const good = scored.filter(l => l.status === 'Beat' || l.status === 'Under' || l.status === 'On Target').length;
+    const badL = scored.filter(l => l.status === 'Over' || l.status === 'Miss');
+    const worst = scored.filter(l => l.fav < 0 && l.status !== 'On Target').sort((a, b) => a.fav - b.fav)[0];
+    const bestL = scored.filter(l => l.fav > 0 && (l.status === 'Beat' || l.status === 'Under')).sort((a, b) => b.fav - a.fav)[0];
+    const gapNote = worst ? { label: 'Biggest gap', color: '#C0392B',
+      text: `${worst.label} is ${worst.kind === 'expense' ? 'over budget' : 'below target'} by ${fmt.n(Math.abs(worst.fav), 2)} ${cur}${worst.favPct === null ? '' : ' (' + fmt.pct(Math.abs(worst.favPct)) + ')'}.` } : null;
+    const resultNote = net ? { label: 'Result', color: net.fav < 0 ? '#C0392B' : '#1D5C38',
+      text: `Net result is ${fmt.n(net.actual, 2)} ${cur}, ` + (Math.abs(net.fav) < 0.005 ? 'exactly on budget.'
+        : `${fmt.n(Math.abs(net.fav), 2)} ${cur} ${net.fav < 0 ? 'below' : 'above'} budget.`) } : null;
+
+    if (legacy) {
+      base.tables = [fullTable];
+      base.layout = 'statement';
+      base.statementTitle = 'Budget vs. Actual';
+      base.statementBasis = `${base.period || 'this period'} · Amounts in ${cur} · Within ${tol}% of budget counts as On Target`;
+      base.insightsTitle = 'Notes';
+      if (i.insights) {
+        base.insights = i.insights;
+      } else {
+        const notes = [];
+        if (scored.length) notes.push({ label: badL.length ? 'Lines' : 'On plan', color: badL.length ? '#C89B3C' : '#1D5C38',
+          text: `${good} of ${scored.length} line${scored.length > 1 ? 's' : ''} met or beat budget; ${badL.length ? badL.length + ' ' + (badL.length > 1 ? 'are' : 'is') + ' over budget or missed target' : 'none are over budget or missed'}.` });
+        if (gapNote) notes.push(gapNote);
+        if (resultNote) notes.push(resultNote);
+        const withTrend = scored.filter(l => l.trend !== null);
+        if (withTrend.length) {
+          const better = withTrend.filter(l => l.trend >= 0.5).length, worse = withTrend.filter(l => l.trend <= -0.5).length;
+          notes.push({ label: 'Trend', color: '#2E86DE',
+            text: `Compared with last month, ${better} line${better === 1 ? '' : 's'} moved closer to budget and ${worse} moved further away (of ${withTrend.length} with a prior month).` });
+        }
+        base.insights = notes.slice(0, 4);
+      }
+      base.footer.notes = (base.footer.notes || []).concat([
+        raw ? 'Variance is Actual minus Budget.'
+          : 'Variance is favourable-positive: income above budget and expense below budget are positive; negative (red) means worse than budget.'
+      ]);
+      return base;
+    }
+
+    // ================= v3.9 layout =================
+    const inc = tot.income, exp = tot.expense;
+    const tcol = v => (v < 0 ? '#C0392B' : '#1D5C38');
+    const toneBy = (p) => (p >= tol ? 'good' : (p <= -tol ? 'warn' : undefined));
+    base.kpis = [];
+    if (inc.n) {
+      const p = pctOf(inc.a - inc.b, inc.b);
+      base.kpis.push(Object.assign({ label: 'Revenue vs Budget', value: money(inc.a), unit: cur, color: '#2D6A4F' },
+        p === null ? {} : { delta: `${fmt.signedPct(p)} vs budget`, deltaTone: toneBy(p) }));
+    }
+    if (exp.n) {
+      const util = exp.b ? (exp.a / exp.b) * 100 : null;
+      base.kpis.push(Object.assign({ label: 'Expenses vs Budget', value: money(exp.a), unit: cur, color: '#E67E22' },
+        util === null ? {} : { delta: `${fmt.pct(util, 0)} of budget used`, deltaTone: util <= 100 - tol ? 'good' : (util > 100 + tol ? 'warn' : undefined) }));
+    }
+    if (net) {
+      base.kpis.push({ label: net.actual < 0 ? 'Net Loss vs Budget' : 'Net Result vs Budget', value: money(net.actual), unit: cur, color: tcol(net.actual),
+        delta: Math.abs(net.fav) < 0.005 ? 'Exactly on budget' : `${money(Math.abs(net.fav))} ${net.fav < 0 ? 'below' : 'above'} budget`, deltaTone: net.fav < 0 ? 'warn' : 'good' });
+    } else if (scored.length) {
+      const sumFav = sumBy(scored, l => l.fav);
+      base.kpis.push({ label: 'Net Variance', value: money(sumFav), unit: cur, color: tcol(sumFav), delta: sumFav < 0 ? 'Unfavourable overall' : 'Favourable overall', deltaTone: sumFav < 0 ? 'warn' : 'good' });
+    }
+    base.kpis.push({ label: 'Lines Over Budget', value: String(badL.length), unit: `of ${scored.length} lines`, color: badL.length ? '#C0392B' : '#2D6A4F',
+      delta: badL.length ? 'Over budget or missed target' : 'All lines on plan', deltaTone: badL.length ? 'warn' : 'good' });
+    base.kpis.push(worst
+      ? { label: 'Largest Gap', value: money(Math.abs(worst.fav)), unit: cur, color: '#C0392B',
+          delta: `${worst.label}${worst.favPct === null ? '' : ' (' + fmt.pct(Math.abs(worst.favPct)) + ')'}`, deltaTone: 'warn' }
+      : { label: 'Largest Gap', value: 'None', color: '#2D6A4F', delta: 'No unfavourable variance', deltaTone: 'good' });
+
+    // Row 2 chart: budget vs actual by section
+    base.charts = [];
+    if (secTotals.length) {
+      base.charts.push({ type: 'bar', style: 'clean', minimal: true, precise: true, horizontal: true, title: 'Budget vs. Actual', subtitle: `${cur} by section`, labels: secTotals.map(s => s.title),
+        series: [{ label: 'Budget', values: secTotals.map(s => s.b), color: '#C9D3CD' }, { label: 'Actual', values: secTotals.map(s => s.a), color: '#14532D' }] });
+    }
+    // detailed-only charts
+    const expLines = scored.filter(l => l.kind === 'expense' && l.budget > 0);
+    if (expLines.length) {
+      base.charts.push({ type: 'bar', style: 'clean', minimal: true, horizontal: true, detailOnly: true, title: 'Budget Utilization — Expense Lines', subtitle: '% of budget used; the dashed line is 100% (exactly on budget)',
+        labelFormat: 'pct', refLine: { value: 100, label: 'Budget' },
+        labels: expLines.map(l => l.label), values: expLines.map(l => Math.round((l.actual / l.budget) * 1000) / 10),
+        colors: expLines.map(l => ((l.actual / l.budget) * 100 > 100 + tol ? '#E0634D' : '#3FA37A')) });
+    }
+    if (scored.length) {
+      base.charts.push({ type: 'bar', style: 'clean', minimal: true, precise: true, horizontal: true, detailOnly: true, title: 'Variance by Line', subtitle: `${cur}; green = favourable, red = unfavourable`,
+        labels: scored.map(l => l.label), values: scored.map(l => Math.round(l.fav * 100) / 100), colors: scored.map(l => (l.fav < 0 ? '#E0634D' : '#3FA37A')) });
+    }
+    const monthly = (Array.isArray(i.monthly) ? i.monthly : []).filter(m => m && m.label && hasNum(m.budget) && hasNum(m.actual));
+    const mKind = i.monthlyKind === 'income' ? 'income' : 'expense';
+    if (monthly.length) {
+      base.charts.push({ type: 'bar', style: 'clean', minimal: true, detailOnly: true, title: `Budget vs. Actual by Month${i.monthlyTitle ? ' — ' + i.monthlyTitle : ''}`, subtitle: cur,
+        labels: monthly.map(m => String(m.label)),
+        series: [{ label: 'Budget', values: monthly.map(m => Number(m.budget)), color: '#C9D3CD' }, { label: 'Actual', values: monthly.map(m => Number(m.actual)), color: '#14532D' }] });
+    }
+    base.detailChartsTitle = 'Variance Analysis';
+
+    // Key Insights
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const notes = [];
+      if (scored.length) {
+        if (badL.length) {
+          const names = badL.slice(0, 3).map(l => l.label).join(', ') + (badL.length > 3 ? ` and ${badL.length - 3} more` : '');
+          notes.push({ label: 'Over budget', color: '#C89B3C', text: `${badL.length} of ${scored.length} lines ${badL.length === 1 ? 'is' : 'are'} over budget or missed target: ${names}.` });
+        } else {
+          notes.push({ label: 'On plan', color: '#1D5C38', text: `None of the ${scored.length} lines is over budget or below target.` });
+        }
+      }
+      if (gapNote && !(badL.length === 1 && badL[0] === worst)) notes.push(gapNote);
+      if (bestL) notes.push({ label: 'Best result', color: '#1D5C38',
+        text: `${bestL.label} is ${bestL.kind === 'expense' ? 'under budget' : 'above target'} by ${fmt.n(bestL.fav, 2)} ${cur}${bestL.favPct === null ? '' : ' (' + fmt.pct(bestL.favPct) + ')'}.` });
+      if (resultNote) notes.push(resultNote);
+      base.insights = notes.slice(0, 4);
+    }
+
+    // Row 3: compact table of section totals + net
+    const crow = (label, kind, b, a) => {
+      const f = fav(kind, b, a), shown = raw ? a - b : f, p = pctOf(shown, b), st = statusOf(kind, b, a);
+      return [label, stm(b), stm(a), stm(shown), p === null ? '—' : stmPct(p), { v: st, tone: TONE[st] }];
+    };
+    const cRows = secTotals.map(s => crow(s.title, s.kind, s.b, s.a)), cKinds = secTotals.map(() => 'line');
+    if (net) {
+      const r = crow(net.label, 'income', net.budget, net.actual);
+      r[0] = tc(r[0], net.actual); r[2] = tc(r[2], net.actual);
+      cRows.push(r); cKinds.push('total');
+    }
+    const compactTable = { title: 'Budget Performance by Section', sheetName: 'Section Summary', rowKinds: cKinds, rows: cRows,
+      columns: ['Section', `Budget (${cur})`, `Actual (${cur})`, `Variance (${cur})`, 'Variance %', 'Status'],
+      columnAlign: [null, 'right', 'right', 'right', 'right', null], statement: true };
+
+    // ---- detailed tables ----
+    const full = Object.assign({}, fullTable, { title: 'Budget vs. Actual — Line by Line', sheetName: 'Budget Lines', statement: true, beforeCharts: true });
+    base.tables = [compactTable, full];
+
+    if (monthly.length) {
+      const mr = monthly.map(m => {
+        const b = Number(m.budget), a = Number(m.actual), f = fav(mKind, b, a), shown = raw ? a - b : f, p = pctOf(shown, b), st = statusOf(mKind, b, a);
+        return [String(m.label), stm(b), stm(a), stm(shown), p === null ? '—' : stmPct(p), { v: st, tone: TONE[st] }];
+      });
+      base.tables.push({ title: `Monthly Comparison${i.monthlyTitle ? ' — ' + i.monthlyTitle : ''}`, sheetName: 'Monthly Comparison',
+        columns: ['Month', `Budget (${cur})`, `Actual (${cur})`, `Variance (${cur})`, 'Variance %', 'Status'],
+        rows: mr, columnAlign: [null, 'right', 'right', 'right', 'right', null], statement: true });
+    }
+
+    // variance explanation
+    const expl = [];
+    const evar = l => [stm(raw ? l.actual - l.budget : l.fav), l.favPct === null ? '—' : stmPct(raw ? pctOf(l.actual - l.budget, l.budget) : l.favPct)];
+    scored.filter(l => l.status === 'Over' || l.status === 'Miss').sort((a, b) => a.fav - b.fav).slice(0, 4).forEach(l =>
+      expl.push([{ v: l.kind === 'expense' ? 'Over budget' : 'Below target', tone: 'bad' }, l.label].concat(evar(l))));
+    scored.filter(l => l.status === 'Under' || l.status === 'Beat').sort((a, b) => b.fav - a.fav).slice(0, 4).forEach(l =>
+      expl.push([{ v: l.kind === 'expense' ? 'Under budget' : 'Above target', tone: 'good' }, l.label].concat(evar(l))));
+    dataGaps.forEach(g => expl.push([{ v: 'Data note', tone: 'warn' }, g.line, '—', g.what]));
+    if (expl.length) {
+      base.tables.push({ title: 'Variance Explanation', columns: ['Finding', 'Line', `Variance (${cur})`, 'Variance % / Note'],
+        rows: expl, columnAlign: [null, null, 'right', 'right'], statement: true });
+    }
+
+    // supporting transactions behind EVERY budget line (v3.30; detailed PDF / Excel only), grouped by
+    // section with a subtotal per line, each line tagged with its status and checked against its actual
+    const tx = Array.isArray(i.transactions) ? i.transactions.filter(t => t && t.line && hasNum(t.amount)) : [];
+    if (tx.length) {
+      const norm = v => String(v).trim().toLowerCase();
+      const used = new Set(), bRows = [], bKinds = [], unmatched = [];
+      const hasRef = tx.some(t => t.reference);
+      const cols = ['Date', 'Description'].concat(hasRef ? ['Reference'] : [], [`Amount (${cur})`]);
+      const pad = (first, last) => [first].concat(new Array(cols.length - 2).fill(''), [last]);
+      const dcell = t => (isoOk(t.date) ? `${shortDate(t.date)} ${String(t.date).slice(0, 4)}` : (t.date ? String(t.date) : '—'));
+      sections.forEach(sec => {
+        const kind = kindOf(sec);
+        const lines = (Array.isArray(sec.lines) ? sec.lines : []).filter(l => l && l.label);
+        let secSum = 0, secN = 0;
+        lines.forEach(l => {
+          const mine = tx.filter((t, idx) => !used.has(idx) && norm(t.line) === norm(l.label) && (!t.section || norm(t.section) === norm(sec.title)));
+          if (!mine.length) { unmatched.push(l.label); return; }
+          mine.forEach(t => used.add(tx.indexOf(t)));
+          const sorted = mine.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || Number(b.amount) - Number(a.amount));
+          const sub = sumBy(sorted, t => Math.abs(Number(t.amount)));
+          const st = statusOf(kind, N(l.budget), N(l.actual));
+          bRows.push(pad(`${l.label} (${sec.title}) — ${st}`, '')); bKinds.push('section');
+          sorted.forEach(t => {
+            bRows.push([dcell(t), String(t.description || '—')].concat(hasRef ? [String(t.reference || '—')] : [], [stm(Math.abs(Number(t.amount)))]));
+            bKinds.push('line');
+          });
+          bRows.push(pad(`Total ${l.label}`, stm(sub))); bKinds.push('subtotal');
+          secSum += sub; secN += sorted.length;
+          if (hasNum(l.actual)) base.checks = (base.checks || []).concat([{ label: `${l.label}: budget actual vs. supporting transactions`, expected: N(l.actual), actual: sub }]);
+        });
+        if (secN) { bRows.push(pad(`Total ${String(sec.title).toLowerCase()} transactions (${plural(secN, 'record')})`, stm(secSum))); bKinds.push('total'); }
+      });
+      const strays = tx.filter((t, idx) => !used.has(idx));
+      if (bRows.length) {
+        base.tables.push({ title: 'Supporting Transactions by Budget Line', sheetName: 'Transactions', columns: cols, rows: bRows, rowKinds: bKinds,
+          columnAlign: [null, null].concat(hasRef ? [null] : [], ['right']), statement: true });
+      }
+      if (unmatched.length) {
+        base.notes = (base.notes || []).concat([`${plural(unmatched.length, 'budget line has', 'budget lines have')} no supporting transactions: ${unmatched.slice(0, 4).join(', ')}${unmatched.length > 4 ? ` and ${unmatched.length - 4} more` : ''}.`]);
+      }
+      if (strays.length) {
+        const names = Array.from(new Set(strays.map(t => String(t.line)))).slice(0, 3).join(', ');
+        base.notes = (base.notes || []).concat([`${plural(strays.length, 'transaction')} did not match any budget line and ${strays.length === 1 ? 'is' : 'are'} not listed: ${names}.`]);
+      }
+    }
+
+    base.footer.notes = (base.footer.notes || []).concat([
+      raw ? 'Variance is Actual minus Budget.'
+        : 'Variance is favourable-positive: income above budget and expense below budget are positive; negative (red) means worse than budget. Revenue and expenses are read separately; only the net result combines them.'
+    ]);
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 1. SALES — "What did we sell, to whom, how was it paid, and how much is still owed?"
+  //   v3.31: the Sales design from the PDF Export Design Plan as an engine preset, so Sales is built
+  //   the same way as every other module. Summary page: four-to-five KPI cards, a daily sales trend,
+  //   a sales-by-product donut, Key Insights, a short ledger and the top customers. The detailed
+  //   PDF / Excel then add: Daily Sales Breakdown, Sales by Product Type, Payment-Method Breakdown,
+  //   Customer Sales Detail, Credit Sales and Outstanding A/R Detail, and the full Sales Ledger.
+  //
+  // input: {
+  //   sales: [{ date:'2026-09-03', customer, product?, quantity?, unitPrice?,
+  //             amount,                       // revenue of the sale, ETB
+  //             paymentMethod?,               // 'Cash' | 'Bank' | 'Mobile' | 'Credit' ... (any label)
+  //             paid?, balance?, status?,     // collected so far / still owed / 'paid'|'partial'|'unpaid'
+  //             invoice?, reference? }],
+  //   previousTotal?, previousLabel?          // last period's sales -> "vs Aug" on the first card
+  //   asOf?: '2026-09-30'                     // age of open credit sales is counted to this date
+  //   customerBalances?: [{ name, outstanding }]   // the BMS A/R balance per customer, cross-checked
+  //   totals?: { revenue, units, credit, outstanding }   // BMS figures, used as-is when given
+  // }
+  // A sale is a CREDIT sale when its payment method or status says so (credit / unpaid / partial / open).
+  // What is still owed comes from `balance`, else amount - paid, else the full amount for an unpaid
+  // sale. A credit sale with none of these has an UNKNOWN balance: it shows "—", is left out of the
+  // outstanding figure and a note says how many. Nothing missing is treated as zero.
+  // ---------------------------------------------------------------
+  presets.sales = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Sales', 'Sales Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const rows = asArr(i.sales).filter(r => r && hasNum(r.amount));
+    const amt = r => Number(r.amount) || 0;
+    const qty = r => (hasNum(r.quantity) ? Number(r.quantity) : null);
+    const isCredit = r => /credit/i.test(String(r.paymentMethod || '')) || /credit|unpaid|partial|open/i.test(String(r.status || ''));
+    const balOf = r => {
+      if (!isCredit(r)) return 0;
+      if (hasNum(r.balance)) return Math.max(Number(r.balance), 0);
+      if (hasNum(r.paid)) return Math.max(amt(r) - Number(r.paid), 0);
+      if (/unpaid|open/i.test(String(r.status || ''))) return amt(r);
+      return null;
+    };
+    const tot = Object.assign({}, i.totals);
+    const revenue = tot.revenue !== undefined ? Number(tot.revenue) : sumBy(rows, amt);
+    const withQty = rows.filter(r => qty(r) !== null);
+    const units = tot.units !== undefined ? Number(tot.units) : sumBy(withQty, r => qty(r));
+    const creditRows = rows.filter(isCredit);
+    const credit = tot.credit !== undefined ? Number(tot.credit) : sumBy(creditRows, amt);
+    const known = creditRows.filter(r => balOf(r) !== null);
+    const unknownBal = creditRows.length - known.length;
+    const outstanding = tot.outstanding !== undefined ? Number(tot.outstanding) : sumBy(known, balOf);
+    const prev = hasNum(i.previousTotal) ? Number(i.previousTotal) : null;
+    const change = prev ? ((revenue - prev) / prev) * 100 : null;
+    const prevLabel = i.previousLabel || 'last month';
+    const avgSale = rows.length ? sumBy(rows, amt) / rows.length : null;
+    const label = (v, d) => { const t = String(v === undefined || v === null ? '' : v).trim(); return t || d; };
+    const prods = groupSum(rows, r => label(r.product, 'Not stated'), amt);
+    const custs = groupSum(rows, r => label(r.customer, 'Walk-in / not stated'), amt);
+    const trend = dailySeries(rows, r => r.date, amt);
+
+    base.kpis = [
+      { label: 'Total Sales', value: fmt.money(revenue), unit: cur, color: '#1D5C38',
+        delta: change === null ? undefined : `${fmt.signedPct(change)} vs ${prevLabel}`, deltaTone: change === null ? undefined : (change >= 0 ? 'good' : 'warn') }
+    ];
+    if (withQty.length) base.kpis.push({ label: 'Units Sold', value: qtyFmt(units), color: '#2E86DE',
+      delta: withQty.length < rows.length ? `${plural(rows.length - withQty.length, 'sale')} without quantity` : undefined, deltaTone: 'warn' });
+    if (avgSale !== null) base.kpis.push({ label: 'Average Sale Value', value: fmt.money(avgSale), unit: cur, color: '#C89B3C', delta: `${plural(rows.length, 'sale')}` });
+    base.kpis.push({ label: 'Credit Sales', value: fmt.money(credit), unit: cur, color: '#8E44AD',
+      delta: revenue ? `${fmt.pct(fmt.share(credit, revenue), 0)} of sales` : undefined });
+    base.kpis.push({ label: 'Outstanding A/R', value: fmt.money(outstanding), unit: cur, color: outstanding > 0 ? '#C0392B' : '#2D6A4F',
+      delta: unknownBal ? `${plural(unknownBal, 'credit sale')} with unknown balance` : (outstanding > 0 ? 'Still to collect' : 'Nothing owed'), deltaTone: unknownBal || outstanding > 0 ? 'warn' : 'good' });
+
+    base.charts = [];
+    if (trend.labels.length) base.charts.push({ type: 'line', title: 'Daily Sales', subtitle: `${cur} per day`, labels: trend.labels, values: trend.values });
+    if (prods.length) base.charts.push({ type: 'doughnut', title: 'Sales by Product', labels: prods.map(p => p.name), values: prods.map(p => p.amount),
+      colors: PALETTE, centerLabel: { top: 'Total', value: fmt.money(sumBy(rows, amt)), bottom: cur } });
+
+    if (i.insights) {
+      base.insights = i.insights;
+    } else {
+      const ins = [];
+      if (change !== null) ins.push({ label: change < -10 ? 'Watch' : 'Sales', color: change < -10 ? '#C89B3C' : '#1D5C38',
+        text: `Sales are ${change >= 0 ? 'up' : 'down'} ${fmt.pct(Math.abs(change))} versus ${prevLabel} (${fmt.money(revenue)} ${cur}).` });
+      if (prods.length > 1 && revenue) ins.push({ label: 'Mix', color: '#2E86DE', text: `${prods[0].name} is the biggest product at ${fmt.pct(fmt.share(prods[0].amount, sumBy(rows, amt)), 0)} of sales.` });
+      if (credit > 0 && revenue && fmt.share(credit, revenue) >= 30) ins.push({ label: 'Credit', color: '#C89B3C', text: `${fmt.pct(fmt.share(credit, revenue), 0)} of sales were on credit; ${fmt.money(outstanding)} ${cur} is still to collect.` });
+      else if (outstanding > 0) ins.push({ label: 'Collect', color: '#C89B3C', text: `${fmt.money(outstanding)} ${cur} from credit sales is still to collect.` });
+      if (custs.length > 1 && fmt.share(custs[0].amount, sumBy(rows, amt)) >= 40) ins.push({ label: 'Risk', color: '#8E44AD', text: `${custs[0].name} accounts for ${fmt.pct(fmt.share(custs[0].amount, sumBy(rows, amt)), 0)} of sales, a concentration worth watching.` });
+      base.insights = ins.slice(0, 4);
+    }
+
+    // ---- the full ledger (summary page shows a few rows; the detailed PDF prints every one) ----
+    const dcell = d => (isoOk(d) ? shortDate(d) : (d ? String(d) : '—'));
+    const ordered = rows.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || amt(b) - amt(a));
+    const has = k => rows.some(r => r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '');
+    const cols = ['Date'], align = [null], cellOf = [r => dcell(r.date)];
+    const addCol = (name, fn, right) => { cols.push(name); align.push(right ? 'right' : null); cellOf.push(fn); };
+    if (has('invoice')) addCol('Invoice', r => label(r.invoice, '—'));
+    addCol('Customer', r => label(r.customer, '—'));
+    if (has('product')) addCol('Product', r => label(r.product, '—'));
+    if (withQty.length) addCol('Qty', r => (qty(r) === null ? '—' : qtyFmt(qty(r))), true);
+    if (rows.some(r => hasNum(r.unitPrice))) addCol(`Unit Price (${cur})`, r => (hasNum(r.unitPrice) ? fmt.money2(r.unitPrice) : '—'), true);
+    if (has('paymentMethod')) addCol('Payment', r => label(r.paymentMethod, '—'));
+    if (has('reference')) addCol('Reference', r => label(r.reference, '—'));
+    addCol(`Amount (${cur})`, r => fmt.money2(amt(r)), true);
+    const totRow = cols.map(() => '');
+    totRow[0] = 'TOTAL'; totRow[cols.length - 1] = fmt.money2(sumBy(rows, amt));
+    if (withQty.length) totRow[cols.indexOf('Qty')] = qtyFmt(sumBy(withQty, r => qty(r)));
+    base.tables = [
+      { title: 'Sales Ledger', sheetName: 'Sales Ledger', summaryMaxRows: 4, columns: cols, columnAlign: align,
+        rows: ordered.slice().reverse().map(r => cellOf.map(f => f(r))), totalsRow: totRow }
+    ];
+    base.rankedList = { title: 'Sales by Customer', maxRows: 4,
+      items: custs.map((c, k) => ({ rank: k + 1, name: c.name, meta: plural(c.count, 'sale'),
+        value: `${fmt.money(c.amount)} ${cur}`, sub: `${fmt.pct(fmt.share(c.amount, sumBy(rows, amt)))} of sales` })) };
+
+    // ================= detailed PDF / Excel only =================
+    const notes = [];
+    const total = sumBy(rows, amt);
+    if (rows.length) {
+      base.checks = (base.checks || []).concat([{ label: 'Total sales: summary vs. sales ledger', expected: revenue, actual: total }]);
+      if (withQty.length && tot.units !== undefined) base.checks.push({ label: 'Units sold: summary vs. sales ledger', expected: units, actual: sumBy(withQty, r => qty(r)), tolerance: 0.5 });
+      if (tot.credit !== undefined) base.checks.push({ label: 'Credit sales: summary vs. sales ledger', expected: credit, actual: sumBy(creditRows, amt) });
+      if (tot.outstanding !== undefined) base.checks.push({ label: 'Outstanding A/R: summary vs. credit sale balances', expected: outstanding, actual: sumBy(known, balOf) });
+
+      // Daily Sales Breakdown (every day with a sale; sales with no valid date are listed last so the table foots)
+      const dated = rows.filter(r => isoOk(r.date)), undated = rows.filter(r => !isoOk(r.date));
+      if (dated.length) {
+        const days = Array.from(new Set(dated.map(r => String(r.date).slice(0, 10)))).sort();
+        let run = 0;
+        const line = (name, list, showRun) => {
+          const a = sumBy(list, amt), q = list.filter(r => qty(r) !== null);
+          if (showRun) run += a;
+          return [name, String(list.length), withQty.length ? (q.length ? qtyFmt(sumBy(q, r => qty(r))) : '—') : null, fmt.money2(a), fmt.money2(sumBy(list.filter(isCredit), amt)), showRun ? fmt.money2(run) : '—'];
+        };
+        const dRows = days.map(d => line(dcell(d), dated.filter(r => String(r.date).slice(0, 10) === d), true));
+        if (undated.length) dRows.push(line('No date', undated, false));
+        const keep = withQty.length ? [0, 1, 2, 3, 4, 5] : [0, 1, 3, 4, 5];
+        const heads = ['Date', 'Sales', 'Units', `Sales (${cur})`, `Of Which Credit (${cur})`, `Running Total (${cur})`];
+        base.tables.push({ title: 'Daily Sales Breakdown', sheetName: 'Daily Sales', columns: keep.map(k => heads[k]),
+          rows: dRows.map(r => keep.map(k => r[k])), columnAlign: keep.map(k => (k === 0 ? null : 'right')),
+          totalsRow: keep.map(k => ({ 0: 'TOTAL', 1: String(rows.length), 2: qtyFmt(sumBy(withQty, r => qty(r))), 3: fmt.money2(total), 4: fmt.money2(sumBy(creditRows, amt)), 5: '' })[k]) });
+        base.checks.push({ label: 'Daily breakdown: all days vs. sales ledger', expected: total, actual: sumBy(dated, amt) + sumBy(undated, amt) });
+        if (undated.length) notes.push(`${plural(undated.length, 'sale has', 'sales have')} no valid date and ${undated.length === 1 ? 'is' : 'are'} listed as "No date" at the end of the daily breakdown, outside the running total.`);
+        if (withQty.length < rows.length) notes.push('Units are totalled only from sales that record a quantity; a day with none shows a dash.');
+      }
+
+      // Sales by Product Type
+      if (has('product')) {
+        const pRows = prods.map(p => {
+          const list = rows.filter(r => label(r.product, 'Not stated') === p.name), q = list.filter(r => qty(r) !== null), qs = sumBy(q, r => qty(r));
+          const qAmt = sumBy(q, amt);
+          return [p.name, String(p.count), withQty.length ? (q.length ? qtyFmt(qs) : '—') : null, fmt.money2(p.amount), fmt.pct(fmt.share(p.amount, total)),
+            withQty.length ? (q.length && qs ? fmt.money2(qAmt / qs) : '—') : null];
+        });
+        const keep = withQty.length ? [0, 1, 2, 3, 4, 5] : [0, 1, 3, 4];
+        const heads = ['Product', 'Sales', 'Quantity', `Revenue (${cur})`, '% of Sales', `Avg. Price (${cur})`];
+        base.tables.push({ title: 'Sales by Product Type', sheetName: 'By Product', columns: keep.map(k => heads[k]), rows: pRows.map(r => keep.map(k => r[k])),
+          columnAlign: keep.map(k => (k === 0 ? null : 'right')),
+          totalsRow: keep.map(k => ({ 0: 'TOTAL', 1: String(rows.length), 2: qtyFmt(sumBy(withQty, r => qty(r))), 3: fmt.money2(total), 4: '100.0%', 5: '' })[k]) });
+        base.checks.push({ label: 'Product breakdown: total vs. sales ledger', expected: total, actual: sumBy(prods, p => p.amount) });
+        if (withQty.length) notes.push('Average price is calculated only from sales that record a quantity.');
+      }
+
+      // Payment-method breakdown
+      if (has('paymentMethod')) {
+        const pm = groupSum(rows, r => label(r.paymentMethod, 'Not stated'), amt);
+        base.tables.push({ title: 'Payment-Method Breakdown', sheetName: 'By Payment', columns: ['Payment Method', 'Sales', `Amount (${cur})`, '% of Sales'],
+          rows: pm.map(p => [p.name, String(p.count), fmt.money2(p.amount), fmt.pct(fmt.share(p.amount, total))]), columnAlign: [null, 'right', 'right', 'right'],
+          totalsRow: ['TOTAL', String(rows.length), fmt.money2(total), '100.0%'] });
+        base.checks.push({ label: 'Payment methods: total vs. sales ledger', expected: total, actual: sumBy(pm, p => p.amount) });
+        const ns = rows.filter(r => !String(r.paymentMethod || '').trim()).length;
+        if (ns) notes.push(`${plural(ns, 'sale has', 'sales have')} no payment method and ${ns === 1 ? 'is' : 'are'} shown as "Not stated".`);
+      }
+
+      // Customer sales detail
+      const cRows = custs.map(c => {
+        const list = rows.filter(r => label(r.customer, 'Walk-in / not stated') === c.name), cr = list.filter(isCredit), kn = cr.filter(r => balOf(r) !== null);
+        const q = list.filter(r => qty(r) !== null);
+        return [c.name, String(c.count), withQty.length ? (q.length ? qtyFmt(sumBy(q, r => qty(r))) : '—') : null, fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, total)),
+          fmt.money2(sumBy(cr, amt)), cr.length && kn.length < cr.length ? '—' : fmt.money2(sumBy(kn, balOf)), sumBy(kn, balOf)];
+      });
+      const keepC = withQty.length ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 3, 4, 5, 6];
+      const headC = ['Customer', 'Sales', 'Quantity', `Revenue (${cur})`, '% of Sales', `Credit Sales (${cur})`, `Owed (${cur})`];
+      base.tables.push({ title: 'Customer Sales Detail', sheetName: 'By Customer', columns: keepC.map(k => headC[k]),
+        rows: cRows.map(r => keepC.map(k => (k === 6 && r[7] > 0 && r[6] !== '—' ? { v: r[6], tone: 'warn' } : r[k]))), columnAlign: keepC.map(k => (k === 0 ? null : 'right')),
+        totalsRow: keepC.map(k => ({ 0: 'TOTAL', 1: String(rows.length), 2: qtyFmt(sumBy(withQty, r => qty(r))), 3: fmt.money2(total), 4: '100.0%', 5: fmt.money2(sumBy(creditRows, amt)), 6: unknownBal ? '—' : fmt.money2(sumBy(known, balOf)) })[k]) });
+      base.checks.push({ label: 'Customer detail: total vs. sales ledger', expected: total, actual: sumBy(custs, c => c.amount) });
+      const nc = rows.filter(r => !String(r.customer || '').trim()).length;
+      if (nc) notes.push(`${plural(nc, 'sale has', 'sales have')} no customer and ${nc === 1 ? 'is' : 'are'} grouped as "Walk-in / not stated".`);
+
+      // Credit sales and outstanding A/R detail
+      if (creditRows.length) {
+        const asOf = isoOk(i.asOf) ? String(i.asOf).slice(0, 10) : null;
+        const age = r => (asOf && isoOk(r.date) ? Math.round((new Date(asOf + 'T00:00:00Z') - new Date(String(r.date).slice(0, 10) + 'T00:00:00Z')) / 86400000) : null);
+        const open = creditRows.slice().sort((a, b) => (balOf(b) === null ? -1 : balOf(b)) - (balOf(a) === null ? -1 : balOf(a)) || String(a.date || '').localeCompare(String(b.date || '')));
+        const hasInv = has('invoice');
+        const aCols = ['Date'].concat(hasInv ? ['Invoice'] : [], ['Customer', `Sale (${cur})`, `Collected (${cur})`, `Owed (${cur})`], asOf ? ['Days Open'] : []);
+        base.tables.push({ title: 'Credit Sales and Outstanding A/R Detail', sheetName: 'Credit and A-R', columns: aCols,
+          rows: open.map(r => {
+            const b = balOf(r), a = age(r);
+            return [dcell(r.date)].concat(hasInv ? [label(r.invoice, '—')] : [], [label(r.customer, '—'), fmt.money2(amt(r)),
+              b === null ? '—' : fmt.money2(amt(r) - b), b === null ? { v: '—', tone: 'warn' } : (b > 0 ? { v: fmt.money2(b), tone: 'warn' } : fmt.money2(b))],
+              asOf ? [a === null ? '—' : (a > 60 && b ? { v: String(a), tone: 'bad' } : String(a))] : []);
+          }),
+          columnAlign: [null].concat(hasInv ? [null] : [], [null, 'right', 'right', 'right'], asOf ? ['right'] : []),
+          totalsRow: ['TOTAL'].concat(hasInv ? [''] : [], ['', fmt.money2(sumBy(creditRows, amt)), unknownBal ? '—' : fmt.money2(sumBy(known, r => amt(r) - balOf(r))), unknownBal ? '—' : fmt.money2(sumBy(known, balOf))], asOf ? [''] : []) });
+        if (unknownBal) notes.push(`${plural(unknownBal, 'credit sale has', 'credit sales have')} no paid, balance or unpaid status, so what is owed is unknown; ${unknownBal === 1 ? 'it is' : 'they are'} shown as "—" and left out of Outstanding A/R.`);
+        if (!asOf) notes.push('Days open are not shown because no "as of" date was supplied.');
+        if (Array.isArray(i.customerBalances) && i.customerBalances.length) {
+          const bal = i.customerBalances.filter(c => c && c.name && hasNum(c.outstanding));
+          base.checks.push({ label: 'Outstanding A/R: credit sale balances vs. customer balances', expected: sumBy(bal, c => c.outstanding), actual: sumBy(known, balOf) });
+        }
+        base.definitions = (base.definitions || []).concat([
+          { term: 'Credit sale', text: 'A sale whose payment method or status is credit, unpaid, partial or open. It is revenue now but not cash until collected.' },
+          { term: 'Outstanding A/R', text: 'What customers still owe on credit sales: the balance recorded for the sale, else the sale amount less what was collected.' }
+        ]);
+      }
+      base.definitions = (base.definitions || []).concat([{ term: 'Average sale value', text: 'Total sales divided by the number of sales (invoices or sale lines) in the period.' }]);
+    }
+    if (notes.length) base.notes = (base.notes || []).concat(notes);
+    return base;
+  };
+
+  // ---------------------------------------------------------------
+  // 18. MULTI-YEAR (v3.38) — "How did the business perform across the selected years?"
+  //     Built for reports.html. The engine does NOT recalculate the module: the page passes
+  //     the figures it already computes and this preset only lays them out. Anything the
+  //     page does not supply is left out (no invented numbers).
+  //
+  // input: {
+  //   period: '2023 – 2026 (2026 YTD)', currency?, generatedBy?, generatedRole?, footer?,
+  //   years: [{ year: 2025, label?: '2026 (YTD)', months?: 5, partial?: bool,
+  //             revenue, cogs, netProfit, grossProfit?, opex?,        // gross / opex derived if absent
+  //             injera?, derkosh?, asp?, derkoshAsp?,                 // produced pcs / kg, avg selling prices
+  //             injeraRev?, derkoshRev?,                              // product mix
+  //             costPerInjera?, profitPerInjera?,                     // derived from cogs / injera / asp if absent
+  //             derkoshCostPerKg?, derkoshProfitPerKg?,
+  //             cogsComponents?: { blend, corn, ... }, concentration?: { top1, top3, top10 },  // concentration in %
+  //             likeForLike?: { revenue, cogs, netProfit } }],        // prior year, SAME months (for a partial year)
+  //   componentLabels?: { key: 'Label' },
+  //   topCustomers?: [{ name, byYear: { 2023: 1200, ... } }],
+  //   retention?: [{ name, byYear: { 2023: 1200, 2024: null, ... } }],   // null / missing = no sales that year
+  //   ingredients?: [{ name, byYear: { 2023: 41.5, ... } }], ingredientUnit?: 'ETB/kg',
+  //   ingredientForecast?: { name, labels: [...], actual: [...], avg3: [...], avg6: [...] },
+  //   seasonality?: { metric, decimals?, rows: [{ year|label, values: [12 numbers or null] }] },
+  //   variance?: { metric, decimals?, rows: [{ period, actual, prior, variance, variancePct, favorable }] },
+  //   insights?: ['text' | { label, color, text }],                  // the page's executive summary
+  //   notes?: ['extra footer note']
+  // }
+  // ---------------------------------------------------------------
+  presets.multiyear = function (input) {
+    const i = input || {};
+    const base = presetBase(i, 'Multi-Year', 'Multi-Year Report');
+    if (base.status === 'empty') return base;
+    const cur = base.currency;
+    const num = v => (hasNum(v) ? Number(v) : null);
+    const ys = asArr(i.years).filter(y => y && hasNum(y.year)).slice().sort((a, b) => Number(a.year) - Number(b.year));
+    if (!ys.length) {
+      base.status = 'empty';
+      base.emptyMessage = i.emptyMessage || 'No yearly figures were supplied for the selected years.';
+      return base;
+    }
+
+    // ---- normalise each year (derive only what the page's own formulas derive) ----
+    const Y = ys.map(y => {
+      const partial = y.partial === true || (hasNum(y.months) && Number(y.months) < 12);
+      const rev = num(y.revenue) || 0, cogs = num(y.cogs) || 0, net = num(y.netProfit) || 0;
+      const gross = num(y.grossProfit) !== null ? num(y.grossProfit) : rev - cogs;
+      const opex = num(y.opex) !== null ? num(y.opex) : gross - net;
+      const inj = num(y.injera), asp = num(y.asp);
+      const cpi = num(y.costPerInjera) !== null ? num(y.costPerInjera) : (inj ? cogs / inj : null);
+      const ppi = num(y.profitPerInjera) !== null ? num(y.profitPerInjera) : (asp !== null && cpi !== null ? asp - cpi : null);
+      return { year: Number(y.year), label: y.label || (String(y.year) + (partial ? ' (YTD)' : '')), partial,
+        rev, cogs, net, gross, opex, opexDerived: num(y.opex) === null, grossGiven: num(y.grossProfit) !== null,
+        inj, der: num(y.derkosh), asp, dAsp: num(y.derkoshAsp), injRev: num(y.injeraRev), derRev: num(y.derkoshRev),
+        cpi, ppi, dCost: num(y.derkoshCostPerKg), dProfit: num(y.derkoshProfitPerKg),
+        comps: y.cogsComponents && typeof y.cogsComponents === 'object' ? y.cogsComponents : null,
+        conc: y.concentration && typeof y.concentration === 'object' ? y.concentration : null,
+        llf: y.likeForLike && typeof y.likeForLike === 'object' ? y.likeForLike : null,
+        gm: rev ? (gross / rev) * 100 : null, nm: rev ? (net / rev) * 100 : null };
+    });
+    const L = Y.map(y => y.label);
+    const last = Y.length - 1;
+    const any = f => Y.some(y => f(y) !== null && f(y) !== undefined);
+    const LLF = { rev: 'revenue', cogs: 'cogs', net: 'netProfit' };
+    // Baseline for year-over-year change: the previous year, or for a part-year the SAME months of the previous year.
+    const prior = (k, f) => {
+      const y = Y[k];
+      if (y.partial) return y.llf && hasNum(y.llf[LLF[f]]) ? Number(y.llf[LLF[f]]) : null;
+      return k > 0 ? Y[k - 1][f] : null;
+    };
+    const chg = (c, b) => (b ? ((c - b) / Math.abs(b)) * 100 : null);
+    const growth = (k, f) => { const b = prior(k, f); return b === null ? null : chg(Y[k][f], b); };
+    const gCell = (g, pol) => (g === null ? '—' : { v: fmt.signedPct(g), tone: (pol || 1) * g >= 0 ? 'good' : 'bad' });
+    const mCell = (v, d) => (v === null || v === undefined ? '—' : fmt.n(v, d));
+    const refLabel = last > 0 ? (Y[last].partial ? `${Y[last - 1].year} same months` : Y[last - 1].label) : null;
+    const lastTag = Y[last].label;
+
+    // ---- KPI cards ----
+    const totRev = sumBy(Y, y => y.rev), totCogs = sumBy(Y, y => y.cogs), totNet = sumBy(Y, y => y.net);
+    const totMargin = totRev ? (totNet / totRev) * 100 : 0;
+    const yoy = (f, pol) => {
+      const g = last > 0 ? growth(last, f) : null;
+      return g === null ? {} : { delta: `${lastTag}: ${fmt.signedPct(g)} YoY`, deltaTone: (pol || 1) * g >= 0 ? 'good' : 'warn' };
+    };
+    const prodYoy = f => {
+      if (last < 1 || Y[last].partial || Y[last][f] === null || !Y[last - 1][f]) return {};
+      const g = chg(Y[last][f], Y[last - 1][f]);
+      return { delta: `${lastTag}: ${fmt.signedPct(g)} YoY`, deltaTone: g >= 0 ? 'good' : 'warn' };
+    };
+    base.kpis = [
+      Object.assign({ label: 'Total Revenue', value: fmt.money(totRev), unit: cur, color: '#1D5C38' }, yoy('rev', 1)),
+      Object.assign({ label: 'Total COGS', value: fmt.money(totCogs), unit: cur, color: '#C0392B' }, yoy('cogs', -1)),
+      Object.assign({ label: 'Net Profit', value: fmt.money(totNet), unit: cur, color: '#C89B3C' }, yoy('net', 1)),
+      { label: 'Net Profit Margin', value: fmt.pct(totMargin), color: '#8E44AD',
+        delta: last > 0 && Y[last].nm !== null && Y[last - 1].nm !== null ? `${lastTag}: ${(Y[last].nm - Y[last - 1].nm >= 0 ? '+' : '') + (Y[last].nm - Y[last - 1].nm).toFixed(1)} pts YoY` : undefined,
+        deltaTone: last > 0 && Y[last].nm !== null && Y[last - 1].nm !== null ? (Y[last].nm >= Y[last - 1].nm ? 'good' : 'warn') : undefined }
+    ];
+    if (any(y => y.inj)) base.kpis.push(Object.assign({ label: 'Injera Produced', value: fmt.money(sumBy(Y, y => y.inj)), unit: 'pcs', color: '#2E86DE' }, prodYoy('inj')));
+    if (any(y => y.der)) base.kpis.push(Object.assign({ label: 'Derkosh Produced', value: fmt.money(sumBy(Y, y => y.der)), unit: 'kg', color: '#E67E22' }, prodYoy('der')));
+
+    // ---- charts: the first two form the summary page; everything else is detailed-only ----
+    base.charts = [
+      { type: 'bar', title: 'Revenue Trend', subtitle: `${cur} per year`, labels: L, values: Y.map(y => y.rev) },
+      { type: 'line', title: 'Net Profit Trend', subtitle: `${cur} per year`, labels: L, values: Y.map(y => y.net) }
+    ];
+    const dChart = c => { const o = Object.assign({ detailOnly: true }, c); base.charts.push(o); return o; };
+    dChart({ type: 'line', title: 'Gross vs. Net Margin', subtitle: '% of revenue', labels: L,
+      series: [{ label: 'Gross margin', values: Y.map(y => y.gm || 0), color: '#2D6A4F' }, { label: 'Net margin', values: Y.map(y => y.nm || 0), color: '#C89B3C' }] });
+    dChart({ type: 'bar', title: 'COGS Trend', subtitle: `${cur} per year`, labels: L, values: Y.map(y => y.cogs), colors: L.map(() => '#C0392B') });
+    if (any(y => y.inj)) dChart({ type: 'bar', title: 'Injera Production', subtitle: 'pcs per year', labels: L, values: Y.map(y => y.inj || 0) });
+    if (any(y => y.der)) dChart({ type: 'bar', title: 'Derkosh Production', subtitle: 'kg per year', labels: L, values: Y.map(y => y.der || 0) });
+    if (any(y => y.injRev) || any(y => y.derRev)) dChart({ type: 'bar', title: 'Product Mix', subtitle: '% of revenue', labels: L,
+      series: [{ label: 'Injera', values: Y.map(y => (y.rev && y.injRev ? (y.injRev / y.rev) * 100 : 0)), color: '#1D5C38' },
+        { label: 'Derkosh', values: Y.map(y => (y.rev && y.derRev ? (y.derRev / y.rev) * 100 : 0)), color: '#C89B3C' }] });
+    if (any(y => y.cpi)) dChart({ type: 'bar', title: 'Injera Unit Economics', subtitle: `${cur} per piece`, labels: L,
+      series: [{ label: 'Cost per injera', values: Y.map(y => y.cpi || 0), color: '#C0392B' }, { label: 'Profit per injera', values: Y.map(y => y.ppi || 0), color: '#1D5C38' }] });
+    const compKeys = [];
+    const labelOfComp = k => (i.componentLabels && i.componentLabels[k]) || ({ blend: 'Injera Blend', corn: 'Corn', gomen: 'Gomen Zere', teff: 'Teff', rice: 'Rice', labor: 'Labor', fuel: 'Fuel/Energy', packaging: 'Packaging' })[k] || k;
+    ['blend', 'corn', 'gomen', 'teff', 'rice', 'labor', 'fuel', 'packaging'].concat(Y.reduce((a, y) => a.concat(y.comps ? Object.keys(y.comps) : []), [])).forEach(k => {
+      if (!compKeys.includes(k) && Y.some(y => y.comps && Math.abs(Number(y.comps[k]) || 0) > 0)) compKeys.push(k);
+    });
+    const compYear = Y.slice().reverse().find(y => y.comps && compKeys.some(k => Number(y.comps[k]) > 0));
+    if (compYear) {
+      const parts = compKeys.filter(k => Number(compYear.comps[k]) > 0);
+      dChart({ type: 'doughnut', title: `COGS Decomposition — ${compYear.label}`, labels: parts.map(labelOfComp), values: parts.map(k => Number(compYear.comps[k])),
+        colors: PALETTE, centerLabel: { top: 'COGS', value: fmt.money(sumBy(parts, k => Number(compYear.comps[k]))), bottom: cur } });
+    }
+    if (any(y => y.conc)) dChart({ type: 'line', title: 'Customer Concentration', subtitle: '% of revenue', labels: L,
+      series: [['top1', 'Top 1', '#C0392B'], ['top3', 'Top 3', '#C89B3C'], ['top10', 'Top 10', '#1D5C38']].map(s => ({ label: s[1], color: s[2], values: Y.map(y => (y.conc && hasNum(y.conc[s[0]]) ? Number(y.conc[s[0]]) : 0)) })) });
+    const ingFull = asArr(i.ingredients).filter(g => g && g.name && Y.every(y => g.byYear && hasNum(g.byYear[y.year])));
+    if (ingFull.length && Y.length > 1) dChart({ type: 'line', title: 'Ingredient Price Trend', subtitle: i.ingredientUnit || 'ETB/kg', labels: L,
+      series: ingFull.slice(0, 5).map((g, k) => ({ label: g.name, values: Y.map(y => Number(g.byYear[y.year])), color: PALETTE[k % PALETTE.length] })) });
+    const fc = i.ingredientForecast;
+    if (fc && Array.isArray(fc.labels) && Array.isArray(fc.actual)) {
+      const keep = fc.labels.map((_, k) => k).filter(k => hasNum(fc.actual[k]) && hasNum((fc.avg3 || [])[k]) && hasNum((fc.avg6 || [])[k]));
+      if (keep.length > 1) dChart({ type: 'line', title: `${fc.name || 'Ingredient'} Price vs. Rolling Averages`, subtitle: i.ingredientUnit || 'ETB/kg', labels: keep.map(k => String(fc.labels[k])),
+        series: [{ label: 'Actual', values: keep.map(k => Number(fc.actual[k])), color: '#1D5C38' }, { label: '3-month avg', values: keep.map(k => Number(fc.avg3[k])), color: '#2E86DE' }, { label: '6-month avg', values: keep.map(k => Number(fc.avg6[k])), color: '#9AADA5' }] });
+    }
+
+    // ---- tables ----
+    const right = cols => cols.map((_, k) => (k === 0 ? null : 'right'));
+    const T = (title, sheetName, columns, rows, extra) => Object.assign({ title, sheetName, columns, rows, columnAlign: right(columns), negativeRed: true }, extra || {});
+    const tables = [];
+    // [0] summary page, left
+    tables.push(T('Year-over-Year Summary', 'YoY Summary', ['Year', `Revenue (${cur})`, `COGS (${cur})`, `Net Profit (${cur})`, 'Net Margin'],
+      Y.map(y => [y.label, fmt.money(y.rev), fmt.money(y.cogs), fmt.money(y.net), mCell(y.nm === null ? null : y.nm, 1) === '—' ? '—' : fmt.pct(y.nm)]),
+      { totalsRow: ['TOTAL', fmt.money(totRev), fmt.money(totCogs), fmt.money(totNet), fmt.pct(totMargin)], additive: [1, 2, 3] }));
+    // [1] summary page, right
+    if (any(y => y.inj) || any(y => y.der)) {
+      tables.push(T('Production by Year', 'Production', ['Year', 'Injera Produced (pcs)', 'Derkosh Produced (kg)'],
+        Y.map(y => [y.label, mCell(y.inj, 0), mCell(y.der, 0)]),
+        { totalsRow: ['TOTAL', fmt.money(sumBy(Y, y => y.inj)), fmt.money(sumBy(Y, y => y.der))], additive: [1, 2] }));
+      base.summaryTables = 2;
+    }
+    // detailed: YoY P&L
+    tables.push(T('Year-over-Year P&L', 'YoY P&L', ['Year', `Revenue (${cur})`, `COGS (${cur})`, `Gross Profit (${cur})`, `Operating Expenses (${cur})`, `Net Profit (${cur})`, 'Gross Margin', 'Net Margin'],
+      Y.map(y => [y.label, fmt.money(y.rev), fmt.money(y.cogs), fmt.money(y.gross), fmt.money(y.opex), fmt.money(y.net), y.gm === null ? '—' : fmt.pct(y.gm), y.nm === null ? '—' : fmt.pct(y.nm)]),
+      { totalsRow: ['TOTAL', fmt.money(totRev), fmt.money(totCogs), fmt.money(sumBy(Y, y => y.gross)), fmt.money(sumBy(Y, y => y.opex)), fmt.money(totNet),
+        totRev ? fmt.pct((sumBy(Y, y => y.gross) / totRev) * 100) : '—', fmt.pct(totMargin)], additive: [1, 2, 3, 4, 5] }));
+    // revenue
+    const hasMixRev = any(y => y.injRev) || any(y => y.derRev);
+    tables.push(T('Revenue by Year', 'Revenue', ['Year', `Revenue (${cur})`, 'Growth'].concat(hasMixRev ? [`Injera (${cur})`, `Derkosh (${cur})`] : []),
+      Y.map((y, k) => [y.label, fmt.money(y.rev), gCell(growth(k, 'rev'), 1)].concat(hasMixRev ? [mCell(y.injRev, 0), mCell(y.derRev, 0)] : [])),
+      { reconcile: false }));
+    // COGS
+    tables.push(T('COGS by Year', 'COGS', ['Year', `COGS (${cur})`, '% of Revenue', 'Change'],
+      Y.map((y, k) => [y.label, fmt.money(y.cogs), y.rev ? fmt.pct((y.cogs / y.rev) * 100) : '—', gCell(growth(k, 'cogs'), -1)]), { reconcile: false }));
+    // profit & margin
+    tables.push(T('Profit and Margin by Year', 'Profit and Margin', ['Year', `Gross Profit (${cur})`, 'Gross Margin', `Net Profit (${cur})`, 'Net Margin', 'Net Profit Change'],
+      Y.map((y, k) => [y.label, fmt.money(y.gross), y.gm === null ? '—' : fmt.pct(y.gm), fmt.money(y.net), y.nm === null ? '—' : fmt.pct(y.nm), gCell(growth(k, 'net'), 1)]), { reconcile: false }));
+    // product mix
+    if (hasMixRev) {
+      const mixRows = Y.map((y, k) => {
+        const other = y.rev - (y.injRev || 0) - (y.derRev || 0);
+        const sh = v => (y.rev && v !== null ? fmt.pct((v / y.rev) * 100) : '—');
+        const pm = k > 0 && y.rev && Y[k - 1].rev && y.injRev !== null && Y[k - 1].injRev !== null ? (y.injRev / y.rev - Y[k - 1].injRev / Y[k - 1].rev) * 100 : null;
+        return [y.label, mCell(y.injRev, 0), mCell(y.derRev, 0), Math.abs(other) > 0.5 ? fmt.money(other) : '—', sh(y.injRev), sh(y.derRev),
+          pm === null ? '—' : `${pm >= 0 ? '+' : ''}${pm.toFixed(1)} pts`];
+      });
+      tables.push(T('Product Mix by Year', 'Product Mix', ['Year', `Injera (${cur})`, `Derkosh (${cur})`, `Other (${cur})`, 'Injera Share', 'Derkosh Share', 'Injera Share Change'], mixRows, { reconcile: false }));
+    }
+    // per-unit economics
+    if (any(y => y.cpi)) {
+      tables.push(T('Per-Unit Economics — Injera', 'Unit Economics Injera', ['Year', `Avg. Selling Price (${cur}/pc)`, `Cost per Injera (${cur})`, `Profit per Injera (${cur})`, 'Profit Margin'],
+        Y.map(y => [y.label, mCell(y.asp, 2), mCell(y.cpi, 2), y.ppi === null ? '—' : { v: fmt.money2(y.ppi), tone: y.ppi < 0 ? 'bad' : undefined }, y.asp ? fmt.pct(((y.ppi || 0) / y.asp) * 100) : '—']), { reconcile: false }));
+    }
+    if (any(y => y.dAsp)) {
+      const withCost = any(y => y.dCost), withProfit = any(y => y.dProfit);
+      tables.push(T('Per-Unit Economics — Derkosh', 'Unit Economics Derkosh', ['Year', `Avg. Selling Price (${cur}/kg)`].concat(withCost ? [`Cost per kg (${cur})`] : [], withProfit ? [`Profit per kg (${cur})`] : []),
+        Y.map(y => [y.label, mCell(y.dAsp, 2)].concat(withCost ? [mCell(y.dCost, 2)] : [], withProfit ? [mCell(y.dProfit, 2)] : [])), { reconcile: false }));
+    }
+    // customers
+    const custTotal = c => sumBy(Y, y => (c.byYear && hasNum(c.byYear[y.year]) ? Number(c.byYear[y.year]) : 0));
+    const tops = asArr(i.topCustomers).filter(c => c && c.name).slice().sort((a, b) => custTotal(b) - custTotal(a)).slice(0, 10);
+    if (tops.length) {
+      tables.push(T('Top Customers', 'Top Customers', ['Rank', 'Customer'].concat(L.map(l => `${l} (${cur})`), [`Total (${cur})`, '% of Revenue']),
+        tops.map((c, k) => [String(k + 1), c.name].concat(Y.map(y => (c.byYear && hasNum(c.byYear[y.year]) ? fmt.money(c.byYear[y.year]) : '—')), [fmt.money(custTotal(c)), totRev ? fmt.pct((custTotal(c) / totRev) * 100) : '—'])),
+        { columnAlign: ['right', null].concat(L.map(() => 'right'), ['right', 'right']), reconcile: false }));
+    }
+    if (any(y => y.conc)) {
+      const cv = (y, k) => (y.conc && hasNum(y.conc[k]) ? fmt.pct(Number(y.conc[k])) : '—');
+      tables.push(T('Customer Concentration', 'Concentration', ['Year', 'Top 1 Share', 'Top 3 Share', 'Top 10 Share'], Y.map(y => [y.label, cv(y, 'top1'), cv(y, 'top3'), cv(y, 'top10')]), { reconcile: false }));
+    }
+    const ret = asArr(i.retention).filter(c => c && c.name);
+    if (ret.length) {
+      const cols = ['Customer']; Y.forEach((y, k) => { cols.push(`${y.label} (${cur})`); if (k > 0) cols.push('Change'); });
+      const val = (c, y) => (c.byYear && hasNum(c.byYear[y.year]) ? Number(c.byYear[y.year]) : null);
+      tables.push(T('Customer Retention / Churn', 'Retention', cols, ret.map(c => {
+        const row = [c.name];
+        Y.forEach((y, k) => {
+          const v = val(c, y); row.push(v === null ? '—' : fmt.money(v));
+          if (k > 0) {
+            const p = val(c, Y[k - 1]);
+            if (p === null && v !== null) row.push({ v: 'NEW', tone: 'good' });
+            else if (p !== null && (v === null || v === 0)) row.push({ v: 'CHURNED', tone: 'bad' });
+            else if (p !== null && v !== null && p > 0) { const g = chg(v, p); row.push({ v: fmt.signedPct(g), tone: g >= 0 ? 'good' : 'bad' }); }
+            else row.push('—');
+          }
+        });
+        return row;
+      }), { reconcile: false }));
+    }
+    // ingredients
+    const ings = asArr(i.ingredients).filter(g => g && g.name);
+    if (ings.length) {
+      const pv = (g, y) => (g.byYear && hasNum(g.byYear[y.year]) ? Number(g.byYear[y.year]) : null);
+      tables.push(T(`Ingredient Prices (${i.ingredientUnit || 'ETB/kg'}, yearly average)`, 'Ingredients', ['Ingredient'].concat(L, ['First to Last']),
+        ings.map(g => { const vs = Y.map(y => pv(g, y)).filter(v => v !== null); return [g.name].concat(Y.map(y => mCell(pv(g, y), 2)), [vs.length > 1 ? gCell(chg(vs[vs.length - 1], vs[0]), -1) : '—']); }), { reconcile: false }));
+    }
+    // seasonality
+    const sea = i.seasonality;
+    if (sea && Array.isArray(sea.rows) && sea.rows.length) {
+      const d = hasNum(sea.decimals) ? Number(sea.decimals) : 0;
+      tables.push(T(`Seasonality — ${sea.metric || 'Monthly values'}`, 'Seasonality', ['Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        sea.rows.map(r => [String(r.label || r.year)].concat(Array.from({ length: 12 }, (_, m) => mCell(r.values && hasNum(r.values[m]) ? Number(r.values[m]) : null, d)))), { reconcile: false }));
+    }
+    // variance
+    const vr = i.variance;
+    if (vr && Array.isArray(vr.rows) && vr.rows.length) {
+      const d = hasNum(vr.decimals) ? Number(vr.decimals) : 0;
+      tables.push(T(`Variance Analysis — ${vr.metric || 'Year-over-Year'}`, 'Variance', ['Period', 'Actual', 'Prior Period', 'Variance', 'Variance %', 'Status'],
+        vr.rows.map(r => [String(r.period), mCell(num(r.actual), d), mCell(num(r.prior), d), mCell(num(r.variance), d), hasNum(r.variancePct) ? fmt.signedPct(r.variancePct) : '—',
+          { v: r.favorable ? 'Favorable' : 'Unfavorable', tone: r.favorable ? 'good' : 'bad' }]), { reconcile: false }));
+    }
+    // COGS decomposition
+    if (compKeys.length) {
+      const amt = (y, k) => (y.comps ? Number(y.comps[k]) || 0 : 0);
+      const withComps = Y.filter(y => y.comps);
+      const compTotal = y => sumBy(compKeys, k => amt(y, k));
+      tables.push(T('COGS Components by Year', 'COGS Decomposition', ['Year'].concat(compKeys.map(labelOfComp), [`Total (${cur})`]),
+        withComps.map(y => [y.label].concat(compKeys.map(k => fmt.money(amt(y, k))), [fmt.money(compTotal(y))])), { reconcile: false }));
+      tables.push(T('COGS Mix (% of components)', 'COGS Mix', ['Year'].concat(compKeys.map(labelOfComp)),
+        withComps.map(y => [y.label].concat(compKeys.map(k => (compTotal(y) ? fmt.pct((amt(y, k) / compTotal(y)) * 100) : '—')))), { reconcile: false }));
+    }
+    // production with selling prices (Detailed "Production" section)
+    if (any(y => y.inj) || any(y => y.der) || any(y => y.asp) || any(y => y.dAsp)) {
+      const pc = [['Year', y => y.label]];
+      if (any(y => y.inj)) pc.push(['Injera Produced (pcs)', y => mCell(y.inj, 0)]);
+      if (any(y => y.asp)) pc.push([`Injera Avg. Price (${cur}/pc)`, y => mCell(y.asp, 2)]);
+      if (any(y => y.der)) pc.push(['Derkosh Produced (kg)', y => mCell(y.der, 0)]);
+      if (any(y => y.dAsp)) pc.push([`Derkosh Avg. Price (${cur}/kg)`, y => mCell(y.dAsp, 2)]);
+      tables.push(T('Production and Selling Prices', 'Production and Prices', pc.map(c => c[0]), Y.map(y => pc.map(c => c[1](y))), { reconcile: false }));
+    }
+    // seasonal findings, taken from the monthly values the page supplied
+    if (sea && Array.isArray(sea.rows) && sea.rows.length) {
+      const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], sd = hasNum(sea.decimals) ? Number(sea.decimals) : 0;
+      const ex = sea.rows.map(r => {
+        const pts = asArr(r.values).map((v, m) => ({ v: hasNum(v) ? Number(v) : null, m })).filter(p => p.v !== null);
+        if (!pts.length) return null;
+        const hi = pts.reduce((a, p) => (p.v > a.v ? p : a)), lo = pts.reduce((a, p) => (p.v < a.v ? p : a));
+        return [String(r.label || r.year), MN[hi.m], fmt.n(hi.v, sd), MN[lo.m], fmt.n(lo.v, sd), String(pts.length)];
+      }).filter(Boolean);
+      if (ex.length) tables.push(T('Seasonal Highs and Lows', 'Seasonal Extremes', ['Year', 'Highest Month', 'Highest Value', 'Lowest Month', 'Lowest Value', 'Months With Data'], ex, { reconcile: false }));
+    }
+    base.tables = tables;
+
+    // ---- reconciliation (only figures the page actually supplied) ----
+    base.checks = [];
+    Y.forEach(y => {
+      if (y.grossGiven) base.checks.push({ label: `${y.label}: gross profit vs. revenue less COGS`, expected: y.rev - y.cogs, actual: y.gross, tolerance: 1 });
+      if (!y.opexDerived) base.checks.push({ label: `${y.label}: net profit vs. gross profit less operating expenses`, expected: y.gross - y.opex, actual: y.net, tolerance: 1 });
+      if (y.comps && compKeys.length) base.checks.push({ label: `${y.label}: COGS components vs. total COGS`, expected: y.cogs, actual: sumBy(compKeys, k => Number(y.comps[k]) || 0), tolerance: 1 });
+    });
+
+    // ---- Key Insights: the page's executive summary wins; otherwise built from the same figures ----
+    if (asArr(i.insights).length) {
+      // the page's executive summary is HTML (<b>…</b>); a PDF needs plain text
+      const plain = t => String(t === undefined || t === null ? '' : t).replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      base.insights = asArr(i.insights).map(t => (typeof t === 'string' ? { label: 'Insight', color: '#1D5C38', text: plain(t) } : (t && typeof t === 'object' ? Object.assign({}, t, { text: plain(t.text) }) : null)))
+        .filter(t => t && t.text).slice(0, 6);
+    } else {
+      const ins = [];
+      const gR = last > 0 ? growth(last, 'rev') : null;
+      ins.push({ label: 'Revenue', color: '#1D5C38', text: gR === null ? `Revenue for ${lastTag} was ${fmt.money(Y[last].rev)} ${cur}.`
+        : `Revenue ${gR >= 0 ? 'rose' : 'fell'} ${fmt.pct(Math.abs(gR))} in ${lastTag} versus ${refLabel} (${fmt.money(Y[last].rev)} ${cur}).` });
+      const best = Y.reduce((a, y) => (y.net > a.net ? y : a), Y[0]);
+      ins.push({ label: 'Profit', color: '#C89B3C', text: `${best.label} recorded the highest net profit: ${fmt.money(best.net)} ${cur}${best.nm !== null ? ` (${fmt.pct(best.nm)} margin)` : ''}.` });
+      if (Y.length > 1 && Y[0].nm !== null && Y[last].nm !== null) ins.push({ label: 'Margin', color: '#8E44AD', text: `Net margin moved from ${fmt.pct(Y[0].nm)} in ${Y[0].label} to ${fmt.pct(Y[last].nm)} in ${lastTag}.` });
+      if (last > 0 && !Y[last].partial && Y[last].inj && Y[last - 1].inj) { const g = chg(Y[last].inj, Y[last - 1].inj);
+        ins.push({ label: 'Output', color: '#2E86DE', text: `Injera production ${g >= 0 ? 'grew' : 'fell'} ${fmt.pct(Math.abs(g))} in ${lastTag} versus ${Y[last - 1].label}.` }); }
+      if (Y[last].rev && Y[last].injRev !== null) ins.push({ label: 'Mix', color: '#2E86DE', text: `${lastTag} revenue mix: Injera ${fmt.pct((Y[last].injRev / Y[last].rev) * 100, 0)}${Y[last].derRev !== null ? `, Derkosh ${fmt.pct((Y[last].derRev / Y[last].rev) * 100, 0)}` : ''}.` });
+      base.insights = ins.slice(0, 5);
+    }
+
+    // ---- Detailed PDF order (the plan): sections print in this order, ending with the Executive Summary ----
+    const shT = n => tables.find(t => t.sheetName === n);
+    const chT = t => base.charts.find(c => String(c.title).indexOf(t) !== -1);
+    const sec = (title, chartTitles, sheets) => ({ title, charts: chartTitles.map(chT).filter(Boolean), tables: sheets.map(shT).filter(Boolean) });
+    base.detailSections = [
+      sec('Year-over-Year P&L', [], ['YoY P&L']),
+      sec('Revenue Analysis', ['Revenue Trend'], ['Revenue']),
+      sec('COGS Analysis', ['COGS Trend'], ['COGS']),
+      sec('Profit & Margin', ['Net Profit Trend', 'Gross vs. Net Margin'], ['Profit and Margin']),
+      sec('Production', ['Injera Production', 'Derkosh Production'], ['Production and Prices']),
+      sec('Product Mix', ['Product Mix'], ['Product Mix']),
+      sec('Per-Unit Economics', ['Injera Unit Economics'], ['Unit Economics Injera', 'Unit Economics Derkosh']),
+      sec('Customer Analysis', ['Customer Concentration'], ['Top Customers', 'Concentration', 'Retention']),
+      sec('Ingredient Analysis', ['Ingredient Price Trend', 'Price vs. Rolling Averages'], ['Ingredients']),
+      sec('Seasonality', [], ['Seasonality', 'Seasonal Extremes']),
+      sec('Variance', [], ['Variance']),
+      sec('COGS Decomposition', ['COGS Decomposition'], ['COGS Decomposition', 'COGS Mix']),
+      { title: 'Executive Summary', insights: base.insights }
+    ].filter(x => (x.charts && x.charts.length) || (x.tables && x.tables.length) || (x.insights && x.insights.length));
+    base.typeTitles = { summary: 'Multi-Year Report — Summary', detailed: 'Multi-Year Report — Detailed' };
+
+    // ---- definitions and footer notes ----
+    base.definitions = (base.definitions || []).concat([
+      { term: 'Net profit margin', text: 'Net profit divided by revenue, for the selected years.' },
+      { term: 'Cost per injera', text: 'Total COGS for the year divided by the injera produced that year.' },
+      { term: 'Same months', text: 'For a part-year (YTD), growth is measured against the same months of the previous year, not the full previous year.' }
+    ]);
+    const notes = [];
+    if (Y.some(y => y.partial)) notes.push(`${Y.filter(y => y.partial).map(y => y.label).join(', ')} covers part of the year only. Totals include it; growth is shown only where a same-months comparison was supplied.`);
+    if (Y.some(y => y.opexDerived)) notes.push('Operating expenses are the gap between gross profit and net profit, as no separate expense layer is tracked.');
+    asArr(i.notes).forEach(n => { if (n) notes.push(String(n)); });
+    if (notes.length) base.notes = (base.notes || []).concat(notes);
+    return base;
+  };
+
+  // ---- PRESET EXPORT POINT: later modules are added above this line ----
+
   // ------------------------------------------------------------
   // EXPORT
   // ------------------------------------------------------------
@@ -1217,7 +9050,9 @@
     renderChartToImage,
     generatePDF,
     generateExcel,
-    generateCSV
+    generateCSV,
+    presets,
+    format: fmt
   };
 
 })(window);
