@@ -231,3 +231,164 @@ button{font-family:inherit}
 .toast.success{background:#19733f}
 .toast.error{background:#c1272d}
 .toast-ic{width:18px;height:18px;flex-shrink:0;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============================================================
+   v3 ADDITIONS — mobile / phone fixes, drawer animation, date chip
+   (appended; everything above is unchanged)
+
+   The marker below tells the JS (app-state/sidebar/header) that these
+   rules are loaded, so it skips injecting its own identical copy.
+   ============================================================ */
+:root{--bms-shell-v3:1}
+
+/* ── Connection status dot states ── */
+.stat-dot-live{ background:#52B788; }
+.stat-dot-connecting{ background:#E9B949; animation:statPulse 1s ease-in-out infinite; }
+.stat-dot-error{ background:#E05555; }
+.stat-dot-offline{ background:#8D99A6; }
+@keyframes statPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+/* ── Shared touch targets, focus rings, toasts & confirm dialog on small screens ── */
+.tb-ham,.bell,.uchip,.arr,.exp-trigger,.exp-menu-item,.user-panel-item,
+.notif-mark-all,.sb-a,.sb-logout,.cfm-btn,.alert-bar-x{
+  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.tb-ham:focus-visible,.bell:focus-visible,.uchip:focus-visible,.arr:focus-visible,
+.exp-trigger:focus-visible,.exp-menu-item:focus-visible,.user-panel-item:focus-visible,
+.notif-mark-all:focus-visible,.sb-a:focus-visible,.sb-logout:focus-visible,.cfm-btn:focus-visible{
+  outline:2px solid #52B788; outline-offset:2px;
+}
+@media (pointer:coarse){
+  .sb-a,.user-panel-item,.exp-menu-item,.cfm-btn{ min-height:44px; }
+  .tb-ham,.bell,.arr,.uchip,.exp-trigger{ min-width:44px; min-height:44px; }
+}
+@media (max-width:640px){
+  .toast-stack{ max-width:calc(100vw - 24px); }
+  .toast{ max-width:100%; box-sizing:border-box; overflow-wrap:anywhere; }
+  .cfm-ov{ padding:16px; box-sizing:border-box; overflow-y:auto; }
+  .cfm-box{ max-width:calc(100vw - 32px); box-sizing:border-box; }
+  .cfm-actions{ flex-wrap:wrap; }
+}
+
+/* ── Sidebar: phone drawer (transform-only slide, no centred icon rail, pinned footer) ── */
+@media (max-width: 900px){
+  /* shared-shell.css already makes the drawer a transform-only slide at a
+     fixed width. What it can't do is stop the desktop ".collapsed" rail
+     rules (centred icons) from applying to the drawer, then flipping to
+     left-aligned on the sticky :hover a tap leaves behind â€” that was the
+     visible jump. sidebar.js no longer puts .collapsed on phones; the rules
+     below finish the job. */
+  .sb{ max-width:86vw; min-height:0; height:100%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+       transition:transform .26s cubic-bezier(.32,.72,0,1); will-change:transform; backface-visibility:hidden; }
+  /* 100vh is taller than the visible area on iOS/Android (URL bar), which
+     pushed the sign-out button below the fold â€” fixed to the real viewport. */
+  @supports (height:100dvh){ .sb{ height:100dvh; } }
+  .sb:hover, .sb.collapsed:hover{ box-shadow:4px 0 20px rgba(0,0,0,.25); }
+  /* Belt and braces: even if something puts .collapsed on the drawer, it keeps
+     the full left-aligned layout (same values as .pinned-open) â€” never the
+     centred icon-rail layout that jumps on touch. */
+  .sb.collapsed .sb-logo, .sb.collapsed:hover .sb-logo{ justify-content:flex-start; padding:15px 14px 14px; }
+  .sb.collapsed .sb-a, .sb.collapsed:hover .sb-a{ justify-content:flex-start; margin:1px 10px; padding:9px 14px; }
+  .sb.collapsed .sb-foot, .sb.collapsed:hover .sb-foot{ justify-content:flex-start; padding:12px 14px; }
+  .sb-a:hover{ transform:none; }
+  /* user + sign-out stay pinned at the bottom of the drawer instead of
+     scrolling out of reach on a long menu */
+  .sb-foot{ position:sticky; bottom:0; z-index:1; background:#10271a; }
+  .sb-overlay.show{ animation:sbOvIn .26s ease both; }
+  .sb-overlay.hiding{ display:block; pointer-events:none; animation:sbOvOut .26s ease both; }
+  .main, .main.sb-collapsed, .main.sb-pinned{ margin-left:0 !important; max-width:100%; min-width:0; }
+  body.sb-scroll-lock{ overflow:hidden; }
+}
+@keyframes sbOvIn{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes sbOvOut{ from{ opacity:1 } to{ opacity:0 } }
+/* Set for a moment on first render and when crossing the phone/desktop
+   breakpoint, so layout snapping into place is never animated (this also
+   stops the content area visibly sliding 220pxâ†’68px on every desktop load). */
+html.sb-no-anim .sb, html.sb-no-anim .sb *, html.sb-no-anim .main, html.sb-no-anim .sb-overlay{ transition:none !important; animation:none !important; }
+
+/* ── Topbar: date chip/line, month picker row, floating panels on phones ── */
+/* â”€â”€ Today's date â”€â”€ chip on tablet/desktop, a line under the title on phones */
+.tb-date-chip{ display:flex; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap; background:#f4f8f6; border:1px solid var(--border,#e3ece7); border-radius:20px; padding:5px 12px; font-size:var(--fs-sm,11.5px); font-weight:600; color:var(--tm,#5e7268); }
+.tb-date-chip svg{ width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.tb-date-line{ display:none; }
+/* â”€â”€ Tablet & below (â‰¤1024px) â”€â”€ */
+@media (max-width: 1024px){
+  .topbar{ padding-left:max(14px, env(safe-area-inset-left,0px)); padding-right:max(14px, env(safe-area-inset-right,0px)); gap:10px; }
+  /* basis 0 (not auto): a long title truncates with â€¦ instead of pushing the
+     bell/export/avatar group onto a second row */
+  .tb-ttl{ flex:1 1 0%; min-width:0; }
+  .tb-ttl h1{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tb-ttl p{ display:none; }
+  /* month picker: own full-width row instead of disappearing */
+  .topbar.has-month{ flex-wrap:wrap; height:auto; row-gap:8px; padding-top:8px; padding-bottom:8px; }
+  .topbar.has-month .tb-mid{ order:5; flex:1 0 100%; display:flex; align-items:center; justify-content:center; gap:8px; margin:0; }
+  .mpick select{ font-size:16px; } /* <16px makes iOS zoom the page on focus */
+  /* connection pill: dot only (label stays in tooltip / aria-label) */
+  .stat-pill{ display:flex; padding:6px 8px; min-width:0; } /* shared-shell.css hides the pill â‰¤900px */
+  .stat-pill #statText{ display:none; }
+  .uchip-txt span{ display:none; }
+  .notif-panel, .user-panel{ width:320px; max-width:calc(100vw - 24px); }
+  .exp-menu{ max-width:calc(100vw - 20px); }
+}
+/* â”€â”€ Phone (â‰¤640px) â”€â”€ */
+@media (max-width: 640px){
+  .topbar{ padding-left:max(10px, env(safe-area-inset-left,0px)); padding-right:max(10px, env(safe-area-inset-right,0px)); gap:8px; }
+  .tb-ttl h1{ font-size:16px; }
+  .tb-right{ gap:6px; flex-shrink:0; }
+  .tb-date-chip{ display:none; }
+  .tb-date-line{ display:block; margin-top:2px; font-size:var(--fs-xs,10.5px); font-weight:600; color:var(--tl,#94a89f); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .exp-trigger .exp-lbl{ display:none; }
+  .exp-trigger{ padding:8px; }
+  .uchip{ padding:4px 6px; }
+  .uchip-txt{ display:none; }
+  .alert-bar-in span{ font-size:12px; }
+  .alert-bar-actions{ flex-shrink:0; }
+  /* floating panels span the screen; top/max-height are set from JS
+     (_positionFloating) so they sit right under the real topbar height */
+  .notif-panel, .user-panel, .exp-menu{
+    position:fixed; left:10px; right:10px; top:60px; width:auto; max-width:none; margin:0;
+    max-height:calc(100vh - 80px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  }
+}
+
+/* ============================================================
+   v4 ADDITIONS — phone & tablet layout hardening (everything is inside a
+   max-width media query, so desktop/PC layouts are untouched).
+   Fixes cards that grew wider than the screen and got clipped (grid/flex
+   children sizing to their widest content), wrapped button rows, modals
+   and tables on narrow screens.
+   ============================================================ */
+@media (max-width:1024px){
+  /* grid/flex children may shrink below their content width instead of
+     stretching the whole card past the screen edge */
+  .content > *, .main > *{ min-width:0; max-width:100%; }
+  .content .card, .content .bot2 > *, .content .bot2-main > *, .content .bottom3 > *,
+  .content .der-grid3 > *, .content .der-charts > *, .content .der-bottom > *{ min-width:0; max-width:100%; }
+  .content .der-grid3{ grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:900px){
+  /* two-column bottom rows become one column and each card spans the full width */
+  .content .bot2, .content .bot2-main{ display:flex; flex-direction:column; align-items:stretch; }
+  .content .bot2 > *, .content .bot2-main > *{ flex:none; width:100%; }
+  .content .bottom3{ grid-template-columns:minmax(0,1fr); }
+  /* header rows inside cards (title + buttons) wrap instead of overflowing */
+  .content .card-hd, .content .pl-hd, .content .exp-btns, .content .card-tools, .content .tb-tools{ flex-wrap:wrap; row-gap:8px; }
+  .content .exp-btns{ width:100%; }
+  /* charts never exceed their card */
+  .content canvas{ max-width:100%; }
+  /* long words / numbers don't push layouts wider */
+  .content .kc-val, .content .kc-lbl, .content .kc-sub{ overflow-wrap:anywhere; }
+}
+@media (max-width:640px){
+  /* modals: fit the screen, scroll inside, stack two-column form rows */
+  .modal, .modal-box, .modal-card, .mdl, .mbox{ max-width:calc(100vw - 20px) !important; max-height:calc(100dvh - 24px); overflow-y:auto; box-sizing:border-box; }
+  .modal-ov, .modal-overlay, .mov, .ov{ padding:10px; align-items:flex-start; overflow-y:auto; }
+  .fg2, .fg3, .form-row, .frow, .row2, .row3, .fgrid, .form-grid{ grid-template-columns:minmax(0,1fr) !important; }
+  .form-row, .frow, .row2, .row3{ flex-direction:column; }
+  .frm-row{ flex-direction:column; gap:0; }
+  .frm-row > *{ min-width:0; width:100%; }
+  .sup-add-row{ flex-wrap:wrap; }
+  .sup-add-row input{ flex:1 1 100%; min-width:0; }
+  input, select, textarea{ font-size:16px; } /* stops iOS zooming into fields on focus */
+  .content{ padding:12px 10px; }
+}
