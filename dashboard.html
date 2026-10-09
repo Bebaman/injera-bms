@@ -134,12 +134,12 @@
 .al-modal-body{flex:1;overflow-y:auto}
 
 /* ══ BOTTOM ROW ════════════════════════════════════════ */
-.bot{display:grid;grid-template-columns:minmax(0,300px) 1fr minmax(0,260px);gap:12px;margin-bottom:12px}
+.bot{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr) minmax(0,240px);gap:12px;margin-bottom:12px}
 .exp-bd{padding:6px 16px 2px;display:flex;align-items:center;gap:12px}
 .dnut{position:relative;flex-shrink:0}
-.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:76px}
-.dnut-lbl span{font-size:8.5px;color:var(--tl);font-weight:600;display:block}
-.dnut-lbl strong{font-size:11px;font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
+.dnut-lbl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:104px}
+.dnut-lbl span{font-size:10px;color:var(--tl);font-weight:600;display:block}
+.dnut-lbl strong{font-size:15px;font-weight:700;color:var(--td);display:block;line-height:1.3;margin-top:2px}
 .exp-leg{font-size:var(--fs-xs);flex:1;display:flex;flex-direction:column;gap:4px}
 .exp-r{display:flex;align-items:center;gap:5px;transition:transform .15s}
 .exp-r:hover{transform:translateX(2px)}
@@ -494,7 +494,7 @@
       <div class="card">
         <div class="card-hd"><div class="card-ttl">Expense Breakdown <span style="font-size:10px;color:var(--tl);font-weight:500;margin-left:2px">(This Month)</span></div></div>
         <div class="exp-bd">
-          <div class="dnut"><canvas id="expChart" width="112" height="112"></canvas><div class="dnut-lbl"><span>Total Expenses</span><strong id="expTotalLbl">0<br>ETB</strong></div></div>
+          <div class="dnut"><canvas id="expChart" width="170" height="170"></canvas><div class="dnut-lbl"><span>Total Expenses</span><strong id="expTotalLbl">0<br>ETB</strong></div></div>
           <div class="exp-leg" id="expLegend">
             <div class="exp-r"><span class="exp-n">Loading…</span></div>
           </div>
@@ -1954,17 +1954,27 @@ function renderExpenseDonut(){
     <div class="exp-r"><div class="exp-d" style="background:${d.EXP_COLORS[i%d.EXP_COLORS.length]}"></div><span class="exp-n">${name}</span><span class="exp-v">${fmtInt(val)}</span><span class="exp-p">${d.expenseTotal? (val/d.expenseTotal*100).toFixed(1):'0'}%</span></div>`).join('') || '<div class="exp-r"><span class="exp-n">No expenses recorded</span></div>';
   const labels = d.expenseEntries.map(([n])=>n), values = d.expenseEntries.map(([,v])=>v);
   const colors = labels.map((_,i)=>d.EXP_COLORS[i%d.EXP_COLORS.length]);
+  // A doughnut with an empty/all-zero dataset draws nothing at all, which looked like "the chart isn't
+  // rendering" for any month without expenses. In that case draw a neutral grey ring instead.
+  const hasData = values.some(v=>v>0);
+  const plotLabels = hasData ? labels : ['No expenses'];
+  const plotValues = hasData ? values : [1];
+  const plotColors = hasData ? colors : ['#e6efe9'];
   // Chart drawing is isolated in its own try/catch: if Chart.js failed to load from the CDN,
   // the numbers/legend above still render correctly and every other panel on the dashboard
   // keeps loading normally — only this one chart silently skips.
   try{
     if(typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
-    if(expChart){ expChart.data.labels=labels; expChart.data.datasets[0].data=values; expChart.data.datasets[0].backgroundColor=colors; expChart.update(); }
+    if(expChart){
+      expChart.data.labels=plotLabels; expChart.data.datasets[0].data=plotValues; expChart.data.datasets[0].backgroundColor=plotColors;
+      expChart.options.plugins.tooltip.enabled = hasData;
+      expChart.update();
+    }
     else{
       expChart = new Chart(document.getElementById('expChart').getContext('2d'),{
         type:'doughnut',
-        data:{labels, datasets:[{data:values, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:10, hoverBorderWidth:3}]},
-        options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:900,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}}}
+        data:{labels:plotLabels, datasets:[{data:plotValues, backgroundColor:plotColors, borderWidth:2, borderColor:'#fff', hoverOffset:10, hoverBorderWidth:3}]},
+        options:{responsive:false,cutout:'68%',animation:{animateScale:true,animateRotate:true,duration:900,easing:'easeOutQuart'},plugins:{legend:{display:false},datalabels:{display:false},tooltip:{enabled:hasData,backgroundColor:'#16261e',padding:10,cornerRadius:8,callbacks:{label:c=>' '+c.label+': '+c.parsed.toLocaleString()+' ETB'}}}}
       });
     }
   }catch(err){ console.warn('Expense chart skipped:', err.message); }
