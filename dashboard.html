@@ -747,7 +747,7 @@ function clamp(n,lo,hi){ return Math.max(lo, Math.min(hi, n)); }
 // time to act. If an item has no usage history yet, this falls back to a
 // plain "is stock at/below reorder_level?" check, since there's no rate to
 // project from.
-function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances, windowDays, reorderLeadDays){
+function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances, windowDays, reorderLeadDays, dbStockByItem){
   const WINDOW_DAYS = windowDays ?? 60;
   const REORDER_LEAD_DAYS = reorderLeadDays ?? 7;
   const todayD = new Date();
@@ -758,7 +758,8 @@ function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, ope
     const totalIn = allPurchasesByItem.filter(p=>p.item_id===item.id).reduce((s,p)=>s+num(p.quantity), 0);
     const usageRows = allUsageByItem.filter(u=>u.item_id===item.id && u.production_batches?.date);
     const totalOut = usageRows.reduce((s,u)=>s+num(u.quantity_used), 0);
-    const currentStock = opening + totalIn - totalOut;
+    const computedStock = opening + totalIn - totalOut;
+    const currentStock = (dbStockByItem && dbStockByItem[item.id] !== undefined) ? dbStockByItem[item.id] : computedStock;
 
     const usageDates = usageRows.map(u=>new Date(u.production_batches.date)).sort((a,b)=>a-b);
     const windowStart = usageDates.length ? new Date(Math.max(cutoff, usageDates[0])) : null;
@@ -773,7 +774,8 @@ function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, ope
     // If not, currentStock is just 0-0-0 — an absence of data, not an observed zero — so
     // it must not be flagged 'low'. This mirrors the stock_alerts DB view, which also
     // requires real ledger data before judging an item as low/critical.
-    const hasAnyLedgerData = openingBalances.some(o=>o.item_id===item.id)
+    const hasAnyLedgerData = (dbStockByItem && dbStockByItem[item.id] !== undefined)
+      || openingBalances.some(o=>o.item_id===item.id)
       || allPurchasesByItem.some(p=>p.item_id===item.id)
       || allUsageByItem.some(u=>u.item_id===item.id);
     let status, recommendation, daysRemaining = null;
@@ -877,9 +879,9 @@ async function refreshDashboard(){
       priceHistoryRows, anyPeriodCloseEver,
       salesYesterday, prodBatchRowsPrev, salesWeek, purchasesWeek,
       purchasesForPriceCompare, allInjeraProductionAllTime,
-      purchasesPrevPeriodTotal, allSuccessLogins
+      purchasesPrevPeriodTotal, allSuccessLogins, inventoryUsageLogRows
     ] = await Promise.all([
-      sbGet(`monthly_pnl?select=*&period=in.(${period},${prevP})`),
+      sbGet(`monthly_pnl_net?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`purchases?select=*,expense_categories(name)&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`monthly_overhead?select=amount,overhead_categories(name)&period=eq.${period}`),
@@ -897,7 +899,7 @@ async function refreshDashboard(){
       sbGet(`budget_lines?select=*&period=eq.${period}`),
       sbGet(`batch_standards?select=*`),
       sbGet(`sales?select=revenue&date=eq.${today}&is_deleted=eq.false`),
-      sbGet(`purchases?select=total_cost&date=eq.${today}&type=eq.expense&is_deleted=eq.false`),
+      sbGet(`purchases?select=total_cost&date=eq.${today}&type=eq.expense&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
       sbGet(`petty_cash?select=amount&date=eq.${today}`),
       sbGet(`production_batches?select=injera_qty&date=eq.${today}&is_deleted=eq.false`),
       sbGet(`purchases?select=id,total_cost,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false`),
@@ -935,7 +937,10 @@ async function refreshDashboard(){
       sbGet(`purchases?select=total_cost&type=eq.purchase&period=eq.${prevP}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
       // All-time successful logins, oldest first — used to detect a login from an IP never
       // seen before for that user. Small-business login volume, so unlimited is fine.
-      sbGet(`login_log?select=email,user_id,ip_address,created_at&outcome=eq.success&order=created_at.asc`)
+      sbGet(`login_log?select=email,user_id,ip_address,created_at&outcome=eq.success&order=created_at.asc`),
+      // Manual usage entries (inventory_usage_log) — the database's inventory_balance view counts these as
+      // stock going out, so the usage-rate forecast must too.
+      sbGet(`inventory_usage_log?select=item_id,quantity,date&is_deleted=eq.false`)
     ].map(_offlineTolerant));
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -977,15 +982,18 @@ async function refreshDashboard(){
     }
 
     // ── PNL-derived KPIs ────────────────────────────────
-    function zeroPnl(p){ return {period:p,total_revenue:0,total_overhead:0,total_raw_material:0,total_opex:0,petty_cash_total:0,bank_charges:0,interest_expense:0}; }
+    // Source of truth is the monthly_pnl_net view: COGS = total_cogs (production + derkosh batch costs, which
+    // already include allocated overhead), so overhead is NOT subtracted again here. Gross/net profit come
+    // straight from the view so the dashboard always matches the database and the Reports module.
+    function zeroPnl(p){ return {period:p,total_revenue:0,total_cogs:0,total_overhead:0,total_opex:0,petty_cash_total:0,bank_charges:0,interest_expense:0,depreciation_expense:0,gross_profit:0,net_profit:0}; }
     const pnlCur  = pnlRows.find(r=>r.period===period) || zeroPnl(period);
     const pnlPrev = pnlRows.find(r=>r.period===prevP)  || zeroPnl(prevP);
     function pnlDerived(p){
-      const revenue = num(p.total_revenue), rawMaterial = num(p.total_raw_material),
+      const revenue = num(p.total_revenue), rawMaterial = num(p.total_cogs),
             overhead = num(p.total_overhead), opex = num(p.total_opex),
             petty = num(p.petty_cash_total), bank = num(p.bank_charges), interest = num(p.interest_expense);
-      const grossProfit = revenue - rawMaterial;
-      const netProfit = grossProfit - overhead - opex - petty - bank - interest;
+      const grossProfit = num(p.gross_profit);
+      const netProfit = num(p.net_profit);
       return {revenue, rawMaterial, overhead, opex, petty, bank, interest, grossProfit, netProfit};
     }
     const curD = pnlDerived(pnlCur), prevD = pnlDerived(pnlPrev);
@@ -1090,7 +1098,15 @@ async function refreshDashboard(){
       if(teffId) millingUsageRows.push({item_id: teffId, quantity_used: num(mc.teff_qty), production_batches:{date: mc.date, is_deleted:false}});
       if(riceId) millingUsageRows.push({item_id: riceId, quantity_used: num(mc.rice_qty), production_batches:{date: mc.date, is_deleted:false}});
     });
-    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances, BS.inventory_usage_window_days, BS.reorder_lead_days);
+    (inventoryUsageLogRows||[]).forEach(u=>{
+      if(u.item_id) millingUsageRows.push({item_id: u.item_id, quantity_used: num(u.quantity), production_batches:{date: u.date, is_deleted:false}});
+    });
+    // Current stock comes from the database's own inventory_balance (via stock_alerts.closing_qty), which
+    // includes opening balances, purchases, batch usage, milling, manual usage AND stock adjustments —
+    // so the dashboard and the Inventory/Alerts modules always agree.
+    const dbStockByItem = {};
+    (stockAlertRows||[]).forEach(sa=>{ if(sa.item_id && sa.closing_qty!=null) dbStockByItem[sa.item_id] = num(sa.closing_qty); });
+    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances, BS.inventory_usage_window_days, BS.reorder_lead_days, dbStockByItem);
     // Derkosh has no reorder_level in the schema (it's produced, not purchased), so we derive a
     // sensible buffer from this period's own production rather than just checking "> 0" —
     // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.
@@ -1217,7 +1233,8 @@ async function refreshDashboard(){
 
     // ── 28. Purchase — month-over-month total spend ─────────
     {
-      const purchasesCurTotal = purchasesRows.reduce((s,p)=>s+num(p.total_cost),0);
+      // Same basis as purchasesPrevTotal below: approved raw-material purchases only.
+      const purchasesCurTotal = purchasesRows.filter(p=>p.type==='purchase' && ['auto_approved','approved'].includes(p.approval_status)).reduce((s,p)=>s+num(p.total_cost),0);
       const purchasesPrevTotal = (purchasesPrevPeriodTotal||[]).reduce((s,p)=>s+num(p.total_cost),0);
       if(purchasesPrevTotal>0){
         const pctChange = Math.round(((purchasesCurTotal-purchasesPrevTotal)/purchasesPrevTotal)*100);
@@ -1965,14 +1982,13 @@ function renderTopCustomers(){
 let fullLabels = [], fullRevenue = [], fullProfit = [];
 async function renderRevenueChart(period){
   const periods = []; for(let i=11;i>=0;i--) periods.push(shiftPeriod(period, -i));
-  const rows = await sbGet(`monthly_pnl?select=*&period=in.(${periods.join(',')})`);
+  const rows = await sbGet(`monthly_pnl_net?select=*&period=in.(${periods.join(',')})`);
   const byPeriod = {}; rows.forEach(r=>byPeriod[r.period]=r);
   fullLabels = periods.map(periodToLabel);
   fullRevenue = periods.map(p=>{ const r=byPeriod[p]; return r?num(r.total_revenue):0; });
   fullProfit = periods.map(p=>{
     const r=byPeriod[p]; if(!r) return 0;
-    const gp = num(r.total_revenue)-num(r.total_raw_material);
-    return gp - num(r.total_overhead) - num(r.total_opex) - num(r.petty_cash_total) - num(r.bank_charges) - num(r.interest_expense);
+    return num(r.net_profit); // from monthly_pnl_net — same figure as the Net Profit KPI
   });
   const n = parseInt(document.getElementById('rangeSel').value === 'ytd' ? 12 : document.getElementById('rangeSel').value, 10) || 6;
   const labels = fullLabels.slice(-n), rev = fullRevenue.slice(-n), prof = fullProfit.slice(-n);
