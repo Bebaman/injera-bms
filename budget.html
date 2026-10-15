@@ -178,6 +178,7 @@ button{font-family:inherit}
   .mb-row{grid-template-columns:1fr;gap:4px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -840,9 +841,10 @@ function _bvaReady(){
 async function exportPdf(){
   if(!_bvaReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF…','info');
     const data=await buildBudgetReportData();
-    await ReportEngine.generatePDF(data,{type:'detailed'});
+    await ReportEngine.generatePDF(data,_pdfOpt);
     toast('Budget vs Actual PDF downloaded ✓','success');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -924,5 +926,6 @@ function buildNotifications(cur){
   }
 })();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

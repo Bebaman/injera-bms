@@ -406,6 +406,7 @@
   .exp-bd{flex-wrap:wrap}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -2446,13 +2447,15 @@ function buildDashboardReportData(){
 async function _dashExport(kind){
   if (!LAST) { alert('The dashboard is still loading — please try again in a moment.'); return; }
   if (typeof ReportEngine === 'undefined') { alert('The report engine did not load. Refresh the page and try again.'); return; }
+  let _pdfOpt = null;
+  if (kind === 'pdf') { _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if (!_pdfOpt) return; }
   const loading = document.getElementById('exportLoading');
   document.getElementById('exportLoadingText').textContent = kind === 'pdf' ? 'Building your PDF report…' : 'Building your Excel workbook…';
   loading.classList.add('show');
   try{
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const data = buildDashboardReportData();
-    if (kind === 'pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    if (kind === 'pdf') await ReportEngine.generatePDF(data, _pdfOpt);
     else await ReportEngine.generateExcel(data);
   }catch(err){
     console.error(kind.toUpperCase() + ' export failed', err);
@@ -2466,5 +2469,6 @@ function exportExcel(){ return _dashExport('xlsx'); }
 
 // exportPdfBtn/exportXlsBtn clicks are now wired via renderHeader()'s onExportPdf/onExportXlsx config
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

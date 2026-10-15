@@ -199,6 +199,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .btn-new{width:100%;justify-content:center}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -265,7 +266,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </button>
           </div>
           <div style="overflow-x:auto">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead>
               <tr>
                 <th>#</th><th>Overhead Category</th><th>Description</th>
@@ -428,7 +429,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </button>
           </div>
           <div style="overflow-x:auto">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead>
               <tr>
                 <th>#</th><th>Employee</th><th>Role</th><th class="num wrap">Days<br>Worked</th>
@@ -1610,9 +1611,10 @@ function _overheadReady(){
 async function exportPdf(){
   if(!_overheadReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF…','info');
     const data=await buildOverheadReportData();
-    await ReportEngine.generatePDF(data,{type:'detailed'});
+    await ReportEngine.generatePDF(data,_pdfOpt);
     toast('Overhead report PDF downloaded ✓','success');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -1713,5 +1715,6 @@ if(typeof renderHeader === 'function'){
   }
 })();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

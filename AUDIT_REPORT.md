@@ -113,3 +113,36 @@ Full month scenario reproduces hand-calculated P&L and exact cash per channel; l
 * VAT handling if you register (see round 2).
 * Batch-standard targets are placeholders (300 / 400 injera).
 * Enable "Leaked password protection" in Supabase → Authentication.
+
+
+---------------------------------------------------------------------------------------------------
+# ROUND 4 — Mobile & tablet layer (14 Oct 2026)
+
+New files: `css/responsive.css`, `js/responsive.js` (linked on all 19 app pages; added to the offline cache; cache version bms-v6).
+
+**PC layout is untouched.** Every rule is inside `@media (max-width:1024px)` / `(max-width:640px)`; `responsive.js` only acts at ≤640px. Proof: all 19 pages screenshotted at 1440px with and without the layer — same size, only a pulsing status dot differs.
+
+**One design system on every module (tablet ≤1024px, phone ≤640px)**
+* KPI cards: 3-up on tablets, 2-up on phones (an odd last card spans the row), identical icon/label/value sizes in every module.
+* Cards, headers, buttons: same radius, spacing, 40-44px touch targets.
+* Charts: full-width cards; on phones line charts drop the per-point numbers (they overlap) — values stay in the tap tooltip.
+* Tables: report/statement tables scroll sideways inside their card (no more clipped columns); the main list tables (purchases, sales, customers, suppliers, production batches, Derkosh records, milling history, overhead, payroll, petty cash, loans, profit distribution, settings lists, fixed assets) become readable cards on phones with a caption on every value and the ⋮ menu top-right.
+* Pop-ups become bottom sheets on phones (pinned header/footer, scrolling body).
+* Side-by-side panels stack on phones; Loans (was collapsing), Reports, Purchases and Manage Users specifically fixed; the closed sidebar no longer leaves a shadow strip.
+
+Tested at 320, 390, 820 and 1024px: no horizontal overflow and no script errors on any page.
+
+
+---------------------------------------------------------------------------------------------------
+# ROUND 5 — PDF export options (14 Oct 2026)
+
+Every module's PDF button always produced the **detailed, landscape** version. It now opens a small "Export PDF" window:
+* **Report type:** Summary (one page: headline numbers, charts, key tables) or Detailed (summary + every table, extra charts, reconciliation checks).
+* **Page orientation:** Landscape (wide) or Portrait (tall). A4.
+* The last orientation is remembered on this device; Esc / Cancel / clicking outside cancels (nothing is generated, no toast).
+* On modules that already have separate "Summary PDF" and "Detailed PDF" buttons (Sales, Production, Profit, P&L, Inventory sub-reports) only the orientation is asked, because the button already decides the type.
+* On phones the window is a bottom sheet.
+* Wired into all 17 PDF exports: Dashboard, Purchases, Suppliers, Sales, Customers, Inventory (+ sub-reports), Production, Derkosh, Milling, Overhead, Petty Cash, Cash Flow, P&L, Loans, Profit, Budget, Reports.
+* Portrait layout fix: KPI cards no longer squeeze 6-across on a portrait page (they wrap into balanced rows, e.g. 3+3), so text no longer overlaps. Landscape output is unchanged (verified: default choice still produces the same 3-page A4 landscape detailed PDF).
+
+Tested: all 32 module x (summary/detailed) x portrait PDFs generate at A4 portrait with no NaN/undefined; dialog choices, locked-type pages and both cancel paths verified in the browser.

@@ -246,6 +246,7 @@ button{font-family:inherit}
   .qa-grid{grid-template-columns:1fr}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -338,7 +339,7 @@ button{font-family:inherit}
           </div>
 
           <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead><tr><th>Shareholder</th><th>Ownership % <span class="th-unit">(This Month)</span></th><th>Ownership % <span class="th-unit">(Snapshot)</span></th><th>Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
               <tbody id="shBody"></tbody>
               <tfoot><tr class="tot"><td>Total</td><td>100.00%</td><td>100.00%</td><td class="acc" id="shAmtTot">0.00</td><td id="shTotStatus">Preview</td></tr></tfoot>
@@ -365,7 +366,7 @@ button{font-family:inherit}
             </div>
           </div>
           <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead><tr><th>Month</th><th>Net Cash Profit <span class="th-unit">(ETB)</span></th><th>Distribution %</th><th>Distributable Amount <span class="th-unit">(ETB)</span></th><th>Distributed Amount <span class="th-unit">(ETB)</span></th><th>Retained Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
               <tbody id="histBody"></tbody>
             </table>
@@ -1292,9 +1293,10 @@ function _profitEngineReady(){
 // type: 'detailed' (default) = full report; 'summary' = the one-page summary
 async function exportPDF(type){
   if(!_profitEngineReady()) return;
+  const _pdfOpt = await ReportEngine.askPdfOptions({type: type === 'summary' ? 'summary' : 'detailed', lockType:true}); if(!_pdfOpt) return;
   try{
     toast('Generating PDF\u2026','info');
-    await ReportEngine.generatePDF(buildProfitReportData(),{type: type === 'summary' ? 'summary' : 'detailed'});
+    await ReportEngine.generatePDF(buildProfitReportData(),_pdfOpt);
     toast('Distribution report PDF downloaded \u2713','ok');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -1407,5 +1409,6 @@ async function initPage(){
 }
 initPage();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

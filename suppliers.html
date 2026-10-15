@@ -278,6 +278,7 @@ html,body{overflow-x:hidden}
   .modal-ft{flex-wrap:wrap}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -371,7 +372,7 @@ html,body{overflow-x:hidden}
           </div>
 
           <div class="pl-fill" style="min-width:0">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead><tr>
               <th>Supplier Name</th><th>Category</th><th>Phone</th>
               <th>Total Purchase (All Time)</th><th id="thMonth">This Month</th>
@@ -474,7 +475,7 @@ html,body{overflow-x:hidden}
         <div class="card">
           <div class="card-hd"><div class="card-ttl">Recent Purchases</div></div>
           <div style="min-width:0">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead><tr>
               <th>Date</th><th>Supplier</th><th>Item</th><th>Quantity</th>
               <th>Unit Price (ETB)</th><th>Total Cost (ETB)</th><th>Payment Method</th><th>Status</th>
@@ -2086,9 +2087,11 @@ async function _runSuppliersExport(kind, onlyDbId){
   if(!_suppliersReady()) return;
   const label = kind==='pdf' ? 'PDF' : 'Excel';
   try{
+    let _pdfOpt = null;
+    if(kind==='pdf'){ _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return; }
     showToast('Generating '+label+'…');
     const data = buildSuppliersReportData(onlyDbId);
-    if(kind==='pdf') await ReportEngine.generatePDF(data, {type:'detailed'});
+    if(kind==='pdf') await ReportEngine.generatePDF(data, _pdfOpt);
     else await ReportEngine.generateExcel(data);
     showToast('Suppliers report '+label+' downloaded ✓');
   }catch(err){
@@ -2300,5 +2303,6 @@ async function init(){
 }
 init();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

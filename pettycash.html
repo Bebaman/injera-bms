@@ -384,6 +384,7 @@ body.offline .offline-bar{display:flex}
   .tbl td,.tbl th{white-space:normal}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="toast-stack" id="toastStack"></div>
@@ -474,7 +475,7 @@ body.offline .offline-bar{display:flex}
           <div style="margin-top:10px"><button class="btn btn-outline" style="font-size:11px;padding:6px 12px" onclick="clearFilter()">Clear Filter</button></div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead>
               <tr>
                 <th onclick="sortTable('date')" class="th-desc">Date<span class="sort-arrow"></span></th>
@@ -1359,8 +1360,9 @@ function _pcReady(){
 async function exportPdf(){
   if(!_pcReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF…','info');
-    await ReportEngine.generatePDF(buildPettyCashReportData(),{type:'detailed'});
+    await ReportEngine.generatePDF(buildPettyCashReportData(),_pdfOpt);
     toast('Exported: Petty cash report PDF downloaded.','success');
   }catch(err){
     console.error('[pettycash] PDF export failed:',err);
@@ -1537,5 +1539,6 @@ if(document.readyState==='loading'){
   initPettyCashPage();
 }
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

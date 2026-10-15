@@ -379,6 +379,7 @@ button{font-family:inherit}
   .stk-lbl,.stk-val,.mv-lbl,.mv-val{font-size:12px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -444,7 +445,7 @@ button{font-family:inherit}
           </div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl" style="min-width:1000px">
+          <table class="rcards tbl" style="min-width:1000px">
             <thead><tr><th style="padding-left:16px">Date</th><th>Injera Used<span class="th-unit">pcs</span></th><th>Pkg Type</th><th>Produced<span class="th-unit">kg</span></th><th>Bags Used<span class="th-unit">pcs</span></th><th>Transfer Cost<span class="th-unit">ETB</span></th><th>Packaging<span class="th-unit">ETB</span></th><th>Total Cost<span class="th-unit">ETB</span></th><th>Cost/Kg<span class="th-unit">ETB</span></th><th>Sold<span class="th-unit">kg</span></th><th>Closing Stock<span class="th-unit">kg</span></th><th></th></tr></thead>
             <tbody id="prodBody"></tbody>
             <tfoot><tr class="tot"><td style="padding-left:16px">TOTAL</td><td id="tI">0</td><td>–</td><td id="tP">0.00</td><td id="tB">0</td><td id="tTr">0.00</td><td id="tPk">0.00</td><td id="tC">0.00</td><td class="acc" id="tCk">0.00</td><td id="tS">0.00</td><td id="tCl">0.00</td><td>–</td></tr></tfoot>
@@ -1309,9 +1310,10 @@ function _derkoshReady(){
 async function exportPdf(){
   if(!_derkoshReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF…','info');
     const data=await buildDerkoshReportData();
-    await ReportEngine.generatePDF(data,{type:'detailed'});
+    await ReportEngine.generatePDF(data,_pdfOpt);
     toast('Derkosh report PDF downloaded ✓','success');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -1696,5 +1698,6 @@ function renderCharts(labels, perPeriod, closingSeries){
 /* ══ INIT ────────────────────────────────── */
 loadHistoryAndRenderCharts();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

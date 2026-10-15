@@ -259,6 +259,7 @@
   body{background:#fff}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -433,7 +434,7 @@
           </div>
         </div>
         <div style="overflow-x:auto">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead><tr>
               <th>#</th><th>Date</th><th>Batch No.</th><th>Teff Used (kg)</th><th>Rice Used (kg)</th>
               <th>Blend Produced (kg)</th><th>Total Cost (ETB)</th><th>Cost/kg (ETB)</th>
@@ -1172,10 +1173,12 @@ function buildMillingReportData(){
 }
 async function runMillingExport(kind){
   if(!window.ReportEngine){ mcToast('Report engine did not load — refresh and try again','err'); return; }
+  let _pdfOpt = null;
+  if(kind==='pdf'){ _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return; }
   const loading=document.getElementById('exportLoading'); loading.style.display='flex';
   try{
     const data = buildMillingReportData();
-    if(kind==='pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    if(kind==='pdf') await ReportEngine.generatePDF(data, _pdfOpt);
     else if(kind==='xlsx') await ReportEngine.generateExcel(data);
     else ReportEngine.generateCSV(data);
     mcToast(kind==='pdf' ? 'PDF export ready.' : kind==='xlsx' ? 'Excel export ready.' : 'CSV export ready.');
@@ -1307,5 +1310,6 @@ async function init(){
 
 document.addEventListener('DOMContentLoaded', init);
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

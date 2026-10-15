@@ -255,6 +255,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 }
 
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -3636,8 +3637,9 @@ function _buildReportsData(){ return currentReport === 'monthly_snapshot' ? buil
 async function exportPdf(){
   if(!_reportsEngineReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF\u2026');
-    await ReportEngine.generatePDF(_buildReportsData(),{type:'detailed'});
+    await ReportEngine.generatePDF(_buildReportsData(),_pdfOpt);
     toast('Report PDF downloaded \u2713');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -3734,5 +3736,6 @@ setView('monthly');
 loadFromSupabase();
 
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

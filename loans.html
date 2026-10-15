@@ -209,6 +209,7 @@ html,body{overflow-x:hidden;max-width:100%}
   .pg-info{font-size:11px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -244,7 +245,7 @@ html,body{overflow-x:hidden;max-width:100%}
             </div>
           </div>
           <div style="overflow-x:auto">
-          <table class="tbl-pl">
+          <table class="rcards tbl-pl">
             <thead>
               <tr>
                 <th>Lender</th><th>Principal (ETB)</th><th>Interest Rate (Annual)</th><th>Term (Months)</th>
@@ -274,7 +275,7 @@ html,body{overflow-x:hidden;max-width:100%}
           </div>
           <div class="rs-strip" id="rsStrip"></div>
           <div style="overflow-x:auto">
-          <table class="tbl-pl">
+          <table class="rcards tbl-pl">
             <thead>
               <tr>
                 <th>#</th><th>Due Date</th><th>Payment</th><th>Interest Portion</th><th>Principal Portion</th>
@@ -1368,9 +1369,11 @@ function buildLoansReportData(){
 async function runLoanExport(kind){
   if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
   try{
+    let _pdfOpt = null;
+    if(kind==='pdf'){ _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return; }
     showToast(kind==='pdf' ? 'Generating PDF…' : kind==='xlsx' ? 'Generating Excel…' : 'Preparing CSV…');
     const data = buildLoansReportData();
-    if(kind==='pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    if(kind==='pdf') await ReportEngine.generatePDF(data, _pdfOpt);
     else if(kind==='xlsx') await ReportEngine.generateExcel(data);
     else ReportEngine.generateCSV(data, { tableIndex:0 });   // table 0 = the Loan Register
     showToast(kind==='pdf' ? 'Loan Report (PDF) downloaded' : kind==='xlsx' ? 'Loan Report (Excel) downloaded' : 'Loan register (CSV) downloaded');
@@ -1434,5 +1437,6 @@ document.getElementById('lRate').addEventListener('input', updatePmtPreview);
 document.getElementById('lTerm').addEventListener('input', updatePmtPreview);
 loadAll();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

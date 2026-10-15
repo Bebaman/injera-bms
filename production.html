@@ -397,7 +397,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
   .tbl{min-width:0}
   .tbl td,.tbl th{white-space:normal}
 }
-</style></head>
+</style><link rel="stylesheet" href="/css/responsive.css">
+</head>
 <body>
 
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -493,7 +494,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
             </div>
           </div>
           <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead>
                 <tr>
                   <th>Batch No.</th><th>Date</th><th>Batch Type</th><th>Blend (kg)</th><th>Corn (kg)</th><th>Gomen (kg)</th><th>Injera Qty</th>
@@ -2393,9 +2394,9 @@ async function runProductionExport(label, fn){
 }
 
 // One-page dashboard-style summary (KPI cards, trend, cost breakdown, insights, batch ledger).
-function exportPDF(){ return runProductionExport('PDF summary', rd=>ReportEngine.generatePDF(rd,{ type:'summary' })); }
+async function exportPDF(){ const o = await ReportEngine.askPdfOptions({type:'summary', lockType:true}); if(!o) return; return runProductionExport('PDF summary', rd=>ReportEngine.generatePDF(rd,o)); }
 // Summary page + every detail table (cost by batch, unit economics, production by day, batch register ...).
-function exportPDFDetailed(){ return runProductionExport('detailed PDF', rd=>ReportEngine.generatePDF(rd,{ type:'detailed' })); }
+async function exportPDFDetailed(){ const o = await ReportEngine.askPdfOptions({type:'detailed', lockType:true}); if(!o) return; return runProductionExport('detailed PDF', rd=>ReportEngine.generatePDF(rd,o)); }
 // Summary workbook + one sheet per table.
 function exportExcelWorkbook(){ return runProductionExport('Excel workbook', rd=>ReportEngine.generateExcel(rd)); }
 // Raw data: the full batch register only — plain numbers (no thousands separators), no totals row,
@@ -2991,5 +2992,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 });
 </script>
 
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

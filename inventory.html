@@ -306,6 +306,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
   .kc{min-width:160px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -1287,12 +1288,14 @@ async function buildInventoryReportData(){
 }
 async function runInventoryExport(kind){
   if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
+  let _pdfOpt = null;
+  if(kind==='pdf'){ _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return; }
   const lbl = document.getElementById(kind==='pdf' ? 'pdfLbl' : kind==='xlsx' ? 'xlsLbl' : 'csvLbl');
   const original = lbl ? lbl.textContent : '';
   if(lbl) lbl.innerHTML = '<span class="spin"></span>';
   try{
     const data = await buildInventoryReportData();
-    if(kind==='pdf') await ReportEngine.generatePDF(data, { type:'detailed' });
+    if(kind==='pdf') await ReportEngine.generatePDF(data, _pdfOpt);
     else if(kind==='xlsx') await ReportEngine.generateExcel(data);
     else ReportEngine.generateCSV(data);
     showToast(kind==='pdf' ? 'Exported inventory to PDF' : kind==='xlsx' ? 'Exported inventory to Excel' : 'Exported inventory to CSV');
@@ -1903,6 +1906,8 @@ function subReportSpec(kind){
 }
 async function exportSubReport(kind, format){
   if(!window.ReportEngine){ showToast('Report engine did not load — refresh and try again'); return; }
+  let _pdfOpt = null;
+  if(format!=='xlsx'){ _pdfOpt = await ReportEngine.askPdfOptions({type:'summary', lockType:true}); if(!_pdfOpt) return; }
   try{
     const spec = subReportSpec(kind);
     const mb = monthBounds(currentPeriod);
@@ -1925,7 +1930,7 @@ async function exportSubReport(kind, format){
     };
     if(!n){ data.status='empty'; data.emptyMessage = `${spec.title}: nothing to report for ${mb.label}.`; }
     if(format==='xlsx') await ReportEngine.generateExcel(data);
-    else await ReportEngine.generatePDF(data, { type:'summary' });
+    else await ReportEngine.generatePDF(data, _pdfOpt);
     showToast('Exported '+spec.title);
   }catch(err){
     console.error('Sub-report export failed:', err);
@@ -2376,5 +2381,6 @@ document.getElementById('ovMonthLbl').textContent = '('+CURRENT_MONTH_LABEL+')';
 
 loadFromSupabase();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

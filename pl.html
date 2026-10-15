@@ -234,6 +234,7 @@
   body{background:#fff}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -829,10 +830,11 @@ async function _runPLExport(busyText, fn){
 async function exportPdf(type){
   if(!_plReady()) return;
   const kind = type==='summary' ? 'summary' : 'detailed';
+  const _pdfOpt = await ReportEngine.askPdfOptions({type:kind, lockType:true}); if(!_pdfOpt) return;
   try{
     await _runPLExport(kind==='summary' ? 'Building your P&L summary…' : 'Building your detailed P&L report…', async ()=>{
       const data = await buildPLReportData();
-      await ReportEngine.generatePDF(data,{type:kind});
+      await ReportEngine.generatePDF(data,_pdfOpt);
     });
     toast(`P&L ${kind} PDF downloaded ✓`,'success');
   }catch(err){
@@ -1152,5 +1154,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   refreshPL();
 });
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

@@ -316,6 +316,7 @@ html{scroll-behavior:smooth}
   .det-grid{grid-template-columns:1fr 1fr}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -396,7 +397,7 @@ html{scroll-behavior:smooth}
           </div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead>
               <tr>
                 <th>Customer Name</th><th>Type</th><th>Phone</th><th>Credit Limit (ETB)</th>
@@ -461,7 +462,7 @@ html{scroll-behavior:smooth}
           <div class="hd-actions"><button class="btn-tool" onclick="openCustomerLedger()">View All Transactions</button></div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl">
+          <table class="rcards tbl">
             <thead>
               <tr><th>Date</th><th>Type</th><th>Product</th><th>Quantity</th><th>Unit Price (ETB)</th><th>Amount (ETB)</th><th>Payment Method</th><th>Status</th></tr>
             </thead>
@@ -1519,9 +1520,10 @@ function _custReady(){
 async function exportPdf(){
   if (!_custReady()) return;
   try {
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     toast('Generating PDF…','info');
     const data = await buildCustomersReportData();
-    await ReportEngine.generatePDF(data, { type:'detailed' });
+    await ReportEngine.generatePDF(data, _pdfOpt);
     toast('Customers report PDF downloaded ✓','success');
   } catch (err) {
     console.error('PDF export failed:', err);
@@ -1786,5 +1788,6 @@ async function confirmImport(){
   }
 })();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

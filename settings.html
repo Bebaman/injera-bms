@@ -209,6 +209,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
   .tbl-wrap .tbl{min-width:420px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -267,7 +268,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">Shareholders &amp; Ownership</div></div>
           <div class="card-bd" style="padding-bottom:14px">
             <div class="tbl-wrap">
-            <table class="tbl" id="shareholderTbl">
+            <table class="rcards tbl" id="shareholderTbl">
               <thead><tr><th>Shareholder</th><th>Role</th><th>Ownership %</th><th>Status</th><th></th></tr></thead>
               <tbody id="shareholderBody"></tbody>
               <tfoot><tr class="tot"><td colspan="2">Total Ownership</td><td colspan="3" class="tot-own" id="totalOwnership">100.00%</td></tr></tfoot>
@@ -386,7 +387,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">System Users</div></div>
           <div class="card-bd">
             <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead><tr><th>User</th><th>Role</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
               <tbody id="usersBody"></tbody>
             </table>
@@ -405,7 +406,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">Locations</div></div>
           <div class="card-bd">
             <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead><tr><th>Location</th><th>Address</th><th>Status</th><th></th></tr></thead>
               <tbody id="locationsBody"></tbody>
             </table>
@@ -612,7 +613,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">Approval Delegations</div></div>
           <div class="card-bd">
             <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="rcards tbl">
               <thead><tr><th>From</th><th>To</th><th>Period</th><th>Status</th><th></th></tr></thead>
               <tbody id="delegationsBody"></tbody>
             </table>
@@ -2034,5 +2035,6 @@ applySavedDevicePrefs();
 document.querySelectorAll('.btn-pri[onclick="saveBusinessSettings(this)"]').forEach(b=>b.disabled=true);
 loadFromSupabase();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

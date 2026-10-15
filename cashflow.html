@@ -182,6 +182,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
   .qa-grid{ display:none !important; }
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -1319,10 +1320,11 @@ async function buildReportData(cf){
 
 async function exportPdf(){
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     notify('Generating PDF…');
     const cf = window._lastCF || computeCashFlow();
     const reportData = await buildReportData(cf);
-    await ReportEngine.generatePDF(reportData, { type:'detailed' });
+    await ReportEngine.generatePDF(reportData, _pdfOpt);
     notify('Exported Cash Flow Statement to PDF');
   } catch(err){
     notify('Could not generate PDF: ' + (err.message||''), 'error');
@@ -1710,5 +1712,6 @@ async function refreshForMonth(monthKey){
   loadShareholders(); // for the Owner Injection/Withdrawal modal's shareholder dropdown — non-blocking
 })();
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

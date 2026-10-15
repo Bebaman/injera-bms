@@ -1,7 +1,7 @@
 /* Mena BMS service worker — offline app shell + cached Supabase reads.
    Writes are NOT handled here: /js/offline-sync.js queues them in IndexedDB.
    BUMP `VERSION` ON EVERY DEPLOY so users receive the new files. */
-const VERSION = 'bms-v5';
+const VERSION = 'bms-v7';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -9,7 +9,7 @@ const PAGES = ['login', 'dashboard', 'sales', 'customers', 'purchases', 'supplie
   'milling', 'production', 'derkosh', 'pettycash', 'cashflow', 'overhead', 'budget', 'loans',
   'pl', 'profit', 'reports', 'settings'];
 const LOCAL = ['/manifest.json', '/icon-192.png', '/icon-512.png',
-  '/css/shared-shell.css', '/js/app-state.js', '/js/sidebar.js', '/js/header.js',
+  '/css/shared-shell.css', '/css/responsive.css', '/js/responsive.js', '/js/app-state.js', '/js/sidebar.js', '/js/header.js',
   '/js/report-engine.js', '/js/offline-sync.js'];
 const CDN = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',

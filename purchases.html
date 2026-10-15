@@ -408,6 +408,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 } /* close @media (max-width:900px) */
 
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -535,7 +536,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         </div>
 
         <div style="overflow-x:auto">
-        <table class="tbl-pl">
+        <table class="rcards tbl-pl">
           <thead>
             <tr>
               <th>Date</th><th>Supplier</th><th class="col-type">Type</th><th>Category</th><th>Description</th>
@@ -598,7 +599,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <div class="card-hd">
             <div class="card-ttl">Top Suppliers <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(By Spend This Month)</span></div>
           </div>
-          <table class="tbl-sb">
+          <table class="rcards tbl-sb">
             <thead><tr><th>Supplier</th><th>Spend (ETB)</th><th>%</th></tr></thead>
             <tbody id="supTblBody">
             </tbody>
@@ -676,7 +677,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
         <div class="card-ttl">Fixed Assets <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(cost, monthly depreciation and book value — straight line)</span></div>
       </div>
       <div style="overflow-x:auto">
-        <table class="tbl" id="assetsTable">
+        <table class="rcards tbl" id="assetsTable">
           <thead><tr><th>Asset</th><th>Category</th><th>Bought</th><th>Cost</th><th>Life (yrs)</th><th>Monthly Dep.</th><th>Accumulated</th><th>Book Value</th><th>Status</th><th></th></tr></thead>
           <tbody id="assetsBody"><tr><td colspan="10" style="text-align:center;color:var(--tl);padding:18px">Loading…</td></tr></tbody>
         </table>
@@ -1107,8 +1108,9 @@ function _purchasesEngineReady(){
 async function exportPdf(){
   if(!_purchasesEngineReady()) return;
   try{
+    const _pdfOpt = await ReportEngine.askPdfOptions({type:'detailed'}); if(!_pdfOpt) return;
     showToast('Generating PDF\u2026');
-    await ReportEngine.generatePDF(buildPurchasesReportData(),{type:'detailed'});
+    await ReportEngine.generatePDF(buildPurchasesReportData(),_pdfOpt);
     showToast('Purchases report PDF downloaded \u2713');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -2733,5 +2735,6 @@ document.querySelectorAll('.tb-mid .arr').forEach((el, i) => {
 loadFromSupabase().then(()=>{ if(typeof loadFixedAssets==='function') loadFixedAssets(); });
 </script>
 
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>

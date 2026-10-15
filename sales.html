@@ -273,6 +273,7 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
   .kc-val{font-size:16px}
 }
 </style>
+<link rel="stylesheet" href="/css/responsive.css">
 </head>
 <body>
 
@@ -315,7 +316,7 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
           </div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl" id="salesTbl">
+          <table class="rcards tbl" id="salesTbl">
             <thead><tr>
               <th class="sortable" onclick="sortSales('date')" data-col="date">Date <span class="sort-arrow"></span></th>
               <th class="sortable" onclick="sortSales('product')" data-col="product">Product <span class="sort-arrow"></span></th>
@@ -1823,10 +1824,11 @@ function _salesEngineReady(){
 async function exportPDF(e, type){
   if(e && typeof ripple === 'function') ripple(e);
   if(!_salesEngineReady()) return;
+  const _pdfOpt = await ReportEngine.askPdfOptions({type: type || 'detailed', lockType:true}); if(!_pdfOpt) return;
   try{
     showToast('Generating PDF\u2026','info');
     const data = await buildSalesReportData();
-    await ReportEngine.generatePDF(data,{type: type || 'detailed'});
+    await ReportEngine.generatePDF(data,_pdfOpt);
     showToast('Sales report PDF downloaded \u2713','ok');
   }catch(err){
     console.error('PDF export failed:',err);
@@ -1883,5 +1885,6 @@ function pmTag(m)   {
 //  happen at DOMContentLoaded for booting data.
 // ═══════════════════════════════════════════════════
 </script>
+<script src="/js/responsive.js" defer></script>
 </body>
 </html>
