@@ -1887,6 +1887,30 @@
   // ------------------------------------------------------------
   // PDF SECTION RENDERERS
   // ------------------------------------------------------------
+  // Settings > Business: every export now carries the company name, address, phone, email and VAT/TIN
+  // that are saved in Settings (window.APP_SETTINGS, loaded by app-state.js) instead of fixed text.
+  function applyBusinessSettings(rd) {
+    const S = (typeof window !== 'undefined' && window.APP_SETTINGS) || null;
+    if (!rd || !S || !S.loaded) return rd;
+    rd.company = Object.assign({}, rd.company || {});
+    if (!rd.company.name && S.companyName) {
+      rd.company.name = String(S.companyName).toUpperCase();
+      rd.company.subtitle = '';
+    }
+    if (!rd.company.tagline) {
+      const bits = [S.address, S.phone, S.email, S.vatRegNumber ? ('TIN/VAT ' + S.vatRegNumber) : ''].filter(Boolean);
+      if (bits.length) rd.company.tagline = bits.join('  ·  ');
+    }
+    rd.footer = Object.assign({}, rd.footer || {});
+    if (S.companyName) rd.footer.company = S.companyName;
+    return rd;
+  }
+  function companyTitle(company) {
+    company = company || {};
+    const sub = company.subtitle === undefined ? '& DERKOSH' : company.subtitle;
+    return `${company.name || 'MENA INJERA'}${sub ? ' ' + sub : ''}`;
+  }
+
   // Lighter, two-column header — logo + company block on the left,
   // report title + generated meta right-aligned on the right, with a
   // single thin accent rule underneath. No solid color fill anywhere.
@@ -1913,7 +1937,7 @@
     doc.setTextColor(THEME.primaryDark);
     doc.setFont(THEME.fontHeading, 'bold');
     doc.setFontSize(14);
-    doc.text(`${company.name || 'MENA INJERA'} ${company.subtitle || '& DERKOSH'}`, textX, 26);
+    doc.text(companyTitle(company), textX, 26);
     doc.setFont(THEME.fontHeading, 'normal');
     doc.setFontSize(8);
     doc.setTextColor(THEME.textMuted);
@@ -3231,6 +3255,7 @@
   }
 
   async function generatePDF(reportData, options = {}) {
+    reportData = applyBusinessSettings(reportData);
     validateReportData(reportData, 'pdf');
     reportData = normalizeReportData(reportData);
     // One timestamp for the header and every page footer (v3.15).
@@ -3402,6 +3427,7 @@
   // header, logo on the first sheet)
   // ------------------------------------------------------------
   async function generateExcel(reportData) {
+    reportData = applyBusinessSettings(reportData);
     validateReportData(reportData);
     reportData = normalizeReportData(reportData);
     await ensureLibs(['exceljs']);
@@ -3435,7 +3461,7 @@
     function addBrandHeader(ws, title, colSpan) {
       ws.mergeCells(1, 1, 1, Math.max(colSpan, 2));
       const c1 = ws.getCell(1, 1);
-      c1.value = `${(reportData.company && reportData.company.name) || 'MENA INJERA'} ${(reportData.company && reportData.company.subtitle) || '& DERKOSH'} — ${title}`;
+      c1.value = `${companyTitle(reportData.company)} — ${title}`;
       c1.font = { bold: true, size: 13, color: { argb: GREEN_DARK } };
       c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
       c1.border = { bottom: { style: 'medium', color: { argb: GOLD } } };
@@ -3491,7 +3517,7 @@
 
       ws.mergeCells(1, 1, 1, 14);
       const titleCell = ws.getCell(1, 1);
-      titleCell.value = `${(reportData.company && reportData.company.name) || 'MENA INJERA'} ${(reportData.company && reportData.company.subtitle) || '& DERKOSH'}  —  ${reportData.title || reportData.module || 'Report'}`;
+      titleCell.value = `${companyTitle(reportData.company)}  —  ${reportData.title || reportData.module || 'Report'}`;
       titleCell.font = { bold: true, size: 15, color: { argb: GREEN_DARK } };
       titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 5 };
       titleCell.border = { bottom: { style: 'medium', color: { argb: GOLD } } };
@@ -3714,6 +3740,7 @@
     const usedNames = new Set(wb.worksheets.map(w => w.name.toLowerCase()));
     exportTables(reportData).forEach((table, idx) => {
       let base = (table.sheetName || table.title || `Table${idx + 1}`).replace(/[\\/?*[\]:]/g, '').substring(0, 28) || `Table${idx + 1}`;
+      if (base.toLowerCase() === 'history') base = 'History Log';   // Excel reserves the sheet name "History"
       let name = base;
       let n = 2;
       while (usedNames.has(name.toLowerCase())) {
@@ -3832,6 +3859,7 @@
   //                                                    add excludeTotals: true for pure data rows.
   // An empty report downloads a one-row "No data" CSV (same message as the PDF / Excel empty state).
   function generateCSV(reportData, options = {}) {
+    reportData = applyBusinessSettings(reportData);
     validateReportData(reportData);
     reportData = normalizeReportData(reportData);
     const tables = exportTables(reportData);
@@ -5082,7 +5110,7 @@
   };
 
   // ---- shared helpers for the v3.3 presets (Inventory onward) ----
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const todayISO = () => (typeof appToday === 'function' ? appToday() : new Date().toISOString().slice(0, 10));
   const isoOk = s => /^\d{4}-\d{2}-\d{2}/.test(String(s || ''));
   // Whole days from one ISO date to another (negative when `toISO` is earlier).
   const dayDiff = (fromISO, toISO) =>

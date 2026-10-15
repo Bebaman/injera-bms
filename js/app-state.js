@@ -507,19 +507,149 @@ async function sbDelete(path){
    business, so it stays a hardcoded default rather than a lookup. */
 window.APP_SETTINGS = {
   companyName: 'Mena Injera',
-  currency: 'ETB'
+  currency: 'ETB',
+  loaded: false
 };
-async function loadCompanySettings(){
-  try{
-    const rows = await sbGet('business_settings?select=business_name&limit=1');
-    if (rows && rows[0] && rows[0].business_name){
-      window.APP_SETTINGS.companyName = rows[0].business_name;
+/* Loads the WHOLE business_settings row once and exposes it so every module reads the same
+   Settings values instead of each page fetching (or hardcoding) its own copy:
+     APP_SETTINGS.raw                – the raw row
+     APP_SETTINGS.companyName / address / phone / email / website / vatRegNumber / vatRegDate
+     APP_SETTINGS.fiscalYearStartMonth (1-12)   APP_SETTINGS.timezone
+     APP_SETTINGS.sessionTimeoutMinutes         APP_SETTINGS.lowStockPct
+   Also starts the idle-session timeout configured in Settings > System. */
+const _APPSET_MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+function _monthNumber(v){
+  if (v === null || v === undefined || v === '') return 1;
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 1 && n <= 12) return n;
+  const i = _APPSET_MONTHS.indexOf(String(v).trim().toLowerCase());
+  return i >= 0 ? i + 1 : 1;
+}
+let _settingsPromise = null;
+function loadAppSettings(){
+  if (_settingsPromise) return _settingsPromise;
+  _settingsPromise = (async () => {
+    try{
+      const rows = await sbGet('business_settings?select=*&limit=1');
+      const r = rows && rows[0];
+      if (r){
+        const A = window.APP_SETTINGS;
+        A.raw = r;
+        if (r.business_name) A.companyName = r.business_name;
+        A.address = r.business_address || '';
+        A.phone = r.business_phone || '';
+        A.email = r.business_email || '';
+        A.website = r.business_website || '';
+        A.vatRegNumber = r.vat_registration_number || '';
+        A.vatRegDate = r.vat_registration_date || '';
+        A.fiscalYearStartMonth = _monthNumber(r.fiscal_year_start_month);
+        A.timezone = r.business_timezone || 'Africa/Addis_Ababa';
+        A.sessionTimeoutMinutes = Number(r.session_timeout_minutes);
+        A.lowStockPct = (r.low_stock_threshold_pct === null || r.low_stock_threshold_pct === undefined) ? 60 : Number(r.low_stock_threshold_pct);
+        A.loaded = true;
+      }
+    }catch(e){ /* business_settings may be unreachable — keep defaults */ }
+    document.querySelectorAll('[data-company-name]').forEach(el => el.textContent = window.APP_SETTINGS.companyName);
+    populateUserChrome();
+    _startIdleTimeout(window.APP_SETTINGS.sessionTimeoutMinutes);
+    _runDailyDepreciation();
+    window.dispatchEvent(new CustomEvent('app-settings-loaded'));
+    return window.APP_SETTINGS;
+  })();
+  return _settingsPromise;
+}
+// Kept under its old name — sidebar.js calls this on every page.
+function loadCompanySettings(){ return loadAppSettings(); }
+
+/* supabase-js client that uses the SAME token manager as sbGet/sbPost (authHeadersAsync).
+   Pages used to build their own client with only the public key (Inventory, Loans: every call ran as the anonymous
+   role) or hand supabase-js a copy of the refresh token (Reports, Settings): two token managers then rotate the same
+   refresh token and one of them gets "refresh token already used", which signs the user out at random. With the
+   accessToken option supabase-js never refreshes anything itself — it asks us for the current token on every call,
+   so there is exactly one refresh path and every request carries the signed-in user's token. */
+function createAppSupabaseClient(){
+  if (typeof supabase === 'undefined' || !supabase.createClient) throw new Error('supabase-js is not loaded');
+  return supabase.createClient(window.SB_URL.replace(/\/rest\/v1\/?$/, ''), window.SB_KEY, {
+    accessToken: async () => {
+      try{
+        const h = await authHeadersAsync();
+        const a = h && h.Authorization;
+        if (a) return a.replace(/^Bearer\s+/i, '');
+      }catch(e){}
+      return window.SB_KEY;
     }
-  }catch(e){ /* business_settings may be unreachable — keep defaults */ }
-  document.querySelectorAll('[data-company-name]').forEach(el => el.textContent = window.APP_SETTINGS.companyName);
-  // The user panel's "Role · Company" line was painted with the default name
-  // before this finished — repaint now that the real name is known.
-  populateUserChrome();
+  });
+}
+
+/* ── Dates ──────────────────────────────────────────────
+   NEVER build a calendar date with  date.toISOString().slice(0,10)  — toISOString converts to UTC, so in Addis Ababa
+   (UTC+3) local midnight becomes the PREVIOUS day: "last day of the month" came out as the 30th instead of the 31st
+   (Cash Flow silently skipped every month-end transaction) and "today" was yesterday between 00:00 and 03:00.
+     localISODate(d)  -> 'YYYY-MM-DD' from a Date's LOCAL calendar fields
+     appToday()       -> today's date in the business timezone from Settings (falls back to the device clock)
+     monthEndISO(ym)  -> last calendar day of 'YYYY-MM' */
+function localISODate(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function appToday(){
+  const tz = window.APP_SETTINGS && window.APP_SETTINGS.timezone;
+  try{ if (tz) return new Date().toLocaleDateString('en-CA', { timeZone: tz }); }catch(e){}
+  return localISODate();
+}
+function monthEndISO(ym){
+  const [y, m] = String(ym).split('-').map(Number);
+  return ym + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');
+}
+
+/* Fixed-asset depreciation. Nothing in the app ever called the database depreciation routine, so asset purchases
+   never produced a depreciation expense. run_depreciation_catchup() is idempotent (safe to call any number of times,
+   it only fills months that are missing), so the first page load of each day simply makes sure every month up to the
+   current one has been depreciated. */
+function _runDailyDepreciation(){
+  if (_isLoginPage()) return;
+  const today = appToday();
+  try{
+    if (localStorage.getItem('injera_dep_day') === today) return;
+    sbPost('rpc/run_depreciation_catchup', {}).then(() => {
+      try{ localStorage.setItem('injera_dep_day', today); }catch(e){}
+    }).catch(() => { /* non-fatal: retried on the next page load */ });
+  }catch(e){}
+}
+
+/* First month of the fiscal year containing `ym` ('YYYY-MM'), e.g. fiscal start = July and ym = 2026-10
+   -> '2026-07'; ym = 2026-03 -> '2025-07'. Used for year-to-date figures. */
+function fiscalYearStartPeriod(ym){
+  const m0 = (window.APP_SETTINGS && window.APP_SETTINGS.fiscalYearStartMonth) || 1;
+  const [y, m] = String(ym).split('-').map(Number);
+  const startYear = m >= m0 ? y : y - 1;
+  return startYear + '-' + String(m0).padStart(2, '0');
+}
+
+/* Idle timeout (Settings > System > Session timeout). 0 / "Never" disables it. Activity in ANY open tab
+   counts, so working in one tab never logs you out of another. */
+let _idleStarted = false;
+function _startIdleTimeout(minutes){
+  if (_idleStarted || _isLoginPage() || !(minutes > 0)) return;
+  _idleStarted = true;
+  const KEY = 'injera_last_activity';
+  let lastWrite = 0;
+  const touch = () => {
+    const now = Date.now();
+    if (now - lastWrite < 15000) return;
+    lastWrite = now;
+    try{ localStorage.setItem(KEY, String(now)); }catch(e){}
+  };
+  ['click','keydown','mousemove','touchstart','scroll'].forEach(ev => document.addEventListener(ev, touch, { passive: true }));
+  try{ localStorage.setItem(KEY, String(Date.now())); lastWrite = Date.now(); }catch(e){}
+  setInterval(() => {
+    let last = 0;
+    try{ last = parseInt(localStorage.getItem(KEY) || '0', 10); }catch(e){}
+    if (last && Date.now() - last > minutes * 60000){
+      clearSession();
+      _redirectToLogin(0);
+    }
+  }, 30000);
 }
 
 /* ── Confirm modal (replaces browser confirm()) ─────────────────
