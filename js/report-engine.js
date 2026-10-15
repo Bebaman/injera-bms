@@ -2007,7 +2007,13 @@
     if (!kpis || !kpis.length) return y;
     const usable = pageWidth - margin * 2;
     const gap = 10;
-    const perRow = kpis.length > 5 ? 6 : kpis.length;
+    let perRow = kpis.length > 5 ? 6 : kpis.length;
+    // Portrait pages are narrow: 6 cards in a row were only ~75pt wide and their text overlapped. Keep every card at
+    // least ~118pt wide by wrapping to balanced rows (6 -> 3+3, 5 -> 3+2). Landscape is unchanged.
+    if (usable < 600) {
+      const maxPer = Math.max(2, Math.floor((usable + gap) / (118 + gap)));
+      if (perRow > maxPer) { const rowsNeeded = Math.ceil(kpis.length / maxPer); perRow = Math.ceil(kpis.length / rowsNeeded); }
+    }
     const cardW = (usable - gap * (perRow - 1)) / perRow;
     // Taller, roomier cards with real breathing space — the previous 54/60pt cards
     // packed label/value/unit/delta into a cramped stack with little visual weight.
@@ -9084,6 +9090,98 @@
 
   // ---- PRESET EXPORT POINT: later modules are added above this line ----
 
+
+  // ------------------------------------------------------------
+  // PDF OPTIONS DIALOG — "Export PDF": report type + page orientation
+  // ------------------------------------------------------------
+  // Every module's PDF button now asks (once, quickly) how the PDF should look instead of always producing the
+  // detailed landscape version:
+  //   Report type : Summary (one page overview) · Detailed (summary + every table, extra charts, reconciliation)
+  //   Orientation : Landscape (wide) · Portrait (tall)
+  // The last orientation is remembered on this device. Resolves { type, orientation }, or null if cancelled.
+  //   config.type      default report type ('detailed' | 'summary')
+  //   config.lockType  true when the button already means one type (e.g. a "Summary PDF" button): only orientation is asked
+  function askPdfOptions(config) {
+    config = config || {};
+    return new Promise(function (resolve) {
+      var PREF_KEY = 'bms_pdf_prefs', prefs = {};
+      try { prefs = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { prefs = {}; }
+      var type = config.type === 'summary' ? 'summary' : 'detailed';
+      if (!config.lockType && (prefs.type === 'summary' || prefs.type === 'detailed')) type = prefs.type;
+      var orientation = prefs.orientation === 'portrait' ? 'portrait' : 'landscape';
+
+      if (!document.getElementById('rpdf-style')) {
+        var st = document.createElement('style'); st.id = 'rpdf-style';
+        st.textContent =
+          '.rpdf-ov{position:fixed;inset:0;z-index:100000;background:rgba(10,24,17,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit}' +
+          '.rpdf-box{background:#fff;border-radius:18px;width:100%;max-width:470px;box-shadow:0 30px 80px rgba(8,18,12,.4);overflow:hidden;animation:rpdfIn .22s ease-out both}' +
+          '@keyframes rpdfIn{from{transform:translateY(14px) scale(.98);opacity:0}to{transform:none;opacity:1}}' +
+          '.rpdf-hd{padding:18px 22px 6px}.rpdf-hd h3{margin:0;font-size:18px;font-weight:800;color:#1b2e25}.rpdf-hd p{margin:4px 0 0;font-size:12.5px;color:#6b7f75}' +
+          '.rpdf-bd{padding:10px 22px 4px}.rpdf-lbl{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7a8d84;margin:12px 0 7px}' +
+          '.rpdf-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rpdf-grid.one{grid-template-columns:1fr}' +
+          '.rpdf-opt{position:relative;display:flex;flex-direction:column;gap:5px;padding:12px 13px;border:1.5px solid #dfe9e3;border-radius:13px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s,box-shadow .15s}' +
+          '.rpdf-opt:hover{border-color:#a9cdb9}.rpdf-opt input{position:absolute;opacity:0;pointer-events:none}' +
+          '.rpdf-opt.on{border-color:#1b7f4f;background:#f1faf5;box-shadow:0 0 0 3px rgba(27,127,79,.12)}' +
+          '.rpdf-opt b{font-size:13.5px;color:#1b2e25;display:flex;align-items:center;gap:8px}.rpdf-opt span{font-size:11.5px;color:#6b7f75;line-height:1.35}' +
+          '.rpdf-opt .tick{margin-left:auto;width:16px;height:16px;border-radius:50%;border:1.5px solid #c9d9d0;flex-shrink:0}' +
+          '.rpdf-opt.on .tick{background:#1b7f4f;border-color:#1b7f4f;box-shadow:inset 0 0 0 3px #fff}' +
+          '.rpdf-ico{display:block;margin-bottom:2px}.rpdf-fix{font-size:12.5px;color:#34493f;background:#f4f8f6;border-radius:10px;padding:9px 12px}' +
+          '.rpdf-ft{display:flex;gap:10px;justify-content:flex-end;padding:16px 22px 20px}' +
+          '.rpdf-ft button{height:42px;padding:0 20px;border-radius:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit}' +
+          '.rpdf-cancel{background:#fff;border:1.5px solid #dfe9e3;color:#34493f}.rpdf-go{background:#1b4332;border:1.5px solid #1b4332;color:#fff}.rpdf-go:hover{background:#14352a}' +
+          '@media(max-width:640px){.rpdf-ov{align-items:flex-end;padding:0}.rpdf-box{max-width:100%;border-radius:20px 20px 0 0}.rpdf-ft{padding-bottom:max(18px,env(safe-area-inset-bottom))}.rpdf-ft button{flex:1}}';
+        document.head.appendChild(st);
+      }
+
+      var landIco = '<svg class="rpdf-ico" width="44" height="32" viewBox="0 0 44 32"><rect x="1.5" y="1.5" width="41" height="29" rx="3" fill="#fff" stroke="#1b4332" stroke-width="1.6"/><rect x="6" y="6" width="14" height="3" rx="1.5" fill="#9fc9b2"/><rect x="6" y="12" width="32" height="3" rx="1.5" fill="#d3e5db"/><rect x="6" y="18" width="32" height="3" rx="1.5" fill="#d3e5db"/><rect x="6" y="24" width="20" height="3" rx="1.5" fill="#d3e5db"/></svg>';
+      var portIco = '<svg class="rpdf-ico" width="32" height="44" viewBox="0 0 32 44"><rect x="1.5" y="1.5" width="29" height="41" rx="3" fill="#fff" stroke="#1b4332" stroke-width="1.6"/><rect x="6" y="6" width="14" height="3" rx="1.5" fill="#9fc9b2"/><rect x="6" y="13" width="20" height="3" rx="1.5" fill="#d3e5db"/><rect x="6" y="19" width="20" height="3" rx="1.5" fill="#d3e5db"/><rect x="6" y="25" width="20" height="3" rx="1.5" fill="#d3e5db"/><rect x="6" y="31" width="13" height="3" rx="1.5" fill="#d3e5db"/></svg>';
+
+      var typeBlock = config.lockType
+        ? '<div class="rpdf-fix">Format: <b>' + (type === 'summary' ? 'Summary report' : 'Detailed report') + '</b></div>'
+        : '<div class="rpdf-lbl">Report type</div><div class="rpdf-grid" data-group="type">' +
+            '<label class="rpdf-opt" data-v="summary"><input type="radio" name="rpdf-type" value="summary"><b>Summary<i class="tick"></i></b><span>One page: headline numbers, charts and key tables.</span></label>' +
+            '<label class="rpdf-opt" data-v="detailed"><input type="radio" name="rpdf-type" value="detailed"><b>Detailed<i class="tick"></i></b><span>The summary plus every table, extra charts and checks.</span></label></div>';
+
+      var ov = document.createElement('div');
+      ov.className = 'rpdf-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Export PDF options');
+      ov.innerHTML =
+        '<div class="rpdf-box"><div class="rpdf-hd"><h3>Export PDF</h3><p>Choose how the PDF should look. A4 paper.</p></div><div class="rpdf-bd">' + typeBlock +
+        '<div class="rpdf-lbl">Page orientation</div><div class="rpdf-grid" data-group="orientation">' +
+          '<label class="rpdf-opt" data-v="landscape"><input type="radio" name="rpdf-or" value="landscape">' + landIco + '<b>Landscape<i class="tick"></i></b><span>Wide page — best for tables and charts.</span></label>' +
+          '<label class="rpdf-opt" data-v="portrait"><input type="radio" name="rpdf-or" value="portrait">' + portIco + '<b>Portrait<i class="tick"></i></b><span>Tall page — easy to print and file.</span></label></div></div>' +
+        '<div class="rpdf-ft"><button type="button" class="rpdf-cancel">Cancel</button><button type="button" class="rpdf-go">Export PDF</button></div></div>';
+      document.body.appendChild(ov);
+
+      function paint() {
+        Array.prototype.forEach.call(ov.querySelectorAll('.rpdf-opt'), function (el) {
+          var g = el.parentNode.getAttribute('data-group'), v = el.getAttribute('data-v');
+          var on = (g === 'type' ? type : orientation) === v;
+          el.classList.toggle('on', on); el.querySelector('input').checked = on;
+        });
+      }
+      paint();
+      ov.addEventListener('click', function (e) {
+        var opt = e.target.closest && e.target.closest('.rpdf-opt');
+        if (opt) { e.preventDefault(); var g = opt.parentNode.getAttribute('data-group'), v = opt.getAttribute('data-v'); if (g === 'type') type = v; else orientation = v; paint(); return; }
+        if (e.target === ov) done(null);
+      });
+      function done(result) {
+        document.removeEventListener('keydown', onKey, true);
+        if (ov.parentNode) ov.parentNode.removeChild(ov);
+        if (result) { try { localStorage.setItem(PREF_KEY, JSON.stringify(config.lockType ? { orientation: result.orientation, type: prefs.type } : result)); } catch (e) {} }
+        resolve(result);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); done(null); }
+        else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); done({ type: type, orientation: orientation }); }
+      }
+      document.addEventListener('keydown', onKey, true);
+      ov.querySelector('.rpdf-cancel').addEventListener('click', function () { done(null); });
+      ov.querySelector('.rpdf-go').addEventListener('click', function () { done({ type: type, orientation: orientation }); });
+      setTimeout(function () { var g = ov.querySelector('.rpdf-go'); if (g) g.focus(); }, 30);
+    });
+  }
+
   // ------------------------------------------------------------
   // EXPORT
   // ------------------------------------------------------------
@@ -9092,6 +9190,7 @@
     ensureLibs,
     renderChartToImage,
     generatePDF,
+    askPdfOptions,
     generateExcel,
     generateCSV,
     presets,
