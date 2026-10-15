@@ -1,0 +1,183 @@
+/* =====================================================================
+   RESPONSIVE LAYER — tablets (≤1024px) and phones (≤640px)
+   Loaded LAST on every page so one design system applies to every module:
+   the same KPI cards, cards, charts, tables, filters and pop-ups.
+   EVERYTHING below is inside a max-width media query: the PC layout
+   (≥1025px) is not touched by a single rule in this file.
+   ===================================================================== */
+
+/* ───────────── shared animation (phones) ───────────── */
+@keyframes rSheetUp{ from{ transform:translateY(40px); opacity:0 } to{ transform:none; opacity:1 } }
+
+/* =====================================================================
+   TABLET + PHONE  (≤1024px)
+   ===================================================================== */
+@media (max-width:1024px){
+  html{ -webkit-text-size-adjust:100%; }
+  body{ overflow-x:hidden; }
+  .content{ padding:16px 16px 24px; }
+
+  /* closed drawer must not leave a shadow strip on the screen edge */
+  .sb:not(.open):not(.pinned-open){ box-shadow:none !important; }
+
+  /* ── KPI cards: one grid, one card design in every module ── */
+  .kpi-row, .kpi-row-sm{
+    display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:12px !important; overflow:visible !important; padding:0 !important; margin-bottom:14px !important;
+    scroll-snap-type:none !important;
+  }
+  .kpi-row > .kc{ min-width:0 !important; width:auto !important; max-width:none !important; flex:none !important; }
+  .kpi-row > .kc:last-child:nth-child(3n+1){ grid-column:1 / -1; }  /* a lonely last card spans the row */
+  .kc{
+    display:flex; flex-direction:column; justify-content:flex-start; box-sizing:border-box;
+    padding:14px 14px 12px !important; border-radius:14px !important; position:relative; overflow:hidden;
+  }
+  .kc-ico{ width:36px !important; height:36px !important; margin-bottom:9px !important; flex-shrink:0; }
+  .kc-ico svg{ width:18px !important; height:18px !important; }
+  .kc-lbl{ font-size:11.5px !important; white-space:normal !important; line-height:1.25; }
+  .kc-val{ font-size:19px !important; line-height:1.15; flex-wrap:wrap; overflow-wrap:anywhere; }
+  .kc-chg, .kc-sub, .kc-pend, .kc-note{ font-size:11px !important; margin-top:auto !important; padding-top:5px; line-height:1.3; }
+  .kc:hover, .card:hover{ transform:none !important; }
+
+  /* ── cards: one look ── */
+  .card{ border-radius:14px; }
+  .card-hd{ flex-wrap:wrap; row-gap:8px; column-gap:10px; padding:13px 15px 9px; }
+  .card-ttl{ font-size:14.5px; }
+  .card canvas{ max-width:100% !important; }
+
+  /* ── page-level layout rows: pairs of cards side by side, never 3-up ── */
+  .content [class*="row3"], .content .widgets-top3, .content .bot3, .content .der-grid3, .content .cst-row3{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+
+  /* ── tables: scroll sideways inside their card instead of being clipped ── */
+  .content table:not(.rcards){ display:block; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; table-layout:auto !important; }
+  .content table:not(.rcards) th, .content table:not(.rcards) td{ white-space:nowrap; }
+  .content table:not(.rcards) td:first-child{ white-space:normal; min-width:120px; }
+
+  /* ── buttons / toolbars ── */
+  .card-tools, .tb-tools, .exp-btns, .filters, .filter-row, .toolbar{ flex-wrap:wrap; row-gap:8px; }
+  @media (pointer:coarse){
+    .btn-pri, .btn-sec, .btn-p, .btn-s, .btn-o, button.btn, .exp-btn, .qa-btn{ min-height:40px; }
+  }
+
+  /* ── modals: always inside the screen, header/footer pinned while the body scrolls ── */
+  .modal-hd, .modal-hdr{ position:sticky; top:0; z-index:3; }
+  .modal-ft{ position:sticky; bottom:0; z-index:3; background:#fff; }
+}
+
+/* =====================================================================
+   TABLET ONLY (641–1024px): comfortable 3-up KPI + 2-up cards
+   ===================================================================== */
+@media (min-width:641px) and (max-width:1024px){
+  .kc-val{ font-size:20px !important; }
+  /* the old "main + side panel" rows keep a side panel on landscape tablets, stack on portrait */
+}
+@media (min-width:641px) and (max-width:900px){
+  .kpi-row, .kpi-row-sm{ grid-template-columns:repeat(3,minmax(0,1fr)) !important; }
+}
+
+/* =====================================================================
+   PHONE (≤640px)
+   ===================================================================== */
+@media (max-width:640px){
+  .content{ padding:12px 10px 22px; }
+
+  /* ── KPI cards: 2 per row, compact and identical in every module ── */
+  .kpi-row, .kpi-row-sm{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:10px !important; margin-bottom:12px !important; }
+  .kpi-row > .kc:last-child:nth-child(3n+1){ grid-column:auto; }
+  .kpi-row > .kc:last-child:nth-child(odd){ grid-column:1 / -1; }   /* odd count → last card full width */
+  .kc{ padding:12px 12px 10px !important; border-radius:13px !important; }
+  .kc-ico{ width:32px !important; height:32px !important; margin-bottom:8px !important; }
+  .kc-ico svg{ width:16px !important; height:16px !important; }
+  .kc-lbl{ font-size:10.5px !important; letter-spacing:.01em; }
+  .kc-val{ font-size:17px !important; gap:3px !important; }
+  .kc-val .u{ font-size:10px !important; }
+  .kc-chg, .kc-sub, .kc-pend, .kc-note{ font-size:10px !important; }
+
+  /* ── cards ── */
+  .card{ border-radius:13px; margin-bottom:0; }
+  .card-hd{ padding:12px 13px 8px; }
+  .card-ttl{ font-size:14px; }
+  .content [class*="-row"], .content [class*="bot"]{ min-width:0; }
+
+  /* every multi-column page row becomes one column (cards stack, full width) */
+  .content .mid, .content .bot, .content .bot2, .content .bot2-main, .content .bottom3, .content .extra-row2,
+  .content .donut-row, .content .widgets-top3, .content .row-2, .content .row-3, .content .row-prof,
+  .content .row-ar, .content .cst-main, .content .cst-bottom, .content .cst-row3, .content .der-main,
+  .content .der-charts, .content .der-bottom, .content .der-grid3, .content .pc-grid, .content .bot-grid,
+  .content .dist-main, .content .bva-main, .content .ld-main, .content .ps-wrap{
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+
+  /* stubborn two-column rows that carry their own inline / :has() rules */
+  .content div[style*="grid-template-columns:1.4fr 1fr"], .content div[style*="grid-template-columns: 1.4fr 1fr"],
+  .content .bot2:has(#perUnitCard){ grid-template-columns:minmax(0,1fr) !important; }
+  .content .bot2:has(#perUnitCard) > .card:first-child{ grid-column:auto !important; }
+
+  /* ── list tables become cards (rows get "LABEL / value" pairs; see js/responsive.js) ── */
+  table.rcards{ display:block !important; width:100% !important; }
+  table.rcards thead{ display:none !important; }
+  table.rcards tbody, table.rcards tfoot{ display:block !important; width:100%; }
+  table.rcards tr{
+    display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 14px;
+    padding:12px 14px; border:0 !important; border-bottom:1px solid var(--border,#e3ece7) !important;
+    position:relative; background:#fff;
+  }
+  table.rcards{ min-width:0 !important; table-layout:auto !important; }
+  table.rcards tbody tr:nth-child(even){ background:#fafdfb; }
+  table.rcards tr.sel, table.rcards tr.selected, table.rcards tr.active{ background:#eaf7f0 !important; box-shadow:inset 3px 0 0 var(--green,#27ae60); }
+  table.rcards tr, table.rcards td, table.rcards th{ min-width:0 !important; box-sizing:border-box; }
+  table.rcards td{ background:transparent !important; }          /* page row-highlights tint single cells; the whole card is tinted instead */
+  table.rcards td{
+    display:block !important; padding:0 !important; border:0 !important; min-width:0; width:auto !important;
+    white-space:normal !important; text-align:left !important; font-size:12.5px; overflow-wrap:anywhere;
+  }
+  table.rcards td::before{
+    content:attr(data-label); display:block; margin-bottom:2px; font-size:9.5px; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--tl,#94a89f); font-family:'Nunito',sans-serif;
+  }
+  table.rcards td[data-label=""]::before, table.rcards td:not([data-label])::before{ display:none; }
+  table.rcards td:first-child{ grid-column:1 / -1; font-size:13.5px; font-weight:700; padding-right:34px !important; }
+  table.rcards td:first-child::before{ display:none; }
+  table.rcards td[colspan]{ grid-column:1 / -1; text-align:center !important; color:var(--tl,#94a89f); padding:16px 0 !important; }
+  table.rcards td[colspan]::before{ display:none; }
+  /* row-action (⋮ / buttons) cell sits in the card's top-right corner */
+  table.rcards td.r-act{ position:absolute !important; top:8px !important; right:8px !important; width:auto !important; z-index:1; }
+  table.rcards td.r-blank, table.rcards tr.r-empty{ display:none !important; }
+  table.rcards tr.tot, table.rcards tr.total, table.rcards tfoot tr{ background:#eef8f2 !important; font-weight:700; }
+
+  /* statement / report tables that scroll sideways: tighter, readable */
+  .content table:not(.rcards) th, .content table:not(.rcards) td{ padding-left:9px !important; padding-right:9px !important; font-size:12px; }
+  .content table:not(.rcards) td:first-child, .content table:not(.rcards) th:first-child{ min-width:130px; max-width:190px; }
+
+  /* ── charts: comfortable height, light legends, no overlapping value labels ── */
+  .card canvas{ max-width:100% !important; }
+  .chart-box, .chart-wrap, .chart-area, .cht, .cw{ min-height:200px; }
+
+  /* ── pop-ups become bottom sheets ── */
+  .modal-overlay, .modal-bg{ align-items:flex-end !important; justify-content:center !important; padding:0 !important; overflow:hidden !important; }
+  .modal, .modal-box, .modal-card{
+    width:100% !important; max-width:100% !important; max-height:94dvh !important; margin:0 !important;
+    border-radius:20px 20px 0 0 !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch;
+    animation:rSheetUp .28s cubic-bezier(.32,.72,0,1) both;
+  }
+  .modal-ft{ padding-bottom:max(12px, env(safe-area-inset-bottom)) !important; display:flex; gap:10px; border-top:1px solid var(--border,#e3ece7); }
+  .modal-ft > button{ flex:1; min-height:44px; }
+
+  /* ── header actions inside cards: full-width, thumb friendly ── */
+  .card-hd .btn-pri, .card-hd .btn-sec{ flex:1 1 auto; justify-content:center; }
+
+  /* Manage Users (stand-alone page) */
+  body:has(> .wrap){ padding:20px 12px !important; }
+  .wrap .headrow{ gap:10px; margin-bottom:16px; }
+  .wrap .card{ flex-wrap:wrap; padding:14px 14px; gap:10px 12px; }
+  .wrap .card .info{ flex:1 1 0; min-width:0; }
+  .wrap .card .em{ overflow-wrap:anywhere; }
+  .wrap .card .actions{ flex:1 1 100%; order:3; gap:10px; }
+  .wrap .card .actions .role-select, .wrap .card .actions .toggle-btn{ flex:1; min-height:42px; }
+
+  /* long tables/filters never push the page wider than the screen */
+  .content, .content > *{ max-width:100%; }
+}
+
+/* touch devices: no hover lifts */
+@media (hover:none){ .kc:hover, .card:hover, .qa:hover{ transform:none !important; } }
