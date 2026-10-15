@@ -516,6 +516,10 @@ button{font-family:inherit}
             <label>Payment Date</label>
             <div class="fg-wrap"><input type="date" id="recDate" required></div>
           </div>
+          <div class="fg">
+            <label>Paid From</label>
+            <div class="fg-wrap"><select id="recChannel"><option value="bank">Bank</option><option value="cash">Cash</option><option value="mobile">Mobile Money</option></select></div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1077,7 +1081,7 @@ function openRecordModal(){
   document.getElementById('recNet').textContent = f(rec.net)+' ETB';
   document.getElementById('recPct').textContent = rec.pct.toFixed(2)+'%';
   document.getElementById('recDistAmt').textContent = f(sp.distAmt)+' ETB';
-  document.getElementById('recDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('recDate').value = appToday();
   document.getElementById('recordModalOverlay').classList.add('show');
 }
 function closeRecordModal(){ document.getElementById('recordModalOverlay').classList.remove('show'); }
@@ -1086,13 +1090,18 @@ async function submitRecordModal(e){
   const rec = history[curIdx];
   const sp = computeSplit(rec.net, rec.pct);
   const paymentDate = document.getElementById('recDate').value;
+  const payChannel = (document.getElementById('recChannel')||{}).value || 'bank';
+  // Guards: nothing to share when the month made no cash profit, and ownership must total 100%.
+  if(!(rec.net > 0)){ toast('This month has no positive net cash profit to distribute','error'); return; }
+  const totalOwnership = shareholders.reduce((t,x)=>t+Number(x.pct||0),0);
+  if(Math.abs(totalOwnership-100) > 0.01){ toast('Active shareholder percentages total '+totalOwnership.toFixed(2)+'% — they must total 100% before distributing','error'); return; }
   const distId = crypto.randomUUID();
   // profit_distribution_lines.shareholder_id is required — if the shareholders table
   // failed to load and we're on the hardcoded fallback (no real ids), stop before
   // writing anything rather than leaving an orphan profit_distributions header row.
   const lines = sp.shares.map(s=>{
     const sh = shareholders.find(x=>x.name===s.name);
-    return { distribution_id: distId, shareholder_id: sh ? sh.id : null, ownership_pct_applied: s.pct, amount: s.amount, payment_date: paymentDate, payment_channel: 'bank' };
+    return { distribution_id: distId, shareholder_id: sh ? sh.id : null, ownership_pct_applied: s.pct, amount: s.amount, payment_date: paymentDate, payment_channel: payChannel };
   });
   if(lines.some(l=>!l.shareholder_id)){
     toast('Could not match every shareholder to a real record — reload the page and try again','error');
@@ -1101,7 +1110,10 @@ async function submitRecordModal(e){
   try{
     await sbPost('profit_distributions', [{
       id: distId, period: rec.key, distribution_pct: rec.pct, net_cash_profit: rec.net,
-      distributable_amount: sp.distAmt, retained_amount: sp.retained
+      // header = exactly what the lines pay out (lines are rounded to the accounting unit), so
+      // distributable + retained always equals net cash profit and the cash ledger reconciles
+      distributable_amount: lines.reduce((t,l)=>t+l.amount,0),
+      retained_amount: rec.net - lines.reduce((t,l)=>t+l.amount,0)
     }]);
     await sbPost('profit_distribution_lines', lines);
     toast('Distribution recorded and paid for '+rec.m,'success');
@@ -1252,7 +1264,7 @@ function buildProfitReportData(){
   if(rows.length > 1){
     base.tables = base.tables || [];
     base.tables.push({
-      title: 'Distribution History by Month', sheetName: 'History',
+      title: 'Distribution History by Month', sheetName: 'Distribution History', // Excel forbids a sheet named exactly "History"
       columns: ['Month', 'Net Cash Profit (ETB)', 'Distribution %', 'Distributable (ETB)', 'Retained (ETB)', 'Status'],
       rows,
       columnAlign: [null, 'right', 'right', 'right', 'right', null],

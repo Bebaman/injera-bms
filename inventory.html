@@ -17,11 +17,7 @@
 <!-- SheetJS is kept ONLY to read the uploaded file in "Import Inventory". Exports (PDF / Excel / CSV) all go through report-engine.js. -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const { createClient } = supabase;
-const db = createClient(
-  'https://mfxkkaavgzyttasgqnmw.supabase.co',
-  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-);
+/* db is created after app-state.js loads (see below) so it carries the signed-in user's token. */
 </script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
@@ -570,6 +566,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/header.js"></script>
 <script src="/js/report-engine.js"></script>
 <script>
+const db = createAppSupabaseClient(); // signed-in user's token via the shared token manager
 /* ════════════════ LIVE STATE (populated by loadFromSupabase) ════════════════
    inventory_items master fields: name, unit, reorder_level, shelf_life_days.
    Monthly movement figures (opening/purchased/used/closing/WAC/value) come from
@@ -1260,7 +1257,7 @@ async function buildInventoryReportData(){
       dailyUsage: it.used>0 ? it.used/30 : undefined,        // same 30-day basis as the page's "Days of Supply"
       expiryDate: it.expiryDate || undefined,
       unitCost: it.wac, value: it.value ?? undefined,
-      opening: it.opening ?? undefined, received: it.purchased, used: it.used,
+      opening: it.opening ?? undefined, received: it.purchasedExAdj ?? it.purchased, used: it.usedExAdj ?? it.used,
       adjustments: adjByItem ? (adjByItem[it.id]||0) : undefined,
       // use the page's own thresholds (REORDER <= 60% of reorder level, LOW <= reorder level)
       status: out ? 'Out of Stock' : it.status==='REORDER' ? 'Reorder Now' : it.status==='LOW' ? 'Low Stock' : 'OK'
@@ -1332,7 +1329,7 @@ function closeModal(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 /* ── shared form helpers ── */
-function todayInApp(){ return new Date().toISOString().slice(0,10); }
+function todayInApp(){ return appToday(); }
 function itemOptionsHtml(selected){
   return invItems.map(i=>`<option value="${i.name}" ${i.name===selected?'selected':''}>${i.name} (${i.unit})</option>`).join('');
 }
@@ -1344,7 +1341,8 @@ function toggleFieldError(inputId, hasError){
    Items with no reorder level set (0) stay OK — there's no threshold to compare against. */
 function recomputeStatus(item){
   if(item.closing===null || item.closing===undefined || !item.reorder){ return; }
-  if(item.closing <= item.reorder*0.6) item.status = 'REORDER';
+  const lowPct = (window.APP_SETTINGS && window.APP_SETTINGS.lowStockPct != null) ? window.APP_SETTINGS.lowStockPct : 60;
+  if(item.closing <= item.reorder*(lowPct/100)) item.status = 'REORDER';
   else if(item.closing <= item.reorder) item.status = 'LOW';
   else item.status = 'OK';
 }
@@ -1745,7 +1743,7 @@ async function submitItemSettings(itemName){
   try {
     const { error } = await db.from('inventory_items').update({
       reorder_level: reorder, category, warehouse_id: warehouseId, reserved_qty: reservedQty,
-      lead_time_days: leadTimeDays>=0 ? leadTimeDays : null, safety_stock_days: safetyStockDays>=0 ? safetyStockDays : null,
+      lead_time_days: leadTimeDays>=0 ? Math.round(leadTimeDays) : 5, safety_stock_days: safetyStockDays>=0 ? Math.round(safetyStockDays) : 2, // integer NOT NULL columns
       shelf_life_days: shelfLifeDays
     }).eq('id', item.id);
     if(error) throw error;
@@ -2086,12 +2084,15 @@ function applyTableSettings(){
    price_history table, since nothing writes to that table. */
 async function loadFromSupabase(){
   try {
+    // Settings (low-stock %, Teff/Rice item ids) must be known before statuses are computed.
+    if(typeof loadAppSettings === 'function') await loadAppSettings();
     const period = currentPeriod;
     const prevPeriod = prevPeriodOf(period);
 
     const [itemsRes, whRes, supRes, balCurRes, balPrevRes, purchInRes, prodUseRes, millRes,
            recentPurchRes, wacRes, transfersRes, usageLogRes, adjustRes,
-           allPurchRes, allProdRes, allMillRes, allUsageRes, allAdjRes, allOpenRes] = await Promise.all([
+           allPurchRes, allProdRes, allMillRes, allUsageRes, allAdjRes, allOpenRes,
+           periodUsageRes, periodAdjRes] = await Promise.all([
       db.from('inventory_items').select('*').eq('is_active', true).order('name'),
       db.from('warehouses').select('id,name').order('name'),
       db.from('suppliers').select('id,name').eq('is_active', true).order('name'),
@@ -2112,7 +2113,11 @@ async function loadFromSupabase(){
       db.from('milling_conversions').select('teff_qty,rice_qty'),
       db.from('inventory_usage_log').select('item_id,quantity').eq('is_deleted',false),
       db.from('inventory_adjustments').select('item_id,quantity_change').eq('is_deleted',false),
-      db.from('inventory_opening_balances').select('item_id,opening_qty')
+      db.from('inventory_opening_balances').select('item_id,opening_qty,period'),
+      // The "recent activity" queries above are LIMIT 8 (display only). The month's Used / Adjusted
+      // totals must come from these un-limited queries or they under-count after 8 entries.
+      db.from('inventory_usage_log').select('item_id,quantity').eq('is_deleted',false).eq('period',period),
+      db.from('inventory_adjustments').select('item_id,quantity_change').eq('is_deleted',false).eq('period',period)
     ]);
 
     const items = itemsRes.data || [];
@@ -2130,7 +2135,9 @@ async function loadFromSupabase(){
 
     const usedByItem = {};
     (prodUseRes.data||[]).forEach(m=>{ usedByItem[m.item_id] = (usedByItem[m.item_id]||0) + num(m.quantity_used); });
-    const teffItem = items.find(i=>i.name==='Teff'), riceItem = items.find(i=>i.name==='Rice');
+    const _S = (window.APP_SETTINGS && window.APP_SETTINGS.raw) || {};
+    const teffItem = items.find(i=>i.id===_S.teff_item_id) || items.find(i=>i.name==='Teff');
+    const riceItem = items.find(i=>i.id===_S.rice_item_id) || items.find(i=>i.name==='Rice');
     (millRes.data||[]).forEach(mc=>{
       if(teffItem) usedByItem[teffItem.id] = (usedByItem[teffItem.id]||0) + num(mc.teff_qty);
       if(riceItem) usedByItem[riceItem.id] = (usedByItem[riceItem.id]||0) + num(mc.rice_qty);
@@ -2139,7 +2146,21 @@ async function loadFromSupabase(){
     // already counted in the inventory_balance view's closing figure — include them
     // here too so the "Used" column and turnover/days-of-supply math stay consistent
     // with the closing balance instead of silently under-counting.
-    (usageLogRes.data||[]).forEach(u=>{ usedByItem[u.item_id] = (usedByItem[u.item_id]||0) + num(u.quantity); });
+    (periodUsageRes.data||[]).forEach(u=>{ usedByItem[u.item_id] = (usedByItem[u.item_id]||0) + num(u.quantity); });
+    // Stock adjustments this month: gains count as stock added, losses as stock used, so
+    // Opening + Purchased - Used always equals Current Qty.
+    const adjInByItem = {}, adjOutByItem = {};
+    (periodAdjRes.data||[]).forEach(a=>{
+      const chg = num(a.quantity_change);
+      if(chg>0) adjInByItem[a.item_id] = (adjInByItem[a.item_id]||0) + chg;
+      else if(chg<0){
+        adjOutByItem[a.item_id] = (adjOutByItem[a.item_id]||0) + Math.abs(chg);
+        usedByItem[a.item_id] = (usedByItem[a.item_id]||0) + Math.abs(chg);
+      }
+    });
+    // Opening-balance rows entered for THIS month are part of the month's starting stock.
+    const seedThisPeriod = {};
+    (allOpenRes.data||[]).forEach(o=>{ if(o.period===period) seedThisPeriod[o.item_id] = (seedThisPeriod[o.item_id]||0) + num(o.opening_qty); });
 
     // All-time (no period filter) totals — feeds the All-Time tab's "Total In" / "Total
     // Out" columns. Previously that tab just relabeled this month's opening+purchased/
@@ -2182,13 +2203,16 @@ async function loadFromSupabase(){
       const closing = bal ? num(bal.closing_qty) : (prevBal ? num(prevBal.closing_qty) : null);
       const wac = bal ? num(bal.wac_per_unit) : (prevBal ? num(prevBal.wac_per_unit) : 0);
       const value = bal ? num(bal.closing_value) : (closing!=null ? closing*wac : null);
-      const opening = prevBal ? num(prevBal.closing_qty) : (closing!=null ? closing : null);
-      const purchased = purchByItem[row.id] || 0;
+      const opening = closing==null ? null : ((prevBal ? num(prevBal.closing_qty) : 0) + (seedThisPeriod[row.id]||0));
+      const purchased = (purchByItem[row.id] || 0) + (adjInByItem[row.id] || 0);
       const used = usedByItem[row.id] || 0;
       const reorder = row.reorder_level!=null ? num(row.reorder_level) : 0;
       const item = {
         id: row.id, name: row.name, unit: row.unit,
         opening, purchased, used, closing, wac, value, reorder,
+        // the same figures WITHOUT the month's stock adjustments (the report lists adjustments in their own column)
+        purchasedExAdj: purchased - (adjInByItem[row.id]||0),
+        usedExAdj: used - (adjOutByItem[row.id]||0),
         status:'OK',
         expiryDate: null,
         leadTimeDays: row.lead_time_days!=null ? num(row.lead_time_days) : 5,
@@ -2206,7 +2230,7 @@ async function loadFromSupabase(){
       if(row.shelf_life_days && item.lastPurchaseDate){
         const d = new Date(item.lastPurchaseDate+'T00:00:00');
         d.setDate(d.getDate()+row.shelf_life_days);
-        item.expiryDate = d.toISOString().slice(0,10);
+        item.expiryDate = localISODate(d);
       }
       recomputeStatus(item);
       invItems.push(item);

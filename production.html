@@ -763,7 +763,7 @@ const MONTHS = buildMonthsWindow();
 // own populateMonthSelect(months, selected), which renderHeader() calls for
 // us. This just computes which month should be selected by default.
 function defaultMonthLabel(){
-  const todayLabel = monthLabelFromDate(new Date().toISOString().slice(0,10));
+  const todayLabel = monthLabelFromDate(appToday());
   // Default to the current real month if it's in range, otherwise the most
   // recent month that actually has data (May 2026) as the more useful start.
   return MONTHS.includes(todayLabel) ? todayLabel : 'May 2026';
@@ -810,7 +810,8 @@ async function loadItemIds(){
 // current period has no approved purchases yet (spec §12: "no WAC for
 // production month" case), and finally to a hardcoded emergency fallback
 // only if literally no purchase history exists anywhere.
-const FALLBACK_WAC = { blend: 15.05, corn: 11.20, gomen: 18.40 };
+// No invented prices: with no purchase history the preview shows 0 material cost instead of made-up numbers.
+const FALLBACK_WAC = { blend: 0, corn: 0, gomen: 0 };
 async function loadWacForPeriod(period){
   const ids = await loadItemIds();
   const idList = [ids.blend, ids.corn, ids.gomen].filter(Boolean).join(',');
@@ -833,7 +834,7 @@ async function loadWacForPeriod(period){
   const gomen = pick(ids.gomen);
   const usedFallback = blend===null || corn===null || gomen===null;
   if(usedFallback){
-    toast('No approved purchase history for one or more materials this period — using last-known WAC as a fallback.','info');
+    toast('No approved purchase history for one or more materials yet — their cost shows as 0 until a purchase is recorded.','info');
   }
   return {
     blend: blend ?? FALLBACK_WAC.blend,
@@ -845,27 +846,27 @@ async function loadWacForPeriod(period){
 let WAC = { ...FALLBACK_WAC }; // live value populated by loadMonth(); kept as a
                                  // module-level var (not const) since it changes per month
 
-// Live daily overhead = SUM(monthly_overhead.amount for period) / days_in_month,
-// same formula production_batch_costs applies server-side — surfaced here too
-// so the "New Batch" form's live cost preview matches what will actually be
-// saved, instead of a hardcoded constant (audit fix, see chat).
-const FALLBACK_DAILY_OVERHEAD = 633.00;
-let DAILY_OVERHEAD = FALLBACK_DAILY_OVERHEAD;
-async function loadDailyOverheadForPeriod(period){
+// Overhead is NOT charged per day. production_batch_costs (the database view that every saved cost and the
+// P&L use) shares the month's total overhead across that month's batches in proportion to injera produced:
+//     batch overhead = month overhead total x (batch injera / all injera produced that month)
+// The form preview below uses exactly that rule, so what you see while typing equals what gets saved.
+let OH_TOTAL = 0;   // SUM(monthly_overhead.amount) for the selected period
+let OH_QTY = 0;     // injera already produced in the period (all non-deleted batches)
+async function loadOverheadTotalForPeriod(period){
   let data;
   try{
     data = await sbGet(`monthly_overhead?select=amount&period=eq.${period}`);
-  }catch(error){ console.error('loadDailyOverheadForPeriod error', error); return FALLBACK_DAILY_OVERHEAD; }
-  if(!data.length){
-    toast('No overhead recorded for this period yet — using last-known daily overhead as a fallback.','info');
-    return FALLBACK_DAILY_OVERHEAD;
-  }
-  const total = data.reduce((s,r)=>s+Number(r.amount),0);
-  const [y,m] = period.split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
-  return Math.round((total/daysInMonth)*100)/100;
+  }catch(error){ console.error('loadOverheadTotalForPeriod error', error); return 0; }
+  return (data||[]).reduce((s,r)=>s+Number(r.amount||0),0);
 }
-
+// Overhead a batch of `qty` injera will carry once saved (editing: the batch's own old qty is not double counted).
+function previewOverhead(qty){
+  const base = Math.max(0, OH_QTY - (window._ohEditQty||0));
+  const denom = base + qty;
+  return denom > 0 ? OH_TOTAL * qty / denom : 0;
+}
+// Standard overhead per injera for the month (what every batch carries once the month's output is known).
+function overheadPerInjera(){ return OH_QTY > 0 ? OH_TOTAL / OH_QTY : 0; }
                                  // changes when the selected month changes.
 
 // Compute derived fields (material cost from WAC, total, cost/injera) — always
@@ -892,7 +893,7 @@ const STATUS_VALUE  = { Completed:'completed', Review:'review', Warning:'warning
 async function loadMonth(monthLabel){
   const period = monthLabelToPeriod(monthLabel);
   WAC = await loadWacForPeriod(period);
-  DAILY_OVERHEAD = await loadDailyOverheadForPeriod(period);
+  OH_TOTAL = await loadOverheadTotalForPeriod(period);
   const ids = await loadItemIds();
 
   let batches;
@@ -900,6 +901,7 @@ async function loadMonth(monthLabel){
     batches = await sbGet(`production_batches?select=*&period=eq.${period}&is_deleted=eq.false`);
   }catch(batchesErr){ throw batchesErr; }
 
+  OH_QTY = batches.reduce((s,b)=>s+Number(b.injera_qty||0),0);
   const batchIds = batches.map(b=>b.id);
   const [costsData, materialsData] = await Promise.all([
     sbGet(`production_batch_costs?select=*&period=eq.${period}`),
@@ -1123,7 +1125,7 @@ function mondayOf(d){
   copy.setHours(0,0,0,0);
   return copy;
 }
-function isoDate(d){ return d.toISOString().slice(0,10); }
+function isoDate(d){ return localISODate(d); } // local calendar date — toISOString shifted it by a day in UTC+3
 function shortMonthDay(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
 
 // Renders the Mon–Sun week at the given offset (0 = this week) from whatever
@@ -1269,12 +1271,15 @@ async function loadBatchStandards(){
 
 async function saveBatchStandard(batchTypeKey, payload){
   try{
-    await sbPatch(`batch_standards?batch_type=eq.${batchTypeKey}`, {
+    const body = {
       target_blend_kg: payload.blend,
       target_corn_kg: payload.corn,
       target_gomen_kg: payload.gomen,
       target_injera_count: payload.count
-    });
+    };
+    const updated = await sbPatch(`batch_standards?batch_type=eq.${batchTypeKey}`, body);
+    // PATCH on a row that does not exist changes nothing and raises no error; create it instead.
+    if(!updated || !updated.length) await sbPost('batch_standards', { batch_type: batchTypeKey, ...body });
     return true;
   }catch(error){
     console.error('saveBatchStandard error', error);
@@ -1287,7 +1292,8 @@ async function saveBatchStandard(batchTypeKey, payload){
 function openAddModal(editId){
   const isEdit = !!editId;
   const b = isEdit ? getBatches().find(r=>r.id===editId) : null;
-  const today = new Date().toISOString().slice(0,10);
+  window._ohEditQty = (isEdit && b) ? Number(b.qty||0) : 0;
+  const today = appToday();
   const dateVal = b ? b.date : today;
   // Auto-suggest next batch number for the batch's date (or today, for a new
   // batch) — matches the real UNIQUE(date, batch_number) constraint, so the
@@ -1426,7 +1432,7 @@ function openAddModal(editId){
             <span>Material Cost</span><strong id="calc_material" style="color:var(--td)">0.00 ETB</strong>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--tm);font-weight:600">
-            <span>Overhead</span><strong id="calc_overhead" style="color:var(--td)">${fmt2(DAILY_OVERHEAD)} ETB</strong>
+            <span>Overhead</span><strong id="calc_overhead" style="color:var(--td)">0.00 ETB</strong>
           </div>
           <div style="height:1px;background:var(--border)"></div>
           <div style="display:flex;justify-content:space-between;font-size:14.5px;font-weight:800">
@@ -1477,7 +1483,9 @@ function recalcForm(){
   const costCorn  = Math.round(corn  * WAC.corn  * 100) / 100;
   const costGomen = Math.round(gomen * WAC.gomen * 100) / 100;
   const material  = Math.round((costBlend + costCorn + costGomen) * 100) / 100;
-  const total     = Math.round((material + DAILY_OVERHEAD + other) * 100) / 100;
+  const overhead  = Math.round(previewOverhead(qty) * 100) / 100;
+  const total     = Math.round((material + overhead + other) * 100) / 100;
+  const co = document.getElementById('calc_overhead'); if(co) co.textContent = fmt2(overhead)+' ETB';
 
   // Update ingredient cost displays
   const cb = document.getElementById('cost_blend');
@@ -1925,7 +1933,7 @@ function openBatchStandards(){
       </div>`;
       }).join('')}
 
-      <p style="font-size:11px;color:var(--tl)">Overhead is allocated per day from Monthly Overhead ÷ days in the month (currently ${fmt2(DAILY_OVERHEAD)} ETB/batch-day this period) and excluded from yield calculations per current COGS policy.</p>
+      <p style="font-size:11px;color:var(--tl)">Overhead is shared across the month's batches in proportion to injera produced (month overhead ${fmt2(OH_TOTAL)} ETB ÷ ${Math.round(OH_QTY).toLocaleString()} injera = ${fmt2(overheadPerInjera())} ETB per injera so far this month) and excluded from yield calculations per current COGS policy.</p>
     </div>
     <div class="modal-ft">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -2122,7 +2130,7 @@ function computeAlerts(){
     // the batch "should" cost per piece if it hit standard on both
     // material use and yield).
     if(std.count>0){
-      const targetCpi = ((std.blend*WAC.blend + std.corn*WAC.corn + std.gomen*WAC.gomen) + DAILY_OVERHEAD) / std.count;
+      const targetCpi = ((std.blend*WAC.blend + std.corn*WAC.corn + std.gomen*WAC.gomen) / std.count) + overheadPerInjera();
       if(targetCpi>0 && r.costPerInjera > targetCpi*1.05) alerts.cost.push(r);
     }
   });

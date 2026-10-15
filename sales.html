@@ -876,9 +876,14 @@ async function loadCustomers() {
   } catch (err) { console.error(err); showToast('Could not load customers', 'err'); }
 }
 
+let oldestUnsettled = {};
 async function loadCustomerBalances() {
   try {
     customerBalances = await sbGet('customer_profitability?select=id,name,credit_limit,total_credit_sales,total_collected,outstanding_ar,last_purchase_date') || [];
+    // Age of a customer's debt = their OLDEST unsettled credit sale in any month (not just the month on screen).
+    oldestUnsettled = {};
+    const open = await sbGet('sales?select=customer_id,date&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false&order=date.asc') || [];
+    open.forEach(r => { if (!oldestUnsettled[r.customer_id]) oldestUnsettled[r.customer_id] = r.date; });
   } catch (err) {
     // Was silently falling back to [] — that made a genuine fetch failure
     // look identical to "no customers have any AR," including on the
@@ -913,27 +918,28 @@ async function loadSales() {
 }
 
 async function buildCollections() {
-  // Recent payments against credit sales
-  const qs = `select=settled_date,customers(name),revenue,payment_method` +
-             `&payment_method=eq.credit&settled_date=not.is.null&is_deleted=eq.false` +
-             `&settled_date=gte.${currentPeriod}-01&settled_date=lte.${periodEndDate(currentPeriod)}` +
-             `&order=settled_date.desc&limit=6`;
-  let data = [];
-  try { data = await sbGet(`sales?${qs}`) || []; } catch (err) {
+  // Recent payments against credit sales = the real credit_payments rows (amount actually received, on the day it
+  // was received) — the same rows Cash Flow counts as "A/R collected". It used to list whole settled sales, which
+  // hid partial payments and showed the sale total instead of the money collected.
+  const qs = `select=payment_date,amount_paid,channel,sales(customers(name))` +
+             `&payment_date=gte.${currentPeriod}-01&payment_date=lte.${periodEndDate(currentPeriod)}` +
+             `&order=payment_date.desc,created_at.desc`;
+  let all = [];
+  try { all = await sbGet(`credit_payments?${qs}`) || []; } catch (err) {
     console.error(err);
     showToast('Could not load recent collections', 'err');
   }
-
+  const totalCollected = all.reduce((t,r)=>t+parseFloat(r.amount_paid||0),0);
+  const data = all.slice(0,6).map(r => ({ settled_date:r.payment_date, customers:r.sales?.customers, revenue:r.amount_paid, payment_method:r.channel }));
+  collectionsFull = all.map(r => ({settled_date:r.payment_date, name:r.sales?.customers?.name || 'Unknown', revenue:parseFloat(r.amount_paid||0), method:PM_FROM_DB[r.channel]||r.channel}));
   const tbody = document.getElementById('collectBody');
-  collectionsFull = data.map(r => ({settled_date:r.settled_date, name:r.customers?.name || 'Unknown', revenue:parseFloat(r.revenue||0), method:PM_FROM_DB[r.payment_method]||r.payment_method}));
   if (!data || data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--tl)">No collections this period</td></tr>`;
     return;
   }
-  let total = 0;
+  let total = totalCollected; // all payments received this month, not just the 6 rows listed
   let html = data.map(r => {
-    total += parseFloat(r.revenue || 0);
-    const pm = pmTag(r.payment_method);
+    const pm = pmTag(PM_FROM_DB[r.payment_method] || r.payment_method);
     return `<tr>
       <td>${fmtDate(r.settled_date)}</td>
       <td>${esc(r.customers?.name || '—')}</td>
@@ -957,8 +963,11 @@ function computeTotals(sales){
   const total   = sales.reduce((s,r) => s + parseFloat(r.revenue||0), 0);
   const cash    = sales.filter(r => r.payment_method === 'Cash').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
   const credit  = sales.filter(r => r.payment_method === 'Credit').reduce((s,r) => s + parseFloat(r.revenue||0), 0);
-  const injPrc  = avg(sales.filter(r => r.product === 'Injera').map(r => parseFloat(r.unit_price||0)));
-  const drkPrc  = avg(sales.filter(r => r.product === 'Derkosh').map(r => parseFloat(r.unit_price||0)));
+  // Average selling price = revenue / quantity sold (weighted). A plain average of the unit prices treated a
+  // 1-piece sale the same as a 500-piece sale and gave the wrong price.
+  const wavg = rows => { const q = rows.reduce((s,r)=>s+parseFloat(r.quantity||0),0); return q>0 ? rows.reduce((s,r)=>s+parseFloat(r.revenue||0),0)/q : 0; };
+  const injPrc  = wavg(sales.filter(r => r.product === 'Injera'));
+  const drkPrc  = wavg(sales.filter(r => r.product === 'Derkosh'));
   return { total, cash, credit, injPrc, drkPrc };
 }
 function prevPeriodParts(period){
@@ -969,7 +978,7 @@ function prevPeriodParts(period){
 async function loadPreviousPeriodTotals(){
   const prev = prevPeriodParts(currentPeriod);
   try{
-    const qs = `select=product_type,payment_method,unit_price,revenue&date=gte.${prev.key}-01&date=lte.${periodEndDate(prev.key)}&is_deleted=eq.false`;
+    const qs = `select=product_type,payment_method,unit_price,quantity,revenue&date=gte.${prev.key}-01&date=lte.${periodEndDate(prev.key)}&is_deleted=eq.false`;
     const data = await sbGet(`sales?${qs}`) || [];
     const mapped = data.map(r => ({
       ...r,
@@ -1191,7 +1200,6 @@ function buildProfitability(sales) {
     map[id].orders += 1;
     map[id].pmCounts[r.payment_method] = (map[id].pmCounts[r.payment_method]||0) + 1;
     if (r.payment_method === 'Credit' && !r.settled_date){
-      map[id].outstanding += parseFloat(r.revenue||0);
       if (!map[id].date || new Date(r.date) < new Date(map[id].date)) map[id].date = r.date;
     }
     if (r.payment_method === 'Credit' && r.settled_date && r.date) {
@@ -1201,6 +1209,11 @@ function buildProfitability(sales) {
   });
   // Resolve one representative payment type per customer: their only method if they've
   // always paid the same way, or "Mixed" if they've used more than one across orders.
+  // What a customer owes is the running balance from the database view (it nets partial payments).
+  Object.entries(map).forEach(([id, d]) => {
+    const bal = customerBalances.find(c => c.id === id);
+    d.outstanding = bal ? Math.max(0, parseFloat(bal.outstanding_ar||0)) : 0;
+  });
   Object.values(map).forEach(d => {
     const methods = Object.keys(d.pmCounts);
     d.pm = methods.length <= 1 ? (methods[0] || '—') : 'Mixed';
@@ -1226,21 +1239,13 @@ function buildProfitability(sales) {
 function buildAR(sales) {
   const tbody = document.getElementById('arBody');
   const map = {};
-  // outstanding_ar comes from the customer_profitability view, which nets ALL
-  // credit_payments (including partial payments) against ALL of a customer's
-  // credit sales — a true running balance per customer, not just "does this
-  // one sale have a settled_date".
-  sales.forEach(r => {
-    if (r.payment_method === 'Credit' && !r.settled_date) {
-      const id = r.customer_id || 'unknown';
-      if (!map[id]) map[id] = { name: r.customers?.name || 'Unknown' };
-      if (!map[id].date || r.date < map[id].date) map[id].date = r.date;
-    }
-  });
+  // outstanding_ar comes from the customer_profitability view, which nets ALL credit_payments (including partial
+  // payments) against ALL of a customer's credit sales — the single source of truth for what is owed. Sales are
+  // used only to date the debt (oldest unsettled credit sale), never to decide the amount.
   customerBalances.forEach(c => {
     const outstanding = parseFloat(c.outstanding_ar || 0);
     if (outstanding <= 0.01) return;
-    map[c.id] = { name: c.name, outstanding, limit: parseFloat(c.credit_limit||0), date: (map[c.id]&&map[c.id].date) || c.last_purchase_date };
+    map[c.id] = { name: c.name, outstanding, limit: parseFloat(c.credit_limit||0), date: oldestUnsettled[c.id] || c.last_purchase_date };
   });
   const rows  = Object.entries(map);
   arFullRows = rows;
@@ -1482,7 +1487,7 @@ function populateCustomerDropdowns() {
 // ═══════════════════════════════════════════════════
 function openSaleModal(e) {
   if (e) ripple(e);
-  const today = new Date().toISOString().slice(0,10);
+  const today = appToday();
   document.getElementById('f-edit-id').value = '';
   document.querySelector('#saleModalBg .modal-hd h3').textContent = 'New Sale';
   document.getElementById('f-date').value = today;
@@ -1577,7 +1582,7 @@ async function saveSale() {
 // ═══════════════════════════════════════════════════
 function openCollectModal(e, saleId) {
   if (e) ripple(e);
-  document.getElementById('c-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('c-date').value = appToday();
   const custSel   = document.getElementById('c-customer');
   const lockedNote= document.getElementById('c-locked-note');
   const targetFld = document.getElementById('c-target-sale-id');
@@ -1623,12 +1628,9 @@ async function savePayment() {
       const channel = document.getElementById('c-channel').value;
       const payRow = { sale_id: targetId, payment_date: date, amount_paid: amount, channel: PM_TO_DB[channel] || channel.toLowerCase() };
       if (CURRENT_USER_ID) payRow.created_by = CURRENT_USER_ID;
+      // The database (trigger credit_payments_settle_after) marks the sale settled the moment its payments
+      // reach the sale total — one rule for every module, so nothing is patched from the page.
       await sbPost('credit_payments', [payRow]);
-      const paidRows = await sbGet(`credit_payments?select=amount_paid&sale_id=eq.${targetId}`);
-      const totalPaid = (paidRows || []).reduce((s,r) => s + parseFloat(r.amount_paid || 0), 0);
-      if (totalPaid >= saleRevenue - 0.01) {
-        await sbPatch(`sales?id=eq.${targetId}`, { settled_date:date });
-      }
     } else {
       // No specific sale chosen — apply the payment across this customer's
       // unsettled credit sales, oldest first, splitting across as many as
@@ -1650,18 +1652,15 @@ async function savePayment() {
         const alreadyPaid = paidBySale[s.id]||0;
         const balance = parseFloat(s.revenue||0) - alreadyPaid;
         if (balance<=0) continue;
-        const applyAmount = Math.min(remaining, balance);
+        const applyAmount = Math.round(Math.min(remaining, balance) * 100) / 100;
+        if (applyAmount <= 0) continue;
         const row = { sale_id: s.id, payment_date: date, amount_paid: applyAmount, channel: channelDb };
         if (CURRENT_USER_ID) row.created_by = CURRENT_USER_ID;
         paymentRows.push(row);
-        if (applyAmount >= balance - 0.01) settledSaleIds.push(s.id);
-        remaining -= applyAmount;
+        remaining = Math.round((remaining - applyAmount) * 100) / 100;
       }
       if (!paymentRows.length) { showToast('Nothing to apply — outstanding balance may already be settled', 'err'); return; }
-      await sbPost('credit_payments', paymentRows);
-      if (settledSaleIds.length) {
-        await Promise.all(settledSaleIds.map(id=>sbPatch(`sales?id=eq.${id}`, { settled_date:date })));
-      }
+      await sbPost('credit_payments', paymentRows); // settled_date is set by the database trigger
       if (remaining>0.01) {
         showToast(`Applied ${fmt(amount-remaining)} ETB — ${fmt(remaining)} ETB exceeded this customer's outstanding credit and was not recorded`, 'err');
         closeCollectModal();
@@ -1805,7 +1804,7 @@ async function buildSalesReportData(){
     generatedBy: session.name || undefined,
     generatedRole: session.role || undefined,
     generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
-    asOf: new Date().toISOString().slice(0,10),
+    asOf: appToday(),
     sales,
     footer: { notes }
   };

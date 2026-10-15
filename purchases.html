@@ -670,6 +670,19 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div><!-- /right column -->
     </div><!-- /two-column area -->
 
+    <!-- ════ FIXED ASSETS ════ (assets are created by "Asset Purchase"; depreciation is booked monthly by the database) -->
+    <div class="card" id="fixedAssetsCard" style="margin-bottom:18px">
+      <div class="card-hd">
+        <div class="card-ttl">Fixed Assets <span style="font-size:11px;color:var(--tl);font-weight:500;margin-left:3px">(cost, monthly depreciation and book value — straight line)</span></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="assetsTable">
+          <thead><tr><th>Asset</th><th>Category</th><th>Bought</th><th>Cost</th><th>Life (yrs)</th><th>Monthly Dep.</th><th>Accumulated</th><th>Book Value</th><th>Status</th><th></th></tr></thead>
+          <tbody id="assetsBody"><tr><td colspan="10" style="text-align:center;color:var(--tl);padding:18px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="donut-row">
       <!-- Purchases by Type -->
       <div class="card">
@@ -887,6 +900,35 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
     </div>
     <div class="modal-ft">
       <button class="btn-sec" onclick="closeSupplierModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ DISPOSE ASSET MODAL ════ -->
+<div class="modal-overlay" id="disposeModalOverlay" onclick="if(event.target===this)closeDisposeModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>Dispose Asset <span id="disposeAssetName" style="font-size:12px;font-weight:600;color:var(--tl);margin-left:4px"></span></h3>
+      <div class="modal-x" onclick="closeDisposeModal()">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="modal-bd">
+      <input type="hidden" id="disposeAssetId">
+      <div class="f-row">
+        <div class="f-grp"><label>Disposal Date</label><input type="date" id="disposeDate"></div>
+        <div class="f-grp"><label>Sale Proceeds (ETB)</label><input type="number" id="disposeProceeds" min="0" step="0.01" value="0" oninput="updateDisposePreview()"></div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp"><label>Received Into</label>
+          <select id="disposeChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile Money</option></select>
+        </div>
+      </div>
+      <div id="disposePreview" style="font-size:12.5px;color:var(--tm);margin-top:6px"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closeDisposeModal()">Cancel</button>
+      <button class="btn-pri" onclick="confirmDispose()">Dispose Asset</button>
     </div>
   </div>
 </div>
@@ -1334,6 +1376,73 @@ function rejectPurchase(id){
 }
 
 /* ════════════════ APPROVAL QUEUE MODAL ════════════════ */
+/* ════════════════ FIXED ASSETS ════════════════
+   Reads fixed_assets (created by the database when an Asset Purchase is approved). Depreciation is booked by
+   run_depreciation_catchup() (the app calls it daily); disposal uses the database function dispose_fixed_asset(),
+   which books the proceeds into the cash ledger and the gain/loss into the P&L (proceeds - book value). */
+let fixedAssets = [];
+async function loadFixedAssets(){
+  const body = document.getElementById('assetsBody');
+  try{
+    fixedAssets = await sbGet('fixed_assets?select=*&order=purchase_date.desc') || [];
+  }catch(err){
+    console.error('fixed_assets load failed', err);
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--tl);padding:18px">Could not load fixed assets.</td></tr>';
+    return;
+  }
+  if(!fixedAssets.length){
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--tl);padding:18px">No fixed assets yet. Record a purchase of type “Asset Purchase” and it appears here.</td></tr>';
+    return;
+  }
+  let tc=0, tdp=0, tb=0;
+  body.innerHTML = fixedAssets.map(a=>{
+    const active = a.status === 'active';
+    if(active){ tc += Number(a.cost); tdp += Number(a.accumulated_depreciation); tb += Number(a.book_value); }
+    const gl = a.status==='disposed' ? ` <span style="font-size:11px;color:${Number(a.disposal_gain_loss)>=0?'var(--g)':'#c0392b'}">(${Number(a.disposal_gain_loss)>=0?'gain':'loss'} ${fmt(Math.abs(Number(a.disposal_gain_loss)))})</span>` : '';
+    return `<tr>
+      <td>${esc(a.asset_name)}</td><td>${esc(a.asset_category||'')}</td><td>${esc(a.purchase_date)}</td>
+      <td>${fmt(a.cost)}</td><td>${esc(a.useful_life_years)}</td><td>${fmt(a.monthly_depreciation)}</td>
+      <td>${fmt(a.accumulated_depreciation)}</td><td><strong>${fmt(a.book_value)}</strong></td>
+      <td>${active?'Active':'Disposed '+esc(a.disposed_date||'')}${gl}</td>
+      <td>${active?`<button class="btn-sec" style="height:28px;padding:0 10px;font-size:11.5px" onclick="openDisposeModal('${a.id}')">Dispose</button>`:''}</td>
+    </tr>`;
+  }).join('') + `<tr class="tot"><td colspan="3">Active assets</td><td>${fmt(tc)}</td><td></td><td></td><td>${fmt(tdp)}</td><td>${fmt(tb)}</td><td colspan="2"></td></tr>`;
+}
+function openDisposeModal(id){
+  const a = fixedAssets.find(x=>x.id===id); if(!a) return;
+  document.getElementById('disposeAssetId').value = id;
+  document.getElementById('disposeAssetName').textContent = '· ' + a.asset_name;
+  document.getElementById('disposeDate').value = appToday();
+  document.getElementById('disposeProceeds').value = 0;
+  document.getElementById('disposeChannel').value = 'cash';
+  updateDisposePreview();
+  document.getElementById('disposeModalOverlay').classList.add('show');
+}
+function closeDisposeModal(){ document.getElementById('disposeModalOverlay').classList.remove('show'); }
+function updateDisposePreview(){
+  const a = fixedAssets.find(x=>x.id===document.getElementById('disposeAssetId').value); if(!a) return;
+  const proceeds = parseFloat(document.getElementById('disposeProceeds').value)||0;
+  const gl = proceeds - Number(a.book_value);
+  document.getElementById('disposePreview').innerHTML = `Book value today <strong>${fmt(a.book_value)}</strong> ETB → ` +
+    (gl>=0 ? `gain of <strong style="color:var(--g)">${fmt(gl)}</strong>` : `loss of <strong style="color:#c0392b">${fmt(-gl)}</strong>`) + ' ETB on the P&amp;L.';
+}
+async function confirmDispose(){
+  const id = document.getElementById('disposeAssetId').value;
+  const date = document.getElementById('disposeDate').value;
+  const proceeds = parseFloat(document.getElementById('disposeProceeds').value);
+  const channel = document.getElementById('disposeChannel').value;
+  if(!id || !date || isNaN(proceeds) || proceeds < 0){ showToast('Enter the disposal date and proceeds (0 if scrapped).'); return; }
+  try{
+    await sbPost('rpc/dispose_fixed_asset', { p_asset_id:id, p_disposed_date:date, p_proceeds:proceeds, p_channel:channel, p_user_id:(typeof CURRENT_USER_ID!=='undefined'?CURRENT_USER_ID:null) || (loadSession()||{}).user_id || null });
+    showToast('Asset disposed ✓');
+    closeDisposeModal();
+    await loadFixedAssets();
+  }catch(err){
+    console.error(err);
+    showToast('Could not dispose the asset: ' + (err.message||'please try again'));
+  }
+}
+
 function openApprovalModal(){
   renderApprovalQueue();
   document.getElementById('approvalModalOverlay').classList.add('show');
@@ -1379,7 +1488,7 @@ function renderApprovalQueue(){
 function openPurchaseModal(){
   document.getElementById('purchaseModalTitle').textContent = 'New Purchase / Expense';
   document.getElementById('pEditId').value = '';
-  document.getElementById('pDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pDate').value = appToday();
   document.getElementById('pType').value = 'Purchase';
   refreshSupplierDropdowns();
   document.getElementById('pSupplier').selectedIndex = 0;
@@ -1493,39 +1602,11 @@ function updateApprovalReadout(total){
 // or if Supabase is unreachable. Matches the real active inventory_items rows/categories
 // confirmed against the live schema (Injera Blend excluded — it's is_active:false there,
 // its costing now comes from the Milling/Conversion module instead).
-let inventoryItems = [
-  { id:'local-corn', name:'Corn', unit:'kg', group:'Raw Materials' },
-  { id:'local-gomen', name:'Gomen Zere', unit:'kg', group:'Raw Materials' },
-  { id:'local-rice', name:'Rice', unit:'kg', group:'Raw Materials' },
-  { id:'local-teff', name:'Teff', unit:'kg', group:'Raw Materials' },
-  { id:'local-sbag', name:'Small Bags', unit:'pcs', group:'Packaging' },
-  { id:'local-lbag', name:'Large Bags', unit:'pcs', group:'Packaging' },
-  { id:'local-clean', name:'Cleaning Material', unit:'pcs', group:'Consumables' },
-  { id:'local-plastic', name:'Plastic Sheets', unit:'pcs', group:'Consumables' },
-  { id:'local-elec', name:'Electricity Prepaid', unit:'pcs', group:'Utilities' }
-];
-// Offline/first-paint fallback only — matches the real expense_categories rows
-// confirmed against the live schema. NOTE: Rent/Electricity/Water/Labor/Maintenance
-// (as recurring overhead) live in the Monthly Overhead module, not here — see the
-// note further down about monthly_pnl summing purchases[type=expense] and
-// monthly_overhead separately, so don't add those five back to this list.
-let expenseCategories = [
-  { id:'local-bankchg', name:'Bank Charges', group:'Operating Expenses' },
-  { id:'local-comm', name:'Communication', group:'Operating Expenses' },
-  { id:'local-delivin', name:'Delivery In', group:'Operating Expenses' },
-  { id:'local-delivout', name:'Delivery Out', group:'Operating Expenses' },
-  { id:'local-grind', name:'Grinding Fees', group:'Operating Expenses' },
-  { id:'local-maint', name:'Maintenance', group:'Operating Expenses' },
-  { id:'local-mktg', name:'Marketing', group:'Operating Expenses' },
-  { id:'local-millconv', name:'Milling & Conversion Fees', group:'Operating Expenses' },
-  { id:'local-milltrans', name:'Milling Material Transport', group:'Operating Expenses' },
-  { id:'local-office', name:'Office Supplies', group:'Operating Expenses' },
-  { id:'local-other', name:'Other', group:'Operating Expenses' },
-  { id:'local-pkg', name:'Packaging', group:'Operating Expenses' },
-  { id:'local-refresh', name:'Refreshments', group:'Operating Expenses' },
-  { id:'local-sift', name:'Sifting Fees', group:'Operating Expenses' },
-  { id:'local-transport', name:'Transport', group:'Operating Expenses' }
-];
+// Lookups come ONLY from the database (inventory_items / expense_categories). They used to start with
+// 'local-…' fallback rows whose ids are not UUIDs, so any purchase saved against them failed in the
+// database and silently stayed on screen only. Empty list = the master data has not been created yet.
+let inventoryItems = [];
+let expenseCategories = [];
 function itemById(id){ return inventoryItems.find(i=>i.id===id); }
 function itemByName(name){ return inventoryItems.find(i=>i.name===name); }
 function expCatById(id){ return expenseCategories.find(c=>c.id===id); }
@@ -1533,7 +1614,7 @@ function expCatByName(name){ return expenseCategories.find(c=>c.name===name); }
 
 function buildCategoryDropdown(type, selectedId=''){
   const el = document.getElementById('pCategory');
-  const source = type === 'Expense' ? expenseCategories : inventoryItems;
+  const source = type === 'Expense' ? expenseCategories : inventoryItems.filter(i => !i.milledOnly || i.id === selectedId);
   const groups = {};
   source.forEach(x => { (groups[x.group||'Other'] = groups[x.group||'Other']||[]).push(x); });
   el.innerHTML = '<option value="">-- Select Category --</option>' +
@@ -1710,7 +1791,7 @@ async function saveVatSettings(){
   vatSettings = { isRegistered, ratePct };
   try {
     if(businessSettingsId){
-      await sbPatch(`business_settings?id=eq.${businessSettingsId}`, { is_vat_registered: isRegistered });
+      await sbPatch(`business_settings?id=eq.${businessSettingsId}`, { is_vat_registered: isRegistered, vat_rate_pct: ratePct || 15 });
     }
     toggleVatFieldInModal();
     showToast(isRegistered ? `VAT enabled at ${ratePct}%` : 'VAT registration turned off');
@@ -1810,6 +1891,16 @@ async function savePurchase(){
   }
 
   const fxOn = document.getElementById('pFxToggle').checked;
+  if(fxOn){
+    // The ETB price you enter is what is booked; the foreign amount x rate is the record of how it was paid.
+    // If they disagree the books and the bank/FX receipt will not match, so ask before saving.
+    const fa = parseFloat(document.getElementById('pFxAmount').value)||0, fr = parseFloat(document.getElementById('pFxRate').value)||0;
+    if(fa<=0 || fr<=0){ showToast('Enter the foreign amount and exchange rate, or switch foreign currency off.'); return; }
+    const etbEquivalent = fa*fr;
+    if(total>0 && Math.abs(etbEquivalent-total)/total > 0.01){
+      if(!confirm(`Foreign amount × rate = ${fmt(etbEquivalent)} ETB, but qty × unit price = ${fmt(total)} ETB. They differ by more than 1%. Save anyway?`)) return;
+    }
+  }
   const data = {
     date,
     supplierId,
@@ -2448,10 +2539,17 @@ async function loadLookupsFromSupabase(){
       // name-guess silently ignored, so e.g. "Cleaning Material" and "Electricity Prepaid"
       // were showing up grouped under Raw Materials in the category dropdown. Use the real
       // column directly; 'Other' is just a safety fallback if a row ever has no category set.
+      let blendId = null;
+      try { const bs = await sbGet('business_settings?select=blend_item_id&limit=1'); blendId = bs && bs[0] && bs[0].blend_item_id; } catch(e){}
       inventoryItems = data.map(r => ({
         id: r.id, name: r.name, unit: r.unit,
-        group: r.category || 'Other'
+        group: r.category || 'Other',
+        // Injera Blend is produced by the Milling module, so it is not offered as a purchasable item
+        milledOnly: (blendId ? r.id === blendId : r.name === 'Injera Blend')
       }));
+    } else {
+      inventoryItems = [];
+      showToast('No inventory items exist in the database yet — purchases need them.');
     }
   } catch(err){ console.log('inventory_items load failed, using local fallback:', err.message); }
 
@@ -2459,6 +2557,8 @@ async function loadLookupsFromSupabase(){
     const data = await sbGet('expense_categories?select=*&order=name.asc');
     if(data && data.length > 0){
       expenseCategories = data.map(r => ({ id: r.id, name: r.name, group: 'Operating Expenses' }));
+    } else {
+      expenseCategories = [];
     }
   } catch(err){ console.log('expense_categories load failed, using local fallback:', err.message); }
 }
@@ -2475,7 +2575,7 @@ async function loadBusinessSettingsFromSupabase(){
       EXPENSE_APPROVAL_THRESHOLD = parseFloat(data.approval_threshold_etb ?? 1000);
       vatSettings = {
         isRegistered: !!data.is_vat_registered,
-        ratePct: data.is_vat_registered ? 15 : (vatSettings.ratePct || 15)
+        ratePct: parseFloat(data.vat_rate_pct ?? 15) || 15
       };
       bankFeeConfig = { ratePct: parseFloat(data.bank_charge_default_pct ?? 0.5) };
       priceChangeThresholdPct = parseFloat(data.price_spike_pct ?? 15);
@@ -2493,7 +2593,7 @@ async function loadFromSupabase(){
     loadBusinessSettingsFromSupabase()
   ]);
   try {
-    const data = await sbGet(`${PURCHASES_TABLE}?select=*&is_deleted=eq.false&order=date.desc`);
+    const data = await sbGet(`${PURCHASES_TABLE}?select=*,suppliers(name)&is_deleted=eq.false&order=date.desc`);
 
     if(data && data.length > 0){
       purchases = data.map((r, idx) => {
@@ -2506,14 +2606,14 @@ async function loadFromSupabase(){
           _dbId: r.id,
           date: r.date, // NOT NULL in the real schema (confirmed) — no fake fallback needed
           supplierId: r.supplier_id || undefined,
-          supplier: sup ? sup.name : (isAsset ? '' : 'Unknown'),
+          supplier: sup ? sup.name : ((r.suppliers && r.suppliers.name) || (isAsset ? '' : 'Unknown')),
           type: isAsset ? 'Asset Purchase' : (isExpense ? 'Expense' : 'Purchase'),
           categoryId: isAsset ? null : (isExpense ? r.expense_category_id : r.item_id),
           category: isAsset ? (r.asset_name || 'Asset') : (catObj ? catObj.name : (isExpense ? 'Other' : 'Unknown Item')),
           assetName: isAsset ? r.asset_name : undefined,
           assetCategory: isAsset ? r.asset_category : undefined,
           usefulLifeYears: isAsset ? parseFloat(r.useful_life_years || 0) : undefined,
-          description: '',
+          description: r.description || '',
           qty: parseFloat(r.quantity ?? 1),
           unit: isAsset ? 'unit' : (catObj && catObj.unit ? catObj.unit : (isExpense ? 'ls' : 'kg')),
           unitPrice: parseFloat(r.unit_price || 0),
@@ -2557,6 +2657,9 @@ function handleDeepLinkParams(){
 }
 
 async function saveToSupabase(p){
+  try{ return await _saveToSupabaseCore(p); } finally { if(typeof loadFixedAssets==='function') setTimeout(loadFixedAssets, 400); }
+}
+async function _saveToSupabaseCore(p){
   try {
     const channelMap = {'Bank':'bank','Cash':'cash','Mobile Money':'mobile'};
     const supObj = supplierById(p.supplierId);
@@ -2571,6 +2674,7 @@ async function saveToSupabase(p){
       asset_name: isAsset ? p.assetName : null,
       asset_category: isAsset ? p.assetCategory : null,
       useful_life_years: isAsset ? p.usefulLifeYears : null,
+      description: (p.description && p.description !== p.category) ? p.description : null,
       quantity: p.qty,
       unit_price: p.unitPrice,
       payment_channel: channelMap[p.channel] || 'bank',
@@ -2626,7 +2730,7 @@ populateMonthSelector();
 document.querySelectorAll('.tb-mid .arr').forEach((el, i) => {
   el.onclick = () => chgM(i === 0 ? -1 : 1);
 });
-loadFromSupabase();
+loadFromSupabase().then(()=>{ if(typeof loadFixedAssets==='function') loadFixedAssets(); });
 </script>
 
 </body>

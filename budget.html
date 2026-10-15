@@ -404,7 +404,7 @@ async function loadPeriod(pKey){
   const {start,end}=periodBounds(pKey);
   const [salesRows,purchaseRows,ovhRows,pettyRows,loanRows,budgetRows]=await Promise.all([
     sb('sales?period=eq.'+pKey+'&is_deleted=eq.false&select=product_type,revenue'),
-    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&select=type,item_id,expense_category_id,total_cost,source'),
+    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&select=type,item_id,expense_category_id,total_cost,source'), // approved only — pending/rejected purchases are not spend (same rule as the P&L)
     sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
     sb('petty_cash?period=eq.'+pKey+'&select=amount'),
     sb('loan_repayment_schedule?due_date=gte.'+start+'&due_date=lt.'+end+'&select=interest_portion'),

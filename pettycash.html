@@ -802,26 +802,14 @@ function prevMonth(ym){const[y,m]=ym.split('-').map(Number);const d=new Date(y,m
 //    (sales received in cash, AR collected in cash, purchases/payroll paid
 //    from cash, petty cash spend, and any other cash_flow_entries).
 async function getOpeningBalance(period){
+  // The cash drawer's opening balance for the month comes straight from the database view monthly_cash_flow
+  // (the same figure Cash Flow and the Dashboard use). This page used to rebuild it from raw tables and skipped the
+  // first month's movements after the saved opening balance, so it disagreed with the rest of the app.
   try{
-    const exact=await sbGet(`channel_opening_balances?select=opening_balance&channel=eq.cash&period=eq.${period}`);
-    if(exact&&exact.length)return num(exact[0].opening_balance);
-    const anchor=await sbGet(`channel_opening_balances?select=period,opening_balance&channel=eq.cash&period=lte.${period}&order=period.desc&limit=1`);
-    if(!anchor||!anchor.length)return 0;
-    const base=anchor[0];
-    let bal=num(base.opening_balance);
-    const range=`period=gt.${base.period}&period=lt.${period}`;
-    const[sales,credits,purchases,payroll,petty,flows]=await Promise.all([
-      sbGet(`sales?select=revenue&payment_method=eq.cash&is_deleted=eq.false&${range}`),
-      sbGet(`credit_payments?select=amount_paid&channel=eq.cash&${range}`),
-      sbGet(`purchases?select=total_cost&payment_channel=eq.cash&type=in.(purchase,expense)&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&${range}`),
-      sbGet(`payroll_detail?select=net_pay&payment_channel=eq.cash&${range}`),
-      sbGet(`petty_cash?select=amount&${range}`),
-      sbGet(`cash_flow_entries?select=direction,amount&channel=eq.cash&${range}`)
-    ]);
-    bal+=sum(sales,'revenue')+sum(credits,'amount_paid')-sum(purchases,'total_cost')-sum(payroll,'net_pay')-sum(petty,'amount');
-    (flows||[]).forEach(f=>{bal+=(f.direction==='in'?1:-1)*num(f.amount);});
-    return bal;
-  }catch(e){console.error('[pettycash] opening balance calc failed',e);return 0;}
+    const rows=await sbGet(`monthly_cash_flow?select=opening_balance&channel=eq.cash&period=eq.${period}`);
+    if(rows&&rows.length) return num(rows[0].opening_balance);
+    return 0;
+  }catch(e){console.error('[pettycash] opening balance load failed',e);return 0;}
 }
 async function getPrevMonthSpent(period){
   try{

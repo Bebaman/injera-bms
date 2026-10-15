@@ -583,7 +583,8 @@ const MC_SB_KEY='sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH';
 async function mcWrite(table, method, body, query){
   const res = await fetch(`${MC_SB_URL}/rest/v1/${table}${query||''}`, {
     method,
-    headers:{ 'apikey':MC_SB_KEY, 'Authorization':`Bearer ${MC_SB_KEY}`, 'Content-Type':'application/json', 'Prefer':'return=representation' },
+    // the signed-in user's token (not the public key) — the public key alone is the anonymous role
+    headers:{ ...(await authHeadersAsync()), 'Content-Type':'application/json', 'Prefer':'return=representation' },
     body: body!==undefined ? JSON.stringify(body) : undefined
   });
   if(!res.ok){
@@ -645,27 +646,36 @@ async function fetchLoggedFees(dateStr){
   if(!dateStr) return;
   const period = dateStr.slice(0,7);
   try {
-    const cats = await sbGet(`expense_categories?select=id,name&name=in.(Sifting Fees,Grinding Fees,Transport)`);
+    // 'Milling Material Transport' (NOT the general 'Transport' category) is the one the P&L keeps out of
+    // operating expenses because milling runs carry it inside the Injera Blend cost. Using 'Transport' here
+    // would count the same money twice: once in blend cost (COGS) and once as an operating expense.
+    const cats = await sbGet(`expense_categories?select=id,name&name=in.(Sifting Fees,Grinding Fees,Milling Material Transport)`);
     const catId = n => (cats||[]).find(c=>c.name===n)?.id;
-    const [siftId, grindId, transId] = [catId('Sifting Fees'), catId('Grinding Fees'), catId('Transport')];
+    const [siftId, grindId, transId] = [catId('Sifting Fees'), catId('Grinding Fees'), catId('Milling Material Transport')];
     const ids = [siftId, grindId, transId].filter(Boolean).join(',');
     if(!ids) return;
-    const rows = await sbGet(`purchases?select=expense_category_id,total_cost&type=eq.expense&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&period=eq.${period}&expense_category_id=in.(${ids})`);
+    const [rows, runs] = await Promise.all([
+      sbGet(`purchases?select=expense_category_id,total_cost&type=eq.expense&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&period=eq.${period}&expense_category_id=in.(${ids})`),
+      // fees already charged to earlier milling runs in the same month must not be offered again
+      sbGet(`milling_conversions?select=sifting_cost,grinding_cost,transport_cost&period=eq.${period}`)
+    ]);
     const sumFor = id => (rows||[]).filter(r=>r.expense_category_id===id).reduce((s,r)=>s+num(r.total_cost),0);
-    const sift = sumFor(siftId), grind = sumFor(grindId), trans = sumFor(transId);
+    const used = k => (runs||[]).reduce((s,r)=>s+num(r[k]),0);
+    const left = (logged, k) => Math.max(0, Math.round((logged - used(k))*100)/100);
+    const sift = left(sumFor(siftId),'sifting_cost'), grind = left(sumFor(grindId),'grinding_cost'), trans = left(sumFor(transId),'transport_cost');
     const fill = (fieldId, hintId, amount, label) => {
       const f = document.getElementById(fieldId), h = document.getElementById(hintId);
       if(!f) return;
       if(amount > 0){
         if(!f.value) f.value = amount.toFixed(2);
-        h.textContent = `${fmtETB(amount)} ETB logged in Purchases (${label}) for ${period} — pre-filled, edit if needed`;
+        h.textContent = `${fmtETB(amount)} ETB of ${label} logged in Purchases for ${period} not yet charged to a milling run — pre-filled, edit if needed`;
       } else {
-        h.textContent = `No ${label} purchase logged yet for ${period} — enter manually`;
+        h.textContent = `No unallocated ${label} purchase for ${period} — enter manually`;
       }
     };
     fill('fSift','hintSift', sift, 'Sifting Fees');
     fill('fGrind','hintGrind', grind, 'Grinding Fees');
-    fill('fTransport','hintTransport', trans, 'Transport');
+    fill('fTransport','hintTransport', trans, 'Milling Material Transport');
   } catch(e){ /* non-fatal — form still works with manual entry */ }
 }
 const STOCK = { teff:0, rice:0, blend:0 };

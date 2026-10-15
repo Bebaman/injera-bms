@@ -267,6 +267,10 @@
     }
   }
 
+  const IS_OWNER = session.role === 'owner';
+  // Managers may add/manage workers only; they cannot create owners, promote anyone to owner, or touch owner accounts.
+  if (!IS_OWNER) document.querySelectorAll('#role option[value="owner"], #role option[value="manager"]').forEach(o => o.remove());
+
   function renderUsers(users){
     if (!users.length){
       userList.innerHTML = '<p class="loading">No users found.</p>';
@@ -279,17 +283,17 @@
       card.innerHTML = `
         <div class="av">${initials(u.name)}</div>
         <div class="info">
-          <div class="nm">${u.name}</div>
-          <div class="em">${u.email}</div>
+          <div class="nm">${esc(u.name)}</div>
+          <div class="em">${esc(u.email)}</div>
           <div class="status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? '● Active' : '● Deactivated'}</div>
         </div>
         <div class="actions">
-          <select class="role-select" data-id="${u.id}" data-current="${u.role}">
-            <option value="owner" ${u.role === 'owner' ? 'selected' : ''}>Owner</option>
-            <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option>
-            <option value="worker" ${u.role === 'worker' ? 'selected' : ''}>Worker</option>
+          <select class="role-select" data-id="${u.id}" data-current="${u.role}" ${(!IS_OWNER && (u.role !== 'worker')) ? 'disabled' : ''}>
+            ${IS_OWNER ? `<option value="owner" ${u.role === 'owner' ? 'selected' : ''}>Owner</option>
+            <option value="manager" ${u.role === 'manager' ? 'selected' : ''}>Manager</option>` : `<option value="${u.role}" selected>${esc(u.role.charAt(0).toUpperCase()+u.role.slice(1))}</option>`}
+            ${(IS_OWNER || u.role === 'worker') ? `<option value="worker" ${u.role === 'worker' ? 'selected' : ''}>Worker</option>` : ''}
           </select>
-          <button class="toggle-btn ${u.is_active ? 'deactivate' : 'activate'}" data-id="${u.id}" data-active="${u.is_active}">
+          <button class="toggle-btn ${u.is_active ? 'deactivate' : 'activate'}" data-id="${u.id}" data-active="${u.is_active}" data-role="${u.role}" ${(!IS_OWNER && u.role !== 'worker') ? 'disabled title="Only an owner can change owner or manager accounts"' : ''}>
             ${u.is_active ? 'Deactivate' : 'Reactivate'}
           </button>
         </div>
@@ -310,6 +314,11 @@
     const previousRole = sel.dataset.current;
     const newRole = sel.value;
 
+    if (!IS_OWNER && (newRole === 'owner' || newRole === 'manager' || previousRole !== 'worker')){
+      toast('Only an owner can change roles above worker.', 'error');
+      sel.value = previousRole;
+      return;
+    }
     if (id === session.user_id && newRole !== 'owner'){
       toast("You can't change your own role away from owner while logged in.", 'error');
       sel.value = previousRole;
@@ -333,6 +342,10 @@
     const id = btn.dataset.id;
     const currentlyActive = btn.dataset.active === 'true';
     const newState = !currentlyActive;
+    if (!IS_OWNER && btn.dataset.role !== 'worker'){
+      toast('Only an owner can deactivate or reactivate owner and manager accounts.', 'error');
+      return;
+    }
 
     if (id === session.user_id && currentlyActive){
       toast("You can't deactivate your own account while logged in.", 'error');

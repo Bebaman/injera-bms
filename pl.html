@@ -424,96 +424,6 @@ async function loadInvItems(){
   }catch(e){ console.error('Failed to load inventory items', e); toast('Could not load inventory items from Supabase','error'); }
 }
 
-// ── Usage-based material costing ─────────────────────────────
-// Weighted-average unit cost per material item, computed from purchases
-// within THIS PERIOD ONLY (not cumulative history) — same filterClause as
-// every other query on this page, so WAC, usage, and everything else are
-// all scoped to the same single month (or the same YTD range).
-//
-// GAP THIS COVERS: a month can have zero purchases for an item (bought
-// nothing that month, used existing stock instead) while usage still
-// happened — without a fallback that would silently price it at ETB 0.
-// So: if an item has no purchases THIS period, we carry forward its most
-// recent known unit price from an earlier period (asOfPeriod = the period
-// to search back from). Items that DO have purchases this period are
-// completely unaffected — this only fills gaps, never overrides real data.
-// Every helper below is resilient: if its own sbGet() call fails, it logs the
-// error and returns a safe empty default instead of throwing — matching the
-// cash flow page's pattern, so one bad table never blocks the whole P&L.
-async function fetchWeightedAvgCosts(filterClause, asOfPeriod){
-  let rows = [];
-  try{
-    rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type&type=eq.purchase&${filterClause}&is_deleted=eq.false`);
-  }catch(e){ console.error('fetchWeightedAvgCosts: purchases query failed', e); }
-
-  const agg = {};
-  rows.filter(p=>approved(p.approval_status)).forEach(p=>{
-    const id = p.item_id;
-    if(!agg[id]) agg[id] = {qty:0, cost:0};
-    agg[id].qty += num(p.quantity);
-    agg[id].cost += num(p.total_cost);
-  });
-  const avgByName = {};
-  Object.entries(agg).forEach(([id, a])=>{
-    const name = INV_ITEMS_MAP[id]?.name;
-    if(name && a.qty > 0) avgByName[name] = a.cost / a.qty;
-  });
-
-  const MATERIAL_NAMES = ['Injera Blend','Corn','Gomen Zere'];
-  const missing = MATERIAL_NAMES.filter(n=>!(n in avgByName));
-  if(missing.length && asOfPeriod){
-    const fallback = await fetchLastKnownCosts(missing, asOfPeriod);
-    Object.assign(avgByName, fallback); // fills gaps only, never overwrites real period data
-  }
-  return avgByName;
-}
-
-// Most recent unit price for the given material names, from any purchase
-// at or before asOfPeriod — used only as a carry-forward fallback when a
-// month has no purchases at all for that item.
-async function fetchLastKnownCosts(names, asOfPeriod){
-  const ids = names
-    .map(n => Object.entries(INV_ITEMS_MAP).find(([id,item])=>item.name===n)?.[0])
-    .filter(Boolean);
-  if(ids.length === 0) return {};
-  const idFilter = ids.map(id=>`item_id.eq.${id}`).join(',');
-  let rows = [];
-  try{
-    rows = await sbGet(`purchases?select=item_id,quantity,total_cost,approval_status,type,date&type=eq.purchase&or=(${idFilter})&period=lte.${asOfPeriod}&is_deleted=eq.false&order=date.desc`);
-  }catch(e){ console.error('fetchLastKnownCosts: purchases query failed', e); }
-  const lastByItem = {};
-  rows.filter(p=>approved(p.approval_status)).forEach(p=>{
-    if(!lastByItem[p.item_id]) lastByItem[p.item_id] = p; // rows are date-desc, so first hit = most recent
-  });
-  const result = {};
-  Object.entries(lastByItem).forEach(([id, p])=>{
-    const name = INV_ITEMS_MAP[id]?.name;
-    if(name && num(p.quantity) > 0) result[name] = num(p.total_cost) / num(p.quantity);
-  });
-  return result;
-}
-
-// Actual quantity of each material consumed in production during the period
-// (confirmed batches only) — the real "usage" side of usage-based COGS.
-async function fetchUsageQty(filterClause){
-  let batches = [];
-  try{
-    batches = await sbGet(`production_batches?select=period,is_deleted,production_batch_materials(item_id,quantity_used)&${filterClause}&is_deleted=eq.false`);
-  }catch(e){ console.error('fetchUsageQty: production_batches query failed', e); }
-  const qtyByName = {};
-  batches.forEach(b=>{
-    (b.production_batch_materials||[]).forEach(m=>{
-      const name = INV_ITEMS_MAP[m.item_id]?.name;
-      if(!name) return;
-      qtyByName[name] = (qtyByName[name]||0) + num(m.quantity_used);
-    });
-  });
-  return qtyByName;
-}
-
-// loan_repayment_schedule has no `period` column — only `due_date`. Build the
-// equivalent date-range filter from the YYYY-MM period string this page uses
-// everywhere else, so it stays in sync with the sales/purchases/overhead windows.
 function periodToDueDateRange(startPeriod, endPeriod){
   const [sy, sm] = startPeriod.split('-').map(Number);
   const [ey, em] = endPeriod.split('-').map(Number);
@@ -530,154 +440,143 @@ function periodToDueDateRange(startPeriod, endPeriod){
 // cash flow statement page. Returns { ...data, ok } where ok is false only if
 // something actually failed, so the caller can show a soft warning without
 // ever blocking the render.
+// ══ DATA LAYER — the P&L now READS the database views instead of re-deriving its own numbers ══
+// Everything on this page (Dashboard, Reports and this statement) now comes from the same place:
+//   monthly_pnl_net          revenue, COGS, opex, petty cash, bank charges, interest, depreciation, disposals, net profit
+//   production_batch_costs   per-batch material / overhead / other cost (injera cost)
+//   derkosh_batch_costs      per-batch injera transferred in + packaging (Derkosh cost)
+//   monthly_overhead         overhead by category (labor, rent, ...), shown as the detail of absorbed overhead
+// so the P&L can no longer disagree with the Dashboard.
 async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
   const results = await Promise.allSettled([
-    sbGet(`sales?select=product_type,revenue&${filterClause}&is_deleted=eq.false`),
-    sbGet(`purchases?select=type,total_cost,approval_status,item_id,expense_categories(name)&${filterClause}&is_deleted=eq.false`),
+    sbGet(`monthly_pnl_net?select=*&${filterClause}`),
+    sbGet(`production_batch_costs?select=material_cost,overhead_cost,other_cost,total_cost&${filterClause}`),
+    sbGet(`derkosh_batch_costs?select=transfer_cost,packaging_cost,total_cost&${filterClause}`),
     sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
-    sbGet(`petty_cash?select=amount,expense_categories(name)&${filterClause}`),
-    sbGet(`loan_repayment_schedule?select=interest_portion&${loanDateClause}`),
-    fetchUsageQty(filterClause),
-    fetchWeightedAvgCosts(filterClause, asOfPeriod)
+    sbGet(`purchases?select=total_cost,expense_categories(name)&type=eq.expense&approval_status=in.(auto_approved,approved)&is_deleted=eq.false&${filterClause}`)
   ]);
-
-  const [salesR, purchasesR, overheadR, pettyR, lrsR, usageQtyR, avgCostsR] = results;
-  const val = (r, fallback) => r.status === 'fulfilled' ? r.value : fallback;
-
-  results.forEach((r, i)=>{
-    if(r.status === 'rejected') console.error(`fetchPeriodSet: query #${i} failed`, r.reason);
-  });
-
+  const [pnlR, prodR, derkR, ohR, expR] = results;
+  const val = (r, fallback) => r.status === 'fulfilled' ? (r.value || fallback) : fallback;
+  results.forEach((r, i)=>{ if(r.status === 'rejected') console.error(`fetchPeriodSet: query #${i} failed`, r.reason); });
   return {
-    sales:     val(salesR, []),
-    purchases: val(purchasesR, []),
-    overhead:  val(overheadR, []),
-    petty:     val(pettyR, []),
-    lrs:       val(lrsR, []),
-    usageQty:  val(usageQtyR, {}),
-    avgCosts:  val(avgCostsR, {}),
+    pnl: val(pnlR, []), prod: val(prodR, []), derk: val(derkR, []), overhead: val(ohR, []), expenses: val(expR, []),
     ok: !results.some(r => r.status === 'rejected')
   };
 }
 
-// ── Core P&L aggregation (IAS 2 basis: overhead lives in COGS, never OpEx) ──
-// Shared derivation: turns raw category totals (revenue lines, COGS lines,
-// opex lines, interest) into the full figure set used everywhere on this
-// page. This is the single source of truth for the P&L formulas — the
-// table render, the profit summary, YTD summary, and both exports all
-// derive from figures produced here, so none of them can disagree.
+// ── Figure set ──────────────────────────────────────────────
+// Totals are sums of monthly_pnl_net rows (one row per month; a YTD range sums its months). The detail lines are
+// pieces of those same totals, so every section adds up exactly:
+//   Injera COGS  = raw materials + overhead + other batch costs - injera transferred to Derkosh
+//   Derkosh COGS = injera transferred in (at its production cost) + packaging
+//   Net profit   = Gross profit - operating expenses - petty cash - bank charges - interest - depreciation + disposal gain/loss
 function deriveTotals(cat){
   const totalRevenue = cat.injeraRevenue + cat.derkoshRevenue;
-  const totalCOGS = cat.injeraBlend+cat.corn+cat.gomenZere+cat.packaging+cat.labor+cat.electricity+cat.water+cat.rent+cat.maintenance+cat.otherOverhead;
+  const injeraCOGS = cat.materials + cat.overheadTotal + cat.otherBatchCosts - cat.transferToDerkosh;
+  const derkoshCOGS = cat.transferToDerkosh + cat.derkoshPackaging;
+  const totalCOGS = injeraCOGS + derkoshCOGS;
   const grossProfit = totalRevenue - totalCOGS;
   const grossMargin = pctOf(grossProfit, totalRevenue);
-  const totalOpex = cat.deliveryOut + cat.marketing + cat.otherOperatingExpenses;
-  const totalExpensesCard = totalOpex + cat.interestExpense;
-  const netProfit = grossProfit - totalOpex - cat.interestExpense;
+  const injeraGross = cat.injeraRevenue - injeraCOGS;
+  const derkoshGross = cat.derkoshRevenue - derkoshCOGS;
+  const totalOpex = cat.deliveryOut + cat.marketing + cat.otherOperatingExpenses + cat.pettyCash + cat.bankCharges;
+  const totalExpensesCard = totalOpex + cat.interestExpense + cat.depreciation;
+  const netProfit = grossProfit - totalOpex - cat.interestExpense - cat.depreciation + cat.disposalGainLoss;
   const netMargin = pctOf(netProfit, totalRevenue);
-  return { ...cat, totalRevenue, totalCOGS, grossProfit, grossMargin, totalOpex, totalExpensesCard, netProfit, netMargin };
+  return { ...cat, totalRevenue, injeraCOGS, derkoshCOGS, totalCOGS, injeraGross, derkoshGross, grossProfit, grossMargin,
+           totalOpex, totalExpensesCard, netProfit, netMargin };
 }
 
 function calcFigures(d){
-  const injeraRevenue = d.sales.filter(s=>s.product_type==='injera').reduce((s,r)=>s+num(r.revenue),0);
-  const derkoshRevenue = d.sales.filter(s=>s.product_type==='derkosh').reduce((s,r)=>s+num(r.revenue),0);
+  const sum = (rows, k) => (rows||[]).reduce((s,r)=>s+num(r[k]),0);
+  const injeraRevenue = sum(d.pnl,'injera_revenue');
+  const derkoshRevenue = sum(d.pnl,'derkosh_revenue');
 
-  // Raw materials: usage-based COGS = qty actually consumed in confirmed
-  // production batches × weighted-average unit cost (matching principle —
-  // this no longer double-counts stockpiled purchases as COGS in the wrong month).
-  const injeraBlend = (d.usageQty['Injera Blend']||0) * (d.avgCosts['Injera Blend']||0);
-  const corn = (d.usageQty['Corn']||0) * (d.avgCosts['Corn']||0);
-  const gomenZere = (d.usageQty['Gomen Zere']||0) * (d.avgCosts['Gomen Zere']||0);
+  const materials = sum(d.prod,'material_cost');
+  const otherBatchCosts = sum(d.prod,'other_cost');
+  const transferToDerkosh = sum(d.derk,'transfer_cost');
+  const derkoshPackaging = sum(d.derk,'packaging_cost');
 
-  // Packaging: no per-batch consumption tracking exists in the schema yet
-  // (production_batches has no bag-usage field), so this stays spend-based —
-  // money spent on bags that period. Revisit once bag usage is tracked per batch.
-  const itemMap = {};
-  d.purchases.filter(p=>p.type==='purchase' && approved(p.approval_status)).forEach(p=>{
-    const name = INV_ITEMS_MAP[p.item_id]?.name || 'Other';
-    itemMap[name] = (itemMap[name]||0) + num(p.total_cost);
-  });
-  const packaging = (itemMap['Small Bags']||0) + (itemMap['Large Bags']||0);
-
+  // Overhead: every ETB of monthly overhead lands in COGS (absorbed by batches, or expensed as unabsorbed
+  // overhead when a month has no production) — so the category detail is simply the monthly_overhead totals.
   const ohMap = {};
-  d.overhead.forEach(o=>{
+  (d.overhead||[]).forEach(o=>{
     const name = o.overhead_categories?.name || 'Other Overhead';
     ohMap[name] = (ohMap[name]||0) + num(o.amount);
   });
-  const labor = ohMap['Labor/Wages']||0;
-  const electricity = ohMap['Electricity']||0;
-  const water = ohMap['Water']||0;
-  const rent = ohMap['Rent']||0;
-  const maintenance = ohMap['Maintenance']||0;
-  const otherOverhead = ohMap['Other Overhead']||0;
+  const labor = ohMap['Labor/Wages']||0, electricity = ohMap['Electricity']||0, water = ohMap['Water']||0,
+        rent = ohMap['Rent']||0, maintenance = ohMap['Maintenance']||0;
+  const overheadTotal = sum(d.pnl,'total_overhead');
+  const otherOverhead = overheadTotal - labor - electricity - water - rent - maintenance;
 
+  // Operating expenses: the total comes from the view; Delivery Out / Transport / Marketing are shown separately
+  // and everything else is "Other" so the lines always add up to the view's total_opex.
   const expMap = {};
-  d.purchases.filter(p=>p.type==='expense' && approved(p.approval_status)).forEach(p=>{
+  (d.expenses||[]).forEach(p=>{
     const name = p.expense_categories?.name || 'Other';
     expMap[name] = (expMap[name]||0) + num(p.total_cost);
   });
-  d.petty.forEach(pc=>{
-    const name = pc.expense_categories?.name || 'Other';
-    expMap[name] = (expMap[name]||0) + num(pc.amount);
-  });
-  const deliveryOut = (expMap['Delivery Out']||0) + (expMap['Transport']||0);
+  const totalOpexView = sum(d.pnl,'total_opex');
+  const deliveryOut = sum(d.pnl,'delivery_out_cost') + (expMap['Transport']||0);
   const marketing = expMap['Marketing']||0;
-  // Everything else counts as Other Operating Expenses EXCEPT the categories that are
-  // already folded into Injera Blend's cost via the Milling/Conversion record (Sifting/
-  // Grinding/Milling & Conversion Fees/Delivery In/Milling Material Transport — same
-  // exclusion monthly_pnl uses) and the ones broken out into their own line above.
-  const MILLING_COGS_CATS = new Set(['Milling & Conversion Fees','Sifting Fees','Grinding Fees','Delivery In','Milling Material Transport']);
-  const BROKEN_OUT_CATS = new Set(['Delivery Out','Transport','Marketing']);
-  const otherOperatingExpenses = Object.entries(expMap)
-    .filter(([name])=>!MILLING_COGS_CATS.has(name) && !BROKEN_OUT_CATS.has(name))
-    .reduce((s,[,amt])=>s+amt, 0);
-
-  // Accrual basis: count all interest that accrued (due_date fell in this
-  // period), regardless of whether it's been paid yet. This intentionally
-  // differs from the Cash Flow page, which filters by status='paid' and
-  // actual_payment_date — correct there, since a cash flow statement should
-  // only reflect cash that actually moved. A P&L should reflect what was
-  // owed for the period, so an unpaid/overdue interest charge still counts.
-  const interestExpense = d.lrs.reduce((s,l)=>s+num(l.interest_portion),0);
+  const otherOperatingExpenses = totalOpexView - deliveryOut - marketing;
 
   return deriveTotals({ injeraRevenue, derkoshRevenue,
-    injeraBlend, corn, gomenZere, packaging, labor, electricity, water, rent, maintenance, otherOverhead,
-    deliveryOut, marketing, otherOperatingExpenses, interestExpense });
+    materials, otherBatchCosts, transferToDerkosh, derkoshPackaging,
+    overheadTotal, labor, electricity, water, rent, maintenance, otherOverhead,
+    deliveryOut, marketing, otherOperatingExpenses,
+    pettyCash: sum(d.pnl,'petty_cash_total'), bankCharges: sum(d.pnl,'bank_charges'),
+    interestExpense: sum(d.pnl,'interest_expense'), depreciation: sum(d.pnl,'depreciation_expense'),
+    disposalGainLoss: sum(d.pnl,'gain_loss_on_disposal'),
+    dbNetProfit: sum(d.pnl,'net_profit') });
 }
 
 // ── Shared row builder (used by both the table render and Excel export) ──
 function buildPLRows(cur, ytd){
+  const R = (label, key, extra)=>({type:'row', label, curV:cur[key], ytdV:ytd[key], ...(extra||{})});
+  const T = (label, key, cls)=>({type:'total', label, curV:cur[key], ytdV:ytd[key], cls});
   const rows = [];
   rows.push({type:'section', label:'Revenue'});
-  rows.push({type:'row', label:'Injera Sales', curV:cur.injeraRevenue, ytdV:ytd.injeraRevenue});
-  rows.push({type:'row', label:'Derkosh Sales', curV:cur.derkoshRevenue, ytdV:ytd.derkoshRevenue});
-  rows.push({type:'total', label:'Total Revenue', curV:cur.totalRevenue, ytdV:ytd.totalRevenue, cls:'pl-total'});
+  rows.push(R('Injera Sales','injeraRevenue'));
+  rows.push(R('Derkosh Sales','derkoshRevenue'));
+  rows.push(T('Total Revenue','totalRevenue','pl-total'));
 
-  rows.push({type:'section', label:'Cost of Goods Sold'});
-  rows.push({type:'row', label:'Injera Blend', curV:cur.injeraBlend, ytdV:ytd.injeraBlend});
-  rows.push({type:'row', label:'Corn', curV:cur.corn, ytdV:ytd.corn});
-  rows.push({type:'row', label:'Gomen Zere', curV:cur.gomenZere, ytdV:ytd.gomenZere});
-  rows.push({type:'row', label:'Packaging (Small & Large Bags)', curV:cur.packaging, ytdV:ytd.packaging});
-  rows.push({type:'row', label:'Labor / Wages', curV:cur.labor, ytdV:ytd.labor});
-  rows.push({type:'row', label:'Electricity', curV:cur.electricity, ytdV:ytd.electricity});
-  rows.push({type:'row', label:'Water', curV:cur.water, ytdV:ytd.water});
-  rows.push({type:'row', label:'Rent', curV:cur.rent, ytdV:ytd.rent});
-  rows.push({type:'row', label:'Maintenance', curV:cur.maintenance, ytdV:ytd.maintenance});
-  rows.push({type:'row', label:'Other Overhead', curV:cur.otherOverhead, ytdV:ytd.otherOverhead});
+  rows.push({type:'section', label:'Cost of Goods Sold — Injera'});
+  rows.push(R('Raw Materials Used (Blend, Corn, Gomen — at WAC)','materials'));
+  rows.push(R('Labor / Wages','labor'));
+  rows.push(R('Electricity','electricity'));
+  rows.push(R('Water','water'));
+  rows.push(R('Rent','rent'));
+  rows.push(R('Maintenance','maintenance'));
+  rows.push(R('Other Overhead','otherOverhead'));
+  rows.push(R('Other Batch Costs','otherBatchCosts'));
+  rows.push({type:'row', label:'Less: Injera Moved to Derkosh', curV:-cur.transferToDerkosh, ytdV:-ytd.transferToDerkosh});
+  rows.push(T('Injera COGS','injeraCOGS','pl-total'));
+  rows.push(T('Injera Gross Profit','injeraGross','pl-gross'));
+
+  rows.push({type:'section', label:'Cost of Goods Sold — Derkosh'});
+  rows.push(R('Injera Moved from Production (at cost)','transferToDerkosh'));
+  rows.push(R('Packaging (Bags Used)','derkoshPackaging'));
+  rows.push(T('Derkosh COGS','derkoshCOGS','pl-total'));
+  rows.push(T('Derkosh Gross Profit','derkoshGross','pl-gross'));
+
   rows.push({type:'total', label:'Total COGS', curV:cur.totalCOGS, ytdV:ytd.totalCOGS, cls:'pl-total'});
-
   rows.push({type:'total', label:'Gross Profit', curV:cur.grossProfit, ytdV:ytd.grossProfit, cls:'pl-gross'});
   rows.push({type:'pctonly', label:'Gross Margin %', curPct:cur.grossMargin, ytdPct:ytd.grossMargin, cls:'pl-gross'});
 
   rows.push({type:'section', label:'Operating Expenses'});
-  rows.push({type:'row', label:'Delivery Out & Transport', curV:cur.deliveryOut, ytdV:ytd.deliveryOut});
-  rows.push({type:'row', label:'Marketing', curV:cur.marketing, ytdV:ytd.marketing});
-  rows.push({type:'row', label:'Other Operating Expenses', curV:cur.otherOperatingExpenses, ytdV:ytd.otherOperatingExpenses});
-  rows.push({type:'total', label:'Total Operating Expenses', curV:cur.totalOpex, ytdV:ytd.totalOpex, cls:'pl-total'});
+  rows.push(R('Delivery Out & Transport','deliveryOut'));
+  rows.push(R('Marketing','marketing'));
+  rows.push(R('Other Operating Expenses','otherOperatingExpenses'));
+  rows.push(R('Petty Cash Expenses','pettyCash'));
+  rows.push(R('Bank Charges','bankCharges'));
+  rows.push(T('Total Operating Expenses','totalOpex','pl-total'));
 
   rows.push({type:'spacer'});
-  rows.push({type:'row', label:'Interest Expense (Loan)', curV:cur.interestExpense, ytdV:ytd.interestExpense});
-  rows.push({type:'total', label:'NET PROFIT', curV:cur.netProfit, ytdV:ytd.netProfit, cls:'pl-net'});
+  rows.push(R('Interest & Late Fees (Loans)','interestExpense'));
+  rows.push(R('Depreciation','depreciation'));
+  rows.push(R('Gain / (Loss) on Asset Disposal','disposalGainLoss'));
+  rows.push(T('NET PROFIT','netProfit','pl-net'));
   return rows;
 }
 
@@ -744,7 +643,7 @@ function updateHeaderLabels(period, yearStart){
   document.getElementById('thMonthLbl').textContent = label;
   document.getElementById('thYtdLbl').textContent = label;
   document.getElementById('psPeriodLbl').textContent = `(${label})`;
-  const startLbl = MONTH_NAMES[0];
+  const startLbl = MONTH_NAMES[parseInt(String(yearStart).split('-')[1],10)-1];
   document.getElementById('ytdPeriodLbl2').textContent = `(${startLbl}–${label})`;
   document.getElementById('plDateLbl').textContent = `For the month ended ${fmtDateLong(periodEndDate(period))}`;
 }
@@ -753,6 +652,7 @@ function updateHeaderLabels(period, yearStart){
 // ── MASTER REFRESH ───────────────────────────────────────
 // ══════════════════════════════════════════════════════════
 async function refreshPL(){
+  if(typeof loadAppSettings === 'function') await loadAppSettings(); // fiscal-year start comes from Settings
   const msel = document.getElementById('msel');
   // #msel is created by the external header.js, not by this file's own HTML.
   // If that script is missing/failed, msel is null — fall back to the current
@@ -762,7 +662,8 @@ async function refreshPL(){
     : (()=>{ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
   const prevP = shiftPeriod(period, -1);
   const year = period.split('-')[0];
-  const yearStart = `${year}-01`;
+  // Year-to-date starts at the fiscal-year start month saved in Settings (default January).
+  const yearStart = (typeof fiscalYearStartPeriod === 'function') ? fiscalYearStartPeriod(period) : `${year}-01`;
   PREV_PERIOD = prevP;
 
   const [monthData, prevData, ytdData] = await Promise.all([
@@ -779,7 +680,7 @@ async function refreshPL(){
   const prev = calcFigures(prevData);
   const ytd = calcFigures(ytdData);
 
-  LAST = {cur, prev, ytd, period, prevOk: prevData.ok};
+  LAST = {cur, prev, ytd, period, yearStart, prevOk: prevData.ok};
   renderTable(cur, ytd);
   renderProfitSummary(cur, prev);
   renderYTD(ytd);
@@ -806,7 +707,7 @@ async function refreshPL(){
 const HISTORY_MONTHS = 5; // earlier months drawn on the detailed PDF trend charts
 
 function _isEmptyFigures(f){
-  return !f || (f.totalRevenue===0 && f.totalCOGS===0 && f.totalOpex===0 && f.interestExpense===0);
+  return !f || (f.totalRevenue===0 && f.totalCOGS===0 && f.totalOpex===0 && f.interestExpense===0 && f.depreciation===0 && f.disposalGainLoss===0);
 }
 
 // Earlier months for the trend charts, oldest first. The month straight before the
@@ -854,33 +755,39 @@ async function buildPLReportData(){
     generatedAt: new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}),
     monthLabel: monthLbl,
     monthShort: MONTH_NAMES[mi-1],
-    ytdLabel: `YTD ${MONTH_NAMES[0]}-${monthLbl}`,
+    ytdLabel: `YTD ${MONTH_NAMES[parseInt(String(LAST.yearStart||'2000-01').split('-')[1],10)-1]}-${monthLbl}`,
     revenue: [
       line('Injera Sales','injeraRevenue'),
       line('Derkosh Sales','derkoshRevenue')
     ],
     cogs: [
-      line('Injera Blend','injeraBlend'),
-      line('Corn','corn'),
-      line('Gomen Zere','gomenZere'),
-      line('Packaging (Small & Large Bags)','packaging'),
+      line('Raw Materials Used (Blend, Corn, Gomen)','materials'),
       line('Labor / Wages','labor'),
       line('Electricity','electricity'),
       line('Water','water'),
       line('Rent','rent'),
       line('Maintenance','maintenance'),
-      line('Other Overhead','otherOverhead')
+      line('Other Overhead','otherOverhead'),
+      line('Other Batch Costs','otherBatchCosts'),
+      {label:'Less: Injera Moved to Derkosh', month:-cur.transferToDerkosh, ytd:-ytd.transferToDerkosh},
+      line('Derkosh: Injera Moved from Production','transferToDerkosh'),
+      line('Derkosh: Packaging (Bags Used)','derkoshPackaging')
     ],
     opex: [
       line('Delivery Out & Transport','deliveryOut'),
       line('Marketing','marketing'),
       line('Other Operating Expenses','otherOperatingExpenses'),
-      line('Interest Expense (Loan)','interestExpense')
+      line('Petty Cash Expenses','pettyCash'),
+      line('Bank Charges','bankCharges'),
+      line('Interest & Late Fees (Loans)','interestExpense'),
+      line('Depreciation','depreciation'),
+      {label:'Less: Gain / (Loss) on Asset Disposal', month:-cur.disposalGainLoss, ytd:-ytd.disposalGainLoss}
     ],
     footer: {
       notes: [
         'Negative values are shown with a minus sign.',
-        'Interest expense on loans is included under operating expenses in this report. The on-screen statement lists it below Total Operating Expenses; net profit is the same.'
+        'Interest, depreciation and disposal gains/losses are included under operating expenses in this report. The on-screen statement lists them below Total Operating Expenses; net profit is the same.',
+        'Injera moved to Derkosh is taken out of Injera COGS and charged to Derkosh COGS at its production cost, so total COGS counts it once.'
       ]
     }
   };
@@ -966,24 +873,29 @@ const CMP_ROW_DEFS = [
   {type:'row', label:'Derkosh Sales', key:'derkoshRevenue'},
   {type:'total', label:'Total Revenue', key:'totalRevenue'},
   {type:'section', label:'Cost of Goods Sold'},
-  {type:'row', label:'Injera Blend', key:'injeraBlend'},
-  {type:'row', label:'Corn', key:'corn'},
-  {type:'row', label:'Gomen Zere', key:'gomenZere'},
-  {type:'row', label:'Packaging (Small & Large Bags)', key:'packaging'},
+  {type:'row', label:'Raw Materials Used', key:'materials'},
   {type:'row', label:'Labor / Wages', key:'labor'},
   {type:'row', label:'Electricity', key:'electricity'},
   {type:'row', label:'Water', key:'water'},
   {type:'row', label:'Rent', key:'rent'},
   {type:'row', label:'Maintenance', key:'maintenance'},
   {type:'row', label:'Other Overhead', key:'otherOverhead'},
+  {type:'row', label:'Other Batch Costs', key:'otherBatchCosts'},
+  {type:'row', label:'Derkosh Packaging', key:'derkoshPackaging'},
+  {type:'total', label:'Injera COGS', key:'injeraCOGS'},
+  {type:'total', label:'Derkosh COGS', key:'derkoshCOGS'},
   {type:'total', label:'Total COGS', key:'totalCOGS'},
   {type:'total', label:'Gross Profit', key:'grossProfit'},
   {type:'section', label:'Operating Expenses'},
   {type:'row', label:'Delivery Out & Transport', key:'deliveryOut'},
   {type:'row', label:'Marketing', key:'marketing'},
   {type:'row', label:'Other Operating Expenses', key:'otherOperatingExpenses'},
+  {type:'row', label:'Petty Cash Expenses', key:'pettyCash'},
+  {type:'row', label:'Bank Charges', key:'bankCharges'},
   {type:'total', label:'Total Operating Expenses', key:'totalOpex'},
-  {type:'row', label:'Interest Expense (Loan)', key:'interestExpense'},
+  {type:'row', label:'Interest & Late Fees (Loans)', key:'interestExpense'},
+  {type:'row', label:'Depreciation', key:'depreciation'},
+  {type:'row', label:'Gain / (Loss) on Asset Disposal', key:'disposalGainLoss'},
   {type:'total', label:'NET PROFIT', key:'netProfit'}
 ];
 

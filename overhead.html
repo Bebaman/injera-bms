@@ -676,21 +676,7 @@ const SB_REST_URL = (window.SB_URL || 'https://mfxkkaavgzyttasgqnmw.supabase.co/
 const SB_REST_KEY = (window.SB_KEY || 'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH');
 const SB_BASE_URL = SB_REST_URL.replace(/\/rest\/v1\/?$/, '');
 
-const { createClient } = supabase;
-const db = createClient(SB_BASE_URL, SB_REST_KEY);
-(function wireSession(){
-  try{
-    const session = typeof loadSession === 'function' ? loadSession() : null;
-    if(session && session.access_token){
-      db.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      }).catch(err=>console.error('Supabase session restore failed:', err));
-    }
-  } catch(err){
-    console.error('wireSession failed:', err);
-  }
-})();
+/* (no supabase-js client here: every call below uses the REST helpers with the user's token) */
 
 /* ════════════════ SUPABASE REST HELPERS (raw fetch, no client lib) ════════════════
    Per module spec: talk to PostgREST directly with the publishable key in the
@@ -703,7 +689,7 @@ const sbHeaders = {
 };
 async function sbGet(table, query){
   try{
-    const res = await fetch(`${SB_REST_URL}/${table}${query||''}`, { headers: sbHeaders });
+    const res = await fetch(`${SB_REST_URL}/${table}${query||''}`, { headers: await authHeadersAsync() });
     if(!res.ok) throw new Error(await res.text());
     const data = await res.json();
     // Reports success to the shared header status pill (set up by app-state.js).
@@ -720,14 +706,26 @@ async function sbGet(table, query){
     return [];
   }
 }
+// Turns database rule violations into a sentence the user can act on.
+function friendlyDbError(raw, fallback){
+  const t = String(raw||'');
+  if(t.includes('23505') || /duplicate key/i.test(t)){
+    if(/monthly_overhead/.test(t)) return 'That category already has an entry for this month — edit the existing one instead of adding another.';
+    if(/payroll_detail/.test(t))   return 'This worker already has payroll recorded for this month — edit the existing entry.';
+    return 'This entry already exists — edit the existing one instead.';
+  }
+  const m = /Period [0-9-]+ is closed and locked[^"]*/.exec(t);
+  if(m) return m[0];
+  return fallback;
+}
 async function sbInsert(table, body){
   const res = await fetch(`${SB_REST_URL}/${table}`, {
-    method:'POST', headers:{...sbHeaders, 'Prefer':'return=representation'}, body: JSON.stringify(body)
+    method:'POST', headers:{...(await authHeadersAsync()), 'Prefer':'return=representation'}, body: JSON.stringify(body)
   });
   if(!res.ok){
     const t = await res.text();
     window.setSyncStatus?.('error', { message: 'Some data failed to save' });
-    if(typeof toast==='function') toast('Could not save to '+table.replace(/_/g,' ')+'.','error');
+    if(typeof toast==='function') toast(friendlyDbError(t, 'Could not save to '+table.replace(/_/g,' ')+'.'),'error');
     throw new Error(t);
   }
   window.setSyncStatus?.('live');
@@ -735,19 +733,19 @@ async function sbInsert(table, body){
 }
 async function sbUpdate(table, id, body){
   const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, {
-    method:'PATCH', headers:{...sbHeaders, 'Prefer':'return=representation'}, body: JSON.stringify(body)
+    method:'PATCH', headers:{...(await authHeadersAsync()), 'Prefer':'return=representation'}, body: JSON.stringify(body)
   });
   if(!res.ok){
     const t = await res.text();
     window.setSyncStatus?.('error', { message: 'Some data failed to save' });
-    if(typeof toast==='function') toast('Could not update '+table.replace(/_/g,' ')+'.','error');
+    if(typeof toast==='function') toast(friendlyDbError(t, 'Could not update '+table.replace(/_/g,' ')+'.'),'error');
     throw new Error(t);
   }
   window.setSyncStatus?.('live');
   return await res.json();
 }
 async function sbDelete(table, id){
-  const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, { method:'DELETE', headers: sbHeaders });
+  const res = await fetch(`${SB_REST_URL}/${table}?id=eq.${id}`, { method:'DELETE', headers: await authHeadersAsync() });
   if(!res.ok){
     const t = await res.text();
     window.setSyncStatus?.('error', { message: 'Some data failed to delete' });
@@ -1469,6 +1467,9 @@ async function savePayroll(){
   if(daysPresent < 0){ toast('Days present cannot be negative','error'); return; }
   if(daysInMonthVal <= 0){ toast('Days in month must be greater than zero','error'); return; }
   if(daysPresent > daysInMonthVal){ toast('Days present cannot exceed days in month','error'); return; }
+  // payroll_detail.days_present / days_in_month are INTEGER columns — a half day (22.5) would be rejected by the database.
+  if(!Number.isInteger(daysPresent) || !Number.isInteger(daysInMonthVal)){ toast('Days present and days in month must be whole numbers','error'); return; }
+  if(advance + other > baseSalary * (daysPresent/daysInMonthVal) + 0.005){ toast('Advance + deductions are more than the gross pay — net pay would be negative','error'); return; }
   if(advance < 0){ toast('Advance taken cannot be negative','error'); return; }
   if(other < 0){ toast('Other deductions cannot be negative','error'); return; }
 

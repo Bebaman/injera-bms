@@ -711,17 +711,8 @@ if(!window.SB_URL || !window.SB_KEY){
   const stubBuilder = { select(){return this;}, eq(){return this;}, order(){return this;}, limit(){return this;}, then(_,reject){ configError().catch(reject); } };
   db = { from(){ return stubBuilder; }, auth:{ setSession:configError, getSession:configError } };
 } else {
-  db = createClient(window.SB_URL.replace('/rest/v1',''), window.SB_KEY);
+  db = createAppSupabaseClient(); // token comes from the shared token manager (no second refresh path)
 }
-(function wireSession(){
-  const session = loadSession();
-  if(session && session.access_token){
-    db.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token
-    }).catch(err=>{ console.error('Supabase session restore failed:', err); });
-  }
-})();
 </script>
 <script>
 /* ════════════════ DATA MODEL ════════════════
@@ -826,7 +817,9 @@ function cogsOf(monthOrYearTotals){ return (monthOrYearTotals && monthOrYearTota
 function perUnitEconomics(y){
   const revPerUnit = yearData[y].asp || 0;
   const injeraQty = yearData[y].injera || 0;
-  const costPerUnit = injeraQty>0 ? (yearData[y].injeraCogs||0) / injeraQty : 0;
+  // Cost per injera PRODUCED: injera COGS is net of the injera moved to Derkosh, so add that cost back to get the
+  // full production cost before dividing by everything that was produced.
+  const costPerUnit = injeraQty>0 ? ((yearData[y].injeraCogs||0) + (yearData[y].transferToDerkosh||0)) / injeraQty : 0;
   return { revPerUnit, costPerUnit, profitPerUnit: revPerUnit - costPerUnit };
 }
 // Derkosh equivalent of perUnitEconomics() above — previously didn't exist at
@@ -1166,8 +1159,8 @@ async function loadFromSupabase(){
     const currentYear = today.getFullYear();
 
     const [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes,
-           wacRes, payrollRes, overheadRes, itemsRes, batchStdRes] = await withTimeout(Promise.all([
-      db.from('monthly_pnl').select('period,injera_revenue,derkosh_revenue,total_revenue,total_cogs,total_overhead,total_opex,interest_expense,injera_cogs,derkosh_cogs'),
+           wacRes, payrollRes, overheadRes, itemsRes, batchStdRes, dbcRes] = await withTimeout(Promise.all([
+      db.from('monthly_pnl_net').select('period,injera_revenue,derkosh_revenue,total_revenue,total_cogs,total_overhead,total_opex,interest_expense,injera_cogs,derkosh_cogs,petty_cash_total,bank_charges,depreciation_expense,gain_loss_on_disposal,gross_profit,net_profit'),
       db.from('sales').select('date,period,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted', false),
       db.from('production_batches').select('period,injera_qty,type').eq('is_deleted', false),
       db.from('derkosh_batches').select('period,produced_kg,pkg_item_id,bags_used').eq('is_deleted', false),
@@ -1176,7 +1169,8 @@ async function loadFromSupabase(){
       db.from('payroll_detail').select('period,gross_pay'),
       db.from('monthly_overhead').select('period,amount,overhead_categories(name)'),
       db.from('inventory_items').select('id,name'),
-      db.from('batch_standards').select('batch_type,target_injera_count') // reference table, not period-scoped — same standards apply to every period
+      db.from('batch_standards').select('batch_type,target_injera_count'), // reference table, not period-scoped — same standards apply to every period
+      db.from('derkosh_batch_costs').select('period,transfer_cost') // injera moved to Derkosh (taken out of injera COGS)
     ]), 20000, 'Reports data load');
 
     // Supabase's client returns {data, error} — it does not throw on a failed
@@ -1185,14 +1179,16 @@ async function loadFromSupabase(){
     // blip on one of the nine calls) exactly the same as "table legitimately
     // has zero rows", masking real errors as empty data. Check every result.
     const queryLabels = ['monthly_pnl','sales','production_batches','derkosh_batches',
-      'production_batch_materials','monthly_wac','payroll_detail','monthly_overhead','inventory_items','batch_standards'];
-    const results = [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes, wacRes, payrollRes, overheadRes, itemsRes, batchStdRes];
+      'production_batch_materials','monthly_wac','payroll_detail','monthly_overhead','inventory_items','batch_standards','derkosh_batch_costs'];
+    const results = [pnlRes, salesRes, prodBatchRes, derkoshBatchRes, prodMatRes, wacRes, payrollRes, overheadRes, itemsRes, batchStdRes, dbcRes];
     const failed = results.map((r,i)=>({r,i})).filter(({r})=>r.error);
     if(failed.length){
       throw new Error('Query failed for: ' + failed.map(({r,i})=>`${queryLabels[i]} (${r.error.message})`).join('; '));
     }
 
     const pnlByPeriod = Object.fromEntries((pnlRes.data||[]).map(r=>[r.period, r]));
+    const transferByPeriod = {};
+    (dbcRes.data||[]).forEach(r=>{ transferByPeriod[r.period] = (transferByPeriod[r.period]||0) + num(r.transfer_cost); });
     const payrollByPeriod = {};
     (payrollRes.data||[]).forEach(r=>{ payrollByPeriod[r.period] = (payrollByPeriod[r.period]||0) + num(r.gross_pay); });
     const electricityByPeriod = {};
@@ -1305,8 +1301,10 @@ async function loadFromSupabase(){
         // added into this top-line figure.
         const cogs = pnl ? num(pnl.total_cogs) : 0;
         const rev = pnl ? num(pnl.total_revenue) : 0;
-        const opex = pnl ? num(pnl.total_opex) : 0;
-        const interest = pnl ? num(pnl.interest_expense) : 0;
+        // Net profit must equal the database (monthly_pnl_net.net_profit): operating expenses include petty cash
+        // and bank charges; "interest" is finance & other costs = interest + late fees + depreciation - disposal gain.
+        const opex = pnl ? num(pnl.total_opex) + num(pnl.petty_cash_total) + num(pnl.bank_charges) : 0;
+        const interest = pnl ? num(pnl.interest_expense) + num(pnl.depreciation_expense) - num(pnl.gain_loss_on_disposal) : 0;
         const gross = rev - cogs;
         const operatingProfit = gross - opex;
         const net = operatingProfit - interest;
@@ -1317,6 +1315,7 @@ async function loadFromSupabase(){
           injeraRev: pnl ? num(pnl.injera_revenue) : 0, derkoshRev: pnl ? num(pnl.derkosh_revenue) : 0,
           injeraQty: iQty, derkoshQty: dQty, injeraAsp, derkoshAsp: derkoshAspVal,
           injeraCogs: pnl ? num(pnl.injera_cogs) : 0, derkoshCogs: pnl ? num(pnl.derkosh_cogs) : 0,
+          transferToDerkosh: transferByPeriod[period] || 0,
           expectedInjeraQty: expectedInjeraByPeriod[period] ?? null
         });
 
@@ -1348,6 +1347,7 @@ async function loadFromSupabase(){
         derkosh: months.reduce((s,m)=>s+m.derkoshQty,0),
         asp: injeraQtyYear>0 ? injeraRevYearSales/injeraQtyYear : null,
         injeraRev: months.reduce((s,m)=>s+m.injeraRev,0), derkoshRev: months.reduce((s,m)=>s+m.derkoshRev,0),
+        transferToDerkosh: months.reduce((s,m)=>s+(m.transferToDerkosh||0),0),
         injeraCogs: months.reduce((s,m)=>s+m.injeraCogs,0), derkoshCogs: months.reduce((s,m)=>s+m.derkoshCogs,0),
         expectedInjera: months.some(m=>m.expectedInjeraQty!=null) ? months.reduce((s,m)=>s+(m.expectedInjeraQty||0),0) : null
       };
@@ -1499,8 +1499,8 @@ async function loadMonthlySnapshot(){
     const [pnlRes, prevPnlRes, cfRes, purchRes, millRes, salesRes, prodCostRes, derkoshBatchRes,
            prodBatchRes, prodMatRes, payrollRes, overheadRes, itemsRes, openBalRes, closeBalRes,
            stockAlertRes, periodCloseRes, reportNoteRes, batchStdRes] = await withTimeout(Promise.all([
-      db.from('monthly_pnl').select('*').eq('period', snapshotPeriod),
-      db.from('monthly_pnl').select('*').eq('period', prevPeriod),
+      db.from('monthly_pnl_net').select('*').eq('period', snapshotPeriod),
+      db.from('monthly_pnl_net').select('*').eq('period', prevPeriod),
       db.from('monthly_cash_flow').select('*').eq('period', snapshotPeriod),
       db.from('purchases').select('date,type,quantity,unit_price,total_cost,payment_channel,inventory_items(name,unit),expense_categories(name),suppliers(name),source').eq('is_deleted',false).eq('period',snapshotPeriod).order('date'),
       db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date'),
@@ -1577,7 +1577,10 @@ function renderMonthlySnapshot(d){
   // view never references at all, so it's shown in Purchases/Payroll detail
   // below, not folded into this top-line COGS either.
   const totalCogs = num(p.total_cogs);
-  const netApprox = num(p.total_revenue) - totalCogs - num(p.total_opex) - num(p.interest_expense);
+  // identical to the database: revenue - COGS - operating expenses - petty cash - bank charges - interest - depreciation + disposal gain/loss
+  const opexAll = num(p.total_opex) + num(p.petty_cash_total) + num(p.bank_charges);
+  const financeAll = num(p.interest_expense) + num(p.depreciation_expense) - num(p.gain_loss_on_disposal);
+  const netApprox = (p.net_profit !== undefined && p.net_profit !== null) ? num(p.net_profit) : (num(p.total_revenue) - totalCogs - opexAll - financeAll);
   const rev = num(p.total_revenue);
   const grossMargin = rev>0 ? (rev-totalCogs)/rev*100 : null;
   const netMargin = rev>0 ? netApprox/rev*100 : null;
@@ -1607,7 +1610,7 @@ function renderMonthlySnapshot(d){
     execBullets.push({icon:'money', cls:'ic-b', html:`<b>Total Revenue:</b> ${fmt0(rev)} ETB`});
   }
   execBullets.push({icon:'money', cls: netApprox>=0?'ic-g':'ic-r', html: p.total_revenue!=null
-    ? `<b>Net Profit (approx.):</b> ${fmt0(netApprox)} ETB${netMargin!=null?` (${netMargin.toFixed(1)}% margin)`:''}`
+    ? `<b>Net Profit:</b> ${fmt0(netApprox)} ETB${netMargin!=null?` (${netMargin.toFixed(1)}% margin)`:''}`
     : `<b>Net Profit:</b> no sales recorded yet for ${label}`});
   execBullets.push({icon:'box', cls:'ic-p', html:`<b>Production:</b> ${fmt0(injeraProducedTotal)} injera pieces, ${fmt(derkoshProducedTotal)} kg derkosh`});
   execBullets.push({icon: health.icon, cls: health.cls, html:`<b>Overall business health:</b> ${health.label}`});
@@ -1624,10 +1627,11 @@ function renderMonthlySnapshot(d){
       <tr><td style="padding-left:24px;color:var(--muted)">&nbsp;&nbsp;of which: Overhead (Electricity/Water/Rent/Maintenance/Other) — included above</td><td style="color:var(--muted)">${fmt0(p.total_overhead)}</td></tr>
       <tr><td><strong>Gross Profit</strong></td><td><strong>${fmt0(rev-totalCogs)}</strong></td></tr>
       <tr><td>Operating Expenses</td><td>${fmt0(p.total_opex)}</td></tr>
-      <tr><td>Finance Costs (Interest)</td><td>${fmt0(p.interest_expense)}</td></tr>
-      <tr><td><strong>Net Profit (approx.)</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
+      <tr><td>Petty Cash &amp; Bank Charges</td><td>${fmt0(num(p.petty_cash_total)+num(p.bank_charges))}</td></tr>
+      <tr><td>Finance &amp; Other (Interest, Depreciation, Disposal Gain/Loss)</td><td>${fmt0(financeAll)}</td></tr>
+      <tr><td><strong>Net Profit</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
     </tbody></table>
-    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown. "Net Profit (approx.)" excludes bank charges, depreciation, and asset-disposal gains/losses, which aren't yet modeled in this report.</div>`;
+    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown. Net profit is read from the database (monthly_pnl_net), so it matches the Dashboard and the P&L Statement.</div>`;
 
   // ══ 3. CASH FLOW SUMMARY ══
   let cfHtml = '<div class="dm-note">No cash flow data for this month yet.</div>';
@@ -3607,15 +3611,19 @@ function buildMonthlyPnlReportData(){
     cogs: [{ label: 'Cost of goods sold (materials + production overhead)', month: num(p.total_cogs) }],
     opex: [{ label: 'Operating expenses', month: num(p.total_opex) }]
   });
-  if(num(p.interest_expense) > 0) input.opex.push({ label: 'Finance costs (interest)', month: num(p.interest_expense) });
+  if(num(p.petty_cash_total) > 0) input.opex.push({ label: 'Petty cash expenses', month: num(p.petty_cash_total) });
+  if(num(p.bank_charges) > 0) input.opex.push({ label: 'Bank charges', month: num(p.bank_charges) });
+  if(num(p.interest_expense) > 0) input.opex.push({ label: 'Finance costs (interest & late fees)', month: num(p.interest_expense) });
+  if(num(p.depreciation_expense) > 0) input.opex.push({ label: 'Depreciation', month: num(p.depreciation_expense) });
+  if(num(p.gain_loss_on_disposal) !== 0) input.opex.push({ label: 'Less: gain / (loss) on asset disposal', month: -num(p.gain_loss_on_disposal) });
   input.products = [{ name: 'Injera', revenue: num(p.injera_revenue) }, { name: 'Derkosh', revenue: num(p.derkosh_revenue) }].filter(x => x.revenue > 0);
   if(d.prevPnl){
     const pr = num(d.prevPnl.total_revenue), pc = num(d.prevPnl.total_cogs);
-    input.previous = { revenue: pr, grossProfit: pr - pc, netProfit: pr - pc - num(d.prevPnl.total_opex) - num(d.prevPnl.interest_expense) };
+    input.previous = { revenue: pr, grossProfit: pr - pc, netProfit: num(d.prevPnl.net_profit) };
     input.previousLabel = periodLabelFull(prevPeriodOf(snapshotPeriod));
   }
   input.footer = { notes: [
-    'Net profit is approximate: revenue less cost of goods sold, operating expenses and interest, the same way the Monthly Report page works it out.',
+    'Net profit is the database figure: revenue less cost of goods sold, operating expenses, petty cash, bank charges, interest, depreciation and disposal gains/losses.',
     'This export is the month\u2019s profit and loss. The cash flow, purchases, production and inventory sections are on the Monthly Report page.'
   ]};
   return ReportEngine.presets.pl(input);

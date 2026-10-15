@@ -842,6 +842,11 @@ function todayStr(){
 }
 
 let prevPeriodGlobal = '';
+/* Register the datalabels plugin BEFORE any chart is created. It used to be registered inside
+   renderRevenueChart(), i.e. after the expense / customer doughnuts already existed; Chart.js then called the
+   plugin on charts it had never initialised ('Cannot read properties of undefined (reading _labels)') and every
+   chart stopped drawing. */
+if(typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined'){ Chart.register(ChartDataLabels); }
 let revenueChart = null, expChart = null, custTypeChart = null;
 let showMoreRendered = false;
 let LAST = null; // cache of last computed dashboard payload, used by export + show-more animation
@@ -2007,7 +2012,6 @@ async function renderRevenueChart(period){
   // refreshDashboard() (Inventory, Cash, Loans, Manufacturing, Business Health, Budgets) from rendering.
   try{
     if(typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
-    if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
     if(revenueChart){
       revenueChart.data.labels = labels;
       revenueChart.data.datasets[0].data = rev;
@@ -2033,7 +2037,7 @@ async function renderRevenueChart(period){
         },
         scales:{
           x:{grid:{display:false},ticks:{font:{family:'Nunito',size:10},color:'#94a89f'}},
-          y:{grid:{color:'#eef3f0',lineWidth:1},min:0,beginAtZero:true,ticks:{font:{family:'Nunito',size:10},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+          y:{grid:{color:'#eef3f0',lineWidth:1},beginAtZero:true,/* no fixed min: a loss month (negative net profit) must stay visible */ticks:{font:{family:'Nunito',size:10},color:'#94a89f',callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
         }
       }
     });

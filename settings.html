@@ -641,8 +641,8 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
           <div class="card-hd"><div class="card-ttl">Accounting Preferences</div></div>
           <div class="card-bd">
             <div class="acct-row">
-              <div class="acct-txt"><div class="acct-lbl">Use Weighted Average Cost (WAC)</div><div class="acct-hint">Use WAC for inventory valuation and production costing.</div></div>
-              <label class="toggle"><input type="checkbox" id="acctWac"><span class="tog-slider"></span></label>
+              <div class="acct-txt"><div class="acct-lbl">Use Weighted Average Cost (WAC)</div><div class="acct-hint">Always on — the database values inventory and production at weighted-average cost (monthly_wac). It is not optional, so this switch is locked.</div></div>
+              <label class="toggle"><input type="checkbox" id="acctWac" checked disabled><span class="tog-slider"></span></label>
             </div>
             <div class="acct-row">
               <div class="acct-txt"><div class="acct-lbl">Activate VAT</div><div class="acct-hint">Enable VAT tracking on purchases and sales.</div></div>
@@ -876,17 +876,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 let db = null;
 try {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
-    db = supabase.createClient(
-      window.SB_URL.replace('/rest/v1',''),
-      window.SB_KEY
-    );
-    const session = loadSession();
-    if(session && session.access_token){
-      db.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      }).catch(()=>{});
-    }
+    db = createAppSupabaseClient(); // shared token manager (no second refresh path)
   } else {
     window.__supabaseCdnFailed = true;
   }
@@ -1842,7 +1832,7 @@ async function loadFromSupabase(){
       setVal('acctVatRegDate', r.vat_registration_date);
       document.getElementById('acctVat').checked = !!r.is_vat_registered;
       toggleVatRateField();
-      document.getElementById('acctWac').checked = r.use_wac !== false;
+      document.getElementById('acctWac').checked = true;
       document.getElementById('acctRounding').value = r.rounding_mode === 'whole' ? 'Whole Birr (1 ETB)' : '2 Decimals (0.01 ETB)';
       millConfig = {
         teff_item_id: r.teff_item_id, rice_item_id: r.rice_item_id,
@@ -1993,7 +1983,7 @@ async function saveBusinessSettings(btn){
     bank_charge_default_pct: numVal('acctBankFee'),
     vat_rate_pct: numVal('acctVatRate'),
     is_vat_registered: document.getElementById('acctVat').checked,
-    use_wac: document.getElementById('acctWac').checked,
+    use_wac: true,
     rounding_mode: document.getElementById('acctRounding').value === 'Whole Birr (1 ETB)' ? 'whole' : '2dp',
     session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value] ?? 240,
     business_timezone: 'Africa/Addis_Ababa',

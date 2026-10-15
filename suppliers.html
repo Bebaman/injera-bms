@@ -2148,7 +2148,7 @@ async function loadSuppliersFromSupabase(){
         email: r.contact_email || '',
         address: r.address || '',
         terms: r.payment_terms || 'Cash on Delivery',
-        currency: 'ETB',
+        currency: r.preferred_currency || 'ETB',
         isActive: r.is_active !== false,
         marketDays: r.market_days || [],
         tin: r.tin || '',
@@ -2178,6 +2178,7 @@ async function saveSupplierToSupabase(s){
       name: s.name,
       category: s.category,
       contact_person: s.contactPerson || null,
+      preferred_currency: (s.currency === 'USD' ? 'USD' : 'ETB'),
       contact_phone: s.phone || null,
       contact_email: s.email || null,
       address: s.address || null,
@@ -2240,7 +2241,7 @@ async function saveSupplierProductsToSupabase(s){
 async function loadPurchasesFromSupabase(){
   try{
     const [purchaseRows, items, expCats] = await Promise.all([
-      sbGet('purchases?select=id,date,period,supplier_id,item_id,expense_category_id,quantity,unit_price,total_cost,payment_channel,approval_status&is_deleted=eq.false&supplier_id=not.is.null&order=date.desc'),
+      sbGet('purchases?select=id,date,period,supplier_id,item_id,expense_category_id,quantity,unit_price,total_cost,payment_channel,approval_status&is_deleted=eq.false&approval_status=neq.rejected&supplier_id=not.is.null&order=date.desc'), // rejected purchases are not spend
       sbGet('inventory_items?select=id,name,unit'),
       sbGet('expense_categories?select=id,name')
     ]);

@@ -515,7 +515,7 @@ async function fetchPeriodData(period){
 
   const startDate = period + '-01';
   const [y,m] = period.split('-').map(Number);
-  const endDate = new Date(y, m, 0).toISOString().slice(0,10); // last day of month
+  const endDate = monthEndISO(period); // last calendar day of the month (toISOString shifted it back a day in UTC+3)
 
   // Each query below used to be a supabase-js `db.from(table).select(...)`
   // chain; converted to the shared sbGet(path) — same filters, expressed as
@@ -762,7 +762,8 @@ function computeCashFlow(data){
   data.loanRepayments.forEach(r=>{
     if(!CHANNELS.includes(r.payment_channel)) return;
     loanPrincipal[r.payment_channel] += parseFloat(r.principal_portion||0);
-    loanInterest[r.payment_channel] += parseFloat(r.interest_portion||0);
+    // late fees are paid in the same cash movement (the database repayment entry = interest + principal + late fee)
+    loanInterest[r.payment_channel] += parseFloat(r.interest_portion||0) + parseFloat(r.late_fee_amount||0);
   });
   data.cfEntries.forEach(e=>{
     if(!CHANNELS.includes(e.channel)) return;
@@ -897,7 +898,7 @@ function renderCashFlowTable(cf){
   if(rowTotal(cf.capitalWithdrawal) !== 0) h += tblRow('Owner Capital Withdrawal', negate(cf.capitalWithdrawal), { cls:'cf-line' });
   if(rowTotal(cf.loanReceived) !== 0) h += tblRow('Loan Received', cf.loanReceived, { cls:'cf-line' });
   if(rowTotal(cf.loanPrincipal) !== 0) h += tblRow('Loan Repayment — Principal', negate(cf.loanPrincipal), { cls:'cf-line' });
-  if(rowTotal(cf.loanInterest) !== 0) h += tblRow('Loan Repayment — Interest', negate(cf.loanInterest), { cls:'cf-line' });
+  if(rowTotal(cf.loanInterest) !== 0) h += tblRow('Loan Repayment — Interest & Late Fees', negate(cf.loanInterest), { cls:'cf-line' });
   Object.entries(cf.distributions).forEach(([label, o])=>{
     if(rowTotal(o) !== 0) h += tblRow(label, negate(o), { cls:'cf-line' });
   });
@@ -1202,7 +1203,7 @@ function cfStatementLines(cf){
     cfLine('Owner capital withdrawal', cf.capitalWithdrawal, -1),
     cfLine('Loan received', cf.loanReceived),
     cfLine('Loan repayment — principal', cf.loanPrincipal, -1),
-    cfLine('Loan repayment — interest', cf.loanInterest, -1)
+    cfLine('Loan repayment — interest & late fees', cf.loanInterest, -1)
   ].concat(Object.entries(cf.distributions).map(([label,o]) => cfLine(label, o, -1)))
    .concat([ cfLine('Other financing activity', cf.otherFinancing) ])
    .filter(cfNonZero);
@@ -1264,7 +1265,7 @@ function cfTransactions(){
   (RAW.loanRepayments||[]).forEach(r => {
     if(!ok(r.payment_channel)) return;
     add(outflows, r.actual_payment_date, 'Loan repayment — principal', r.payment_channel, parseFloat(r.principal_portion||0), 'financing');
-    add(outflows, r.actual_payment_date, 'Loan repayment — interest', r.payment_channel, parseFloat(r.interest_portion||0), 'financing');
+    add(outflows, r.actual_payment_date, 'Loan repayment — interest & late fees', r.payment_channel, parseFloat(r.interest_portion||0) + parseFloat(r.late_fee_amount||0), 'financing');
   });
   return { inflows, outflows };
 }
@@ -1374,7 +1375,7 @@ function openEntriesModal(){
   document.getElementById('entModalOverlay').classList.add('open');
   switchEntryTab('add');
   setEntryMode('regular');
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = appToday();
   document.getElementById('entDate').value = todayStr;
   document.getElementById('trDate').value = todayStr;
   document.getElementById('entAmount').value = '';
@@ -1549,7 +1550,7 @@ function openOwnerTxnModal(row){
   document.getElementById('ownerTxnModalOverlay').classList.add('open');
   switchOwnerTxnTab('add');
   document.getElementById('otType').value = row ? (row.kind==='Injection'?'injection':'withdrawal') : 'injection';
-  document.getElementById('otDate').value = row ? row.date : new Date().toISOString().slice(0,10);
+  document.getElementById('otDate').value = row ? row.date : appToday();
   document.getElementById('otAmount').value = row ? row.amount : '';
   document.getElementById('otChannel').value = row ? (row.channel||'cash') : 'cash';
   document.getElementById('otNote').value = row ? (row.notes||'') : '';

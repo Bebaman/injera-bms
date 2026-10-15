@@ -14,11 +14,7 @@
 <!-- jsPDF removed: report-engine.js loads jsPDF / AutoTable / ExcelJS on demand -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const { createClient } = supabase;
-const db = createClient(
-  'https://mfxkkaavgzyttasgqnmw.supabase.co',
-  'sb_publishable_ZaaVgQ3LCfq3qu7KSHh5CA_RZ3go9xH'
-);
+/* db is created after app-state.js loads (see below) so it carries the signed-in user's token. */
 </script>
 <link rel="stylesheet" href="/css/shared-shell.css">
 <style>
@@ -545,6 +541,7 @@ html,body{overflow-x:hidden;max-width:100%}
 <script src="/js/header.js"></script>
 <script src="/js/report-engine.js"></script>
 <script>
+const db = createAppSupabaseClient(); // signed-in user's token via the shared token manager
 /* ════════════════ REFERENCE DATE (real "today", used for overdue/upcoming calcs) ════════════════ */
 const _now = new Date();
 const TODAY = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
@@ -1040,7 +1037,7 @@ function openLoanModal(){
   document.getElementById('lPrincipal').value = '';
   document.getElementById('lRate').value = '';
   document.getElementById('lTerm').value = '';
-  document.getElementById('lDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('lDate').value = appToday();
   document.getElementById('lChannel').value = 'Bank';
   document.getElementById('lGrace').value = 0;
   document.getElementById('lLateFee').value = 0;
@@ -1110,8 +1107,9 @@ async function saveLoan(){
   const status = document.getElementById('lStatus').value;
   const notes = document.getElementById('lNotes').value.trim();
 
-  if(!lender || !principal || !rate || !term || !disbDate){
-    showToast('Please fill in all required fields');
+  // A 0% (interest-free) loan is valid — the database schedule handles it — so only a blank/negative rate is rejected.
+  if(!lender || !principal || isNaN(rate) || rate < 0 || !term || !disbDate){
+    showToast('Please fill in all required fields (interest rate can be 0 but not negative)');
     return;
   }
 
@@ -1163,6 +1161,13 @@ async function saveLoan(){
 async function markPaidOff(id){
   const l = loanById(id);
   if(!l) return;
+  // Paying off early must go through Record Payment so the cash ledger and interest expense are right.
+  // Marking it paid here while installments are still scheduled would leave them to turn Overdue later.
+  const unpaid = (scheduleByLoan[id] || []).filter(r=>r.status!=='paid').length;
+  if(unpaid > 0){
+    showToast(`${unpaid} installment${unpaid===1?' is':'s are'} still unpaid — record ${unpaid===1?'it':'them'} with Record Payment first.`);
+    return;
+  }
   if(!confirm(`Mark the ${l.lender} loan as fully Paid Off?`)) return;
   document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
   try{
@@ -1187,7 +1192,7 @@ async function deleteLoan(id){
     await loadAll();
   } catch(err){
     console.error('Delete loan failed:', err);
-    showToast('Failed to delete loan: '+(err.message||'unknown error'));
+    showToast((err.message||'').includes('recorded repayments') ? 'This loan has recorded repayments, so it cannot be deleted. Mark it Paid Off or Defaulted instead.' : 'Failed to delete loan: '+(err.message||'unknown error'));
     window.setSyncStatus?.('error', { message: 'Some data failed to save' });
   }
 }
@@ -1197,7 +1202,7 @@ function openPaymentModal(id){
   populateLoanSelects();
   const sel = document.getElementById('pyLoanSel');
   if(id) sel.value = id;
-  document.getElementById('pyDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pyDate').value = appToday();
   document.getElementById('pyChannel').value = 'Bank';
   refreshPaymentPreview();
   document.getElementById('paymentModalOverlay').classList.add('show');
@@ -1223,7 +1228,7 @@ async function confirmPayment(){
   if(!loan){ showToast('Select a loan first'); return; }
   const next = nextUnpaidInstallment(loan);
   if(!next){ showToast('No remaining payments for this loan'); return; }
-  const actualDate = document.getElementById('pyDate').value || new Date().toISOString().slice(0,10);
+  const actualDate = document.getElementById('pyDate').value || appToday();
   const channel = CH_LBL_TO_DB[document.getElementById('pyChannel').value] || 'bank';
 
   const confirmBtn = document.querySelector('#paymentModalOverlay .btn-pri');

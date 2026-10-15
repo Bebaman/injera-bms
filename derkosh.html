@@ -641,7 +641,7 @@ button{font-family:inherit}
           <div class="form-grid g2">
             <div class="fg">
               <label>Production Date</label>
-              <div class="fg-wrap"><input type="date" id="fDate" required></div>
+              <div class="fg-wrap"><input type="date" id="fDate" required onchange="updatePreview()"></div>
             </div>
             <div class="fg">
               <label>Package Type</label>
@@ -965,6 +965,7 @@ async function loadPkgItems(){
     if(sel && pkgItems.length){
       sel.innerHTML=pkgItems.map(it=>`<option value="${it.id}">${it.name.replace(/s$/,'')}</option>`).join('');
     }
+    await loadCostRates();
   }catch(err){
     console.error(err);
     toast('Could not load package types: '+err.message,'error');
@@ -1423,28 +1424,45 @@ function closeModal(){
   editingId=null;
   document.getElementById('modalOv').querySelector('h3').textContent='Add Derkosh Production';
   document.getElementById('saveBtn').querySelector('.btn-txt').textContent='Save Production Record';
-  const today=new Date().toISOString().slice(0,10);
+  const today=appToday();
   document.getElementById('fDate').value=today;
   updatePreview();
 }
-/* ══ AUTO COST PREVIEW (client-side estimate only) ─────
-   These rates only drive the live preview shown while filling out the
-   modal. They are NOT saved anywhere — once the record is submitted,
-   Supabase's derkosh_batch_costs view computes the real transfer_cost
-   and packaging_cost from that month's actual weighted-average
-   purchase prices (period WAC), which is what the table and KPIs
-   display after saving. Treat these as "roughly what this will cost"
-   while typing, not the final number. */
-const RATE_TRANSFER_PER_INJERA=5.19;
-const RATE_PACKAGING_PER_BAG={'Small Bags':5.00,'Large Bags':7.50};
+/* ══ AUTO COST PREVIEW ─────────────────────────────────
+   Uses the SAME rules as the database view derkosh_batch_costs, so the preview equals what is saved:
+     transfer cost  = injera used x average production cost per injera, taken from the batch's own month
+                      (or the latest earlier month that produced injera)  [production_batch_costs]
+     packaging cost = bags used x weighted-average price of the chosen bag, latest month on/before the batch
+                      [monthly_wac]
+   There are no fixed rates any more. */
+let COST_RATE_ROWS=[];   // [{period, qty, cost}] production totals per month
+let PKG_WAC_ROWS=[];     // [{item_id, period, wac}]
+async function loadCostRates(){
+  try{
+    const prod=await sbGet('production_batch_costs?select=period,injera_qty,total_cost');
+    const by={};
+    (prod||[]).forEach(r=>{ const o=by[r.period]||(by[r.period]={period:r.period,qty:0,cost:0}); o.qty+=Number(r.injera_qty||0); o.cost+=Number(r.total_cost||0); });
+    COST_RATE_ROWS=Object.values(by).sort((a,b)=>a.period.localeCompare(b.period));
+    const ids=pkgItems.map(p=>p.id);
+    PKG_WAC_ROWS=ids.length ? (await sbGet(`monthly_wac?select=item_id,period,wac_per_unit&item_id=in.(${ids.join(',')})`)||[]).map(r=>({item_id:r.item_id,period:r.period,wac:Number(r.wac_per_unit)})) : [];
+  }catch(err){ console.error('loadCostRates',err); }
+}
+function injeraCostRate(period){
+  const row=[...COST_RATE_ROWS].filter(r=>r.period<=period && r.qty>0).pop();
+  return row ? row.cost/row.qty : 0;
+}
+function bagCostRate(pkgId,period){
+  const row=PKG_WAC_ROWS.filter(r=>r.item_id===pkgId && r.period<=period).sort((a,b)=>a.period.localeCompare(b.period)).pop();
+  return row ? row.wac : 0;
+}
 function autoCalcCosts(){
   const inj=parseFloat(document.getElementById('fInj').value)||0;
   const bags=parseFloat(document.getElementById('fBags').value)||0;
   const pkgId=document.getElementById('fPkg').value;
-  const pkgName=pkgItems.find(p=>p.id===pkgId)?.name || 'Small Bags';
-  const bagRate=RATE_PACKAGING_PER_BAG[pkgName]!==undefined?RATE_PACKAGING_PER_BAG[pkgName]:RATE_PACKAGING_PER_BAG['Small Bags'];
-  document.getElementById('fTr').value=inj?(inj*RATE_TRANSFER_PER_INJERA).toFixed(2):'';
-  document.getElementById('fPkC').value=bags?(bags*bagRate).toFixed(2):'';
+  const dv=document.getElementById('fDate').value || appToday();
+  const period=dv.slice(0,7);
+  document.getElementById('fTr').value=inj?(inj*injeraCostRate(period)).toFixed(2):'';
+  document.getElementById('fPkC').value=bags?(bags*bagCostRate(pkgId,period)).toFixed(2):'';
 }
 function updatePreview(){
   autoCalcCosts();
@@ -1483,6 +1501,22 @@ async function submitForm(e){
     waste_notes:document.getElementById('fWaste').value||null
   };
   if(!editingId && currentUser && currentUser.id) payload.created_by=currentUser.id;
+  // Injera moved to Derkosh is injera that was produced and not sold. Using more than that would move cost that
+  // does not exist (and push injera COGS negative), so warn before saving.
+  try{
+    const [prod,sold,used]=await Promise.all([
+      sbGet(`production_batches?select=injera_qty&is_deleted=eq.false&date=lte.${dv}`),
+      sbGet(`sales?select=quantity&product_type=eq.injera&is_deleted=eq.false&date=lte.${dv}`),
+      sbGet(`derkosh_batches?select=id,injera_used&is_deleted=eq.false&date=lte.${dv}`)
+    ]);
+    const sum=(rows,k)=>(rows||[]).reduce((t,r)=>t+Number(r[k]||0),0);
+    const usedBefore=(used||[]).filter(r=>r.id!==editingId).reduce((t,r)=>t+Number(r.injera_used||0),0);
+    const available=sum(prod,'injera_qty')-sum(sold,'quantity')-usedBefore;
+    if(payload.injera_used>available){
+      const go=confirm(`Only ${Math.max(0,Math.round(available)).toLocaleString()} injera appear to be available by ${dv} (produced − sold − already used for Derkosh), but this record uses ${payload.injera_used.toLocaleString()}.\n\nSave anyway?`);
+      if(!go){ btn.classList.remove('loading'); return; }
+    }
+  }catch(chkErr){ console.warn('availability check skipped', chkErr); }
   try{
     if(editingId){
       await sbPatch(`derkosh_batches?id=eq.${editingId}`,payload);
