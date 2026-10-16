@@ -288,6 +288,76 @@
     .page{gap:8px}
   }
 </style>
+<style id="login-mobile">
+/* ===================== LOGIN — phones & tablets (≤860px) =====================
+   Everything is inside media queries: the PC layout (>860px) is not touched.
+   Fixes: the page could not scroll (html/body/.page were overflow:hidden), so when the phone keyboard opened the
+   card was cut off and "Sign In" was unreachable; the language chip sat on top of the "Welcome Back" heading;
+   inputs were <16px (iPhone zooms the page on focus); controls were small for thumbs. */
+@media (max-width:860px){
+  html,body{ height:auto; min-height:100%; overflow-x:hidden; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
+  .page{
+    position:relative !important; inset:auto !important; min-height:100vh; min-height:100dvh; overflow:visible !important;
+    justify-content:flex-start; align-items:center; gap:18px;
+    padding:max(24px,env(safe-area-inset-top)) 16px max(28px,env(safe-area-inset-bottom));
+  }
+  .logo-circle{ width:68px; height:68px; margin:2px auto 12px; }
+  .brand h1{ font-size:clamp(22px,6.6vw,30px); letter-spacing:.3px; }
+  .brand .sub{ font-size:11.5px; letter-spacing:1.4px; margin-bottom:10px; }
+  .brand .rule{ margin-bottom:10px; }
+  .brand .tagline{ font-size:13.5px; line-height:1.5; max-width:330px; }
+  .card-wrap{ width:100%; display:flex; justify-content:center; }
+  .card{ width:min(440px,100%) !important; max-height:none !important; overflow:visible; padding:26px 22px 22px; border-radius:22px; }
+  /* language chip sits above the heading instead of on top of it */
+  .lang{ position:static; width:max-content; margin:-4px 0 12px auto; padding:7px 11px; font-size:12px; }
+  #view-login h2{ font-size:25px; }
+  .field{ margin-bottom:16px; }
+  .field label{ font-size:13px; }
+  .field input{ font-size:16px; padding:15px 14px 15px 42px; border-radius:12px; }
+  .field .ic-l{ left:14px; } .field .ic-r{ right:14px; width:20px; height:20px; }
+  .remember{ gap:10px; margin-bottom:20px; }
+  .remember input[type="checkbox"]{ width:20px; height:20px; }
+  .remember span, .remember select{ font-size:13px; }
+  .btn-signin{ padding:0; min-height:52px; font-size:15.5px; border-radius:13px; }
+  .badges{ display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; width:100%; max-width:420px; }
+  .badge{ min-width:0; }
+  .badge .lbl{ font-size:11px; line-height:1.25; }
+}
+@media (max-width:349px){ .badges{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; } }
+/* short phones: keep Sign In near the top; hero text and badges step aside (the page now scrolls, nothing is lost) */
+@media (max-width:860px) and (max-height:760px){
+  .logo-circle{ width:54px; height:54px; margin-bottom:8px; }
+  .brand h1{ font-size:21px; }
+  .brand .sub{ margin-bottom:0; }
+  .brand .rule, .brand .tagline, .badges{ display:none; }
+  .page{ gap:14px; }
+}
+/* portrait tablets: roomier */
+@media (min-width:600px) and (max-width:860px) and (min-height:761px){
+  .logo-circle{ width:84px; height:84px; }
+  .brand h1{ font-size:34px; }
+  .brand .tagline{ font-size:15px; max-width:420px; }
+  .card{ width:min(480px,100%) !important; padding:34px 32px 28px; }
+  .page{ gap:26px; padding-top:max(40px,env(safe-area-inset-top)); }
+}
+/* phones held sideways: hero on the left, form on the right, no wasted scrolling */
+@media (max-height:500px) and (max-width:960px) and (orientation:landscape){
+  .page{ flex-direction:row; align-items:center; justify-content:center; gap:28px; padding:14px 22px; }
+  .brand{ flex:1 1 0; max-width:340px; }
+  .brand .rule, .brand .tagline, .badges{ display:none; }
+  .logo-circle{ width:56px; height:56px; }
+  .brand h1{ font-size:22px; }
+  .card-wrap{ flex:1 1 0; max-width:430px; width:auto; }
+  .card{ padding:20px 20px 16px; }
+  .lang{ margin-bottom:8px; }
+  .field{ margin-bottom:11px; }
+  .field input{ padding-top:11px; padding-bottom:11px; }
+  .remember{ margin-bottom:12px; }
+  .btn-signin{ min-height:46px; }
+  .divider, .authnote, .verfoot, #view-login .lead{ display:none; }
+  .lang{ position:absolute; top:12px; right:12px; margin:0; }
+}
+</style>
 </head>
 <body>
 
