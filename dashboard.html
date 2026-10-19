@@ -178,7 +178,8 @@
 .showmore-inner{padding-top:12px;animation:fadeUp .5s ease both}
 
 /* Extra KPI row */
-.kpi-row-sm{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.kpi-row-sm{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.kc-prov{display:inline-block;font-size:9px;font-weight:800;padding:1px 6px;border-radius:12px;background:#fff4d6;color:#8a5a00;border:1px solid #f3d58a;margin-left:6px;vertical-align:middle;letter-spacing:.2px}
 .kc-sm{background:#fff;border-radius:12px;padding:13px 14px;border:1px solid var(--border);box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
 .kc-sm:hover{box-shadow:var(--sh-md);transform:translateY(-1px)}
 .kc-sm-top{display:flex;align-items:center;gap:9px;margin-bottom:8px}
@@ -543,6 +544,8 @@
             <div class="kc-sm"><div class="kc-sm-top"><div class="kc-sm-ico ic-g"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><span class="kc-sm-lbl">Injera Produced</span></div><div class="kc-sm-val" id="kpiInjeraProduced">0<span class="u">pcs</span></div><div class="kc-sm-chg" id="kpiInjeraProducedChg">—</div></div>
             <div class="kc-sm"><div class="kc-sm-top"><div class="kc-sm-ico ic-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div><span class="kc-sm-lbl">Total COGS</span></div><div class="kc-sm-val" id="kpiTotalCOGS">0<span class="u">ETB</span></div><div class="kc-sm-chg" id="kpiTotalCOGSChg">—</div></div>
             <div class="kc-sm"><div class="kc-sm-top"><div class="kc-sm-ico ic-t"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><span class="kc-sm-lbl">Derkosh Produced</span></div><div class="kc-sm-val" id="kpiDerkoshProduced">0<span class="u">kg</span></div><div class="kc-sm-chg" id="kpiDerkoshProducedChg">—</div></div>
+            <div class="kc-sm" onclick="location.href='overhead.html'" style="cursor:pointer"><div class="kc-sm-top"><div class="kc-sm-ico ic-g"><svg viewBox="0 0 24 24"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><span class="kc-sm-lbl">Cost per Injera</span></div><div class="kc-sm-val" id="kpiCostPerInjera">—</div><div class="kc-sm-chg" id="kpiCostPerInjeraSub">—</div></div>
+            <div class="kc-sm" onclick="location.href='overhead.html'" style="cursor:pointer"><div class="kc-sm-top"><div class="kc-sm-ico ic-o"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="kc-sm-lbl">Unpaid Bills</span></div><div class="kc-sm-val" id="kpiUnpaidBills">0<span class="u">ETB</span></div><div class="kc-sm-chg" id="kpiUnpaidBillsSub">—</div></div>
           </div>
 
           <!-- Sales by Customer + Inventory (2-col) -->
@@ -691,6 +694,7 @@
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script src="/js/report-engine.js"></script>
+<script src="/js/worker-dashboard.js"></script>
 <script>
 // Month picker: the 12 months ending with the current month (was hard-coded Jan-Jul 2026, so newer months were unreachable).
 const DASH_MONTHS = (function(){
@@ -698,14 +702,15 @@ const DASH_MONTHS = (function(){
   for(let i=11;i>=0;i--){ const x=new Date(now.getFullYear(), now.getMonth()-i, 1); out.push(names[x.getMonth()]+' '+x.getFullYear()); }
   return out;
 })();
+const IS_WORKER = (typeof isWorkerRole === 'function') && isWorkerRole();
 renderHeader({
   title: 'Dashboard',
-  subtitle: 'Overview of your business',
-  showMonthPicker: true,
+  subtitle: IS_WORKER ? 'Your day at a glance' : 'Overview of your business',
+  showMonthPicker: !IS_WORKER,
   months: DASH_MONTHS,
   selectedMonth: DASH_MONTHS[DASH_MONTHS.length-1],
   onMonthChange: () => { refreshDashboard(); },
-  showExport: true,
+  showExport: !IS_WORKER,
   onExportPdf: () => exportPdf(),
   onExportXlsx: () => exportExcel(),
   notifications: [], // populated from live data by refreshDashboard() -> refreshNotifications(), see below
@@ -885,7 +890,8 @@ async function refreshDashboard(){
       priceHistoryRows, anyPeriodCloseEver,
       salesYesterday, prodBatchRowsPrev, salesWeek, purchasesWeek,
       purchasesForPriceCompare, allInjeraProductionAllTime,
-      purchasesPrevPeriodTotal, allSuccessLogins, inventoryUsageLogRows
+      purchasesPrevPeriodTotal, allSuccessLogins, inventoryUsageLogRows,
+      costPerInjeraRows, unpaidBillRows
     ] = await Promise.all([
       sbGet(`monthly_pnl_net?select=*&period=in.(${period},${prevP})`),
       sbGet(`sales?select=id,product_type,quantity,revenue,payment_method,customer_id,date,customers(name,type)&period=eq.${period}&is_deleted=eq.false`),
@@ -946,7 +952,10 @@ async function refreshDashboard(){
       sbGet(`login_log?select=email,user_id,ip_address,created_at&outcome=eq.success&order=created_at.asc`),
       // Manual usage entries (inventory_usage_log) — the database's inventory_balance view counts these as
       // stock going out, so the usage-rate forecast must too.
-      sbGet(`inventory_usage_log?select=item_id,quantity,date&is_deleted=eq.false`)
+      sbGet(`inventory_usage_log?select=item_id,quantity,date&is_deleted=eq.false`),
+      // Cost per injera and unpaid bills (overhead/cost migration). Quiet if the views are not there yet.
+      sbGet(`cost_per_injera_monthly?select=*&period=eq.${period}`).catch(()=>[]),
+      sbGet(`unpaid_overhead_bills?select=id,period,category,amount,is_estimate`).catch(()=>[])
     ].map(_offlineTolerant));
     // Live credit-limit warning threshold from Settings — added 2026-07, replacing the
     // hardcoded 80% used below. Falls back to 80 if the row/column is unreachable.
@@ -1231,6 +1240,20 @@ async function refreshDashboard(){
         notices.push({icon:'ai-b', svg:'clock', title:`${i.name} hasn't moved in ${daysSince} days`, sub:`${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})} ${i.unit} on hand — slow-moving stock`, module:'Inventory', priority:'info', kind:'notice'});
       }
     });
+
+    // ── Overhead — unpaid bills and provisional cost ───────
+    {
+      const ub = unpaidBillRows||[];
+      if(ub.length){
+        const tot = ub.reduce((t,b)=>t+num(b.amount),0);
+        notices.push({icon:'ai-o', svg:'clock', title:`${ub.length} unpaid overhead bill${ub.length===1?'':'s'}`, sub:`${fmtETB(tot)} ETB — ${[...new Set(ub.map(b=>b.category))].join(', ')}`, link:'overhead.html', module:'Overhead', priority:'medium', kind:'notice'});
+      }
+      const c = (costPerInjeraRows||[])[0];
+      if(c && c.is_provisional){
+        const parts = [(c.missing_categories||[]).length?'missing '+c.missing_categories.join(', '):'', (c.estimated_categories||[]).length?'estimated '+c.estimated_categories.join(', '):''].filter(Boolean).join(' · ');
+        notices.push({icon:'ai-o', svg:'warn', title:'Cost per injera is provisional', sub:parts||'Overhead is not complete for this month', link:'overhead.html', module:'Overhead', priority:'medium', kind:'notice'});
+      }
+    }
 
     // ── 2. Purchase — pending approvals, overdue POs ───────
     pendingApprovals.slice(0,3).forEach(p=>{
@@ -1689,6 +1712,7 @@ async function refreshDashboard(){
 
     // ── Cache & render ───────────────────────────────────────
     LAST = {
+      costPerInjera: (costPerInjeraRows||[])[0] || null, unpaidBills: unpaidBillRows||[],
       period, prevP, curD, prevD, derkoshStockCur, derkoshStockPrev, arCur, arPrev,
       cashCur, cashPrev, cashTotalCur, cashTotalPrev, expenseEntries, expenseTotal, EXP_COLORS,
       top5, top5Total, custTotal, typeEntries, TYPE_LABELS, TYPE_COLORS, activeAccounts, avgOrder, totalCustomers,
@@ -2080,6 +2104,18 @@ function renderSecondaryPanels(){
   document.getElementById('kpiTotalCOGSChg').innerHTML = pctChangeStr(d.curD.rawMaterial, d.prevD.rawMaterial, true);
   document.getElementById('kpiDerkoshProduced').innerHTML = `${fmtInt(d.derkoshPacked)}<span class="u">kg</span>`;
   document.getElementById('kpiDerkoshProducedChg').innerHTML = `<span class="vs">this period</span>`;
+  // Cost per injera + unpaid bills (from the overhead/cost migration)
+  {
+    const cpi = d.costPerInjera, cpiEl = document.getElementById('kpiCostPerInjera'), cpiSub = document.getElementById('kpiCostPerInjeraSub');
+    if(cpi && cpi.unit_cost!=null){
+      const prov = cpi.is_provisional ? '<span class="kc-prov" title="'+[(cpi.missing_categories||[]).length?'Missing: '+cpi.missing_categories.join(', '):'', (cpi.estimated_categories||[]).length?'Estimated: '+cpi.estimated_categories.join(', '):''].filter(Boolean).join(' · ')+'">Provisional</span>' : '';
+      cpiEl.innerHTML = `${(+cpi.unit_cost).toFixed(2)}<span class="u">ETB</span>${prov}`;
+      cpiSub.innerHTML = `<span class="vs">materials ${(+cpi.material_unit_cost).toFixed(2)} + overhead ${(+cpi.overhead_unit_cost).toFixed(2)}</span>`;
+    } else { cpiEl.innerHTML = '—'; cpiSub.innerHTML = '<span class="vs">no production this period</span>'; }
+    const ub = d.unpaidBills||[], ubTotal = ub.reduce((t,b)=>t+num(b.amount),0);
+    document.getElementById('kpiUnpaidBills').innerHTML = `${fmtInt(ubTotal)}<span class="u">ETB</span>`;
+    document.getElementById('kpiUnpaidBillsSub').innerHTML = `<span class="vs">${ub.length} bill${ub.length===1?'':'s'}${ub.some(b=>b.is_estimate)?' · some estimated':''}</span>`;
+  }
 
   // Customer type donut + legend + stats
   const typeLabels = d.typeEntries.map(t=>d.TYPE_LABELS[t.type]||t.type);
@@ -2367,7 +2403,7 @@ function refreshAI(){
 }
 
 // ── Kick off initial load ────────────────────────────────
-document.addEventListener('DOMContentLoaded', refreshDashboard);
+document.addEventListener('DOMContentLoaded', () => { if (IS_WORKER) renderWorkerDashboard(); else refreshDashboard(); });
 
 // ══════════════════════════════════════════════════════════
 // ── EXPORT: shared data scraping ────────────────────────────

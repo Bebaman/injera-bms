@@ -1291,6 +1291,7 @@ async function saveBatchStandard(batchTypeKey, payload){
 
 /* ── Add / Edit Production Modal — spec §11.4 layout ── */
 function openAddModal(editId){
+  if(editId && typeof workerBlocked==='function' && workerBlocked('Workers cannot edit saved batches.')) return;
   const isEdit = !!editId;
   const b = isEdit ? getBatches().find(r=>r.id===editId) : null;
   window._ohEditQty = (isEdit && b) ? Number(b.qty||0) : 0;
@@ -1564,6 +1565,12 @@ async function loadLocationIds(){
 async function getAvailableStock(itemId, uptoPeriod){
   if(!itemId) return null;
   try{
+    if(typeof isWorkerRole==='function' && isWorkerRole()){
+      // Workers can't read purchase/cost views; use the cost-free stock function instead.
+      const lv = await workerStockLevels();
+      const row = (lv||[]).find(x=>x.item_id===itemId);
+      return row ? Number(row.closing_qty||0) : null;
+    }
     const data = await sbGet(`inventory_balance?select=period,closing_qty&item_id=eq.${itemId}&period=lte.${uptoPeriod}`);
     return data.reduce((s,r)=>s+Number(r.closing_qty||0), 0);
   }catch(error){
@@ -1825,6 +1832,7 @@ async function refreshCurrentMonth(){
 }
 
 function deleteBatch(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   document.getElementById('rowMenuDD').classList.remove('open');
   const rows = getBatches();
   const b = rows.find(r=>r.id===id);
@@ -1844,6 +1852,7 @@ function deleteBatch(id){
 // (production_batches.is_deleted, production_batch_costs view already filters
 // on it). See chat for why this was chosen over a real delete.
 async function confirmDelete(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const rows = getBatches();
   const b = rows.find(r=>r.id===id);
   if(!b){ closeModal(); return; }

@@ -1249,6 +1249,7 @@ function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 let editingCustomerId=null;
 function openAddCustomerModal(){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   editingCustomerId=null;
   document.getElementById('addCustForm').reset();
   document.getElementById('custModalTitle').textContent='Add New Customer';
@@ -1257,6 +1258,7 @@ function openAddCustomerModal(){
   openModal('addCustModal');
 }
 function openEditCustomerModal(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const c=customers.find(x=>x.id===id);
   if(!c){ toast('Customer not found','error'); return; }
   editingCustomerId=id;
@@ -1277,6 +1279,7 @@ function openEditCustomerModal(id){
 // "Credit Limit Adjustment" quick action does; there's no separate audit-trail table
 // for credit changes, so it reuses the real edit flow rather than being its own feature.
 function openCreditAdjustmentModal(){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   if(!selectedId){ toast('Select a customer first','info'); return; }
   openEditCustomerModal(selectedId);
   setTimeout(()=>{ const el=document.getElementById('ncLimit'); el?.focus(); el?.select(); }, 50);
@@ -1323,6 +1326,7 @@ async function saveNewCustomer(e){
   await loadCustomers();
 }
 async function activateCustomer(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const c=customers.find(x=>x.id===id);
   if(!c) return;
   try{
@@ -1335,6 +1339,7 @@ async function activateCustomer(id){
   }
 }
 async function deactivateCustomer(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const c=customers.find(x=>x.id===id);
   if(!c) return;
   showConfirm({
@@ -1612,6 +1617,7 @@ async function fetchAllCustomerTxns(id){
 
 /* ══ CUSTOMER STATEMENT — PDF ══════════════════════ */
 async function generateCustomerStatement(){
+  if(typeof canExport==='function' && !canExport()){ toast('Statements are not available for your role','error'); return; }
   if(!selectedId){ toast('Select a customer first','info'); return; }
   const c=customers.find(x=>x.id===selectedId);
   if(!c) return;
@@ -1746,6 +1752,7 @@ function handleImportFile(event){
   reader.readAsBinaryString(file);
 }
 async function confirmImport(){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   if(!importedRows.length) return;
   const btn=document.getElementById('importConfirmBtn');
   btn.classList.add('loading');

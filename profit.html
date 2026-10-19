@@ -663,13 +663,19 @@ async function loadMonthlyCashFlow(){
     const rows = await sbGet('monthly_cash_flow?select=*&order=period.asc');
     (rows||[]).forEach(r=>{
       const p = r.period;
-      if(!byPeriod[p]) byPeriod[p] = {opening:0,salesReceipts:0,arCollected:0,opPayments:0,payroll:0,pettyCash:0,closing:0};
+      if(!byPeriod[p]) byPeriod[p] = {opening:0,salesReceipts:0,arCollected:0,opPayments:0,payroll:0,pettyCash:0,otherIn:0,otherOut:0,closing:0};
       const b = byPeriod[p];
       b.opening += n(r.opening_balance); b.salesReceipts += n(r.sales_receipts); b.arCollected += n(r.ar_collected);
       b.opPayments += n(r.op_payments); b.payroll += n(r.payroll_payments); b.pettyCash += n(r.petty_cash_payments);
       b.closing += n(r.closing_balance);
     });
   }catch(err){ console.log('monthly_cash_flow load failed:', err.message); }
+  // Salary advances, overhead bills paid and other operating cash entries are not in the payment columns above.
+  // Without them the net cash profit (the base of every distribution) is too high.
+  try{
+    const oc = await sbGet('monthly_operating_other_cash?select=period,op_other_in,op_other_out');
+    (oc||[]).forEach(r=>{ if(byPeriod[r.period]){ byPeriod[r.period].otherIn += n(r.op_other_in); byPeriod[r.period].otherOut += n(r.op_other_out); } });
+  }catch(err){ /* view not available: older database */ }
   return byPeriod;
 }
 
@@ -721,11 +727,11 @@ async function buildHistory(){
     const hasOpeningBalance = !!b;
     const { injections, withdrawals, injectionList } = await loadOwnerActivity(key);
     const distRec = await loadDistributionRecord(key);
-    const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected - b.opPayments - b.payroll - b.pettyCash) : 0;
+    const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected + b.otherIn - b.opPayments - b.payroll - b.pettyCash - b.otherOut) : 0;
     rows.push({
       key, m: periodLabel(key), hasOpeningBalance,
-      cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected) : 0,
-      cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash) : 0,
+      cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected+b.otherIn) : 0,
+      cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash+b.otherOut) : 0,
       net, injections, withdrawals, injectionList,
       openCash: hasOpeningBalance ? b.opening : null,
       closeCash: hasOpeningBalance ? b.closing : null,
@@ -773,6 +779,10 @@ async function loadAllTimeSummary(){
   cashRows.forEach(r=>{
     netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.sales_receipts)+n(r.ar_collected)-n(r.op_payments)-n(r.payroll_payments)-n(r.petty_cash_payments);
   });
+  try{
+    const oc = await sbGet('monthly_operating_other_cash?select=period,op_other_in,op_other_out');
+    (oc||[]).forEach(r=>{ netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.op_other_in) - n(r.op_other_out); });
+  }catch(err){ /* view not available: older database */ }
   const totalNetAllTime = Object.values(netByPeriod).reduce((a,b)=>a+b,0);
 
   return {

@@ -566,6 +566,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 <script src="/js/sidebar.js"></script>
 <script src="/js/header.js"></script>
 <script src="/js/report-engine.js"></script>
+<script src="/js/worker-dashboard.js"></script>
 <script>
 const db = createAppSupabaseClient(); // signed-in user's token via the shared token manager
 /* ════════════════ LIVE STATE (populated by loadFromSupabase) ════════════════
@@ -2363,14 +2364,14 @@ const ALERT_ICON_TO_NOTIF_TYPE = { 'al-r':'r', 'al-o':'o', 'al-p':'p', 'al-b':'b
 renderHeader({
   title: 'Inventory',
   subtitle: 'Track stock levels, costs, and price history',
-  showMonthPicker: true,
+  showMonthPicker: !isWorkerRole(),
   months: MONTHS.map(m=>m.label),
   selectedMonth: CURRENT_MONTH_LABEL,
   onMonthChange: onMonthChange,
-  showExport: true,
+  showExport: !isWorkerRole(),
   onExportPdf: exportPDF,
   onExportXlsx: exportExcel,
-  notifications: getAllAlerts().map(a => ({
+  notifications: isWorkerRole() ? [] : getAllAlerts().map(a => ({
     type: ALERT_ICON_TO_NOTIF_TYPE[a.icon] || 'g',
     title: a.title + ' — ' + a.pillText,
     sub: a.text,
@@ -2379,7 +2380,7 @@ renderHeader({
 });
 document.getElementById('ovMonthLbl').textContent = '('+CURRENT_MONTH_LABEL+')';
 
-loadFromSupabase();
+if (isWorkerRole()) renderWorkerInventory(); else loadFromSupabase();
 </script>
 <script src="/js/responsive.js" defer></script>
 </body>

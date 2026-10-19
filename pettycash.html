@@ -1122,6 +1122,7 @@ function openAddModal(){
   openModal('entryModal');
 }
 function openEdit(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const e=allData.find(r=>r.id===id);if(!e)return;
   editId=id;
   document.getElementById('modalTitle').textContent='Edit Entry';
@@ -1200,8 +1201,10 @@ async function doSaveEntry(){
 }
 
 // ══ DELETE ────────────────────────────────────────────────
-function openDel(id,desc){delId=id;document.getElementById('delDesc').textContent=`Delete "${desc}"? This action cannot be undone.`;openModal('delModal');}
+function openDel(id,desc){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;delId=id;document.getElementById('delDesc').textContent=`Delete "${desc}"? This action cannot be undone.`;openModal('delModal');}
 async function confirmDelete(){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   if(!delId)return;const btn=document.getElementById('delBtn');btn.disabled=true;btn.textContent='Deleting…';
   try{
     await sbDelete('petty_cash',delId);
@@ -1213,6 +1216,7 @@ async function confirmDelete(){
 
 // ══ REPLENISH ─────────────────────────────────────────────
 function openReplenishModal(){
+  if(typeof isWorkerRole==='function' && isWorkerRole()){ toast('Only a manager or owner can replenish petty cash.','error'); return; }
   document.getElementById('r-date').value=todayLocal();
   ['r-amt','r-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('repPrev').textContent='0.00 ETB';
@@ -1237,6 +1241,7 @@ async function ensureShareholders(){
   }catch(e){console.error('[pettycash] shareholder lookup failed',e);}
 }
 async function saveReplenishment(){
+  if(typeof isWorkerRole==='function' && isWorkerRole()){ toast('Only a manager or owner can replenish petty cash.','error'); return; }
   let ok=true;const dateEl=document.getElementById('r-date'),amtEl=document.getElementById('r-amt');
   if(!dateEl.value){document.getElementById('err-rdate').classList.add('show');ok=false;}
   const amt=parseFloat(amtEl.value);if(!amt||amt<=0){document.getElementById('err-ramt').classList.add('show');ok=false;}

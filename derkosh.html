@@ -1189,6 +1189,7 @@ function toggleRM(e,id){
   }
 }
 function editR(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
   const r=rows.find(x=>x.id===id);
   if(!r) return;
@@ -1205,6 +1206,7 @@ function editR(id){
   updatePreview();
 }
 async function delR(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   document.querySelectorAll('.row-menu').forEach(m=>m.classList.remove('show'));
   const r=rows.find(x=>x.id===id);
   if(!r) return;

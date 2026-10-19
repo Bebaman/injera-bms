@@ -1531,7 +1531,14 @@ async function loadMonthlySnapshot(){
     if(snapFailed.length){
       throw new Error('Query failed for: ' + snapFailed.map(({r,i})=>`${snapQueryLabels[i]} (${r.error.message})`).join('; '));
     }
+    // Is this month's overhead complete? (overhead/cost migration — quiet if the view is not there yet)
+    let ocRow = null;
+    try{
+      const oc = await db.from('overhead_completeness').select('missing_categories,estimated_categories,is_provisional').eq('period', snapshotPeriod);
+      ocRow = (oc && !oc.error && oc.data && oc.data[0]) || null;
+    }catch(e){ ocRow = null; }
     renderMonthlySnapshot({
+      overheadCompleteness: ocRow,
       pnl: pnlRes.data?.[0]||null,
       prevPnl: prevPnlRes.data?.[0]||null,
       cfRows: cfRes.data||[],
@@ -1807,6 +1814,9 @@ function renderMonthlySnapshot(d){
     ['Inventory Turnover (Monthly)', inventoryTurnover!=null ? inventoryTurnover.toFixed(2)+'×' : '—'],
     ['Average Production Cost / Batch', avgProductionCost!=null ? fmt0(avgProductionCost)+' ETB' : '—'],
     ['Cost per Injera', costPerInjera!=null ? fmt(costPerInjera)+' ETB' : '—'],
+    ['\u00A0\u00A0of which materials', (costPerInjera!=null && injeraProducedTotal>0) ? fmt((d.prodCosts||[]).reduce((s,b)=>s+num(b.material_cost),0)/injeraProducedTotal)+' ETB' : '—'],
+    ['\u00A0\u00A0of which overhead', (costPerInjera!=null && injeraProducedTotal>0) ? fmt((d.prodCosts||[]).reduce((s,b)=>s+num(b.overhead_cost),0)/injeraProducedTotal)+' ETB' : '—'],
+    ...((d.overheadCompleteness && d.overheadCompleteness.is_provisional) ? [['Overhead status', 'Provisional \u2014 ' + [ (d.overheadCompleteness.missing_categories||[]).length ? 'missing '+d.overheadCompleteness.missing_categories.join(', ') : '', (d.overheadCompleteness.estimated_categories||[]).length ? 'estimated '+d.overheadCompleteness.estimated_categories.join(', ') : '' ].filter(Boolean).join(' \u00B7 ')]] : []),
     ['Revenue per Injera', revenuePerInjera!=null ? fmt(revenuePerInjera)+' ETB' : '—'],
     ['Profit per Injera', profitPerInjera!=null ? fmt(profitPerInjera)+' ETB' : '—']
   ];

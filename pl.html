@@ -805,6 +805,18 @@ async function buildPLReportData(){
     if(history.length) input.history = history;
   }catch(e){ console.error('P&L history could not be loaded — trend charts left out.', e); }
 
+  // Overhead not final for this month? Say so on the printed statement.
+  try{
+    const oc = await sbGet(`overhead_completeness?select=missing_categories,estimated_categories,is_provisional&period=eq.${period}`);
+    if(oc && oc[0] && oc[0].is_provisional){
+      const miss = oc[0].missing_categories||[], est = oc[0].estimated_categories||[];
+      input.footer = input.footer || {notes:[]};
+      input.footer.notes = ['PROVISIONAL — overhead for this month is not final'+(miss.length?'. Missing: '+miss.join(', '):'')+(est.length?'. Estimated: '+est.join(', '):'')+'. Figures will change when the bills are entered or paid.'].concat(input.footer.notes||[]);
+      input.statementBasis = (input.statementBasis ? input.statementBasis+' · ' : '')+'PROVISIONAL';
+      input.watermark = 'PROVISIONAL';
+    }
+  }catch(e){ /* view not available yet: no note */ }
+
   if(_isEmptyFigures(cur) && _isEmptyFigures(ytd)){
     input.status = 'empty';
     input.emptyMessage = 'No P&L entries recorded for '+monthLbl+'.';

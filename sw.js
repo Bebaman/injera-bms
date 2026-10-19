@@ -1,7 +1,7 @@
 /* Mena BMS service worker — offline app shell + cached Supabase reads.
    Writes are NOT handled here: /js/offline-sync.js queues them in IndexedDB.
    BUMP `VERSION` ON EVERY DEPLOY so users receive the new files. */
-const VERSION = 'bms-v7';
+const VERSION = 'bms-v10';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -10,7 +10,7 @@ const PAGES = ['login', 'dashboard', 'sales', 'customers', 'purchases', 'supplie
   'pl', 'profit', 'reports', 'settings'];
 const LOCAL = ['/manifest.json', '/icon-192.png', '/icon-512.png',
   '/css/shared-shell.css', '/css/responsive.css', '/js/responsive.js', '/js/app-state.js', '/js/sidebar.js', '/js/header.js',
-  '/js/report-engine.js', '/js/offline-sync.js'];
+  '/js/report-engine.js', '/js/offline-sync.js', '/js/worker-dashboard.js'];
 const CDN = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
   'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js',
@@ -129,6 +129,13 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
 
   if (isSupabase(url) && url.pathname.startsWith('/auth/')) return;   // never touch auth
+
+  // Pages 2+ of a long list (Range header) always come from the network, never from the saved first page.
+  if (isSupabase(url) && url.pathname.startsWith('/rest/v1/') && req.headers.has('range')) {
+    e.respondWith(fetch(req).catch(() => new Response(JSON.stringify({ message: 'offline', offline: true }), {
+      status: 503, headers: { 'Content-Type': 'application/json', 'X-BMS-Offline': '1' } })));
+    return;
+  }
 
   // Supabase reads: network first, fall back to the last good copy.
   if (isSupabase(url) && url.pathname.startsWith('/rest/v1/')) {

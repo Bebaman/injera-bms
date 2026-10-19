@@ -200,6 +200,20 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 }
 </style>
 <link rel="stylesheet" href="/css/responsive.css">
+<style>
+.oh-chip{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;letter-spacing:.2px}
+.oh-chip.prov{background:#fff4d6;color:#8a5a00;border:1px solid #f3d58a}
+.oh-chip.lock{background:#eef1ef;color:#4a5a52;border:1px solid #d5dcd8}
+.oh-chip.est{background:#fff4d6;color:#8a5a00;border:1px solid #f3d58a;margin-left:0}
+.oh-chip.paid{background:#e6f6ec;color:#1a6b3c;border:1px solid #b5ddc5;margin-left:0}
+.oh-sub{display:block;font-size:10.5px;color:var(--tl);font-weight:600;margin-top:2px}
+.oh-box{background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--tm);line-height:1.5;margin-bottom:12px}
+.oh-box b{color:var(--td)}
+.oh-mini{border:1.5px solid #dfe9e3;background:#fff;color:#1b4332;border-radius:8px;padding:5px 11px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
+.oh-mini:hover{background:#f1faf5}.oh-mini.danger{color:#b42318;border-color:#f0c9c5}
+.oh-list-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 17px;border-top:1px solid #edf2ef;flex-wrap:wrap}
+.oh-list-row .l{min-width:0}.oh-list-row .l b{font-size:13px;color:var(--td)}
+</style>
 </head>
 <body>
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
@@ -258,7 +272,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
               <div class="card-ttl-ic">
                 <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
               </div>
-              <div class="card-ttl">Monthly Overhead Details <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="ohMonthLbl"></span></div>
+              <div class="card-ttl">Monthly Overhead Details <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="ohMonthLbl"></span><span id="ohProvChip" class="oh-chip prov" style="display:none"></span><span id="ohLockChip" class="oh-chip lock" style="display:none">🔒 Closed</span></div>
             </div>
             <button class="btn-new" onclick="openOverheadModal()">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -285,6 +299,12 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </tfoot>
           </table>
           </div>
+        </div>
+
+        <!-- Unpaid bills -->
+        <div class="card" id="ohUnpaidCard" style="display:none">
+          <div class="pl-hd"><div class="pl-hd-l"><div class="card-ttl">Unpaid Bills <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="ohUnpaidSum"></span></div></div></div>
+          <div id="ohUnpaidList"></div>
         </div>
 
         <!-- Daily Overhead Rate Gauge -->
@@ -458,6 +478,26 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
             </a>
           </div>
         </div>
+
+        <!-- Salary advances -->
+        <div class="card" id="advCard">
+          <div class="pl-hd">
+            <div class="pl-hd-l">
+              <div class="card-ttl">Salary Advances <span style="font-weight:600;color:var(--tl);font-size:12px;margin-left:2px" id="advMonthLbl"></span></div>
+            </div>
+            <button class="btn-new" onclick="openAdvanceModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Advance
+            </button>
+          </div>
+          <div style="overflow-x:auto">
+          <table class="rcards tbl">
+            <thead><tr><th>Date</th><th>Employee</th><th class="num wrap">Amount<br>(ETB)</th><th>Channel</th><th>Note</th><th></th></tr></thead>
+            <tbody id="advTblBody"></tbody>
+            <tfoot><tr class="tot"><td colspan="2">Total advances</td><td class="num" id="advTot">0.00</td><td colspan="3"></td></tr></tfoot>
+          </table>
+          </div>
+        </div>
       </div><!-- /payroll left column -->
 
       <!-- RIGHT: Payroll Breakdown + Summary -->
@@ -564,8 +604,27 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
           <input type="text" id="ohDailyPreview" value="0.00 ETB / day" disabled>
         </div>
       </div>
-      <div id="ohLaborSyncNote" style="display:none;background:#fef3e2;border:1px solid #fbd9a3;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#8a5a00;line-height:1.5;margin-bottom:12px">
-        ⚠ Labor/Wages is auto-calculated as the sum of Net Pay from Payroll Detail below. Any amount you enter here will be overwritten the next time a payroll entry is added, edited, or deleted this month.
+      <div id="ohMeterBox" style="display:none">
+        <div class="f-row">
+          <div class="f-grp" style="grid-column:1 / -1">
+            <label>kWh remaining on the meter</label>
+            <input type="number" id="ohMeterKwh" step="0.01" min="0" oninput="recalcMeterPreview()" placeholder="Read the meter and type the kWh left">
+          </div>
+        </div>
+        <div class="oh-box" id="ohMeterInfo">Loading electricity stock…</div>
+      </div>
+      <div id="ohRentBox" class="oh-box" style="display:none"></div>
+      <div id="ohBillBox" style="display:none">
+        <div class="f-row">
+          <div class="f-grp" style="grid-column:1 / -1">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="ohEstimate" style="width:auto"> This amount is an estimate (bill not received yet)</label>
+          </div>
+        </div>
+        <div class="f-row">
+          <div class="f-grp"><label>Paid date (optional)</label><input type="date" id="ohPaidDate" onchange="onOhPaidChange()"></div>
+          <div class="f-grp"><label>Paid from</label><select id="ohPaidChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option></select></div>
+        </div>
+        <div class="oh-box" style="margin-top:-4px">Filling the paid date records the cash-out on that date and clears the estimate tag.</div>
       </div>
       <div style="background:#f0f8f4;border:1px solid #bcdece;border-radius:8px;padding:10px 14px;font-size:11.5px;color:var(--tm);line-height:1.5">
         Daily Rate = Amount ÷ days in the selected month. Every production batch that month is charged this amount as overhead.
@@ -575,6 +634,42 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <button class="btn-sec" onclick="closeOverheadModal()">Cancel</button>
       <button class="btn-pri" onclick="saveOverhead()">Save Overhead</button>
     </div>
+  </div>
+</div>
+
+<!-- ════ ADD ADVANCE MODAL ════ -->
+<div class="modal-overlay" id="advModalOverlay" onclick="if(event.target===this)closeAdvanceModal()">
+  <div class="modal">
+    <div class="modal-hd"><h3>Add Salary Advance</h3><div class="modal-x" onclick="closeAdvanceModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd">
+      <div class="f-row">
+        <div class="f-grp"><label>Employee</label><select id="advWorker"></select></div>
+        <div class="f-grp"><label>Date</label><input type="date" id="advDate"></div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp"><label>Amount (ETB)</label><input type="number" id="advAmount" step="0.01" min="0" value="0"></div>
+        <div class="f-grp"><label>Paid from</label><select id="advChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option></select></div>
+      </div>
+      <div class="f-row"><div class="f-grp" style="grid-column:1 / -1"><label>Note (optional)</label><input type="text" id="advNote" maxlength="300"></div></div>
+      <div class="oh-box">The cash-out is recorded on the date you choose. The advance is deducted from that employee's net pay this month.</div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closeAdvanceModal()">Cancel</button><button class="btn-pri" onclick="saveAdvance()">Save Advance</button></div>
+  </div>
+</div>
+
+<!-- ════ MARK BILL PAID MODAL ════ -->
+<div class="modal-overlay" id="payBillOverlay" onclick="if(event.target===this)closePayBill()">
+  <div class="modal">
+    <div class="modal-hd"><h3 id="payBillTitle">Mark bill paid</h3><div class="modal-x" onclick="closePayBill()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
+    <div class="modal-bd">
+      <input type="hidden" id="payBillId">
+      <div class="f-row">
+        <div class="f-grp"><label>Paid date</label><input type="date" id="payBillDate"></div>
+        <div class="f-grp"><label>Paid from</label><select id="payBillChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile</option></select></div>
+      </div>
+      <div class="f-row"><div class="f-grp" style="grid-column:1 / -1"><label>Actual amount (ETB)</label><input type="number" id="payBillAmount" step="0.01" min="0"></div></div>
+    </div>
+    <div class="modal-ft"><button class="btn-sec" onclick="closePayBill()">Cancel</button><button class="btn-pri" onclick="savePayBill()">Mark paid</button></div>
   </div>
 </div>
 
@@ -627,7 +722,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       </div>
       <div class="f-row">
         <div class="f-grp">
-          <label>Advance Taken (ETB)</label>
+          <label>Advance Taken (ETB) <span id="prAdvHint" style="font-weight:600;color:var(--tl);text-transform:none;letter-spacing:0">· from Salary Advances</span></label>
           <input type="number" id="prAdvance" value="0" step="0.01" min="0" oninput="recalcPrPreview()">
         </div>
         <div class="f-grp">
@@ -707,6 +802,27 @@ async function sbGet(table, query){
     return [];
   }
 }
+// Reads that may legitimately fail before the migration is applied: no toast, empty result.
+async function sbGetQuiet(table, query){
+  try{
+    const res = await fetch(`${SB_REST_URL}/${table}${query||''}`, { headers: await authHeadersAsync() });
+    if(!res.ok) return [];
+    return await res.json();
+  }catch(e){ return []; }
+}
+async function sbUpsert(table, body, onConflict){
+  const res = await fetch(`${SB_REST_URL}/${table}?on_conflict=${onConflict}`, {
+    method:'POST', headers:{...(await authHeadersAsync()), 'Prefer':'resolution=merge-duplicates,return=representation'}, body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const t = await res.text();
+    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
+    if(typeof toast==='function') toast(friendlyDbError(t, 'Could not save to '+table.replace(/_/g,' ')+'.'),'error');
+    throw new Error(t);
+  }
+  window.setSyncStatus?.('live');
+  return await res.json();
+}
 // Turns database rule violations into a sentence the user can act on.
 function friendlyDbError(raw, fallback){
   const t = String(raw||'');
@@ -715,6 +831,13 @@ function friendlyDbError(raw, fallback){
     if(/payroll_detail/.test(t))   return 'This worker already has payroll recorded for this month — edit the existing entry.';
     return 'This entry already exists — edit the existing one instead.';
   }
+  if(/Labor\/Wages overhead is calculated from Payroll/.test(t)) return 'Labor/Wages is calculated from Payroll. Edit the payroll rows instead.';
+  const mk = /Meter reading \(([^)]*)\) is higher than the recorded stock \(([^)]*)\)/.exec(t);
+  if(mk) return 'The meter reading ('+mk[1]+') is higher than the recorded stock ('+mk[2]+'). Check that every token purchase was logged, then save again.';
+  if(/No electricity stock is recorded yet/.test(t)) return 'No electricity stock is recorded yet. Record the token purchase first.';
+  if(/No electricity purchase price found/.test(t)) return 'No electricity purchase price found. Record the token purchase first.';
+  if(/No purchase or opening balance found for the prepaid item/.test(t)) return 'No stock found for this prepaid cost. Record the prepaid purchase first.';
+  if(/A paid date applies only to bill-type overhead/.test(t)) return 'Prepaid costs are paid through a purchase, not with a paid date.';
   const m = /Period [0-9-]+ is closed and locked[^"]*/.exec(t);
   if(m) return m[0];
   return fallback;
@@ -786,6 +909,8 @@ let overheadCategories = []; // [{id, name}] from overhead_categories
 let workers = [];            // [{id, name, base_salary, role, is_active}] from workers
 
 // Live data for currentMonth only, reloaded on month change / after every save
+let NEW_DB = true;                 // false until the overhead/cost migration is applied (old behaviour kept)
+let advancesRows = [], unpaidBills = [], completeness = null, meterRow = null, monthLocked = false;
 let overheadRows = [];  // flattened monthly_overhead rows: {id, period, categoryId, category, description, amount}
 let payrollRows = [];   // flattened payroll_detail rows: {id, period, workerId, name, role, baseSalary, daysPresent, daysInMonth, advance, other, payDate, channel, grossPay, netPay}
 let trendTotals = {};   // {period: totalAmount} for the trailing 6-month window, from monthly_overhead
@@ -801,11 +926,17 @@ const CHANNEL_LABELS = { cash:'Cash', bank:'Bank', mobile:'Mobile' };
 
 /* ════════════════ SUPABASE DATA LOADERS ════════════════ */
 async function loadStaticData(){
-  const [cats, wks] = await Promise.all([
-    sbGet('overhead_categories', '?select=id,name&order=name'),
+  let cats = null;
+  try{
+    const r = await fetch(`${SB_REST_URL}/overhead_categories?select=id,name,kind,system_key,required_monthly,prepaid_item_id&order=name`, { headers: await authHeadersAsync() });
+    if(r.ok) cats = await r.json();
+  }catch(e){}
+  NEW_DB = !!cats;
+  const [cats2, wks] = await Promise.all([
+    cats ? Promise.resolve(cats) : sbGet('overhead_categories', '?select=id,name&order=name'),
     sbGet('workers', '?select=id,name,base_salary,role,is_active&is_active=eq.true&order=name')
   ]);
-  overheadCategories = cats;
+  overheadCategories = cats2;
   workers = wks;
 }
 
@@ -823,24 +954,34 @@ let currentMonthInjeraQty = 0; // SUM(production_batches.injera_qty) for current
 
 async function loadMonthData(){
   // Fetch a 12-month trailing window (not just 6) so the trend chart's "This Year"
-  // option — which can need anywhere from 1 to 12 months of data depending on which
-  // calendar month we're in — always has real numbers instead of falling back to
-  // whatever a fixed 6-month fetch happened to cover.
+  // option always has real numbers.
   const periods = trailingPeriods(currentMonth, 12);
   const periodList = periods.map(p=>`"${p}"`).join(',');
+  const ohSel = NEW_DB ? 'id,period,category_id,amount,description,is_estimate,paid_date,paid_channel,overhead_categories(name)'
+                       : 'id,period,category_id,amount,description,overhead_categories(name)';
 
-  const [ohRows, prRows, trendRows, batchRows] = await Promise.all([
-    sbGet('monthly_overhead', `?select=id,period,category_id,amount,description,overhead_categories(name)&period=eq.${currentMonth}&order=created_at`),
+  const [ohRows, prRows, trendRows, batchRows, advRows, unpaidRows, complRows, meterRows, lockRows] = await Promise.all([
+    sbGet('monthly_overhead', `?select=${ohSel}&period=eq.${currentMonth}&order=created_at`),
     sbGet('payroll_detail', `?select=id,period,worker_id,base_salary,days_present,days_in_month,advance_taken,other_deductions,payment_date,payment_channel,gross_pay,net_pay,workers(name,role)&period=eq.${currentMonth}&order=created_at`),
     sbGet('monthly_overhead', `?select=period,amount&period=in.(${periodList})`),
-    sbGet('production_batches', `?select=injera_qty&period=eq.${currentMonth}&is_deleted=eq.false`)
+    sbGet('production_batches', `?select=injera_qty&period=eq.${currentMonth}&is_deleted=eq.false`),
+    NEW_DB ? sbGetQuiet('payroll_advances', `?select=id,worker_id,date,amount,channel,note,workers(name)&period=eq.${currentMonth}&order=date`) : Promise.resolve([]),
+    NEW_DB ? sbGetQuiet('unpaid_overhead_bills', `?select=id,period,category,amount,is_estimate`) : Promise.resolve([]),
+    NEW_DB ? sbGetQuiet('overhead_completeness', `?select=period,missing_categories,estimated_categories,is_provisional&period=eq.${currentMonth}`) : Promise.resolve([]),
+    NEW_DB ? sbGetQuiet('electricity_meter_readings', `?select=period,remaining_kwh,note&period=eq.${currentMonth}`) : Promise.resolve([]),
+    sbGetQuiet('period_closes', `?select=locked&period=eq.${currentMonth}`)
   ]);
 
-  overheadRows = ohRows.map(r=>({
-    id:r.id, period:r.period, categoryId:r.category_id,
-    category: r.overhead_categories ? r.overhead_categories.name : '(unknown)',
-    description: r.description||'', amount: Number(r.amount)
-  }));
+  overheadRows = ohRows.map(r=>{
+    const cat = overheadCategories.find(c=>c.id===r.category_id) || {};
+    return {
+      id:r.id, period:r.period, categoryId:r.category_id,
+      category: r.overhead_categories ? r.overhead_categories.name : '(unknown)',
+      kind: NEW_DB ? (cat.kind||'bill') : 'legacy', systemKey: cat.system_key||null,
+      description: r.description||'', amount: Number(r.amount),
+      isEstimate: !!r.is_estimate, paidDate: r.paid_date||null, paidChannel: r.paid_channel||null
+    };
+  });
 
   payrollRows = prRows.map(r=>({
     id:r.id, period:r.period, workerId:r.worker_id,
@@ -850,6 +991,12 @@ async function loadMonthData(){
     channel: CHANNEL_LABELS[r.payment_channel]||r.payment_channel,
     grossPay:Number(r.gross_pay), netPay:Number(r.net_pay)
   }));
+
+  advancesRows = advRows.map(r=>({ id:r.id, workerId:r.worker_id, name:r.workers?r.workers.name:'(unknown)', date:r.date, amount:Number(r.amount), channel:CHANNEL_LABELS[r.channel]||r.channel, note:r.note||'' }));
+  unpaidBills = unpaidRows.map(r=>({ id:r.id, period:r.period, category:r.category, amount:Number(r.amount), isEstimate:!!r.is_estimate }));
+  completeness = complRows[0] || null;
+  meterRow = meterRows[0] || null;
+  monthLocked = !!(lockRows[0] && lockRows[0].locked);
 
   trendTotals = {};
   periods.forEach(p=>trendTotals[p]=0);
@@ -887,15 +1034,15 @@ function renderOverheadTable(){
     tbody.innerHTML = rows.map((r,i)=>`
       <tr class="row-anim" data-id="${r.id}">
         <td>${i+1}</td>
-        <td>${esc(r.category)}</td>
+        <td>${esc(r.category)}${ohStatusHtml(r)}</td>
         <td>${esc(r.description)||'—'}</td>
         <td class="num">${fmt(r.amount)}</td>
         <td class="num">${fmt(dailyRate(r.amount))}</td>
         <td class="num">${total>0 ? (r.amount/total*100).toFixed(2) : '0.00'}%</td>
         <td style="position:relative;width:24px">
-          <div class="act-dots" onclick="toggleOhRowMenu(event,'${r.id}')">
+          ${(r.kind==='payroll'||monthLocked) ? '<span title="'+(monthLocked?'Month is closed':'Calculated from Payroll')+'" style="font-size:13px">🔒</span>' : `<div class="act-dots" onclick="toggleOhRowMenu(event,'${r.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-          </div>
+          </div>`}
         </td>
       </tr>
     `).join('');
@@ -1222,6 +1369,9 @@ function renderRateGauge(){
 /* ════════════════ RENDER ALL ════════════════ */
 function renderAll(){
   renderOverheadTable();
+  renderStatusChips();
+  renderUnpaid();
+  renderAdvances();
   renderPayrollTable();
   renderKpisAndSummary();
   renderPayrollKpisAndSummary();
@@ -1272,7 +1422,7 @@ function togglePrRowMenu(e, id){
 /* ════════════════ SELECT POPULATION ════════════════ */
 function populateCategorySelect(){
   const sel = document.getElementById('ohCategory');
-  sel.innerHTML = overheadCategories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  sel.innerHTML = overheadCategories.filter(c=>!(NEW_DB && c.kind==='payroll')).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
 }
 function populateWorkerSelect(selectedId, extraWorker){
   const sel = document.getElementById('prWorker');
@@ -1309,54 +1459,163 @@ function onPrWorkerChange(workerList){
 }
 
 /* ════════════════ OVERHEAD MODAL ════════════════ */
+function ohStatusHtml(r){
+  if(r.kind==='payroll') return '<span class="oh-sub">Calculated from Payroll</span>';
+  if(r.kind==='prepaid') return '<span class="oh-sub">Drawn from prepaid stock</span>';
+  if(r.kind==='bill'){
+    if(r.paidDate) return '<span class="oh-sub"><span class="oh-chip paid">Paid '+esc(fmtDate(r.paidDate))+(r.paidChannel?' · '+esc(CHANNEL_LABELS[r.paidChannel]||r.paidChannel):'')+'</span></span>';
+    if(r.isEstimate) return '<span class="oh-sub"><span class="oh-chip est">Estimate</span></span>';
+    return '<span class="oh-sub">Not paid yet</span>';
+  }
+  return '';
+}
+function renderStatusChips(){
+  const chip = document.getElementById('ohProvChip'), lock = document.getElementById('ohLockChip');
+  if(lock) lock.style.display = monthLocked ? '' : 'none';
+  if(!chip) return;
+  if(NEW_DB && completeness && completeness.is_provisional){
+    const miss = (completeness.missing_categories||[]), est = (completeness.estimated_categories||[]);
+    chip.textContent = 'Provisional';
+    chip.title = (miss.length?'Missing: '+miss.join(', '):'')+(miss.length&&est.length?'  ·  ':'')+(est.length?'Estimated: '+est.join(', '):'');
+    chip.style.display = '';
+  } else chip.style.display = 'none';
+}
+function renderUnpaid(){
+  const card = document.getElementById('ohUnpaidCard');
+  if(!card) return;
+  if(!NEW_DB || !unpaidBills.length){ card.style.display='none'; return; }
+  card.style.display = '';
+  const total = unpaidBills.reduce((s,b)=>s+b.amount,0);
+  document.getElementById('ohUnpaidSum').textContent = '— '+unpaidBills.length+' bill'+(unpaidBills.length>1?'s':'')+' · '+fmt(total)+' ETB';
+  document.getElementById('ohUnpaidList').innerHTML = unpaidBills.map(b=>`
+    <div class="oh-list-row">
+      <div class="l"><b>${esc(b.category)}</b> <span style="color:var(--tl);font-size:12px">${esc(monthLabel(b.period))}</span>${b.isEstimate?' <span class="oh-chip est">Estimate</span>':''}
+        <span class="oh-sub">${fmt(b.amount)} ETB</span></div>
+      ${monthLocked&&b.period===currentMonth?'':`<button class="oh-mini" onclick="openPayBill('${b.id}')">Mark paid</button>`}
+    </div>`).join('');
+}
+function guardLocked(){ if(monthLocked){ toast('This month is closed. Reopen it in Reports first.','error'); return true; } return false; }
+
 function openOverheadModal(){
+  if(guardLocked()) return;
   document.getElementById('ohModalTitle').textContent = 'Add Overhead Expense';
   document.getElementById('ohEditId').value = '';
   document.getElementById('ohMonth').value = currentMonth;
   document.getElementById('ohMonth').disabled = false;
   document.getElementById('ohMonthLockNote').style.display = 'none';
   populateCategorySelect();
-  document.getElementById('ohDescription').value = '';
+  document.getElementById('ohDescription').value = ''; window._ohAutoDesc = null;
   document.getElementById('ohAmount').value = 0;
+  resetKindFields();
   onOhCategoryChange();
   recalcOhPreview();
   document.getElementById('ohModalOverlay').classList.add('show');
 }
 function editOverhead(id){
+  if(guardLocked()) return;
   const r = overheadRows.find(x=>x.id===id);
   if(!r) return;
   document.getElementById('ohModalTitle').textContent = 'Edit Overhead Expense';
   document.getElementById('ohEditId').value = r.id;
   document.getElementById('ohMonth').value = r.period;
-  // Month is locked during edit: changing it here would silently move this entry
-  // out of the currently-viewed month with no visible confirmation. To move an
-  // entry to a different month, delete it and re-add it under that month instead.
+  // Month is locked during edit: changing it would silently move the entry out of the viewed month.
   document.getElementById('ohMonth').disabled = true;
   document.getElementById('ohMonthLockNote').style.display = '';
   populateCategorySelect();
   document.getElementById('ohCategory').value = r.categoryId;
   document.getElementById('ohDescription').value = r.description;
   document.getElementById('ohAmount').value = r.amount;
-  onOhCategoryChange();
+  resetKindFields();
+  document.getElementById('ohEstimate').checked = r.isEstimate;
+  document.getElementById('ohPaidDate').value = r.paidDate || '';
+  document.getElementById('ohPaidChannel').value = r.paidChannel || 'cash';
+  onOhCategoryChange(true);
   recalcOhPreview();
   document.getElementById('ohModalOverlay').classList.add('show');
 }
+function resetKindFields(){
+  document.getElementById('ohMeterKwh').value = '';
+  document.getElementById('ohEstimate').checked = false;
+  document.getElementById('ohPaidDate').value = '';
+  document.getElementById('ohPaidChannel').value = 'cash';
+  document.getElementById('ohAmount').disabled = false;
+}
 function closeOverheadModal(){ document.getElementById('ohModalOverlay').classList.remove('show'); }
-function onOhCategoryChange(){
+function selectedOhCategory(){ return overheadCategories.find(c=>c.id===document.getElementById('ohCategory').value); }
+
+let prepaidInfo = null;   // {book, wac, closing} for the selected prepaid category
+async function loadPrepaidInfo(cat, period, existingOverheadId){
+  const item = cat.prepaid_item_id;
+  const [bal, wacRows, usage] = await Promise.all([
+    sbGetQuiet('inventory_balance', `?select=period,closing_qty&item_id=eq.${item}&period=lte.${period}&order=period.desc&limit=1`),
+    sbGetQuiet('monthly_wac', `?select=period,wac_per_unit&item_id=eq.${item}&period=lte.${period}&wac_per_unit=not.is.null&order=period.desc&limit=1`),
+    existingOverheadId ? sbGetQuiet('inventory_usage_log', `?select=quantity&overhead_id=eq.${existingOverheadId}`) : Promise.resolve([])
+  ]);
+  const closing = bal[0] ? Number(bal[0].closing_qty) : null;
+  const wac = wacRows[0] ? Number(wacRows[0].wac_per_unit) : null;
+  const own = usage[0] ? Number(usage[0].quantity) : 0;
+  return { closing, wac, book: closing===null ? null : closing + own };
+}
+
+async function onOhCategoryChange(isEdit){
   const defaults = {
     'Labor/Wages':'Production & Factory Labor','Electricity':'Factory Electricity','Water':'Factory Water',
     'Rent':'Factory & Office Rent','Maintenance':'Equipment & Building Maintenance',
     'Other Overhead':'Cleaning, Security, Miscellaneous'
   };
-  const cat = overheadCategories.find(c=>c.id===document.getElementById('ohCategory').value);
-  if(cat && !document.getElementById('ohDescription').value) document.getElementById('ohDescription').value = defaults[cat.name]||'';
-  // Labor/Wages is recalculated automatically from Payroll Detail (sum of net pay)
-  // every time a payroll entry is added, edited, or deleted — so a manual amount
-  // entered here will be silently overwritten the next time payroll changes.
-  const isLabor = cat && cat.name === 'Labor/Wages';
-  const noteEl = document.getElementById('ohLaborSyncNote');
-  if(noteEl) noteEl.style.display = isLabor ? '' : 'none';
+  const cat = selectedOhCategory();
+  const descEl = document.getElementById('ohDescription');
+  // Refill the suggested description when it is empty or is still the previous category's suggestion.
+  if(cat && (!descEl.value || descEl.value === window._ohAutoDesc)){ window._ohAutoDesc = defaults[cat.name]||''; descEl.value = window._ohAutoDesc; }
+  const meterBox = document.getElementById('ohMeterBox'), rentBox = document.getElementById('ohRentBox'), billBox = document.getElementById('ohBillBox');
+  meterBox.style.display = rentBox.style.display = billBox.style.display = 'none';
+  const amt = document.getElementById('ohAmount'); amt.disabled = false;
+  prepaidInfo = null;
+  if(!cat || !NEW_DB) return;
+  const period = document.getElementById('ohMonth').value || currentMonth;
+  const editId = document.getElementById('ohEditId').value || null;
+
+  if(cat.kind==='prepaid' && cat.system_key==='electricity'){
+    meterBox.style.display = '';
+    amt.disabled = true;               // the database computes the amount from the meter reading
+    document.getElementById('ohMeterInfo').textContent = 'Loading electricity stock…';
+    if(isEdit===true && meterRow && meterRow.period===period) document.getElementById('ohMeterKwh').value = meterRow.remaining_kwh;
+    prepaidInfo = await loadPrepaidInfo(cat, period, editId);
+    recalcMeterPreview();
+  } else if(cat.kind==='prepaid'){
+    rentBox.style.display = '';
+    prepaidInfo = await loadPrepaidInfo(cat, period, editId);
+    if(prepaidInfo.wac===null){
+      rentBox.innerHTML = '<b>No prepaid purchase found.</b> Record the prepaid purchase first (Purchases → Rent Prepaid, quantity in months).';
+    } else {
+      if(!editId && !(parseFloat(amt.value)>0)) amt.value = Math.round(prepaidInfo.wac*100)/100;
+      rentBox.innerHTML = 'Monthly cost from the prepaid purchase: <b>'+fmt(prepaidInfo.wac)+' ETB</b>. Months of '+esc(cat.name.toLowerCase())+' left in stock: <b>'+(prepaidInfo.closing===null?'—':(Math.round(prepaidInfo.closing*100)/100))+'</b>. Tap Save to confirm this month.';
+    }
+    recalcOhPreview();
+  } else if(cat.kind==='bill'){
+    billBox.style.display = '';
+  }
 }
+function recalcMeterPreview(){
+  const info = document.getElementById('ohMeterInfo'), kwh = parseFloat(document.getElementById('ohMeterKwh').value);
+  const p = prepaidInfo;
+  if(!p || p.book===null || p.wac===null){ info.innerHTML = '<b>No electricity stock recorded yet.</b> Record the token purchase first (Purchases → Electricity Prepaid, quantity in kWh).'; return; }
+  const book = Math.round(p.book*100)/100;
+  let html = 'Book stock: <b>'+book+' kWh</b> · Average tariff: <b>'+fmt(p.wac)+' ETB/kWh</b>';
+  if(!isNaN(kwh)){
+    if(kwh > p.book + 0.0001){
+      html += '<br><span style="color:#b42318"><b>The reading is higher than the book stock.</b> Check that every token purchase was logged.</span>';
+      document.getElementById('ohAmount').value = 0;
+    } else {
+      const used = p.book - kwh;
+      html += '<br>Used this month: <b>'+(Math.round(used*100)/100)+' kWh</b> → <b>'+fmt(used*p.wac)+' ETB</b>. Left in book stock: <b>'+(Math.round(kwh*100)/100)+' kWh</b>';
+      document.getElementById('ohAmount').value = Math.round(used*p.wac*100)/100;
+    }
+  }
+  info.innerHTML = html;
+  recalcOhPreview();
+}
+function onOhPaidChange(){ if(document.getElementById('ohPaidDate').value) document.getElementById('ohEstimate').checked = false; }
 function recalcOhPreview(){
   const ym = document.getElementById('ohMonth').value || currentMonth;
   const amt = parseFloat(document.getElementById('ohAmount').value)||0;
@@ -1373,23 +1632,125 @@ async function saveOverhead(){
   const category_id = document.getElementById('ohCategory').value;
   const description = document.getElementById('ohDescription').value.trim();
   const amount = parseFloat(document.getElementById('ohAmount').value)||0;
+  const cat = selectedOhCategory();
   if(!category_id){ toast('Please select a category','error'); return; }
-  // The DB rejects amount < 0 (CHECK constraint), but this page has no <form>
-  // element, so the input's min="0" attribute is purely cosmetic and never
-  // actually blocks submission — validate for real here instead.
+  // This page has no <form> element, so min="0" is cosmetic — validate for real here.
   if(amount < 0){ toast('Amount cannot be negative','error'); return; }
   try{
-    if(id){
-      await sbUpdate('monthly_overhead', id, {period, category_id, description, amount});
-      toast('Overhead entry updated','success');
+    if(NEW_DB && cat && cat.kind==='payroll'){ toast('Labor/Wages is calculated from Payroll. Edit the payroll rows instead.','error'); return; }
+    if(NEW_DB && cat && cat.kind==='prepaid' && cat.system_key==='electricity'){
+      const kwh = parseFloat(document.getElementById('ohMeterKwh').value);
+      if(isNaN(kwh) || kwh < 0){ toast('Enter the kWh remaining on the meter','error'); return; }
+      await sbUpsert('electricity_meter_readings', { period, remaining_kwh: kwh, note: (description && description !== window._ohAutoDesc) ? description : null }, 'period');
+      toast('Meter reading saved — electricity overhead calculated','success');
     } else {
-      await sbInsert('monthly_overhead', {period, category_id, description, amount});
-      toast('Overhead entry added','success');
+      if(NEW_DB && cat && cat.kind==='prepaid' && amount<=0){ toast('Enter the monthly amount to confirm','error'); return; }
+      let body = { period, category_id, description, amount };
+      if(NEW_DB && cat && cat.kind==='bill'){
+        const paidDate = document.getElementById('ohPaidDate').value || null;
+        const channel = document.getElementById('ohPaidChannel').value;
+        if(paidDate && !channel){ toast('Choose where the bill was paid from','error'); return; }
+        body.paid_date = paidDate; body.paid_channel = paidDate ? channel : null;
+        body.is_estimate = paidDate ? false : document.getElementById('ohEstimate').checked;
+      }
+      if(id){
+        if(NEW_DB){ delete body.period; delete body.category_id; }   // period/category are fixed once saved
+        await sbUpdate('monthly_overhead', id, body);
+        toast('Overhead entry updated','success');
+      } else {
+        await sbInsert('monthly_overhead', body);
+        toast('Overhead entry added','success');
+      }
     }
     closeOverheadModal();
     await reloadAndRender();
   } catch(err){ console.error(err); }
 }
+
+/* ════════════════ MARK BILL PAID ════════════════ */
+function openPayBill(id){
+  const b = unpaidBills.find(x=>x.id===id); if(!b) return;
+  document.getElementById('payBillId').value = id;
+  document.getElementById('payBillTitle').textContent = 'Mark paid: '+b.category+' ('+monthLabel(b.period)+')';
+  document.getElementById('payBillDate').value = (typeof appToday==='function') ? appToday() : new Date().toISOString().slice(0,10);
+  document.getElementById('payBillChannel').value = 'cash';
+  document.getElementById('payBillAmount').value = b.amount;
+  document.getElementById('payBillOverlay').classList.add('show');
+}
+function closePayBill(){ document.getElementById('payBillOverlay').classList.remove('show'); }
+async function savePayBill(){
+  const id = document.getElementById('payBillId').value;
+  const paid_date = document.getElementById('payBillDate').value;
+  const paid_channel = document.getElementById('payBillChannel').value;
+  const amount = parseFloat(document.getElementById('payBillAmount').value);
+  if(!paid_date){ toast('Choose the paid date','error'); return; }
+  if(isNaN(amount) || amount <= 0){ toast('Enter the actual amount paid','error'); return; }
+  try{
+    await sbUpdate('monthly_overhead', id, { paid_date, paid_channel, amount, is_estimate:false });
+    toast('Bill marked as paid','success');
+    closePayBill();
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
+}
+
+/* ════════════════ SALARY ADVANCES ════════════════ */
+function advanceFor(workerId){ return advancesRows.filter(a=>a.workerId===workerId).reduce((s,a)=>s+a.amount,0); }
+function renderAdvances(){
+  const card = document.getElementById('advCard'); if(!card) return;
+  card.style.display = NEW_DB ? '' : 'none';
+  const tbody = document.getElementById('advTblBody');
+  document.getElementById('advMonthLbl').textContent = '- '+monthLabel(currentMonth);
+  if(!advancesRows.length){
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--tl);padding:20px">No salary advances for ${monthLabel(currentMonth)}.</td></tr>`;
+  } else {
+    tbody.innerHTML = advancesRows.map(a=>`
+      <tr class="row-anim">
+        <td>${esc(fmtDate(a.date))}</td><td>${esc(a.name)}</td><td class="num">${fmt(a.amount)}</td>
+        <td><span class="pill-sm ${a.channel==='Cash'?'pill-cash':a.channel==='Bank'?'pill-bank':'pill-mobile'}">${esc(a.channel)}</span></td>
+        <td>${esc(a.note)||'—'}</td>
+        <td>${monthLocked?'<span style="font-size:13px">🔒</span>':`<button class="oh-mini danger" onclick="deleteAdvance('${a.id}')">Delete</button>`}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('advTot').textContent = fmt(advancesRows.reduce((s,a)=>s+a.amount,0));
+}
+function openAdvanceModal(){
+  if(guardLocked()) return;
+  if(!workers.length){ toast('Add an employee through Add Payroll first','error'); return; }
+  document.getElementById('advWorker').innerHTML = workers.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join('');
+  const today = (typeof appToday==='function') ? appToday() : new Date().toISOString().slice(0,10);
+  document.getElementById('advDate').value = today.slice(0,7)===currentMonth ? today : currentMonth+'-'+String(dim()).padStart(2,'0');
+  document.getElementById('advAmount').value = 0;
+  document.getElementById('advChannel').value = 'cash';
+  document.getElementById('advNote').value = '';
+  document.getElementById('advModalOverlay').classList.add('show');
+}
+function closeAdvanceModal(){ document.getElementById('advModalOverlay').classList.remove('show'); }
+async function saveAdvance(){
+  const worker_id = document.getElementById('advWorker').value;
+  const date = document.getElementById('advDate').value;
+  const amount = parseFloat(document.getElementById('advAmount').value)||0;
+  const channel = document.getElementById('advChannel').value;
+  const note = document.getElementById('advNote').value.trim() || null;
+  if(!worker_id){ toast('Choose an employee','error'); return; }
+  if(!date){ toast('Choose the date','error'); return; }
+  if(date.slice(0,7)!==currentMonth){ toast('The advance date must be inside '+monthLabel(currentMonth)+'. Change the month at the top to record other months.','error'); return; }
+  if(amount <= 0){ toast('Amount must be greater than zero','error'); return; }
+  try{
+    await sbInsert('payroll_advances', { worker_id, date, amount, channel, note });
+    toast('Advance recorded','success');
+    closeAdvanceModal();
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
+}
+async function deleteAdvance(id){
+  if(!confirm('Delete this advance? The cash-out entry is removed too.')) return;
+  try{
+    await sbDelete('payroll_advances', id);
+    toast('Advance deleted','success');
+    await reloadAndRender();
+  } catch(err){ console.error(err); }
+}
+
 async function deleteOverhead(id){
   closeRowMenu();
   if(!confirm('Delete this overhead entry?')) return;
@@ -1402,6 +1763,7 @@ async function deleteOverhead(id){
 
 /* ════════════════ PAYROLL MODAL ════════════════ */
 function openPayrollModal(){
+  if(guardLocked()) return;
   document.getElementById('prModalTitle').textContent = 'Add Payroll Entry';
   document.getElementById('prEditId').value = '';
   document.getElementById('prNewName').value = '';
@@ -1416,6 +1778,7 @@ function openPayrollModal(){
   document.getElementById('prModalOverlay').classList.add('show');
 }
 function editPayroll(id){
+  if(guardLocked()) return;
   const r = payrollRows.find(x=>x.id===id);
   if(!r) return;
   document.getElementById('prModalTitle').textContent = 'Edit Payroll Entry';
@@ -1438,6 +1801,7 @@ function editPayroll(id){
 }
 function closePayrollModal(){ document.getElementById('prModalOverlay').classList.remove('show'); }
 function recalcPrPreview(){
+  if(NEW_DB){ const adv = document.getElementById('prAdvance'); adv.readOnly = true; adv.style.background='#f4f8f6'; adv.value = advanceFor(document.getElementById('prWorker').value); }
   const base = parseFloat(document.getElementById('prBaseSalary').value)||0;
   const present = parseFloat(document.getElementById('prDaysPresent').value)||0;
   const inMonth = parseFloat(document.getElementById('prDaysInMonth').value)||1;
@@ -1491,7 +1855,7 @@ async function savePayroll(){
     const body = {
       period: currentMonth, worker_id: workerId, base_salary: baseSalary,
       days_present: daysPresent, days_in_month: daysInMonthVal,
-      advance_taken: advance, other_deductions: other,
+      ...(NEW_DB ? {} : { advance_taken: advance }), other_deductions: other,
       payment_date: payDate, payment_channel: channel
     };
     if(id){
@@ -1520,6 +1884,12 @@ async function deletePayroll(id){
 }
 // Per spec §3.4: "Labor/Wages line in Monthly Overhead = SUM of all workers' Net Pay for that month."
 async function syncLaborFromPayroll(){
+  if(NEW_DB){
+    // The database now fills Labor/Wages from payroll gross pay (trigger). Just tell the user the result.
+    const l = laborRowAmount();
+    toast('Labor overhead updated to '+fmt(l)+' ETB','success');
+    return;
+  }
   const laborCat = overheadCategories.find(c=>c.name==='Labor/Wages');
   if(!laborCat) return;
   const totalNet = payrollMonthRows().reduce((s,r)=>s+netPay(r),0);

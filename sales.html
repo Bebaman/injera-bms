@@ -1428,6 +1428,7 @@ function rowView(e, id) {
 }
 
 function rowEdit(e, id) {
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   e.stopPropagation(); closeAllDrops();
   const r = allSales.find(s => s.id === id);
   if (!r) return;
@@ -1453,6 +1454,7 @@ function rowEdit(e, id) {
   }, 50);
 }
 async function rowDelete(e, id) {
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   e.stopPropagation(); closeAllDrops();
   const row = document.querySelector(`tr[data-id="${id}"]`);
   if (!row) return;
@@ -1679,6 +1681,7 @@ async function savePayment() {
 //  MODAL — NEW CUSTOMER
 // ═══════════════════════════════════════════════════
 function openAddCustomerModal(e) {
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   if (e) { e.preventDefault(); ripple(e); }
   document.getElementById('nc-name').value  = '';
   document.getElementById('nc-type').value  = 'Hotel';
@@ -1689,6 +1692,7 @@ function openAddCustomerModal(e) {
 }
 function closeAddCustomerModal() { document.getElementById('custModalBg').classList.remove('open'); document.body.style.overflow=''; }
 async function saveCustomer() {
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
   const name  = document.getElementById('nc-name').value.trim();
   const type  = document.getElementById('nc-type').value;
   const limit = parseFloat(document.getElementById('nc-limit').value) || 0;
