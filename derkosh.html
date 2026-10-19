@@ -525,7 +525,7 @@ button{font-family:inherit}
         <div class="chart-box">
           <div class="leg" id="legRCP">
             <span data-ds="0"><span class="leg-ln" style="background:#27ae60"></span>Revenue (ETB)</span>
-            <span data-ds="1"><span class="leg-ln" style="background:#e5484d"></span>Total Cost (ETB)</span>
+            <span data-ds="1"><span class="leg-ln" style="background:#e5484d"></span>Cost of Sales (ETB)</span>
             <span data-ds="2"><span class="leg-ln" style="background:#2563eb"></span>Gross Profit (ETB)</span>
           </div>
           <div class="chart-frame lg">
@@ -813,6 +813,16 @@ let kpiMsg={
 };
 function kpiClick(k){ toast(kpiMsg[k]||'KPI details','info'); }
 
+/* ══ DERKOSH COST OF SALES ───────────────────
+   Derkosh made but not sold stays in stock at cost. Only the Derkosh SOLD is a cost of goods sold,
+   at the weighted average cost per kg (database view derkosh_stock_monthly). */
+let derkoshStockRow=null;   // this month's row of derkosh_stock_monthly (null = no production or sales this month)
+async function fetchDerkoshStock(period){
+  try{ const r=await sbGet(`derkosh_stock_monthly?select=*&period=eq.${period}`); return (r&&r[0])||null; }
+  catch(e){ return null; }
+}
+function derkoshCogsOf(row){ return row ? parseFloat(row.cogs||0) : 0; }
+
 /* ══ KPI UPDATE FROM REAL DATA ───────────────
    Called after every loadMonth()/add/edit/delete. Pushes real totals into
    the count-up spans' data-t attribute and re-triggers the animation —
@@ -822,7 +832,8 @@ async function updateKPIs(){
   const totCost=sm.tr+sm.pkc;
   const cpk=sm.prod?totCost/sm.prod:0;
   const revenue=derkoshRevenueThisMonth;
-  const profit=revenue-totCost;
+  derkoshStockRow=await fetchDerkoshStock(currentPeriod());
+  const profit=revenue-derkoshCogsOf(derkoshStockRow);   // revenue - cost of the Derkosh sold
   const map={produced:sm.prod,sold:sm.sold,closing:sm.cl,cost:cpk,revenue:revenue,profit:profit};
   document.querySelectorAll('.kc[onclick]').forEach(card=>{
     const m=card.getAttribute('onclick').match(/kpiClick\('(\w+)'\)/);
@@ -836,7 +847,7 @@ async function updateKPIs(){
     closing:`Closing Stock: ${f(sm.cl)} kg.`,
     cost:`Avg Cost per Kg: ${f(cpk)} ETB.`,
     revenue:`Derkosh Revenue: ${f(revenue)} ETB.`,
-    profit:`Gross Profit: ${f(profit)} ETB.`
+    profit:`Gross Profit: ${f(profit)} ETB (revenue minus the cost of the Derkosh sold).`
   };
 
   // ── Real "vs last month" comparison ──────────────────────
@@ -855,7 +866,7 @@ async function updateKPIs(){
     const prevSold=prevSalesRows.reduce((s,r)=>s+parseFloat(r.quantity||0),0);
     const prevRevenue=prevSalesRows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
     const prevCpk=prevProd?prevCost/prevProd:0;
-    const prevProfit=prevRevenue-prevCost;
+    const prevProfit=prevRevenue-derkoshCogsOf(await fetchDerkoshStock(prevPeriod));
     // closing stock comparison needs the running balance as of end of prior month
     const [prior1,prior2]=await Promise.all([
       sbGet(`derkosh_batches?select=produced_kg&is_deleted=eq.false&period=lte.${prevPeriod}`),
@@ -1264,10 +1275,8 @@ function syncTotalsCard(){
    presets.derkosh() builds the PDF and Excel from the figures this page already
    has (rows = production batches, derkoshSalesRows = this month's derkosh sales).
    The old SheetJS / hand-drawn jsPDF exporters were removed.
-   Cost of goods sold = kg SOLD x this month's average production cost per kg
-   (transfer + packaging, from derkosh_batch_costs), so Gross Profit is measured on
-   what was sold. NOTE: the Gross Profit card on this page subtracts the whole
-   month's production cost instead, so the two differ whenever produced != sold. */
+   Cost of goods sold = kg SOLD x the weighted average cost per kg (derkosh_stock_monthly),
+   so Gross Profit is measured on what was sold. The Gross Profit card on this page uses the same figure. */
 async function buildDerkoshReportData(){
   const period=currentPeriod();
   const monthLabel=(document.getElementById('msel')||{}).value||periodLabel(period);
@@ -1296,7 +1305,8 @@ async function buildDerkoshReportData(){
     openingStock:openingStockKg,
     production:rows.map(r=>({date:r.sd,quantity:r.prod,cost:r.tr+r.pkc})),
     sales:derkoshSalesRows,
-    unitCost:totProduced>0?totCost/totProduced:undefined
+    // cost of goods sold = kg sold x weighted average cost per kg (carries older stock), same as the database P&L
+    unitCost:(derkoshStockRow&&derkoshStockRow.wac_per_kg!=null)?parseFloat(derkoshStockRow.wac_per_kg):(totProduced>0?totCost/totProduced:undefined)
   };
   if(previousRevenue!==undefined){ input.previousRevenue=previousRevenue; input.previousLabel=previousLabel; }
   if(!rows.length && !derkoshSalesRows.length){
@@ -1351,7 +1361,7 @@ function computeReportData(){
   const totCost=sm.tr+sm.pkc;
   const totCpk=sm.prod?totCost/sm.prod:0;
   const totRev=derkoshRevenueThisMonth;
-  const profit=totRev-totCost;
+  const profit=totRev-derkoshCogsOf(derkoshStockRow);
   const margin=totRev?(profit/totRev*100):0;
   return {sm,totCost,totCpk,totRev,profit,margin};
 }
@@ -1596,15 +1606,16 @@ async function loadHistoryAndRenderCharts(){
   const labels=periods.map(periodLabel);
   try{
     const perPeriod=await Promise.all(periods.map(async p=>{
-      const [costRows, salesRows] = await Promise.all([
+      const [costRows, salesRows, stockRow] = await Promise.all([
         sbGet(`derkosh_batch_costs?select=produced_kg,transfer_cost,packaging_cost&period=eq.${p}`),
-        sbGet(`sales?select=quantity,revenue&product_type=eq.derkosh&period=eq.${p}&is_deleted=eq.false`)
+        sbGet(`sales?select=quantity,revenue&product_type=eq.derkosh&period=eq.${p}&is_deleted=eq.false`),
+        fetchDerkoshStock(p)
       ]);
       const prod=costRows.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0);
       const cost=costRows.reduce((s,r)=>s+parseFloat(r.transfer_cost||0)+parseFloat(r.packaging_cost||0),0);
       const sold=salesRows.reduce((s,r)=>s+parseFloat(r.quantity||0),0);
       const revenue=salesRows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-      return {period:p,prod,cost,sold,revenue,cpk:prod?cost/prod:0};
+      return {period:p,prod,cost:derkoshCogsOf(stockRow),sold,revenue,cpk:prod?cost/prod:0};   // cost = cost of Derkosh sold
     }));
     // running closing stock across the 6-month window, seeded from the
     // opening stock of the first period in the window
@@ -1683,7 +1694,7 @@ function renderCharts(labels, perPeriod, closingSeries){
       type:'line',
       data:{labels,datasets:[
         {label:'Revenue (ETB)',data:revenueData,borderColor:'#27ae60',backgroundColor:'rgba(39,174,96,0.07)',borderWidth:2.5,pointBackgroundColor:'#27ae60',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'top',anchor:'end',offset:8,color:'#1a6b3c',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}},
-        {label:'Total Cost (ETB)',data:costData,borderColor:'#e5484d',backgroundColor:'rgba(229,72,77,0.06)',borderWidth:2.5,pointBackgroundColor:'#e5484d',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:6,color:'#c1272d',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}},
+        {label:'Cost of Sales (ETB)',data:costData,borderColor:'#e5484d',backgroundColor:'rgba(229,72,77,0.06)',borderWidth:2.5,pointBackgroundColor:'#e5484d',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:6,color:'#c1272d',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}},
         {label:'Gross Profit (ETB)',data:profitData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.06)',borderWidth:2.5,pointBackgroundColor:'#2563eb',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:4,pointHoverRadius:8,fill:true,tension:.35,datalabels:{align:'bottom',anchor:'start',offset:18,color:'#1d4ed8',font:{family:'Nunito',size:9.5,weight:'700'},formatter:v=>(v/1000).toFixed(1)+'K'}}
       ]},
       options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),layout:{padding:{top:26,bottom:18}},interaction:{intersect:false,mode:'index'},

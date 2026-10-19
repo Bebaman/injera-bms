@@ -516,7 +516,7 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
           <canvas id="perUnitDerkoshChart"></canvas>
         </div>
         <div class="info-note" style="border-top:none;padding-top:0">
-          <span>ETB per kg. Real cost/unit = Derkosh's own COGS (monthly_pnl.derkosh_cogs) ÷ real kg produced — separate from Injera's cost, not a shared/blended figure.</span>
+          <span>ETB per kg. Real cost/unit = Derkosh's own COGS (monthly_pnl.derkosh_cogs, the cost of the Derkosh sold) ÷ kg sold — separate from Injera's cost, not a shared/blended figure.</span>
         </div>
       </div>
     </div>
@@ -826,10 +826,10 @@ function perUnitEconomics(y){
 // Derkosh equivalent of perUnitEconomics() above — previously didn't exist at
 // all, so Derkosh had no average selling price or profit-per-unit anywhere
 // in the report, only Injera. Uses Derkosh's own COGS (yearData[y].derkoshCogs,
-// from monthly_pnl.derkosh_cogs) against real Derkosh kg produced.
+// from monthly_pnl.derkosh_cogs = cost of the Derkosh sold) against the kg of Derkosh sold.
 function perUnitEconomicsDerkosh(y){
   const revPerUnit = derkoshAsp[y] || 0;
-  const derkoshQty = yearData[y].derkosh || 0;
+  const derkoshQty = yearData[y].derkoshSold || 0;   // derkosh_cogs is the cost of the kg SOLD, so divide by kg sold
   const costPerUnit = derkoshQty>0 ? (yearData[y].derkoshCogs||0) / derkoshQty : 0;
   return { revPerUnit, costPerUnit, profitPerUnit: revPerUnit - costPerUnit };
 }
@@ -1346,6 +1346,7 @@ async function loadFromSupabase(){
         months,
         injera: months.reduce((s,m)=>s+m.injeraQty,0),
         derkosh: months.reduce((s,m)=>s+m.derkoshQty,0),
+        derkoshSold: derkoshQtyYear,   // kg of Derkosh SOLD (the cost of goods sold is for these kg)
         asp: injeraQtyYear>0 ? injeraRevYearSales/injeraQtyYear : null,
         injeraRev: months.reduce((s,m)=>s+m.injeraRev,0), derkoshRev: months.reduce((s,m)=>s+m.derkoshRev,0),
         transferToDerkosh: months.reduce((s,m)=>s+(m.transferToDerkosh||0),0),

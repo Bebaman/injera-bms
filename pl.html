@@ -445,14 +445,14 @@ function periodToDueDateRange(startPeriod, endPeriod){
 // Everything on this page (Dashboard, Reports and this statement) now comes from the same place:
 //   monthly_pnl_net          revenue, COGS, opex, petty cash, bank charges, interest, depreciation, disposals, net profit
 //   production_batch_costs   per-batch material / overhead / other cost (injera cost)
-//   derkosh_batch_costs      per-batch injera transferred in + packaging (Derkosh cost)
+//   derkosh_stock_monthly    Derkosh stock: cost made (injera moved in + packaging), opening/closing stock at cost, cost of Derkosh SOLD
 //   monthly_overhead         overhead by category (labor, rent, ...), shown as the detail of absorbed overhead
 // so the P&L can no longer disagree with the Dashboard.
 async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
   const results = await Promise.allSettled([
     sbGet(`monthly_pnl_net?select=*&${filterClause}`),
     sbGet(`production_batch_costs?select=material_cost,overhead_cost,other_cost,total_cost&${filterClause}`),
-    sbGet(`derkosh_batch_costs?select=transfer_cost,packaging_cost,total_cost&${filterClause}`),
+    sbGet(`derkosh_stock_monthly?select=period,produced_transfer_cost,produced_packaging_cost,cogs,opening_value,closing_value&${filterClause}&order=period.asc`),
     sbGet(`monthly_overhead?select=amount,overhead_categories(name)&${filterClause}`),
     sbGet(`purchases?select=total_cost,expense_categories(name)&type=eq.expense&approval_status=in.(auto_approved,approved)&is_deleted=eq.false&${filterClause}`)
   ]);
@@ -469,12 +469,12 @@ async function fetchPeriodSet(filterClause, asOfPeriod, loanDateClause){
 // Totals are sums of monthly_pnl_net rows (one row per month; a YTD range sums its months). The detail lines are
 // pieces of those same totals, so every section adds up exactly:
 //   Injera COGS  = raw materials + overhead + other batch costs - injera transferred to Derkosh
-//   Derkosh COGS = injera transferred in (at its production cost) + packaging
+//   Derkosh COGS = opening Derkosh stock + injera moved in (at cost) + packaging - closing Derkosh stock  (= cost of the Derkosh SOLD)
 //   Net profit   = Gross profit - operating expenses - petty cash - bank charges - interest - depreciation + disposal gain/loss
 function deriveTotals(cat){
   const totalRevenue = cat.injeraRevenue + cat.derkoshRevenue;
   const injeraCOGS = cat.materials + cat.overheadTotal + cat.otherBatchCosts - cat.transferToDerkosh;
-  const derkoshCOGS = cat.transferToDerkosh + cat.derkoshPackaging;
+  const derkoshCOGS = cat.derkoshOpeningStock + cat.transferToDerkosh + cat.derkoshPackaging - cat.derkoshClosingStock;
   const totalCOGS = injeraCOGS + derkoshCOGS;
   const grossProfit = totalRevenue - totalCOGS;
   const grossMargin = pctOf(grossProfit, totalRevenue);
@@ -484,7 +484,7 @@ function deriveTotals(cat){
   const totalExpensesCard = totalOpex + cat.interestExpense + cat.depreciation;
   const netProfit = grossProfit - totalOpex - cat.interestExpense - cat.depreciation + cat.disposalGainLoss;
   const netMargin = pctOf(netProfit, totalRevenue);
-  return { ...cat, totalRevenue, injeraCOGS, derkoshCOGS, totalCOGS, injeraGross, derkoshGross, grossProfit, grossMargin,
+  return { ...cat, derkoshClosingStockNeg: -cat.derkoshClosingStock, totalRevenue, injeraCOGS, derkoshCOGS, totalCOGS, injeraGross, derkoshGross, grossProfit, grossMargin,
            totalOpex, totalExpensesCard, netProfit, netMargin };
 }
 
@@ -495,8 +495,12 @@ function calcFigures(d){
 
   const materials = sum(d.prod,'material_cost');
   const otherBatchCosts = sum(d.prod,'other_cost');
-  const transferToDerkosh = sum(d.derk,'transfer_cost');
-  const derkoshPackaging = sum(d.derk,'packaging_cost');
+  const transferToDerkosh = sum(d.derk,'produced_transfer_cost');
+  const derkoshPackaging = sum(d.derk,'produced_packaging_cost');
+  // Derkosh stock: opening = stock value at the start of the first month in range, closing = at the end of the last month.
+  const derkRows = (d.derk||[]).slice().sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+  const derkoshOpeningStock = derkRows.length ? num(derkRows[0].opening_value) : 0;
+  const derkoshClosingStock = derkRows.length ? num(derkRows[derkRows.length-1].closing_value) : 0;
 
   // Overhead: every ETB of monthly overhead lands in COGS (absorbed by batches, or expensed as unabsorbed
   // overhead when a month has no production) — so the category detail is simply the monthly_overhead totals.
@@ -523,7 +527,7 @@ function calcFigures(d){
   const otherOperatingExpenses = totalOpexView - deliveryOut - marketing;
 
   return deriveTotals({ injeraRevenue, derkoshRevenue,
-    materials, otherBatchCosts, transferToDerkosh, derkoshPackaging,
+    materials, otherBatchCosts, transferToDerkosh, derkoshPackaging, derkoshOpeningStock, derkoshClosingStock,
     overheadTotal, labor, electricity, water, rent, maintenance, otherOverhead,
     deliveryOut, marketing, otherOperatingExpenses,
     pettyCash: sum(d.pnl,'petty_cash_total'), bankCharges: sum(d.pnl,'bank_charges'),
@@ -556,9 +560,11 @@ function buildPLRows(cur, ytd){
   rows.push(T('Injera Gross Profit','injeraGross','pl-gross'));
 
   rows.push({type:'section', label:'Cost of Goods Sold — Derkosh'});
+  rows.push(R('Opening Derkosh Stock (at cost)','derkoshOpeningStock'));
   rows.push(R('Injera Moved from Production (at cost)','transferToDerkosh'));
   rows.push(R('Packaging (Bags Used)','derkoshPackaging'));
-  rows.push(T('Derkosh COGS','derkoshCOGS','pl-total'));
+  rows.push({type:'row', label:'Less: Closing Derkosh Stock (unsold, at cost)', curV:-cur.derkoshClosingStock, ytdV:-ytd.derkoshClosingStock});
+  rows.push(T('Derkosh COGS (cost of Derkosh sold)','derkoshCOGS','pl-total'));
   rows.push(T('Derkosh Gross Profit','derkoshGross','pl-gross'));
 
   rows.push({type:'total', label:'Total COGS', curV:cur.totalCOGS, ytdV:ytd.totalCOGS, cls:'pl-total'});
@@ -771,8 +777,10 @@ async function buildPLReportData(){
       line('Other Overhead','otherOverhead'),
       line('Other Batch Costs','otherBatchCosts'),
       {label:'Less: Injera Moved to Derkosh', month:-cur.transferToDerkosh, ytd:-ytd.transferToDerkosh},
+      line('Derkosh: Opening Stock (at cost)','derkoshOpeningStock'),
       line('Derkosh: Injera Moved from Production','transferToDerkosh'),
-      line('Derkosh: Packaging (Bags Used)','derkoshPackaging')
+      line('Derkosh: Packaging (Bags Used)','derkoshPackaging'),
+      {label:'Less: Derkosh Closing Stock (unsold, at cost)', month:-cur.derkoshClosingStock, ytd:-ytd.derkoshClosingStock}
     ],
     opex: [
       line('Delivery Out & Transport','deliveryOut'),
@@ -895,9 +903,12 @@ const CMP_ROW_DEFS = [
   {type:'row', label:'Maintenance', key:'maintenance'},
   {type:'row', label:'Other Overhead', key:'otherOverhead'},
   {type:'row', label:'Other Batch Costs', key:'otherBatchCosts'},
-  {type:'row', label:'Derkosh Packaging', key:'derkoshPackaging'},
   {type:'total', label:'Injera COGS', key:'injeraCOGS'},
-  {type:'total', label:'Derkosh COGS', key:'derkoshCOGS'},
+  {type:'row', label:'Opening Derkosh Stock', key:'derkoshOpeningStock'},
+  {type:'row', label:'Injera Moved to Derkosh', key:'transferToDerkosh'},
+  {type:'row', label:'Derkosh Packaging', key:'derkoshPackaging'},
+  {type:'row', label:'Less: Closing Derkosh Stock', key:'derkoshClosingStockNeg'},
+  {type:'total', label:'Derkosh COGS (sold)', key:'derkoshCOGS'},
   {type:'total', label:'Total COGS', key:'totalCOGS'},
   {type:'total', label:'Gross Profit', key:'grossProfit'},
   {type:'section', label:'Operating Expenses'},
