@@ -635,15 +635,15 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
             <!-- populated by renderMaterialConsumption() from getBatches() — audit fix, see chat -->
             <tr>
               <td><div class="mc-item"><div class="mc-ico ic-o"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>Injera Blend</div></td>
-              <td id="mcBlendKg">—</td><td>15.05</td><td id="mcBlendCost">—</td>
+              <td id="mcBlendKg">—</td><td id="mcBlendWac">—</td><td id="mcBlendCost">—</td>
             </tr>
             <tr>
               <td><div class="mc-item"><div class="mc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></div>Corn</div></td>
-              <td id="mcCornKg">—</td><td>11.20</td><td id="mcCornCost">—</td>
+              <td id="mcCornKg">—</td><td id="mcCornWac">—</td><td id="mcCornCost">—</td>
             </tr>
             <tr>
               <td><div class="mc-item"><div class="mc-ico ic-g"><svg viewBox="0 0 24 24"><path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></div>Gomen Zere</div></td>
-              <td id="mcGomenKg">—</td><td>18.40</td><td id="mcGomenCost">—</td>
+              <td id="mcGomenKg">—</td><td id="mcGomenWac">—</td><td id="mcGomenCost">—</td>
             </tr>
           </tbody>
         </table>
@@ -2688,6 +2688,11 @@ function renderMaterialConsumption(){
   set('mcBlendKg', fmt1(blendKg)+' kg');
   set('mcCornKg',  fmt1(cornKg)+' kg');
   set('mcGomenKg', fmt1(gomenKg)+' kg');
+  // WAC column comes from the same live WAC object that prices Total Cost below,
+  // so the two columns can never disagree (was hardcoded 15.05 / 11.20 / 18.40).
+  set('mcBlendWac',  fmt2(WAC.blend));
+  set('mcCornWac',   fmt2(WAC.corn));
+  set('mcGomenWac',  fmt2(WAC.gomen));
   set('mcBlendCost', fmt2(blendKg*WAC.blend));
   set('mcCornCost',  fmt2(cornKg*WAC.corn));
   set('mcGomenCost', fmt2(gomenKg*WAC.gomen));
