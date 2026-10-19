@@ -73,9 +73,19 @@ function isActiveNavItem(item){
   return current === item.href || item.aliases.includes(current);
 }
 
+/* Pages a worker may open (everything else is owner/manager only). */
+const WORKER_NAV = ['dashboard.html','production.html','derkosh.html','sales.html','pettycash.html','customers.html','inventory.html'];
+function _navAllowed(item){
+  const r = (typeof currentRole === 'function') ? currentRole() : null;
+  if (r === 'worker') return WORKER_NAV.includes(item.href);
+  return true;
+}
+
 function sidebarHTML(){
   const groups = NAV_ITEMS.map(g => {
-    const links = g.items.map(item => {
+    const visible = g.items.filter(_navAllowed);
+    if (!visible.length) return '';
+    const links = visible.map(item => {
       const active = isActiveNavItem(item);
       // item.label is already HTML-escaped ("P&amp;L"), which is exactly what
       // an attribute value needs — the browser shows it as "P&L".

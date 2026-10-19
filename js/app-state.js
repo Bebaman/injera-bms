@@ -131,6 +131,16 @@ function _shellCssLoaded(){
   if (!s || !s.access_token || _isHardExpired(s)){
     try{ localStorage.removeItem('injera_session'); sessionStorage.removeItem('injera_session'); }catch(e){}
     _redirectToLogin();
+    return;
+  }
+  /* Workers only see the day-to-day pages. Finance/owner pages bounce them to the dashboard before anything
+     renders (cosmetic — the database refuses the data anyway). */
+  if (s.role === 'worker'){
+    let base = (location.pathname.replace(/\/+$/, '').split('/').pop() || 'dashboard').toLowerCase().replace(/\.html$/, '');
+    base = base.replace(/-\d+$/, '');
+    if (!/^(dashboard|index|sales|production|derkosh|pettycash|customers|inventory|offline|login)$/.test(base)){
+      location.replace('/dashboard');
+    }
   }
 })();
 
@@ -327,6 +337,85 @@ function clearSession(){
 }
 window.currentUser = null;
 
+/* ── Roles ───────────────────────────────────────────────────
+   owner > manager > worker. The browser copy of the role is only for showing/hiding things; the database
+   (row-level security) is what really enforces who can read or write what. */
+function currentRole(){ const s = loadSession(); return (s && s.role) || null; }
+function hasRole(...roles){ const r = currentRole(); return !!r && roles.includes(r); }
+function isOwnerRole(){ return hasRole('owner'); }
+function isManagerUp(){ return hasRole('owner', 'manager'); }
+function isWorkerRole(){ return currentRole() === 'worker'; }
+/* Only owners and managers may export, print or download data. */
+function canExport(){ return isManagerUp(); }
+window.currentRole = currentRole; window.hasRole = hasRole; window.isOwnerRole = isOwnerRole;
+/* Returns true (and tells the user) when a worker tries something only owners/managers may do. */
+function workerBlocked(msg){
+  if (!isWorkerRole()) return false;
+  try{ toast(msg || 'Only a manager or owner can do that.', 'error'); }catch(e){}
+  return true;
+}
+window.workerBlocked = workerBlocked;
+window.isManagerUp = isManagerUp; window.isWorkerRole = isWorkerRole; window.canExport = canExport;
+
+/* Worker stock levels (no costs) — from the database function worker_stock_levels(); cached per page load. */
+let _workerStockPromise = null;
+function workerStockLevels(force){
+  if (!_workerStockPromise || force) _workerStockPromise = sbPost('rpc/worker_stock_levels', {}).catch(e => { _workerStockPromise = null; throw e; });
+  return _workerStockPromise;
+}
+window.workerStockLevels = workerStockLevels;
+
+/* Keep the stored role/active flag honest: if an owner changed this person's role or deactivated them, pick it up
+   on the next page load instead of waiting for the next login. */
+async function _syncRoleFromServer(){
+  const s = loadSession();
+  if (!s || !s.user_id || _isLoginPage()) return;
+  try{
+    const rows = await sbGet('users?id=eq.' + encodeURIComponent(s.user_id) + '&select=role,is_active,name');
+    const u = rows && rows[0];
+    if (!u) return;
+    if (u.is_active === false){ signOut(); return; }
+    if (u.role && u.role !== s.role){
+      s.role = u.role; if (u.name) s.name = u.name;
+      const store = localStorage.getItem('injera_session') ? localStorage : sessionStorage;
+      try{ store.setItem('injera_session', JSON.stringify(s)); }catch(e){}
+      location.reload();
+    }
+  }catch(e){ /* offline or unreachable: keep what we have */ }
+}
+
+/* Worker restrictions (deterrents on top of the database rules): no export/print/download controls, no print. */
+function _applyWorkerRestrictions(){
+  if (!isWorkerRole() || window.__workerRestricted) return;
+  window.__workerRestricted = true;
+  try{ window.print = function(){ if (window.showToast) showToast('Printing is not available for your role.', 'error'); }; }catch(e){}
+  const st = document.createElement('style');
+  st.id = 'worker-restrict-css';
+  /* Controls a worker can't use (the database refuses these writes anyway). Matches by the handler name in onclick so
+     rows drawn later by the page are covered too. */
+  const NO_WORKER = ['openAddCustomerModal','openCreditAdjustmentModal','openEditCustomerModal','deactivateCustomer','activateCustomer',
+    'confirmImport','openFullProfitabilityReport','rowEdit','rowDelete','openReportsModal','saveCustomer','openAddCustomer',
+    'deleteBatch','confirmDelete','openBatchStandards','saveBatchStandardsForm','openProductionReport','editR','delR',
+    'openEdit','openDel','printReport','toggleContentExportMenu','openReplenishModal','openFullRanking'];
+  const sel = NO_WORKER.map(n => '[onclick*="' + n + '("]').concat(['[onclick*="openAddModal(\'"]', '[onclick*="openAddModal(&quot;"]']).join(',');
+  st.textContent = '@media print{body{display:none !important}}' + sel + '{display:none !important}';
+  document.head.appendChild(st);
+  const RX = /export|print\(|download|backup|\.save\(|pdf|xlsx|csv|Statement|Replenish/i;
+  const sweep = (root) => {
+    (root || document).querySelectorAll('[onclick],[id*="xport" i],[id*="rint" i],.exp-wrap').forEach(el => {
+      const oc = el.getAttribute('onclick') || '';
+      if (el.classList && el.classList.contains('exp-wrap') || RX.test(oc) || /export|print/i.test(el.id || '')) el.style.display = 'none';
+    });
+  };
+  sweep();
+  try{
+    new MutationObserver(() => sweep()).observe(document.documentElement, { childList: true, subtree: true });
+  }catch(e){}
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S')) e.preventDefault();
+  }, true);
+}
+
 /* Populates sidebar/topbar user info (avatar initials, name, role)
    and hides role-gated nav items. Called automatically by
    sidebar.js/header.js after they render — you don't need to call
@@ -422,6 +511,46 @@ async function _parseBody(res){
    - Drives the shared status pill (header.js setSyncStatus): only network
      failures and 5xx turn it red; a 400/409 validation error on a save
      means the server is reachable, so the pill stays green. */
+/* ── Complete lists, not just the first 1000 rows ─────────────────────────────
+   The database API returns at most 1000 rows per request. A plain list query on a growing table
+   (sales, purchases, cash entries...) would then silently show only the first 1000 rows.
+   pagedFetch() reads the remaining pages and hands back one complete JSON array. It is used for
+   every GET made through sbGet() and by the supabase-js client. It leaves alone: writes, rpc calls,
+   single-object requests, counts, requests that already set a limit or a Range. */
+const _PAGE_ROWS = 1000;
+const _ID_TABLES = new Set(["approval_delegations","audit_log","budget_lines","business_settings","capital_injections","capital_withdrawals","cash_flow_entries","credit_payments","customers","depreciation_log","derkosh_batch_costs","derkosh_batches","expense_categories","fixed_assets","inventory_adjustments","inventory_items","inventory_transfers","inventory_usage_log","loan_repayment_schedule","loans","locations","login_log","milling_conversions","monthly_overhead","notification_delivery_log","notifications","overhead_categories","ownership_history","payroll_advances","payroll_detail","petty_cash","production_batch_costs","production_batch_materials","production_batches","profit_distribution_lines","profit_distributions","purchases","sales","shareholders","supplier_products","suppliers","users","warehouses","workers"]);
+async function pagedFetch(input, init){
+  const url = typeof input === 'string' ? input : input.url;
+  const method = String((init && init.method) || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
+  if (method !== 'GET' || url.indexOf('/rest/v1/') < 0 || url.indexOf('/rest/v1/rpc/') >= 0) return fetch(input, init);
+  const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined));
+  if (h.has('Range') || /pgrst\.object/.test(h.get('Accept') || '') || /count=/.test(h.get('Prefer') || '') || /[?&]limit=/.test(url)) return fetch(input, init);
+  let u = url;
+  const tbl = (u.split('/rest/v1/')[1] || '').split('?')[0];
+  // A fixed order keeps the pages from overlapping or skipping rows.
+  if (!/[?&]order=/.test(u) && _ID_TABLES.has(tbl)) u += (u.indexOf('?') < 0 ? '?' : '&') + 'order=id';
+  const baseInit = Object.assign({}, init || {}, { headers: h });
+  const first = await fetch(u, baseInit);
+  if (!first.ok || first.headers.get('x-bms-cache') || first.headers.get('x-bms-offline')) return first;   // saved offline copy: first page only
+  if (!/json/.test(first.headers.get('content-type') || '')) return first;
+  let rows;
+  try{ rows = await first.clone().json(); }catch(e){ return first; }
+  if (!Array.isArray(rows) || rows.length < _PAGE_ROWS) return first;                                   // the normal case: one page
+  const all = rows.slice();
+  for (let from = _PAGE_ROWS; from < 500000; from += _PAGE_ROWS){
+    const h2 = new Headers(h); h2.set('Range-Unit', 'items'); h2.set('Range', from + '-' + (from + _PAGE_ROWS - 1));
+    const r = await fetch(u, Object.assign({}, baseInit, { headers: h2 }));
+    if (!r.ok) return r;
+    const part = await r.json();
+    if (!Array.isArray(part) || !part.length) break;
+    for (const x of part) all.push(x);
+    if (part.length < _PAGE_ROWS) break;
+  }
+  const out = new Headers(first.headers); out.delete('content-length'); out.delete('content-range'); out.delete('content-encoding');
+  return new Response(JSON.stringify(all), { status: 200, headers: out });
+}
+window.pagedFetch = pagedFetch;
+
 async function _sbRequest(method, path, body, extraHeaders, fallbackMsg){
   const send = async () => {
     const headers = await authHeadersAsync(extraHeaders);
@@ -431,7 +560,7 @@ async function _sbRequest(method, path, body, extraHeaders, fallbackMsg){
     const t = _timeoutSignal(SB_REQUEST_TIMEOUT_MS);
     opts.signal = t.signal;
     try{
-      return await fetch(`${window.SB_URL}/${path}`, opts);
+      return await (method === 'GET' ? pagedFetch : fetch)(`${window.SB_URL}/${path}`, opts);
     }catch(err){
       const timedOut = err && err.name === 'AbortError';
       // No connection at all is "offline", not a server fault.
@@ -551,6 +680,8 @@ function loadAppSettings(){
     }catch(e){ /* business_settings may be unreachable — keep defaults */ }
     document.querySelectorAll('[data-company-name]').forEach(el => el.textContent = window.APP_SETTINGS.companyName);
     populateUserChrome();
+    _applyWorkerRestrictions();
+    _syncRoleFromServer();
     _startIdleTimeout(window.APP_SETTINGS.sessionTimeoutMinutes);
     _runDailyDepreciation();
     window.dispatchEvent(new CustomEvent('app-settings-loaded'));
@@ -570,6 +701,7 @@ function loadCompanySettings(){ return loadAppSettings(); }
 function createAppSupabaseClient(){
   if (typeof supabase === 'undefined' || !supabase.createClient) throw new Error('supabase-js is not loaded');
   return supabase.createClient(window.SB_URL.replace(/\/rest\/v1\/?$/, ''), window.SB_KEY, {
+    global: { fetch: (input, init) => pagedFetch(input, init) },
     accessToken: async () => {
       try{
         const h = await authHeadersAsync();
@@ -607,7 +739,7 @@ function monthEndISO(ym){
    it only fills months that are missing), so the first page load of each day simply makes sure every month up to the
    current one has been depreciated. */
 function _runDailyDepreciation(){
-  if (_isLoginPage()) return;
+  if (_isLoginPage() || !isManagerUp()) return;   // workers have no finance access; managers/owners run it
   const today = appToday();
   try{
     if (localStorage.getItem('injera_dep_day') === today) return;

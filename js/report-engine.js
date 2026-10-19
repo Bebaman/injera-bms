@@ -2894,6 +2894,20 @@
 
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+      if (reportData.watermark) {
+        // Diagonal, translucent watermark centred on the page (jsPDF has no centred rotated text, so place it by hand).
+        try {
+          const wm = String(reportData.watermark), ang = 40, rad = ang * Math.PI / 180;
+          doc.saveGraphicsState();
+          if (doc.GState && doc.setGState) doc.setGState(new doc.GState({ opacity: 0.11 }));
+          doc.setFont(THEME.fontHeading, 'normal');
+          doc.setFontSize(84);
+          doc.setTextColor('#C0392B');
+          const w = doc.getTextWidth(wm);
+          doc.text(wm, pageWidth / 2 - (w / 2) * Math.cos(rad), pageHeight / 2 + (w / 2) * Math.sin(rad), { angle: ang });
+          doc.restoreGraphicsState();
+        } catch (e) { /* a watermark must never stop the report from printing */ }
+      }
       doc.setDrawColor('#D5DDD7');
       doc.setLineWidth(0.6);
       doc.line(margin, pageHeight - 50, pageWidth - margin, pageHeight - 50);
@@ -3260,7 +3274,16 @@
     return y;
   }
 
+  // Workers may not export, print or download reports (owners and managers only).
+  function assertExportAllowed() {
+    if (typeof window !== 'undefined' && typeof window.canExport === 'function' && !window.canExport()) {
+      try { if (window.showToast) window.showToast('Exporting is not available for your role.', 'error'); } catch (e) {}
+      throw new Error('Exporting is not available for your role.');
+    }
+  }
+
   async function generatePDF(reportData, options = {}) {
+    assertExportAllowed();
     reportData = applyBusinessSettings(reportData);
     validateReportData(reportData, 'pdf');
     reportData = normalizeReportData(reportData);
@@ -3433,6 +3456,7 @@
   // header, logo on the first sheet)
   // ------------------------------------------------------------
   async function generateExcel(reportData) {
+    assertExportAllowed();
     reportData = applyBusinessSettings(reportData);
     validateReportData(reportData);
     reportData = normalizeReportData(reportData);
@@ -3865,6 +3889,7 @@
   //                                                    add excludeTotals: true for pure data rows.
   // An empty report downloads a one-row "No data" CSV (same message as the PDF / Excel empty state).
   function generateCSV(reportData, options = {}) {
+    assertExportAllowed();
     reportData = applyBusinessSettings(reportData);
     validateReportData(reportData);
     reportData = normalizeReportData(reportData);
@@ -3961,6 +3986,7 @@
       footer
     };
     if (i.company) base.company = i.company;
+    if (i.watermark) base.watermark = String(i.watermark);   // diagonal text on every page, e.g. PROVISIONAL
     if (i.status === 'empty') {
       base.status = 'empty';
       if (i.emptyMessage) base.emptyMessage = i.emptyMessage;

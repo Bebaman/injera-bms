@@ -409,7 +409,7 @@ function topbarInnerHTML(cfg){
       <div class="arr" role="button" tabindex="0" aria-label="Next month" onclick="_headerMonthStep(1)">&#8250;</div>
     </div>` : '';
 
-  const exportBlock = cfg.showExport ? `
+  const exportBlock = (cfg.showExport && (typeof canExport !== 'function' || canExport())) ? `
     <div class="exp-wrap" id="exportWrap">
       <button type="button" class="exp-trigger" id="exportBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Export">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
