@@ -748,12 +748,10 @@ function clamp(n,lo,hi){ return Math.max(lo, Math.min(hi, n)); }
 // usage (or all history, if less than 60 days of data exists yet — this
 // self-adjusts as more real data accumulates rather than requiring a fixed
 // backlog before it's useful). Days remaining = stock ÷ average daily usage.
-// An item is flagged to reorder once it's projected to hit its reorder_level
-// within 7 days — not only once it's already there — so there's real lead
-// time to act. If an item has no usage history yet, this falls back to a
-// plain "is stock at/below reorder_level?" check, since there's no rate to
-// project from.
-function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances, windowDays, reorderLeadDays, dbStockByItem){
+// Whether an item needs reordering is decided by the ONE shared rule (stockTier in
+// app-state.js — at/below reorder_level = low, at/below Settings% of it = reorder now,
+// reorder_level 0 = no alert). Days remaining is shown as extra information only.
+function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, openingBalances, windowDays, reorderLeadDays, dbStockByItem, lowStockPct){
   const WINDOW_DAYS = windowDays ?? 60;
   const REORDER_LEAD_DAYS = reorderLeadDays ?? 7;
   const todayD = new Date();
@@ -786,23 +784,24 @@ function computeInventoryForecast(items, allPurchasesByItem, allUsageByItem, ope
       || allUsageByItem.some(u=>u.item_id===item.id);
     let status, recommendation, daysRemaining = null;
 
-    if (avgDailyUsage > 0){
-      daysRemaining = currentStock / avgDailyUsage;
-      const daysUntilReorderPoint = (currentStock - reorder) / avgDailyUsage;
-      if (currentStock <= 0){
-        status = 'low'; recommendation = 'Out of stock — order now';
-      } else if (daysUntilReorderPoint <= 0){
-        status = 'low'; recommendation = 'Order now';
-      } else if (daysUntilReorderPoint <= REORDER_LEAD_DAYS){
-        status = 'low'; recommendation = `Order soon — ~${Math.round(daysUntilReorderPoint)}d until reorder point`;
-      } else {
-        status = 'ok'; recommendation = `~${Math.round(daysRemaining)} days of stock remaining`;
-      }
-    } else if (!hasAnyLedgerData){
+    if (avgDailyUsage > 0) daysRemaining = currentStock / avgDailyUsage;   // information only — never decides the status
+
+    // The status follows the ONE shared reorder rule (stockTier, app-state.js) — the same rule the Inventory
+    // page, Reports and the stock_alerts view use. Days-of-stock is shown as extra information only.
+    //   'reorder' = at or below Settings% of the reorder level, 'low' = at or below the reorder level;
+    //   both show here as status 'low' (the dashboard's "needs reordering"); reorder level 0 = no alert.
+    const tier = stockTier(currentStock, reorder, lowStockPct);
+    if (!hasAnyLedgerData){
       status = 'unknown'; recommendation = 'No stock data recorded yet';
+    } else if (tier === 'reorder'){
+      status = 'low'; recommendation = currentStock <= 0 ? 'Out of stock — reorder now' : 'Reorder now';
+    } else if (tier === 'low'){
+      status = 'low'; recommendation = 'Low — at or below reorder level';
     } else {
-      status = currentStock <= reorder ? 'low' : 'ok';
-      recommendation = 'No usage history yet to estimate days remaining';
+      status = 'ok';
+      recommendation = daysRemaining !== null
+        ? `~${Math.round(daysRemaining)} days of stock remaining`
+        : (reorder > 0 ? 'Above reorder level' : 'No reorder level set');
     }
 
     const pct = reorder > 0 ? clamp((currentStock/(reorder*2))*100, 2, 100) : 100;
@@ -916,7 +915,7 @@ async function refreshDashboard(){
       sbGet(`production_batches?select=injera_qty&date=eq.${today}&is_deleted=eq.false`),
       sbGet(`purchases?select=id,total_cost,expense_categories(name)&approval_status=eq.pending&is_deleted=eq.false`),
       sbGet(`customer_profitability?select=*`),
-      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences,teff_item_id,rice_item_id,is_vat_registered,supplier_inactive_days,price_spike_pct,payroll_alert_day,customer_overdue_critical_days,expiry_warning_days,failed_login_threshold,milling_yield_target_pct,inventory_usage_window_days,reorder_lead_days,low_sales_pct,high_sales_pct,low_sales_min_day_of_month,large_sale_multiplier,production_target_pct,cash_low_pct,loan_due_soon_days,loan_critical_days&limit=1`),
+      sbGet(`business_settings?select=credit_limit_warning_pct,notification_preferences,teff_item_id,rice_item_id,is_vat_registered,supplier_inactive_days,price_spike_pct,payroll_alert_day,customer_overdue_critical_days,expiry_warning_days,failed_login_threshold,milling_yield_target_pct,inventory_usage_window_days,reorder_lead_days,low_stock_threshold_pct,low_sales_pct,high_sales_pct,low_sales_min_day_of_month,large_sale_multiplier,production_target_pct,cash_low_pct,loan_due_soon_days,loan_critical_days&limit=1`),
       // ── Inventory forecast inputs (added 2026-07) — real purchase-in / usage-out history,
       // used to compute average daily usage and days-of-stock-remaining per item. ──
       sbGet(`purchases?select=item_id,quantity,date&type=eq.purchase&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&item_id=not.is.null`),
@@ -1121,7 +1120,7 @@ async function refreshDashboard(){
     // so the dashboard and the Inventory/Alerts modules always agree.
     const dbStockByItem = {};
     (stockAlertRows||[]).forEach(sa=>{ if(sa.item_id && sa.closing_qty!=null) dbStockByItem[sa.item_id] = num(sa.closing_qty); });
-    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances, BS.inventory_usage_window_days, BS.reorder_lead_days, dbStockByItem);
+    const inventoryLevels = computeInventoryForecast(invItems, allPurchasesByItem, [...allUsageByItem, ...millingUsageRows], openingBalances, BS.inventory_usage_window_days, BS.reorder_lead_days, dbStockByItem, BS.low_stock_threshold_pct);
     // Derkosh has no reorder_level in the schema (it's produced, not purchased), so we derive a
     // sensible buffer from this period's own production rather than just checking "> 0" —
     // a buffer of 15% of the period's output (min 10kg) mirrors the reorder-point logic used above.
@@ -1204,7 +1203,9 @@ async function refreshDashboard(){
     const notices = [];  // kind:'notice'
 
     // ── 1. Inventory — low/critical stock ──────────────────
+    const _invAlerted = new Set();   // same rule feeds both loops below — never list one item twice
     inventoryLevels.filter(i=>i.status==='low').forEach(i=>{
+      _invAlerted.add(i.name);
       const runway = (i.daysRemaining!=null && isFinite(i.daysRemaining) && i.daysRemaining>=0)
         ? ` · ~${Math.round(i.daysRemaining)} day${Math.round(i.daysRemaining)===1?'':'s'} of stock left at current usage — plan to reorder`
         : '';
@@ -1214,7 +1215,7 @@ async function refreshDashboard(){
     // names (message/severity, which don't exist on this view) so it silently produced
     // nothing. Real columns: name, closing_qty, reorder_level, low_stock, next_expiry_date.
     (stockAlertRows||[]).forEach(sa=>{
-      if(sa.low_stock){
+      if(sa.low_stock && !_invAlerted.has(sa.name)){
         const isOut = num(sa.closing_qty) <= 0;
         alerts.push({icon:'ai-r', svg:'warn', title: isOut ? `${sa.name} is out of stock` : `${sa.name} below reorder level`, sub:`On hand: ${num(sa.closing_qty).toLocaleString('en-US',{maximumFractionDigits:2})} · Reorder level: ${num(sa.reorder_level).toLocaleString('en-US',{maximumFractionDigits:2})}`, module:'Inventory', priority:'critical', kind:'alert'});
       }
