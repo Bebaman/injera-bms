@@ -494,7 +494,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
               <div class="thresh-inp"><input type="number" id="threshInvWindow" step="1"></div>
               <div class="bal-cur" style="width:auto;white-space:nowrap">days</div>
             </div>
-            <div class="thresh-row">
+            <!-- Hidden: the "order soon" projection was replaced by one shared reorder rule (reorder level + the Low Stock
+                 Alert Threshold below). Kept in the page, not removed, so loading/saving Settings is unchanged. -->
+            <div class="thresh-row" style="display:none">
               <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
               <div class="thresh-txt"><div class="thresh-lbl">Reorder Lead Time</div><div class="thresh-hint">Days before the projected reorder point to start showing an “order soon” alert.</div></div>
               <div class="thresh-inp"><input type="number" id="threshReorderLead" step="1"></div>
@@ -586,7 +588,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
             </div>
             <div class="thresh-row">
               <div class="thresh-ic"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>
-              <div class="thresh-txt"><div class="thresh-lbl">Low Stock Alert Threshold</div><div class="thresh-hint">Below this % of reorder level = REORDER. Above = LOW.</div></div>
+              <div class="thresh-txt"><div class="thresh-lbl">Low Stock Alert Threshold</div><div class="thresh-hint">Used by every page. At or below an item's reorder level = LOW. At or below this % of its reorder level = REORDER NOW. Items with no reorder level set are not alerted.</div></div>
               <div class="thresh-inp"><input type="number" id="threshLowStock" step="1"></div>
               <div class="bal-cur">%</div>
             </div>
