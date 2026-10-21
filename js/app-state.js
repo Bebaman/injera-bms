@@ -692,6 +692,27 @@ function loadAppSettings(){
 // Kept under its old name — sidebar.js calls this on every page.
 function loadCompanySettings(){ return loadAppSettings(); }
 
+/* ── ONE reorder rule for the whole app ─────────────────
+   stockTier(closing, reorderLevel, pct?) -> 'ok' | 'low' | 'reorder'
+     reorder level 0 / not set, or no stock record  -> 'ok'   (not configured => no alert)
+     closing <= reorderLevel x Settings%             -> 'reorder'  (REORDER NOW)
+     closing <= reorderLevel                         -> 'low'
+     otherwise                                       -> 'ok'
+   Settings% is Settings > low-stock threshold (business_settings.low_stock_threshold_pct).
+   The database view stock_alerts (dashboard alerts, Reports, worker stock list) applies the very same rule,
+   so every page agrees. Pass pct explicitly if the page read business_settings itself. */
+function stockTier(closing, reorder, pct){
+  if (closing === null || closing === undefined || closing === '') return 'ok';
+  const c = Number(closing), r = Number(reorder);
+  if (!isFinite(c) || !isFinite(r) || !(r > 0)) return 'ok';
+  let p = (pct !== undefined && pct !== null && pct !== '') ? Number(pct) : (window.APP_SETTINGS && window.APP_SETTINGS.lowStockPct);
+  if (p === undefined || p === null || !isFinite(p)) p = 60;
+  if (c <= r * (p / 100)) return 'reorder';
+  if (c <= r) return 'low';
+  return 'ok';
+}
+window.stockTier = stockTier;
+
 /* supabase-js client that uses the SAME token manager as sbGet/sbPost (authHeadersAsync).
    Pages used to build their own client with only the public key (Inventory, Loans: every call ran as the anonymous
    role) or hand supabase-js a copy of the refresh token (Reports, Settings): two token managers then rotate the same
