@@ -58,6 +58,17 @@ export default async function handler(req, res) {
     if (!['owner', 'manager', 'worker'].includes(role)) {
       return res.status(400).json({ error: 'role must be owner, manager, or worker.' });
     }
+    // Only an owner may create an owner or a manager. The Users screen already hides those options for a
+    // manager, but the API must enforce it too, otherwise a manager could create themselves an owner account.
+    if (callerProfile.role !== 'owner' && role !== 'worker') {
+      return res.status(403).json({ error: 'Only an owner can create owner or manager accounts.' });
+    }
+    if (String(name).trim().length < 2 || String(name).length > 100) {
+      return res.status(400).json({ error: 'Name must be between 2 and 100 characters.' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
     if (String(password).length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     }
@@ -92,7 +103,7 @@ export default async function handler(req, res) {
         id: newUserId,
         email: String(email).trim(),
         role,
-        name,
+        name: String(name).trim(),
         is_active: true,
         created_by: callerUser.id
       })
