@@ -392,3 +392,21 @@ html.sb-no-anim .sb, html.sb-no-anim .sb *, html.sb-no-anim .main, html.sb-no-an
   input, select, textarea{ font-size:16px; } /* stops iOS zooming into fields on focus */
   .content{ padding:12px 10px; }
 }
+
+/* ── Action column stays reachable on laptop-width screens ─────────────────────────
+   Tables with an Actions (⋯ / Edit / Delete) column in the last cell were wider than their card on 1280–1440px
+   screens, so the Actions column sat off-screen until you scrolled the table sideways (Loans, Shareholders,
+   Production, Suppliers, Petty Cash, Sales). Pin that last column to the right edge. Desktop only; phone and tablet
+   turn the rows into cards (css/responsive.css), so nothing changes there. */
+@media (min-width:1025px){
+  table:has(tbody td:last-child:not([colspan]) :is(.act-dots,.row-menu-btn,.tbl-more,button,[onclick])) th:last-child{
+    position:sticky; right:0; z-index:2; background:#f7fbf9;
+  }
+  table:has(tbody td:last-child:not([colspan]) :is(.act-dots,.row-menu-btn,.tbl-more,button,[onclick])) td:last-child:not([colspan]){
+    position:sticky; right:0; z-index:1; background:#fff; box-shadow:-8px 0 8px -8px rgba(0,0,0,.12);
+  }
+  table:has(tbody td:last-child:not([colspan]) :is(.act-dots,.row-menu-btn,.tbl-more,button,[onclick])) tr.tot td:last-child,
+  table:has(tbody td:last-child:not([colspan]) :is(.act-dots,.row-menu-btn,.tbl-more,button,[onclick])) tfoot td:last-child{
+    background:#f7fbf9;
+  }
+}
