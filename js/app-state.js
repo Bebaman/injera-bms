@@ -374,7 +374,7 @@ async function _syncRoleFromServer(){
     const rows = await sbGet('users?id=eq.' + encodeURIComponent(s.user_id) + '&select=role,is_active,name');
     const u = rows && rows[0];
     if (!u) return;
-    if (u.is_active === false){ signOut(); return; }
+    if (u.is_active === false){ _performSignOut(); return; }   // deactivated: no cancellable prompt
     if (u.role && u.role !== s.role){
       s.role = u.role; if (u.name) s.name = u.name;
       const store = localStorage.getItem('injera_session') ? localStorage : sessionStorage;
@@ -910,6 +910,46 @@ function toast(msg, type){
   }, 3200);
 }
 function showToast(msg){ toast(msg); }
+
+/* ── Long id lists ──────────────────────────────────────────
+   "...?sale_id=in.(id1,id2,...)" puts every id in the web address; a few hundred ids (a customer with a long history, or many
+   unsettled credit sales) make it too long for the server, the request fails and the page quietly shows zeros.
+   sbGetInChunks() asks in batches and joins the answers. */
+async function sbGetInChunks(basePath, column, ids, chunkSize){
+  var size = chunkSize || 80, out = [];
+  for (var i = 0; i < (ids || []).length; i += size) {
+    var part = ids.slice(i, i + size);
+    var sep = basePath.indexOf('?') >= 0 ? '&' : '?';
+    var rows = await sbGet(basePath + sep + column + '=in.(' + part.join(',') + ')');
+    if (rows && rows.length) out.push.apply(out, rows);
+  }
+  return out;
+}
+
+/* ── Double-click protection ────────────────────────────────
+   Save / Record / Delete buttons that write to the database. A second click (or tap) while the first one is
+   still running used to run the whole save again — two sales, two payments, two advances. singleFlight(names)
+   wraps each named global function so a call made while a previous call is still unfinished is ignored. */
+function singleFlight(names){
+  (names || []).forEach(function(n){
+    var f = window[n];
+    if (typeof f !== 'function' || f.__singleFlight) return;
+    var busy = false;
+    var w = function(){
+      if (busy) return;
+      busy = true;
+      var r;
+      try { r = f.apply(this, arguments); } catch (e) { busy = false; throw e; }
+      if (r && typeof r.then === 'function') {
+        return r.then(function(v){ busy = false; return v; }, function(e){ busy = false; throw e; });
+      }
+      busy = false;
+      return r;
+    };
+    w.__singleFlight = true;
+    window[n] = w;
+  });
+}
 
 /* ── Sign out ──────────────────────────────────────────────────
    Confirms via the modal (matching dashboard.html's UX), then revokes THIS
