@@ -708,6 +708,7 @@ renderHeader({
   subtitle: IS_WORKER ? 'Your day at a glance' : 'Overview of your business',
   showMonthPicker: !IS_WORKER,
   months: DASH_MONTHS,
+  monthsAhead: 0,   // the shared header adds 24 future months by default; the dashboard has nothing to show for them
   selectedMonth: DASH_MONTHS[DASH_MONTHS.length-1],
   onMonthChange: () => { refreshDashboard(); },
   showExport: !IS_WORKER,
@@ -984,6 +985,10 @@ async function refreshDashboard(){
     const LOAN_DUE_SOON_DAYS = BS.loan_due_soon_days ?? 10;
     const LOAN_CRITICAL_DAYS = BS.loan_critical_days ?? 3;
 
+    // "Today" alerts (today's sales / cash vs averages, vs yesterday) only make sense for the current month —
+    // for a past month they compared today's real sales with that month's average.
+    const isCurrentMonth = period === today.slice(0,7);
+
     // ── Reflect the real pending-approvals count on the Quick Actions badge ──
     const approvalBadgeEl = document.getElementById('qaApprovalBadge');
     if(approvalBadgeEl){
@@ -1097,12 +1102,8 @@ async function refreshDashboard(){
 
     // ── Inventory levels — now computed from real usage velocity (added 2026-07), not just
     // a static "at/below reorder level" flag. See computeInventoryForecast() below for the
-    // full method: current stock = opening balance + all purchases − all usage logged so far;
-    // average daily usage = usage over the last 60 days (or all history if less exists yet) ÷
-    // days in that window; days remaining = current stock ÷ average daily usage. An item is
-    // flagged for reorder when it's projected to hit its reorder_level within 7 days, not only
-    // once it's already there. Falls back to the simple reorder_level comparison for any item
-    // with no usage history yet (nothing to compute a rate from).
+    // full method. Days remaining (stock ÷ average daily usage) is shown as information only; the
+    // low / reorder status comes from the shared stockTier() rule in app-state.js.
     // Fold Teff/Rice milling consumption into the same usage-row shape the forecast
     // already expects, using rename-safe IDs from business_settings when configured.
     const teffId = (businessSettingsRows?.[0]?.teff_item_id) || (invItems.find(i=>i.name==='Teff')?.id);
@@ -1176,7 +1177,7 @@ async function refreshDashboard(){
     const monthlyOpexApprox = curD.overhead + curD.opex + curD.petty + curD.bank;
     const profitScore = curD.revenue>0 ? clamp(((curD.netProfit/curD.revenue)*100)/25*100, 0, 100) : 0;
     const cashFlowScore = monthlyOpexApprox>0 ? clamp((cashTotalCur/monthlyOpexApprox)/2*100, 0, 100) : (cashTotalCur>0?100:0);
-    const trackedInventoryItems = inventoryLevels.filter(i=>i.status!=='unknown');
+    const trackedInventoryItems = inventoryLevels.filter(i=>i.status!=='unknown' && i.id!=='derkosh');   // Derkosh uses its own production buffer, not the shared reorder rule
     const okItems = trackedInventoryItems.filter(i=>i.status==='ok').length;
     const inventoryScore = trackedInventoryItems.length ? (okItems/trackedInventoryItems.length*100) : 100;
     // Debt Load — compared against a full year of revenue (standard debt-to-revenue benchmark)
@@ -1277,7 +1278,7 @@ async function refreshDashboard(){
     }
 
     // ── 3. Sales — unusually low/high daily sales, target ──
-    {
+    if(isCurrentMonth){
       const dayOfMonth = new Date().getDate();
       const avgDailyRevenue = dayOfMonth>0 ? curD.revenue/dayOfMonth : 0;
       if(avgDailyRevenue>0 && dayOfMonth>LOW_SALES_MIN_DAY_OF_MONTH && salesTodayTotal < avgDailyRevenue*LOW_SALES_PCT){
@@ -1528,7 +1529,7 @@ async function refreshDashboard(){
     // to the schema. ══
 
     // ── 17. Sales — vs yesterday (day-over-day) ────────────────
-    {
+    if(isCurrentMonth){
       const yesterdayTotal = (salesYesterday||[]).reduce((s,r)=>s+num(r.revenue),0);
       if(yesterdayTotal>0){
         const chg = ((salesTodayTotal-yesterdayTotal)/yesterdayTotal)*100;
@@ -1597,7 +1598,7 @@ async function refreshDashboard(){
     }
 
     // ── 20. Cash — today's inflow vs outflow ─────────────────────
-    {
+    if(isCurrentMonth){
       const netToday = salesTodayTotal - expenseTodayTotal;
       if(Math.abs(netToday) >= 1000){
         if(netToday>=0){
@@ -1840,13 +1841,17 @@ const AL_ICONS = {
 function sbFetch(path, opts={}){
   const method = (opts.method||'GET').toUpperCase();
   const body = opts.body!==undefined ? JSON.parse(opts.body) : undefined;
+  // The helpers return promises, so a plain try/catch never saw their failures: a rejected side request
+  // (engagement / delivery log) bubbled up and stopped the whole dashboard render. Catch on the promise itself.
   try{
-    if(method==='GET') return sbGet(path);
-    if(method==='POST') return sbPost(path, body);
-    if(method==='PATCH') return sbPatch(path, body);
-    if(method==='DELETE') return sbDelete(path);
-    throw new Error('sbFetch: unsupported method '+method);
-  }catch(e){ console.warn('Supabase call failed:', path, e); return null; }
+    let p;
+    if(method==='GET') p = sbGet(path);
+    else if(method==='POST') p = sbPost(path, body);
+    else if(method==='PATCH') p = sbPatch(path, body);
+    else if(method==='DELETE') p = sbDelete(path);
+    else throw new Error('sbFetch: unsupported method '+method);
+    return Promise.resolve(p).catch(e=>{ console.warn('Supabase call failed:', path, e); return null; });
+  }catch(e){ console.warn('Supabase call failed:', path, e); return Promise.resolve(null); }
 }
 const ENGAGEMENT_CACHE = {}; // type_key -> {shown, opened, dismissed}, populated once per refresh
 async function loadEngagementCache(){
@@ -1982,7 +1987,7 @@ function renderExpenseDonut(){
   document.getElementById('expTotalLbl').innerHTML = `${fmtInt(d.expenseTotal)}<br>ETB`;
   const legend = document.getElementById('expLegend');
   legend.innerHTML = d.expenseEntries.map(([name,val],i)=>`
-    <div class="exp-r"><div class="exp-d" style="background:${d.EXP_COLORS[i%d.EXP_COLORS.length]}"></div><span class="exp-n">${name}</span><span class="exp-v">${fmtInt(val)}</span><span class="exp-p">${d.expenseTotal? (val/d.expenseTotal*100).toFixed(1):'0'}%</span></div>`).join('') || '<div class="exp-r"><span class="exp-n">No expenses recorded</span></div>';
+    <div class="exp-r"><div class="exp-d" style="background:${d.EXP_COLORS[i%d.EXP_COLORS.length]}"></div><span class="exp-n">${escHtml(name)}</span><span class="exp-v">${fmtInt(val)}</span><span class="exp-p">${d.expenseTotal? (val/d.expenseTotal*100).toFixed(1):'0'}%</span></div>`).join('') || '<div class="exp-r"><span class="exp-n">No expenses recorded</span></div>';
   const labels = d.expenseEntries.map(([n])=>n), values = d.expenseEntries.map(([,v])=>v);
   const colors = labels.map((_,i)=>d.EXP_COLORS[i%d.EXP_COLORS.length]);
   // A doughnut with an empty/all-zero dataset draws nothing at all, which looked like "the chart isn't
@@ -2015,7 +2020,7 @@ function renderTopCustomers(){
   const d = LAST;
   const body = document.getElementById('topCustomersBody');
   if(!d.top5.length){ body.innerHTML = '<tr><td colspan="3">No sales recorded this month</td></tr>'; return; }
-  body.innerHTML = d.top5.map(([name,rev])=>`<tr><td>${name}</td><td>${fmtETB(rev)}</td><td>${d.custTotal? (rev/d.custTotal*100).toFixed(1):'0'}%</td></tr>`).join('')
+  body.innerHTML = d.top5.map(([name,rev])=>`<tr><td>${escHtml(name)}</td><td>${fmtETB(rev)}</td><td>${d.custTotal? (rev/d.custTotal*100).toFixed(1):'0'}%</td></tr>`).join('')
     + `<tr class="tot"><td>Total</td><td>${fmtETB(d.top5Total)}</td><td>${d.custTotal? (d.top5Total/d.custTotal*100).toFixed(1):'0'}%</td></tr>`;
 }
 
@@ -2142,8 +2147,8 @@ function renderSecondaryPanels(){
 
   // Inventory
   document.getElementById('invList').innerHTML = d.inventoryLevels.map(i=>`
-    <div class="inv-item" title="${(i.recommendation||'').replace(/"/g,'&quot;')}"><div class="inv-item-ico ${i.status==='low'?'ic-r':i.status==='unknown'?'ic-o':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':i.status==='unknown'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="17" x2="12.01" y2="17"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
-    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${i.name}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':i.status==='unknown'?'inv-unknown':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><span class="inv-recommendation" style="display:none">${i.recommendation}</span></div>
+    <div class="inv-item" title="${escHtml(i.recommendation||'')}"><div class="inv-item-ico ${i.status==='low'?'ic-r':i.status==='unknown'?'ic-o':'ic-g'}"><svg viewBox="0 0 24 24">${i.status==='low'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>':i.status==='unknown'?'<circle cx="12" cy="12" r="10"/><line x1="12" y1="17" x2="12.01" y2="17"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>':'<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'}</svg></div>
+    <div class="inv-item-mid"><div class="inv-item-top"><span class="inv-name">${escHtml(i.name)}</span><span class="inv-qty-val">${i.qty.toLocaleString('en-US',{maximumFractionDigits:2})}<span class="u"> ${i.unit}</span></span></div><div class="inv-bar-track ${i.status==='low'?'inv-low':i.status==='unknown'?'inv-unknown':'inv-ok'}"><div class="inv-bar-fill anim-bar" data-width="${i.pct}" style="width:0%"></div></div><span class="inv-recommendation" style="display:none">${i.recommendation}</span></div>
     <span class="inv-tag ${i.status}">${i.status==='low'?'Low':i.status==='unknown'?'No data':'OK'}</span></div>`).join('');
 
 
@@ -2164,7 +2169,7 @@ function renderSecondaryPanels(){
       const tagClass = days!==null && days<=10 ? 'soon' : 'later';
       const tagText = days!==null ? `Due in ${days} days` : 'No schedule';
       const pct = num(l.principal_amount)>0 ? clamp((num(l.principal_repaid)/num(l.principal_amount))*100, 2, 100) : 0;
-      return `<div class="loan-card"><div class="loan-card-top"><div class="loan-card-left"><div class="loan-ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div><div><h5>${l.lender_name}</h5><p>Business loan</p></div></div><span class="loan-due-tag ${tagClass}">${tagText}</span></div><div class="loan-bar-track"><div class="loan-bar-fill anim-bar" data-width="${pct}" style="width:0%"></div></div><div class="loan-card-bottom"><span class="loan-paid">${fmtInt(l.principal_repaid)} paid</span><span class="loan-remain">${fmtETB(l.outstanding_balance)} ETB remaining</span></div></div>`;
+      return `<div class="loan-card"><div class="loan-card-top"><div class="loan-card-left"><div class="loan-ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div><div><h5>${escHtml(l.lender_name)}</h5><p>Business loan</p></div></div><span class="loan-due-tag ${tagClass}">${tagText}</span></div><div class="loan-bar-track"><div class="loan-bar-fill anim-bar" data-width="${pct}" style="width:0%"></div></div><div class="loan-card-bottom"><span class="loan-paid">${fmtInt(l.principal_repaid)} paid</span><span class="loan-remain">${fmtETB(l.outstanding_balance)} ETB remaining</span></div></div>`;
     }).join('');
   }
   document.getElementById('loanTotalAmt').textContent = `${fmtETB(d.loanTotalOutstanding)} ETB`;
@@ -2425,7 +2430,7 @@ function buildDashboardReportData(){
   const session = (typeof loadSession === 'function' ? loadSession() : null) || {};
   const prevLabel = (typeof periodToLabel === 'function' && d.prevP) ? periodToLabel(d.prevP) : 'last month';
 
-  const lowItems = (d.inventoryLevels || []).filter(i => i.status === 'low').length;
+  const lowItems = (d.inventoryLevels || []).filter(i => i.status === 'low' && i.id !== 'derkosh').length;
   const overBudget = (d.budgetTiles || []).filter(b => b.status === 'over').length;
   const nearBudget = (d.budgetTiles || []).filter(b => b.status === 'warn').length;
   const healthStatus = d.healthOverall >= 60 ? 'OK' : d.healthOverall >= 40 ? 'Watch' : 'Alert';

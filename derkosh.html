@@ -58,7 +58,7 @@ button{font-family:inherit}
 .sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
 .al{animation:fadeUp .45s ease both}
 .al:nth-child(1){animation-delay:.05s}.al:nth-child(2){animation-delay:.12s}.al:nth-child(3){animation-delay:.19s}.al:nth-child(4){animation-delay:.26s}
-.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) backwards}
 .der-main>.card:nth-child(1){animation-delay:.05s}
 .der-side .card:nth-child(1){animation-delay:.1s}
 .der-side .card:nth-child(2){animation-delay:.16s}
@@ -159,7 +159,7 @@ button{font-family:inherit}
 .tbl-more-wrap{position:relative;display:inline-block}
 .tbl-more:hover{background:var(--bg);color:var(--td)}
 .tbl-more svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.row-menu{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(20,40,30,.16);min-width:130px;z-index:220;overflow:hidden;animation:dropIn .15s ease;display:none}
+.row-menu{position:fixed;top:0;left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(20,40,30,.16);min-width:130px;z-index:220;overflow:hidden;animation:dropIn .15s ease;display:none}
 .row-menu.show{display:block}
 .row-menu.flip-up{top:auto;bottom:calc(100% + 4px)}
 .row-menu button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;background:none;border:none;font-size:11.5px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;transition:background .15s}
@@ -791,6 +791,8 @@ document.addEventListener('keydown',e=>{
 });
 let _lastScrollY=window.scrollY,_lastScrollX=window.scrollX;
 let _rmOpenedAt=0;
+window.addEventListener('scroll',()=>{ if(performance.now()-_rmOpenedAt>350) document.querySelectorAll('.row-menu.show').forEach(m=>m.classList.remove('show')); },true);
+window.addEventListener('resize',()=>document.querySelectorAll('.row-menu.show').forEach(m=>m.classList.remove('show')));
 document.addEventListener('scroll',()=>{
   if(window.scrollY===_lastScrollY&&window.scrollX===_lastScrollX) return;
   _lastScrollY=window.scrollY;_lastScrollX=window.scrollX;
@@ -828,7 +830,8 @@ function derkoshCogsOf(row){ return row ? parseFloat(row.cogs||0) : 0; }
    the count-up spans' data-t attribute and re-triggers the animation —
    no more hardcoded 337/285/51.96 etc. */
 async function updateKPIs(){
-  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:a.cl+r.cl,tr:a.tr+r.tr,pkc:a.pkc+r.pkc}),{prod:0,sold:0,cl:0,tr:0,pkc:0});
+  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:r.cl,tr:a.tr+r.tr,pkc:a.pkc+r.pkc}),{prod:0,sold:0,cl:0,tr:0,pkc:0});
+  sm.sold=soldThisMonthKg; if(!rows.length) sm.cl=monthClosingKg();   // month totals: all kg sold this month (not just what the month's own batches covered)
   const totCost=sm.tr+sm.pkc;
   const cpk=sm.prod?totCost/sm.prod:0;
   const revenue=derkoshRevenueThisMonth;
@@ -969,6 +972,13 @@ document.addEventListener('DOMContentLoaded',()=>{
      stored running-balance column — matches the sheet spec's
      "running cumulative sold vs produced" model. */
 let openingStockKg=0;
+let soldThisMonthKg=0;   // total Derkosh kg sold in the selected month
+// Closing stock of the month = opening + produced - sold (the last row's running balance; with no batches, opening - sold).
+function monthClosingKg(){
+  if(rows && rows.length) return rows[rows.length-1].cl;
+  const sold=(derkoshSalesRows||[]).reduce((s,r)=>s+r.quantity,0);
+  return Math.max(0,openingStockKg-sold);
+}
 
 async function loadPkgItems(){
   try{
@@ -1011,6 +1021,7 @@ async function loadMonth(){
     // (sold this month is attributed cumulatively, matching the sheet's
     // running "produced vs sold" model rather than a per-batch link)
     const totalSoldThisMonth=salesRows.reduce((s,r)=>s+parseFloat(r.quantity||0),0);
+    soldThisMonthKg=totalSoldThisMonth;
     let soldRemaining=totalSoldThisMonth;
     let running=openingStockKg;
     rows=costRows.map(r=>{
@@ -1020,7 +1031,7 @@ async function loadMonth(){
       const soldForRow=Math.min(prod,soldRemaining);
       soldRemaining=Math.max(0,soldRemaining-soldForRow);
       running-=soldForRow;
-      return {
+      const _row = {
         id:r.id,
         date:new Date(r.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
         sd:r.date,
@@ -1032,9 +1043,14 @@ async function loadMonth(){
         tr:parseFloat(r.transfer_cost||0),
         pkc:parseFloat(r.packaging_cost||0),
         sold:soldForRow,
-        cl:Math.max(0,running)
+        cl:running
       };
+      return _row;
     });
+    // Kg sold beyond this month's own production were taken from the opening stock; take them off every row's running balance
+    // (before, they were never deducted, so the closing stock was too high whenever sales were larger than the month's production).
+    const _fromOpening=soldRemaining;
+    rows.forEach(r=>{ r.cl=Math.max(0,r.cl-_fromOpening); });
 
     // fetch pkg_item_id + waste_notes separately since the view doesn't expose them
     if(rows.length){
@@ -1121,7 +1137,8 @@ function renderCustomerTable(){
 function renderQuickInsights(){
   const el=document.getElementById('quickInsights');
   if(!el) return;
-  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:a.cl+r.cl,tr:a.tr+r.tr,pkc:a.pkc+r.pkc}),{prod:0,sold:0,cl:0,tr:0,pkc:0});
+  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:r.cl,tr:a.tr+r.tr,pkc:a.pkc+r.pkc}),{prod:0,sold:0,cl:0,tr:0,pkc:0});
+  sm.sold=soldThisMonthKg; if(!rows.length) sm.cl=monthClosingKg();   // month totals: all kg sold this month (not just what the month's own batches covered)
   const totCost=sm.tr+sm.pkc;
   const cpk=sm.prod?totCost/sm.prod:0;
   const items=[];
@@ -1171,7 +1188,7 @@ function renderTable(hlast){
     </div></td>`;
     tbody.appendChild(tr);
   });
-  const sm=data.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:a.cl+r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
+  const sm=data.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
   const tc=sm.tr+sm.pkc;const cpk=sm.prod?tc/sm.prod:0;
   document.getElementById('tI').textContent=sm.inj.toLocaleString();
   document.getElementById('tP').textContent=f(sm.prod);
@@ -1194,8 +1211,11 @@ function toggleRM(e,id){
   if(!was){
     const btn=e.currentTarget;
     const r=btn.getBoundingClientRect();
-    if(r.bottom+100>window.innerHeight) m.classList.add('flip-up');
     m.classList.add('show');
+    // Fixed-position menu, placed from the button: inside the table card it was clipped, so the last item (Delete) could not be clicked.
+    const mw=Math.max(130,m.offsetWidth||130), mh=m.offsetHeight||90;
+    m.style.left=Math.max(8,Math.min(r.right-mw,window.innerWidth-mw-8))+'px';
+    m.style.top=((r.bottom+4+mh>window.innerHeight-8)?Math.max(8,r.top-mh-4):r.bottom+4)+'px';
     _rmOpenedAt=performance.now();
   }
 }
@@ -1265,7 +1285,8 @@ function syncTotalsCard(){
   // it after any data change; now it only syncs the Derkosh Stock Summary
   // panel (Total Produced / Total Sold / Closing Stock), since the green
   // Monthly Totals banner it used to also update has been removed.
-  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:a.cl+r.cl}),{prod:0,sold:0,cl:0});
+  const sm=rows.reduce((a,r)=>({prod:a.prod+r.prod,sold:a.sold+r.sold,cl:r.cl}),{prod:0,sold:0,cl:0});
+  sm.sold=soldThisMonthKg; if(!rows.length) sm.cl=monthClosingKg();   // month totals: all kg sold this month (not just what the month's own batches covered)
   if(document.getElementById('sP')) document.getElementById('sP').textContent=f(sm.prod)+' kg';
   if(document.getElementById('sS')) document.getElementById('sS').textContent=f(sm.sold)+' kg';
   if(document.getElementById('sCl')) document.getElementById('sCl').textContent=f(sm.cl)+' kg';
@@ -1357,7 +1378,8 @@ function closeReport(){
   document.body.style.overflow='';
 }
 function computeReportData(){
-  const sm=rows.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:a.cl+r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
+  const sm=rows.reduce((a,r)=>({inj:a.inj+r.inj,prod:a.prod+r.prod,bags:a.bags+r.bags,tr:a.tr+r.tr,pkc:a.pkc+r.pkc,sold:a.sold+r.sold,cl:r.cl}),{inj:0,prod:0,bags:0,tr:0,pkc:0,sold:0,cl:0});
+  sm.sold=soldThisMonthKg; if(!rows.length) sm.cl=monthClosingKg();   // month totals: all kg sold this month (not just what the month's own batches covered)
   const totCost=sm.tr+sm.pkc;
   const totCpk=sm.prod?totCost/sm.prod:0;
   const totRev=derkoshRevenueThisMonth;
@@ -1712,5 +1734,7 @@ function renderCharts(labels, perPeriod, closingSeries){
 loadHistoryAndRenderCharts();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['submitForm']);</script>
 </body>
 </html>

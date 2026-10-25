@@ -2750,9 +2750,11 @@ catch(e) { console.warn("Batch ranking table could not render.", e.message); }
 // Shared by computeKPIs() and renderRanking() so "yield vs type average"
 // is computed identically everywhere on the page — one source of truth.
 function typeRateAverages(rows){
-  const rate = r => r.qty / (r.blend + r.corn + r.gomen);
-  const normalRates  = rows.filter(r=>r.type==='Normal').map(rate);
-  const specialRates = rows.filter(r=>r.type==='Special').map(rate);
+  // A batch with no material rows has 0 kg, and qty/0 made the rate Infinity — which turned every average, the
+  // Yield Rate and the ranking into Infinity/NaN. Such a batch gets rate 0 and is left out of the averages.
+  const rate = r => { const kg = r.blend + r.corn + r.gomen; return kg > 0 ? r.qty / kg : 0; };
+  const normalRates  = rows.filter(r=>r.type==='Normal').map(rate).filter(v=>v>0);
+  const specialRates = rows.filter(r=>r.type==='Special').map(rate).filter(v=>v>0);
   const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
   return { normalAvg: avg(normalRates), specialAvg: avg(specialRates), rate };
 }
@@ -3007,5 +3009,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 </script>
 
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['saveBatchStandard']);</script>
 </body>
 </html>

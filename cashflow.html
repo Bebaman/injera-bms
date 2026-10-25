@@ -511,21 +511,48 @@ const PERIOD_CACHE = {};
 // Fetches every table needed for one period's cash flow and returns a plain data bag
 // (does NOT touch the global RAW/UI state) — used both for the active month and for
 // re-deriving the prior month's closing balance during reconciliation.
+// Reference data that never changes within a period — fetched once, not once per month.
+let STATIC_PROMISE = null;
+function loadStatics(){
+  if(!STATIC_PROMISE){
+    STATIC_PROMISE = Promise.allSettled([ sbGet(`expense_categories?select=*`), sbGet(`inventory_items?select=*`) ])
+      .then(([catRes, itemRes])=>{
+        const ok = catRes.status==='fulfilled' && itemRes.status==='fulfilled';
+        const expenseCatById = {}, itemById = {};
+        if(catRes.status==='fulfilled') (catRes.value||[]).forEach(c=>{ expenseCatById[c.id] = c.name; });
+        if(itemRes.status==='fulfilled') (itemRes.value||[]).forEach(it=>{ itemById[it.id] = it; });
+        if(!ok) STATIC_PROMISE = null;   // don't remember a failure
+        return { ok, expenseCatById, itemById };
+      });
+  }
+  return STATIC_PROMISE;
+}
+
+// Builds one period's data bag from already-fetched rows.
+function bagFromRows(period, rows, statics, ok){
+  const openingBalances = {};
+  (rows.ob||[]).forEach(r=>{ openingBalances[r.channel] = parseFloat(r.opening_balance||0); });
+  return {
+    period,
+    openingBalance: openingBalances, // {cash,bank,mobile} for THIS period only
+    sales: rows.sales||[], creditPayments: rows.cp||[], purchases: rows.purch||[], payroll: rows.payroll||[],
+    pettyCash: rows.petty||[], cfEntries: rows.cfe||[],
+    expenseCatById: statics.expenseCatById, itemById: statics.itemById,
+    loanRepayments: rows.loan||[],
+    ok: !!ok && statics.ok
+  };
+}
+
+// Fetches every table needed for one period's cash flow and returns a plain data bag
+// (does NOT touch the global RAW/UI state). Only a COMPLETE load is remembered: a bag with a failed
+// query used to be cached too, which silently produced wrong opening balances for every later month.
 async function fetchPeriodData(period){
   if(PERIOD_CACHE[period]) return PERIOD_CACHE[period];
 
   const startDate = period + '-01';
-  const [y,m] = period.split('-').map(Number);
   const endDate = monthEndISO(period); // last calendar day of the month (toISOString shifted it back a day in UTC+3)
 
-  // Each query below used to be a supabase-js `db.from(table).select(...)`
-  // chain; converted to the shared sbGet(path) — same filters, expressed as
-  // a PostgREST query string instead of the query-builder's method chain.
-  // sbGet() resolves directly to the row array (or throws), so each entry
-  // below is either 'fulfilled' with the array as .value, or 'rejected' —
-  // Promise.allSettled() handles that the same way regardless of which
-  // client produced the promise.
-  const results = await Promise.allSettled([
+  const [results, statics] = await Promise.all([ Promise.allSettled([
     sbGet(`channel_opening_balances?select=*&period=eq.${period}`),
     sbGet(`sales?select=*&period=eq.${period}&is_deleted=eq.false`),
     sbGet(`credit_payments?select=*&period=eq.${period}`),
@@ -533,43 +560,54 @@ async function fetchPeriodData(period){
     sbGet(`payroll_detail?select=*&period=eq.${period}`),
     sbGet(`petty_cash?select=*&period=eq.${period}`),
     sbGet(`cash_flow_entries?select=*&period=eq.${period}`),
-    sbGet(`expense_categories?select=*`),
-    sbGet(`inventory_items?select=*`),
     sbGet(`loan_repayment_schedule?select=*&status=eq.paid&actual_payment_date=gte.${startDate}&actual_payment_date=lte.${endDate}`)
-  ]);
+  ]), loadStatics() ]);
 
-  const [obRes, salesRes, cpRes, purchRes, payrollRes, pettyRes, cfeRes, catRes, itemRes, loanRepayRes] = results;
-
-  const openingBalances = {};
-  ((obRes.status==='fulfilled') ? (obRes.value||[]) : []).forEach(r=>{
-    openingBalances[r.channel] = parseFloat(r.opening_balance||0);
-  });
-
-  const expenseCatById = {};
-  if(catRes.status==='fulfilled'){
-    (catRes.value||[]).forEach(c=>{ expenseCatById[c.id] = c.name; });
-  }
-  const itemById = {};
-  if(itemRes.status==='fulfilled'){
-    (itemRes.value||[]).forEach(it=>{ itemById[it.id] = it; });
-  }
-
-  const data = {
-    period,
-    openingBalance: openingBalances, // {cash,bank,mobile} for THIS period only
-    sales: (salesRes.status==='fulfilled') ? (salesRes.value||[]) : [],
-    creditPayments: (cpRes.status==='fulfilled') ? (cpRes.value||[]) : [],
-    purchases: (purchRes.status==='fulfilled') ? (purchRes.value||[]) : [],
-    payroll: (payrollRes.status==='fulfilled') ? (payrollRes.value||[]) : [],
-    pettyCash: (pettyRes.status==='fulfilled') ? (pettyRes.value||[]) : [],
-    cfEntries: (cfeRes.status==='fulfilled') ? (cfeRes.value||[]) : [],
-    expenseCatById, itemById,
-    loanRepayments: (loanRepayRes && loanRepayRes.status==='fulfilled') ? (loanRepayRes.value||[]) : [],
-    ok: !results.some(r => r.status==='rejected')
-  };
-  PERIOD_CACHE[period] = data;
+  const val = i => (results[i].status==='fulfilled') ? (results[i].value||[]) : [];
+  const data = bagFromRows(period,
+    { ob:val(0), sales:val(1), cp:val(2), purch:val(3), payroll:val(4), petty:val(5), cfe:val(6), loan:val(7) },
+    statics, !results.some(r => r.status==='rejected'));
+  if(data.ok) PERIOD_CACHE[period] = data;
   return data;
 }
+
+// Months back from `period` (YYYY-MM).
+function monthsBefore(period, n){ const [y,m] = period.split('-').map(Number); const d = new Date(y, m-1-n, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// The carry-forward below needs every month from the nearest opening-balance row up to the viewed month.
+// That used to be ten requests PER month, one month after another (about 100 requests on a page load in
+// October, growing every month). Fetch the whole range with one request per table instead.
+async function prefetchChain(period){
+  if(PERIOD_CACHE[period] && CHAIN_DONE[period]) return;
+  let start = monthsBefore(period, 36);
+  try{
+    const seed = await sbGet(`channel_opening_balances?select=period&period=lte.${period}&order=period.desc&limit=1`);
+    if(seed && seed[0] && seed[0].period > start) start = seed[0].period;
+  }catch(e){ return; }            // fall back to the month-by-month loading
+  if(start >= period) return;      // viewed month has its own opening row: nothing to chain
+  const A = start, B = period, startDate = A + '-01', endDate = monthEndISO(B);
+  const rng = (tbl, extra) => sbGet(`${tbl}?select=*&period=gte.${A}&period=lte.${B}${extra||''}`);
+  const [res, statics] = await Promise.all([ Promise.allSettled([
+    rng('channel_opening_balances'), rng('sales','&is_deleted=eq.false'), rng('credit_payments'),
+    rng('purchases','&is_deleted=eq.false&approval_status=in.(auto_approved,approved)'),
+    rng('payroll_detail'), rng('petty_cash'), rng('cash_flow_entries'),
+    sbGet(`loan_repayment_schedule?select=*&status=eq.paid&actual_payment_date=gte.${startDate}&actual_payment_date=lte.${endDate}`)
+  ]), loadStatics() ]);
+  if(res.some(r => r.status==='rejected') || !statics.ok) return;   // incomplete: use the safe per-month path
+  const [ob, sales, cp, purch, payroll, petty, cfe, loan] = res.map(r => r.value || []);
+  const by = (rows, keyFn) => { const m = {}; rows.forEach(r => { const k = keyFn(r); if(k){ (m[k] = m[k] || []).push(r); } }); return m; };
+  const g = { ob: by(ob,r=>r.period), sales: by(sales,r=>r.period), cp: by(cp,r=>r.period), purch: by(purch,r=>r.period),
+              payroll: by(payroll,r=>r.period), petty: by(petty,r=>r.period), cfe: by(cfe,r=>r.period),
+              loan: by(loan,r=>String(r.actual_payment_date||'').slice(0,7)) };
+  for(let p = A; p <= B; p = nextMonthKey(p)){
+    if(p === B) continue;          // the viewed month is always loaded fresh by loadMonthData()
+    PERIOD_CACHE[p] = bagFromRows(p, { ob:g.ob[p], sales:g.sales[p], cp:g.cp[p], purch:g.purch[p], payroll:g.payroll[p],
+                                       petty:g.petty[p], cfe:g.cfe[p], loan:g.loan[p] }, statics, true);
+  }
+  CHAIN_DONE[period] = true;
+}
+const CHAIN_DONE = {};
+let CHAIN_INCOMPLETE = false;      // set when an earlier month could not be loaded, so the opening balance is not trustworthy
 
 // ── Opening balance carry-forward (fixed 2026-07) ──────────────────────────
 // channel_opening_balances only ever has an explicit row for the very first period
@@ -580,10 +618,11 @@ async function fetchPeriodData(period){
 const RESOLVED_OPENING_CACHE = {};
 async function resolveOpeningBalance(period, depth){
   depth = depth || 0;
+  if(depth === 0) await prefetchChain(period);
   if(RESOLVED_OPENING_CACHE[period]) return RESOLVED_OPENING_CACHE[period];
   const data = await fetchPeriodData(period);
   if(Object.keys(data.openingBalance).length > 0){
-    RESOLVED_OPENING_CACHE[period] = data.openingBalance;
+    if(data.ok) RESOLVED_OPENING_CACHE[period] = data.openingBalance; else CHAIN_INCOMPLETE = true;
     return data.openingBalance;
   }
   if(depth >= 36){
@@ -597,20 +636,20 @@ async function resolveOpeningBalance(period, depth){
   const prevOpening = await resolveOpeningBalance(prevPeriod, depth+1);
   const prevData = await fetchPeriodData(prevPeriod);
   const prevCf = computeCashFlow({ ...prevData, openingBalance: prevOpening });
-  RESOLVED_OPENING_CACHE[period] = prevCf.closing;
-  return RESOLVED_OPENING_CACHE[period];
+  if(prevData.ok && data.ok) RESOLVED_OPENING_CACHE[period] = prevCf.closing; else CHAIN_INCOMPLETE = true;
+  return prevCf.closing;
 }
 
 async function loadMonthData(period){
+  CHAIN_INCOMPLETE = false;
   const prevPeriod = prevMonthKey(period);
   const data = await fetchPeriodData(period);
   const resolvedOpening = await resolveOpeningBalance(period);
-  // fetchPeriodData() stores `data` itself into PERIOD_CACHE[period] — mutate the opening
-  // balance on that same shared object (after resolution, so resolveOpeningBalance()'s own
-  // "does this exact period have its own seed row?" check above still saw the true raw
-  // value). Without this, loadAndRender()'s computeCashFlow(PERIOD_CACHE[period]) call would
-  // read the unresolved value straight back out and silently undo this whole fix.
+  // The viewed month is always kept (even after a partial load, so the page can still show it with a warning);
+  // its opening balance is replaced by the resolved one AFTER resolution, so resolveOpeningBalance()'s own
+  // "does this exact period have its own seed row?" check above still saw the true raw value.
   data.openingBalance = resolvedOpening;
+  PERIOD_CACHE[period] = data;
 
   RAW.openingBalances = { [period]: resolvedOpening };
   RAW.sales = data.sales;
@@ -626,7 +665,7 @@ async function loadMonthData(period){
   RAW.prevPeriod = prevPeriod;
   RAW.loaded = true;
 
-  return data.ok;
+  return data.ok && !CHAIN_INCOMPLETE;
 }
 
 /* ════════════════ COMPUTATION ════════════════ */
@@ -1099,7 +1138,10 @@ async function loadAndRender(){
   // The shared topbar's .stat-pill (header.js) is static and has no id — this page
   // no longer owns it directly, so status is surfaced via toast on failure instead.
   delete PERIOD_CACHE[period]; // always fetch fresh for the active month; reconciliation cache for the prior month is fine to reuse
-  delete RESOLVED_OPENING_CACHE[period];
+  // An opening balance calculated for this month or any LATER month (e.g. viewed earlier, before an entry was added here)
+  // is stale now, so drop those too — otherwise moving forward showed last session's opening balance.
+  Object.keys(RESOLVED_OPENING_CACHE).forEach(k => { if(k >= period) delete RESOLVED_OPENING_CACHE[k]; });
+  delete CHAIN_DONE[period];
   const ok = await loadMonthData(period);
   const cf = computeCashFlow(PERIOD_CACHE[period]);
   renderCashFlowTable(cf);
@@ -1110,7 +1152,7 @@ async function loadAndRender(){
   if (typeof refreshNotifications === 'function') {
     refreshNotifications(buildHeaderNotifications(cf, recon));
   }
-  if(!ok) notify('Some data for this period could not be loaded', 'error');
+  if(!ok) notify(CHAIN_INCOMPLETE ? 'Some earlier months could not be loaded, so the opening balance may be wrong — reload to retry' : 'Some data for this period could not be loaded', 'error');
   window._lastCF = cf;
 }
 
@@ -1726,5 +1768,7 @@ async function refreshForMonth(monthKey){
 })();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['submitRegularEntry', 'submitTransfer', 'deleteEntryRow', 'deleteOwnerTxn']);</script>
 </body>
 </html>

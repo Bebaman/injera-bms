@@ -60,7 +60,7 @@ html{scroll-behavior:smooth}
 /* ENTRY ANIMATIONS */
 .kc-anim{animation:riseUp .65s cubic-bezier(.22,.61,.36,1) both;animation-delay:calc(var(--d)*75ms)}
 .kc-ico.spin-ready{animation:spinIn .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--d)*75ms + .18s)}
-.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) backwards}
 .cst-main>.card:nth-child(1){animation-delay:.05s}
 .cst-side .card{animation-delay:.1s}
 .cst-bottom .card:nth-child(1){animation-delay:.1s}
@@ -918,7 +918,7 @@ async function loadCustomerTxns(id){
     // credit_payments has no customer_id column — it links via sale_id,
     // so payments for this customer are fetched via their sale IDs.
     const payments = saleIds.length
-      ? await sbGet(`credit_payments?select=payment_date,amount_paid,channel,sale_id&sale_id=in.(${saleIds.join(',')})&order=payment_date.desc&limit=20`) || []
+      ? (await sbGetInChunks('credit_payments?select=payment_date,amount_paid,channel,sale_id','sale_id',saleIds) || []).sort((a,b)=>String(b.payment_date).localeCompare(String(a.payment_date))).slice(0,20)
       : [];
     const PROD_FROM_DB={injera:'Injera',derkosh:'Derkosh'};
     const PM_FROM_DB={cash:'Cash',credit:'Credit',bank:'Bank Transfer',mobile:'Mobile Money'};
@@ -1185,7 +1185,7 @@ async function loadAndRenderAging(){
     const sales = await sbGet('sales?select=id,date,revenue,customers(name)&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false') || [];
     if(sales.length){
       const saleIds = sales.map(s=>s.id);
-      const payments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
+      const payments = await sbGetInChunks('credit_payments?select=sale_id,amount_paid','sale_id',saleIds) || [];
       const paidBySale={};
       payments.forEach(p=>{ paidBySale[p.sale_id]=(paidBySale[p.sale_id]||0)+parseFloat(p.amount_paid||0); });
       sales.forEach(s=>{
@@ -1397,7 +1397,7 @@ async function savePayment(e){
       return;
     }
     const saleIds = unsettledSales.map(s=>s.id);
-    const existingPayments = await sbGet(`credit_payments?select=sale_id,amount_paid&sale_id=in.(${saleIds.join(',')})`) || [];
+    const existingPayments = await sbGetInChunks('credit_payments?select=sale_id,amount_paid','sale_id',saleIds) || [];
     const paidBySale = {};
     existingPayments.forEach(p=>{ paidBySale[p.sale_id]=(paidBySale[p.sale_id]||0)+parseFloat(p.amount_paid||0); });
 
@@ -1594,7 +1594,7 @@ async function fetchAllCustomerTxns(id){
   const sales = await sbGet(`sales?select=id,date,product_type,quantity,unit_price,revenue,payment_method,settled_date&customer_id=eq.${id}&is_deleted=eq.false&order=date.desc`) || [];
   const saleIds = sales.map(s=>s.id);
   const payments = saleIds.length
-    ? await sbGet(`credit_payments?select=payment_date,amount_paid,channel,sale_id&sale_id=in.(${saleIds.join(',')})&order=payment_date.desc`) || []
+    ? (await sbGetInChunks('credit_payments?select=payment_date,amount_paid,channel,sale_id','sale_id',saleIds) || []).sort((a,b)=>String(b.payment_date).localeCompare(String(a.payment_date)))
     : [];
   const PROD_FROM_DB={injera:'Injera',derkosh:'Derkosh'};
   const PM_FROM_DB={cash:'Cash',credit:'Credit',bank:'Bank Transfer',mobile:'Mobile Money'};
@@ -1796,5 +1796,7 @@ async function confirmImport(){
 })();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['saveNewCustomer', 'savePayment', 'confirmImport']);</script>
 </body>
 </html>

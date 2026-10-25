@@ -259,7 +259,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 .kc{animation:fadeUp .45s ease both}
 .kc:nth-child(1){animation-delay:.02s}.kc:nth-child(2){animation-delay:.07s}.kc:nth-child(3){animation-delay:.12s}
 .kc:nth-child(4){animation-delay:.17s}.kc:nth-child(5){animation-delay:.22s}.kc:nth-child(6){animation-delay:.27s}
-.card{animation:fadeUp .5s ease both}
+.card{animation:fadeUp .5s ease backwards}
 .bar-fill{transition:width 1s cubic-bezier(.22,1,.36,1)}
 .pg-b,.fsel,.btn-new,.vall,.act-dots,.view-exp{transition:all .15s ease}
 .btn-new:active,.pg-b:active{transform:scale(.96)}
@@ -1339,21 +1339,31 @@ function deletePurchase(id){
   closeRowMenu();
   const p = purchases.find(x=>x.id===id);
   if(!p) return;
-  if(!confirm(`Delete this ${p.type.toLowerCase()} from ${p.supplier} (${fmtDate(p.date)})?`)) return;
-  deleteFromSupabase(p);
-  purchases = purchases.filter(x=>x.id!==id);
-  renderTable();
-  renderCharts();
-  showToast('Purchase deleted');
+  // In-page dialog (the browser confirm box can be blocked on phones); the row only disappears once the database has deleted it.
+  showConfirm({
+    title: 'Delete this ' + p.type.toLowerCase() + '?',
+    message: `${p.supplier} (${fmtDate(p.date)})`,
+    confirmLabel: 'Delete',
+    onConfirm: async ()=>{
+      const ok = await deleteFromSupabase(p);
+      if(ok !== true) return;
+      purchases = purchases.filter(x=>x.id!==id);
+      renderTable();
+      renderCharts();
+      renderSummaryCards();
+      showToast('Purchase deleted');
+    }
+  });
 }
 
 function approvePurchase(id){
   closeRowMenu();
   const p = purchases.find(x=>x.id===id);
   if(!p) return;
+  const _prev = { status:p.status, approvedAt:p.approvedAt };
   p.status = 'Completed';
   p.approvedAt = new Date().toISOString();
-  saveToSupabase(p);
+  saveToSupabase(p).then(ok=>{ if(ok !== true){ Object.assign(p, _prev); renderTable(); renderCharts(); renderSummaryCards(); if(document.getElementById('approvalModalOverlay').classList.contains('show')) renderApprovalQueue(); } });
   renderTable();
   renderCharts();
   renderSummaryCards();
@@ -1367,9 +1377,10 @@ function rejectPurchase(id){
   if(!p) return;
   const reason = prompt('Reason for rejecting this expense (sent to submitter):');
   if(reason === null) return;
+  const _prevR = { status:p.status, rejectionReason:p.rejectionReason };
   p.status = 'Rejected';
   p.rejectionReason = reason.trim() || 'No reason given';
-  saveToSupabase(p);
+  saveToSupabase(p).then(ok=>{ if(ok !== true){ Object.assign(p, _prevR); renderTable(); renderCharts(); renderSummaryCards(); if(document.getElementById('approvalModalOverlay').classList.contains('show')) renderApprovalQueue(); } });
   renderTable();
   renderCharts();
   renderSummaryCards();
@@ -1927,18 +1938,23 @@ async function savePurchase(){
     exchangeRate: fxOn ? (parseFloat(document.getElementById('pFxRate').value)||0) : null
   };
 
+  // The record is shown straight away, but only kept (and the success message shown) once the database has accepted it.
+  // Before, a rejected save (locked period, permissions, a database rule) left the purchase on screen until the next reload.
   if(editId){
     const idx = purchases.findIndex(x=>x.id==editId);
+    const before = idx>-1 ? purchases[idx] : null;
     if(idx>-1) purchases[idx] = {...purchases[idx], ...data};
     closePurchaseModal();
     state.page = 1;
     syncMonthSelectorTo(date);
     renderTable();
     renderCharts();
-    showToast('Purchase updated');
-    await saveToSupabase(purchases.find(x=>x.id==editId));
+    const ok = await saveToSupabase(purchases.find(x=>x.id==editId));
+    if(ok === true) showToast('Purchase updated');
+    else if(before){ const j = purchases.findIndex(x=>x.id==editId); if(j>-1) purchases[j] = before; }
     renderTable();
     renderCharts();
+    renderSummaryCards();
   } else {
     const newP = {id: nextPurchaseId++, ...data};
     purchases.unshift(newP);
@@ -1947,10 +1963,12 @@ async function savePurchase(){
     syncMonthSelectorTo(date);
     renderTable();
     renderCharts();
-    showToast(data.status==='Pending' ? 'Expense submitted — awaiting Owner approval' : 'Purchase added');
-    await saveToSupabase(newP);
+    const ok = await saveToSupabase(newP);
+    if(ok === true) showToast(data.status==='Pending' ? 'Expense submitted — awaiting Owner approval' : 'Purchase added');
+    else purchases = purchases.filter(x=>x!==newP);
     renderTable();
     renderCharts();
+    renderSummaryCards();
   }
 }
 function syncMonthSelectorTo(dateStr){
@@ -2658,6 +2676,7 @@ function handleDeepLinkParams(){
   }
 }
 
+// Resolves true when the database accepted the save, false when it did not.
 async function saveToSupabase(p){
   try{ return await _saveToSupabaseCore(p); } finally { if(typeof loadFixedAssets==='function') setTimeout(loadFixedAssets, 400); }
 }
@@ -2695,9 +2714,11 @@ async function _saveToSupabaseCore(p){
       const data = await sbPost(PURCHASES_TABLE, row);
       if(data && data[0]){ p._dbId = data[0].id; syncTriggerComputedFields(p, data[0]); }
     }
+    return true;
   } catch(err){
-    console.log('Supabase save failed (local only):', err.message);
-    showToast('⚠ Could not save to database — kept locally. ' + err.message);
+    console.log('Supabase save failed:', err.message);
+    showToast('⚠ Not saved — ' + err.message);
+    return false;
   }
 }
 
@@ -2710,10 +2731,13 @@ function syncTriggerComputedFields(local, dbRow){
 
 async function deleteFromSupabase(p){
   try {
-    if(!p._dbId) return;
+    if(!p._dbId) return true;
     await sbPatch(`${PURCHASES_TABLE}?id=eq.${p._dbId}`, { is_deleted: true });
+    return true;
   } catch(err){
     console.log('Supabase delete failed:', err.message);
+    showToast('⚠ Not deleted — ' + err.message);
+    return false;
   }
 }
 
@@ -2736,5 +2760,7 @@ loadFromSupabase().then(()=>{ if(typeof loadFixedAssets==='function') loadFixedA
 </script>
 
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['savePurchase', 'confirmDispose', 'deleteSupplierFromSupabase', 'saveSupplierToSupabase']);   // the form's Save button; per-record saves/deletes are NOT wrapped, so two quick approvals both go through</script>
 </body>
 </html>

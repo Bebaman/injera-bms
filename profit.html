@@ -63,7 +63,7 @@ button{font-family:inherit}
 .sb-a:nth-child(1){animation-delay:.02s}.sb-a:nth-child(2){animation-delay:.05s}.sb-a:nth-child(3){animation-delay:.08s}.sb-a:nth-child(4){animation-delay:.11s}.sb-a:nth-child(5){animation-delay:.14s}
 .al{animation:fadeUp .45s ease both}
 .al:nth-child(1){animation-delay:.05s}.al:nth-child(2){animation-delay:.12s}.al:nth-child(3){animation-delay:.19s}.al:nth-child(4){animation-delay:.26s}
-.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) backwards}
 .dist-left>.card:nth-child(1){animation-delay:.05s}
 .dist-left>.card:nth-child(2){animation-delay:.12s}
 .dist-right .card:nth-child(1){animation-delay:.1s}
@@ -682,11 +682,12 @@ async function loadMonthlyCashFlow(){
 // cash_flow_entries also carries loan and profit-distribution-payment activity under
 // the same "financing" category, so we filter by entry_type to isolate just the
 // owner's own injections/withdrawals (never blend them into Net Cash Profit).
+let OWNER_ACT_CACHE = null, DIST_CACHE = null;   // filled once by buildHistory() so it does not ask the database twice per month
 async function loadOwnerActivity(period){
   let injections = 0, withdrawals = 0;
   const injectionList = [];
   try{
-    const rows = await sbGet(`cash_flow_entries?select=entry_type,amount,date,description&period=eq.${period}&entry_type=in.(capital_injection,capital_withdrawal)&order=date.asc`);
+    const rows = OWNER_ACT_CACHE ? (OWNER_ACT_CACHE[period]||[]) : await sbGet(`cash_flow_entries?select=entry_type,amount,date,description&period=eq.${period}&entry_type=in.(capital_injection,capital_withdrawal)&order=date.asc`);
     (rows||[]).forEach(r=>{
       const amt = n(r.amount);
       if(r.entry_type==='capital_injection'){ injections += amt; injectionList.push({ date: r.date, owner: r.description || '', amount: amt }); } else if(r.entry_type==='capital_withdrawal') withdrawals += amt;
@@ -699,7 +700,7 @@ async function loadOwnerActivity(period){
 // (profit_distributions joined to profit_distribution_lines joined to shareholders).
 async function loadDistributionRecord(period){
   try{
-    const rows = await sbGet(`monthly_profit_distribution?select=*&period=eq.${period}`);
+    const rows = DIST_CACHE ? (DIST_CACHE[period]||[]) : await sbGet(`monthly_profit_distribution?select=*&period=eq.${period}`);
     if(rows && rows.length){
       return {
         pct: n(rows[0].distribution_pct), net: n(rows[0].net_cash_profit),
@@ -721,6 +722,15 @@ async function buildHistory(){
   if(!periods.includes(curKey)) periods.push(curKey);
   periods.sort();
 
+  OWNER_ACT_CACHE = null; DIST_CACHE = null;
+  try{
+    const [oa, dr] = await Promise.all([
+      sbGet(`cash_flow_entries?select=period,entry_type,amount,date,description&entry_type=in.(capital_injection,capital_withdrawal)&order=date.asc`),
+      sbGet(`monthly_profit_distribution?select=*`)
+    ]);
+    const grp = (arr) => { const m = {}; (arr||[]).forEach(r => { (m[r.period] = m[r.period] || []).push(r); }); return m; };
+    OWNER_ACT_CACHE = grp(oa); DIST_CACHE = grp(dr);
+  }catch(e){ OWNER_ACT_CACHE = null; DIST_CACHE = null; }   // fall back to the per-month requests
   const rows = [];
   for(const key of periods){
     const b = cashByPeriod[key];
@@ -1118,7 +1128,15 @@ async function submitRecordModal(e){
     toast('Could not match every shareholder to a real record — reload the page and try again','error');
     return;
   }
+  let headerSaved = false;
   try{
+    // A header whose lines never saved (an earlier failed attempt) would block this month for good, because a
+    // period can only have one distribution. Remove such an empty header first.
+    const stale = await sbGet(`profit_distributions?select=id&period=eq.${rec.key}`);
+    for(const s of (stale||[])){
+      const ls = await sbGet(`profit_distribution_lines?select=id&distribution_id=eq.${s.id}&limit=1`);
+      if(!(ls && ls.length)) await sbDelete(`profit_distributions?id=eq.${s.id}`);
+    }
     await sbPost('profit_distributions', [{
       id: distId, period: rec.key, distribution_pct: rec.pct, net_cash_profit: rec.net,
       // header = exactly what the lines pay out (lines are rounded to the accounting unit), so
@@ -1126,10 +1144,13 @@ async function submitRecordModal(e){
       distributable_amount: lines.reduce((t,l)=>t+l.amount,0),
       retained_amount: rec.net - lines.reduce((t,l)=>t+l.amount,0)
     }]);
+    headerSaved = true;
     await sbPost('profit_distribution_lines', lines);
     toast('Distribution recorded and paid for '+rec.m,'success');
   }catch(err){
     console.error(err);
+    // The header and its lines are two separate saves: if the lines failed, take the header back out so nothing half-recorded is left.
+    if(headerSaved){ try{ await sbDelete(`profit_distributions?id=eq.${distId}`); }catch(e2){ console.error('cleanup failed', e2); } }
     toast('Could not record distribution: '+err.message,'error');
     return;
   }
@@ -1420,5 +1441,7 @@ async function initPage(){
 initPage();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['saveShareholderChanges', 'submitRecordModal', 'submitDistributionSettingsModal']);</script>
 </body>
 </html>

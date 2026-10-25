@@ -23,7 +23,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 .set-tab:hover{color:var(--tm)}
 .set-tab.active{color:#1d5c38;border-color:#1d5c38}
 .set-pane{display:none}
-.set-pane.active{display:block;animation:fadeUp .35s ease both}
+.set-pane.active{display:block;animation:fadeUp .35s ease backwards}
 
 /* ══ CARD ═══════════════════════════════════════════ */
 .card{background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
@@ -171,7 +171,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-.card{animation:fadeUp .5s ease both}
+.card{animation:fadeUp .5s ease backwards}
 .pg-b,.btn-new,.exp-top,.bell,.act-dots,.sb-a,.uchip,.arr{transition:all .15s ease}
 .bell:hover{background:var(--bg)}
 
@@ -877,6 +877,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2{font-family:'Quicksand','Segoe UI'
 // mirrors cashflow.html's own wireSession() pattern, run once app-state.js
 // (and its loadSession()) is available.
 let db = null;
+let CUSTOM_SESSION_TIMEOUT = null;   // a stored session timeout that is not one of the dropdown choices
 try {
   if (typeof supabase !== 'undefined' && supabase.createClient) {
     db = createAppSupabaseClient(); // shared token manager (no second refresh path)
@@ -1071,6 +1072,7 @@ async function toggleShareholderActive(id){
   renderShareholders();
   const ok = await saveShareholderToSupabase(s);
   if(ok) toast(s.name + (s.isActive ? ' activated' : ' deactivated'), 'success');
+  else { s.isActive = !s.isActive; renderShareholders(); }   // save failed: show what the database still has
   renderUsers();
 }
 async function deleteShareholder(id){
@@ -1081,10 +1083,12 @@ async function deleteShareholder(id){
     message: 'Remove ' + s.name + ' from shareholders? This cannot be undone for future records.',
     confirmLabel: 'Remove',
     onConfirm: async () => {
+      const _before = shareholders.slice();
       shareholders = shareholders.filter(x=>x.id!==id);
       renderShareholders();
       const ok = await deleteShareholderFromSupabase(s);
       if(ok) toast('Shareholder removed', 'success');
+      else { shareholders = _before; renderShareholders(); }   // delete failed: the row is still in the database
     }
   });
 }
@@ -1111,14 +1115,17 @@ async function saveShareholder(){
 
   if(editingShareholderId){
     const s = shareholders.find(x=>x.id===editingShareholderId);
+    const _old = { name:s.name, role:s.role, pct:s.pct, isActive:s.isActive };
     s.name = name; s.role = role; s.pct = pct; s.isActive = isActive;
     const ok = await saveShareholderToSupabase(s);
     if(ok) toast('Shareholder updated', 'success');
+    else { Object.assign(s, _old); renderShareholders(); return; }   // keep the form open so it can be retried
   } else {
     const s = { id: nextShareholderId++, _dbId:null, name, role, pct, isActive };
     shareholders.push(s);
     const ok = await saveShareholderToSupabase(s);
     if(ok) toast('Shareholder added', 'success');
+    else { shareholders = shareholders.filter(x=>x!==s); renderShareholders(); return; }
   }
   renderShareholders();
   closeShareholderModal();
@@ -1842,7 +1849,16 @@ async function loadFromSupabase(){
         blend_item_id: r.blend_item_id, mill_supplier_id: r.mill_supplier_id
       };
       const tsMap = {60:'1 Hour',120:'2 Hours',240:'4 Hours',480:'8 Hours',0:'Never'};
-      document.getElementById('sysSessionTimeout').value = tsMap[r.session_timeout_minutes] ?? '4 Hours';
+      const _tsSel = document.getElementById('sysSessionTimeout');
+      if(r.session_timeout_minutes != null && !(r.session_timeout_minutes in tsMap)){
+        // A stored value the list doesn't offer: show it as-is so Save does not silently replace it with 4 hours.
+        const _lbl = r.session_timeout_minutes + ' minutes';
+        const _o = document.createElement('option'); _o.textContent = _lbl; _tsSel.appendChild(_o);
+        CUSTOM_SESSION_TIMEOUT = { label:_lbl, minutes:Number(r.session_timeout_minutes) };
+        _tsSel.value = _lbl;
+      } else {
+        _tsSel.value = tsMap[r.session_timeout_minutes] ?? '4 Hours';
+      }
       if(r.notification_preferences){
         NOTIF_TYPES.forEach(n=>{
           const p = r.notification_preferences[n.slug];
@@ -1939,6 +1955,11 @@ async function saveBusinessSettings(btn){
     toast('⚠ Pick a start month for Opening Balances before saving', 'error');
     return;
   }
+  const _lowPct = numVal('threshLowStock');
+  if(!(_lowPct >= 0 && _lowPct <= 100)){
+    toast('Low Stock Alert Threshold must be between 0 and 100 %', 'error');
+    return;
+  }
   const original = btn.textContent;
   const total = shareholders.filter(s=>s.isActive).reduce((sum,s)=>sum+s.pct,0);
   if(Math.abs(total-100) > 0.005){
@@ -1988,7 +2009,8 @@ async function saveBusinessSettings(btn){
     is_vat_registered: document.getElementById('acctVat').checked,
     use_wac: true,
     rounding_mode: document.getElementById('acctRounding').value === 'Whole Birr (1 ETB)' ? 'whole' : '2dp',
-    session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value] ?? 240,
+    session_timeout_minutes: ({'1 Hour':60,'2 Hours':120,'4 Hours':240,'8 Hours':480,'Never':0})[document.getElementById('sysSessionTimeout').value]
+      ?? ((CUSTOM_SESSION_TIMEOUT && CUSTOM_SESSION_TIMEOUT.label === document.getElementById('sysSessionTimeout').value) ? CUSTOM_SESSION_TIMEOUT.minutes : 240),
     business_timezone: 'Africa/Addis_Ababa',
     notification_preferences: notifPrefs,
     teff_item_id: val('millTeffItem') || null,
@@ -2038,5 +2060,7 @@ document.querySelectorAll('.btn-pri[onclick="saveBusinessSettings(this)"]').forE
 loadFromSupabase();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['saveUser', 'saveLocation', 'saveDelegation', 'saveInventoryOpeningBalances']);</script>
 </body>
 </html>

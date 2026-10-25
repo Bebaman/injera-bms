@@ -28,7 +28,7 @@ button{font-family:inherit}
 @keyframes cardPop{0%{opacity:0;transform:translateY(14px) scale(.96)}70%{opacity:1;transform:translateY(-2px) scale(1.005)}100%{opacity:1;transform:translateY(0) scale(1)}}
 
 /* ENTRY ANIMATIONS */
-.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) both}
+.card{animation:cardPop .55s cubic-bezier(.22,.61,.36,1) backwards}
 .bva-main>.card:nth-child(1){animation-delay:.05s}
 .bva-side .card:nth-child(1){animation-delay:.1s}
 .bva-side .card:nth-child(2){animation-delay:.16s}
@@ -408,7 +408,7 @@ async function loadPeriod(pKey){
     sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&select=type,item_id,expense_category_id,total_cost,source'), // approved only — pending/rejected purchases are not spend (same rule as the P&L)
     sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
     sb('petty_cash?period=eq.'+pKey+'&select=amount'),
-    sb('loan_repayment_schedule?due_date=gte.'+start+'&due_date=lt.'+end+'&select=interest_portion'),
+    sb('loan_repayment_schedule?status=eq.paid&actual_payment_date=gte.'+start+'&actual_payment_date=lt.'+end+'&select=interest_portion,late_fee_amount'),   // interest PAID in the month incl. late fees — the same rule as the P&L (it used the scheduled due date, so unpaid instalments counted)
     sb('budget_lines?period=eq.'+pKey+'&select=id,line_item,budget_amount,budget_source,created_at,created_by')
   ]);
 
@@ -426,7 +426,7 @@ async function loadPeriod(pKey){
   });
   ovhRows.forEach(r=>{const k=ID_MAPS.ovhLine[r.category_id];if(k)actual[k]+=Number(r.amount||0);});
   pettyRows.forEach(r=>{actual.other_opex+=Number(r.amount||0);});
-  loanRows.forEach(r=>{actual.interest+=Number(r.interest_portion||0);});
+  loanRows.forEach(r=>{actual.interest+=Number(r.interest_portion||0)+Number(r.late_fee_amount||0);});
 
   const budget={};ITEMS.forEach(it=>budget[it.key]=0);
   let lastUpdated=null,lastCreatedBy=null,hasManual=false,hasAi=false;

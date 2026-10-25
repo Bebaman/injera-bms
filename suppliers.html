@@ -219,7 +219,7 @@
 
 /* fadeIn/popIn now come from shared-shell.css; fadeUp is page-specific */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.card,.kc{animation:fadeUp .3s ease both}
+.card,.kc{animation:fadeUp .3s ease backwards}
 
 /* ══ TOAST ════════════════════════════════════════════
    Renamed .toast → .sup-toast: shared-shell.css already defines a `.toast`
@@ -998,11 +998,14 @@ window.addEventListener('resize', closeAllRowMenus);
 function toggleSupplierActive(id){
   const s = supplierById(id);
   s.isActive = !s.isActive;
-  saveSupplierToSupabase(s);
   renderSupplierList();
   renderKPIs();
   if(id===selectedSupplierId) renderDetails(s);
-  showToast(s.isActive ? 'Supplier reactivated' : 'Supplier deactivated');
+  saveSupplierToSupabase(s).then(ok=>{
+    if(ok === true){ showToast(s.isActive ? 'Supplier reactivated' : 'Supplier deactivated'); return; }
+    s.isActive = !s.isActive;    // the database refused it: show the real state again
+    renderSupplierList(); renderKPIs(); if(id===selectedSupplierId) renderDetails(s);
+  });
 }
 
 /* ════════════════ SUPPLIER DETAILS PANEL ════════════════ */
@@ -1616,9 +1619,10 @@ function saveSupplier(){
     fields.unit = itemsSupplied[0].unit;
   }
 
-  let s, isNew = false;
+  let s, isNew = false, before = null;
   if(editId){
     s = supplierById(editId);
+    before = Object.assign({}, s);
     Object.assign(s, fields);
   } else {
     isNew = true;
@@ -1630,8 +1634,13 @@ function saveSupplier(){
     suppliers.push(s);
   }
   (async ()=>{
-    await saveSupplierToSupabase(s);
-    if(!isNew || s._dbId){
+    const ok = await saveSupplierToSupabase(s);
+    if(ok !== true){
+      // not accepted by the database (for example a duplicate name): do not keep it on screen as if it were saved
+      if(isNew) suppliers = suppliers.filter(x=>x!==s);
+      else if(before) Object.assign(s, before);
+      if(selectedSupplierId===s.id && isNew) selectedSupplierId = suppliers.length ? suppliers[0].id : null;
+    } else if(!isNew || s._dbId){
       await saveSupplierProductsToSupabase(s);
     }
     renderSupplierList();
@@ -1955,6 +1964,7 @@ function previewImportFile(e){
 function importSuppliersFromCSV(){
   if(pendingImportRows.length===0){ showToast('Choose a CSV file first'); return; }
   let added = 0, skipped = 0;
+  const importedNew = [];
   pendingImportRows.forEach(row=>{
     const name = row['Name'] || row['name'];
     if(!name) return;
@@ -1980,14 +1990,24 @@ function importSuppliersFromCSV(){
       unit:'kg', avgPriceBlend:null, marketDays:[], itemsSupplied:[]
     };
     suppliers.push(s);
-    saveSupplierToSupabase(s);
+    importedNew.push(s);
     added++;
   });
   pendingImportRows = [];
   closeModal('importSuppliersOverlay');
   renderSupplierList();
   renderKPIs();
-  showToast(`Imported ${added} supplier(s)${skipped?', skipped '+skipped+' duplicate(s)':''}`);
+  // Keep only what the database accepted (one by one, so one bad row does not stop the others).
+  (async ()=>{
+    let saved = 0;
+    for(const s of importedNew){
+      const ok = await saveSupplierToSupabase(s);
+      if(ok === true) saved++; else suppliers = suppliers.filter(x=>x!==s);
+    }
+    renderSupplierList();
+    renderKPIs();
+    showToast(`Imported ${saved} of ${added} supplier(s)${skipped?', skipped '+skipped+' duplicate(s)':''}`);
+  })();
 }
 
 /* ════════════════ EXPORT (report-engine.js) ════════════════
@@ -2207,9 +2227,11 @@ async function saveSupplierToSupabase(s){
       // resolved (e.g. a still-open row menu, or a stale selection).
       if(data && data[0]) s._dbId = data[0].id;
     }
+    return true;
   }catch(err){
-    console.log('Supabase supplier save failed (local only):', err.message);
-    showToast('⚠ Could not save to database — kept locally. '+err.message);
+    console.log('Supabase supplier save failed:', err.message);
+    showToast('⚠ Not saved — '+err.message);
+    return false;
   }
 }
 
@@ -2304,5 +2326,7 @@ async function init(){
 init();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['saveSupplierToSupabase', 'saveSupplierProductsToSupabase']);</script>
 </body>
 </html>

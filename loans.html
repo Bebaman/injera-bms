@@ -170,7 +170,7 @@ html,body{overflow-x:hidden;max-width:100%}
 /* ══ ANIMATIONS ═════════════════════════════════════ */
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-.card{animation:fadeUp .5s ease both}
+.card{animation:fadeUp .5s ease backwards}
 .row-anim{animation:fadeIn .3s ease both}
 .pg-b,.btn-new,.vall,.act-dots,.qa-btn{transition:all .15s ease}
 .btn-new:active,.pg-b:active,.qa-btn:active{transform:scale(.96)}
@@ -1169,33 +1169,48 @@ async function markPaidOff(id){
     showToast(`${unpaid} installment${unpaid===1?' is':'s are'} still unpaid — record ${unpaid===1?'it':'them'} with Record Payment first.`);
     return;
   }
-  if(!confirm(`Mark the ${l.lender} loan as fully Paid Off?`)) return;
   document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
-  try{
-    const { error } = await db.from('loans').update({ status:'paid_off', outstanding_balance:0 }).eq('id', id);
-    if(error) throw error;
-    showToast(`${l.lender} loan marked as Paid Off`);
-    await loadAll();
-  } catch(err){
-    console.error('Mark paid off failed:', err);
-    showToast('Failed to update loan: '+(err.message||'unknown error'));
-    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
-  }
+  // In-page dialog (like the rest of the system) instead of the browser's confirm(): some phone / installed-app
+  // browsers block confirm(), which made this button silently do nothing.
+  showConfirm({
+    title: 'Mark loan as Paid Off?',
+    message: `Mark the ${l.lender} loan as fully Paid Off?`,
+    confirmLabel: 'Mark Paid Off',
+    onConfirm: async ()=>{
+      try{
+        const { error } = await db.from('loans').update({ status:'paid_off', outstanding_balance:0 }).eq('id', id);
+        if(error) throw error;
+        showToast(`${l.lender} loan marked as Paid Off`);
+        await loadAll();
+      } catch(err){
+        console.error('Mark paid off failed:', err);
+        showToast('Failed to update loan: '+(err.message||'unknown error'));
+        window.setSyncStatus?.('error', { message: 'Some data failed to save' });
+      }
+    }
+  });
 }
 async function deleteLoan(id){
   const l = loanById(id);
   if(!l) return;
-  if(!confirm(`Delete the ${l.lender} loan? This cannot be undone.`)) return;
-  try{
-    const { error } = await db.from('loans').delete().eq('id', id);
-    if(error) throw error;
-    showToast(`${l.lender} loan deleted`);
-    await loadAll();
-  } catch(err){
-    console.error('Delete loan failed:', err);
-    showToast((err.message||'').includes('recorded repayments') ? 'This loan has recorded repayments, so it cannot be deleted. Mark it Paid Off or Defaulted instead.' : 'Failed to delete loan: '+(err.message||'unknown error'));
-    window.setSyncStatus?.('error', { message: 'Some data failed to save' });
-  }
+  document.querySelectorAll('.row-menu').forEach(m=>m.style.display='none');
+  showConfirm({
+    title: 'Delete loan?',
+    message: `Delete the ${l.lender} loan? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    onConfirm: async ()=>{
+      try{
+        const { error } = await db.from('loans').delete().eq('id', id);
+        if(error) throw error;
+        showToast(`${l.lender} loan deleted`);
+        await loadAll();
+      } catch(err){
+        console.error('Delete loan failed:', err);
+        showToast((err.message||'').includes('recorded repayments') ? 'This loan has recorded repayments, so it cannot be deleted. Mark it Paid Off or Defaulted instead.' : 'Failed to delete loan: '+(err.message||'unknown error'));
+        window.setSyncStatus?.('error', { message: 'Some data failed to save' });
+      }
+    }
+  });
 }
 
 /* ════════════════ RECORD PAYMENT MODAL ════════════════ */
@@ -1438,5 +1453,7 @@ document.getElementById('lTerm').addEventListener('input', updatePmtPreview);
 loadAll();
 </script>
 <script src="/js/responsive.js" defer></script>
+<script>/* double-click protection — see singleFlight() in app-state.js */
+if(typeof singleFlight==='function') singleFlight(['deleteLoan']);</script>
 </body>
 </html>
