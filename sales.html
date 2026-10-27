@@ -100,8 +100,9 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.modal-hd h3{font
 /* ══ TABLE ══════════════════════════════════════════ */
 .tbl-wrap{overflow-x:auto}
 /* On laptop-width screens the 11-column ledger is wider than its card, which pushed the Actions (⋯) column out of sight
-   until you scrolled sideways. Keep that column pinned to the right edge (desktop only; phone/tablet use card rows). */
-@media (min-width:1025px){
+   until you scrolled sideways. Keep that column pinned to the right edge on laptops AND tablets (phones, 640px and
+   below, use card rows instead, where the menu sits in the card's top-right corner). */
+@media (min-width:641px){
   #salesTbl th:last-child{position:sticky;right:0;background:#f7fbf9;z-index:2}
   #salesTbl td:last-child{position:sticky;right:0;background:#fff;z-index:1;box-shadow:-8px 0 8px -8px rgba(0,0,0,.12)}
   #salesTbl tr.tot td:last-child{background:#f7fbf9}
@@ -147,6 +148,19 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong,.modal-hd h3{font
 .row-drop button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 12px;background:none;border:none;font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;color:var(--tm);cursor:pointer;text-align:left;white-space:nowrap}
 .row-drop button:hover{background:#f7fbf9;color:var(--td)}
 .row-drop button.danger:hover{background:#fdecea;color:#b71c1c}
+/* touch screens: a real finger-sized target for the ⋯ button and the menu items */
+@media (pointer:coarse){
+  .row-menu-btn{min-width:42px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;line-height:1;touch-action:manipulation}
+  .row-drop{min-width:170px}
+  .row-drop button{padding:13px 16px;font-size:14px;min-height:44px}
+}
+/* "Mark as Paid" shown right in the row on tablets and phones, so settling a credit sale never depends on the menu */
+.settle-quick{display:none}
+@media (max-width:1024px){
+  .settle-quick{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:9px;border:1.5px solid #19733f;background:#e5f5ed;color:#19733f;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation}
+  .settle-quick:active{background:#cdeedd}
+  .settle-quick svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+}
 .row-drop button svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 
 /* ══ FILTER PANEL ════════════════════════════════════ */
@@ -589,6 +603,7 @@ let allSales    = [];
 let allCustomers= [];
 let customerBalances = []; // rows from the customer_profitability view — true running AR balance per customer
 let openDrop    = null;
+let dropOpenedAt = 0;
 let prodChart = null, pmChart = null, trendChart = null, idChart = null;
 let profitFullSorted = [], arFullRows = [], collectionsFull = [];
 
@@ -1096,9 +1111,9 @@ function renderSalesTable(sales, opts) {
       <td>${pmTag(r.payment_method)}</td>
       <td>${fmt(r.unit_price)}</td>
       <td style="font-weight:700">${fmt(rev)}</td>
-      <td>${r.settled_date ? fmtDate(r.settled_date) : '<span class="dim">—</span>'}</td>
+      <td>${r.settled_date ? fmtDate(r.settled_date) : '<span class="dim">—</span>'}${(r.payment_method === 'Credit' && !r.settled_date) ? `<button type="button" class="settle-quick" onclick="settleSaleRow(event,'${r.id}')"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Mark as Paid</button>` : ''}</td>
       <td><div class="row-menu-wrap">
-        <span class="row-menu-btn" onclick="toggleRowMenu(event,this)">&#8943;</span>
+        <span class="row-menu-btn" role="button" tabindex="0" aria-label="Row actions" onclick="toggleRowMenu(event,this)">&#8943;</span>
         <div class="row-drop">
           <button onclick="rowView(event,'${r.id}')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
           ${(r.payment_method === 'Credit' && !r.settled_date) ? `<button onclick="settleSaleRow(event,'${r.id}')" style="color:#19733f"><svg viewBox="0 0 24 24" style="stroke:#19733f"><path d="M9 16l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>Mark as Paid</button>` : ''}
@@ -1419,6 +1434,7 @@ function toggleRowMenu(e, el) {
   drop.classList.toggle('open');
   openDrop = drop.classList.contains('open') ? drop : null;
   if (openDrop) {
+    dropOpenedAt = Date.now();
     // Fixed-position, placed from the button: inside the scrolling table card the menu was clipped / off-screen.
     const r = el.getBoundingClientRect();
     const w = Math.max(130, drop.offsetWidth || 130), h = drop.offsetHeight || 140;
@@ -1430,8 +1446,20 @@ function closeAllDrops() {
   if (openDrop) { openDrop.classList.remove('open'); openDrop=null; }
 }
 document.addEventListener('click', closeAllDrops);
-window.addEventListener('scroll', closeAllDrops, true);
-window.addEventListener('resize', closeAllDrops);
+// Phones and tablets fire scroll / resize events right after a tap (address bar sliding, layout settling), which used to
+// close the menu the instant it opened. Ignore those; a real scroll of the page or table still closes it.
+window.addEventListener('scroll', function (ev) {
+  if (!openDrop) return;
+  if (Date.now() - dropOpenedAt < 400) return;
+  if (ev && ev.target && ev.target.nodeType === 1 && openDrop.contains(ev.target)) return;
+  closeAllDrops();
+}, true);
+let lastInnerW = window.innerWidth;
+window.addEventListener('resize', function () {
+  if (window.innerWidth === lastInnerW) return;   // height-only changes (mobile browser bars) keep the menu open
+  lastInnerW = window.innerWidth;
+  closeAllDrops();
+});
 
 function rowView(e, id) {
   e.stopPropagation(); closeAllDrops();
@@ -1613,6 +1641,12 @@ function openCollectModal(e, saleId) {
       document.getElementById('c-amount').value = parseFloat(sale.revenue||0).toFixed(2);
       lockedNote.style.display = 'block';
       targetFld.value = sale.id;
+      // pre-fill what is STILL owed on this sale (payments already made are taken off)
+      sbGet(`credit_payments?select=amount_paid&sale_id=eq.${sale.id}`).then(rows => {
+        const paid = (rows || []).reduce((t, p) => t + parseFloat(p.amount_paid || 0), 0);
+        const owed = Math.round((parseFloat(sale.revenue || 0) - paid) * 100) / 100;
+        if (owed > 0 && String(document.getElementById('c-target-sale-id').value) === String(sale.id)) document.getElementById('c-amount').value = owed.toFixed(2);
+      }).catch(() => {});
     }
   } else {
     custSel.disabled = false;
