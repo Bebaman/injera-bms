@@ -1,9 +1,9 @@
-# Release bms-v13 - audit fixes
+# Release bms-v17 - audit fixes
 
 Pages: dashboard, inventory, settings, sales, customers, purchases, suppliers, production, derkosh, pettycash, overhead, cashflow, loans, profit, reports, budget
-Shared: js/app-state.js, css/shared-shell.css, sw.js (bms-v13), api/create-user.js
+Shared: js/app-state.js, css/shared-shell.css, sw.js (bms-v17), api/create-user.js
 Removed: the stray file "pl" (an old copy of pl.html; with clean URLs it could be served at /pl instead of pl.html)
-Database (NOT applied): sql/audit_20_reject_markup_gaps.sql - run it in the Supabase SQL editor if you want it.
+Database: sql/audit_20_reject_markup_gaps.sql and sql/audit_21_injera_uses.sql are ALREADY APPLIED to your Supabase project (kept here for the record; nothing to run).
 
 ## Fixed
 - Loans / Derkosh / Sales / Shareholders / Production / Suppliers / Petty Cash: action menus clipped, or Actions column off-screen at 1280-1440px
@@ -31,6 +31,23 @@ Database (NOT applied): sql/audit_20_reject_markup_gaps.sql - run it in the Supa
 - Overhead: one failed request could switch the page to the old mode that writes NET pay into labor overhead (the database uses gross); it now stays in the current mode
 - Budget: interest actual now = interest paid in the month incl. late fees (same as the P&L), not scheduled interest
 
+## Added in v17
+- Production exports now include wastage & own use: Excel gets two sheets ("Wastage & Own Use" summary, "Wastage Records"); the detailed PDF gets the same two tables; the summary PDF gets one line in Key Insights (and flags unaccounted injera above 2% of made). Definition of "Unaccounted" added to the report notes
+
+## Added in v16 (Production: wastage and own use)
+- New "Wastage & Own Use" section on the Production page (and a Quick Action): record injera that were made but not sold - wastage (burnt / torn / spoiled), own use (home), staff, gift / sample, other - with date, whole pieces, optional batch and note
+- Month summary: made, sold, wastage (pieces, % of made, ETB), own use & other (pieces, ETB), UNACCOUNTED = made - sold - recorded (turns amber above 2% of made). Value = pieces x the month's cost per injera
+- The P&L does not change: the cost of these injera was already inside the cost of production (home use stays a business cost for now)
+- Database (applied): table injera_uses (whole pieces only, no < >, period lock, workers can add, owners/managers can delete) and view injera_use_monthly. Deleting is a soft delete
+
+## Added in v15 (Production)
+- Yield Rate, Production Efficiency, the Low Yield alert, the batch ranking and the PDF/Excel exports now compare each batch with the EFFICIENCY TARGET (Efficiency Targets screen), not with the month's own average. Before, a month of equally poor batches still showed 100%. With the two real batches (about 5.6 pieces/kg against a target of 7.4) the page now shows Yield Rate 0%, Efficiency 76.2%, both batches "Review"
+- Batch Performance Ranking: ordered by yield against target (fair between Normal and Special), cost breaks ties. The "Full Batch Performance Ranking" window marked every batch "Excellent"; it now shows the real yield and rating
+- Wording: "Efficiency = pieces made / pieces the same kilograms should give at your target"
+
+## Added in v14
+- Budget: the ACTUAL column now comes from the same database figures as the P&L, so Budget's actual Net Profit is exactly the P&L's Net Profit (tested on two scenarios: 1,470.779 and 865.779 both equal). Cost lines show what was USED (materials consumed, bags used, overhead) instead of what was bought. One new line, "Other Production Costs & Derkosh Stock Change", holds the rest of the P&L's cost of goods so the lines add up to the total. Operating expenses = the P&L's operating expenses + petty cash + bank charges + depreciation - disposal gain, split into delivery / marketing / other. Budget amounts you already entered are unchanged; "Raw Materials" and "Packaging" budgets now mean materials/bags USED
+
 ## Added in v13
 - Customers / Sales: the payment lookups put every sale id in one web address, which fails for a customer with several hundred sales (the page then showed zeros). They now ask in batches of 80 (sbGetInChunks in app-state.js). Results are identical; I could not reproduce the address-length limit in my test, so this is a safeguard
 - Exports: every PDF and Excel export on 17 pages produced a file with no errors, and the figures inside the Excel files match the screen (P&L, Dashboard, Reports)
@@ -40,5 +57,4 @@ Database (NOT applied): sql/audit_20_reject_markup_gaps.sql - run it in the Supa
 - P&L page, Reports and Dashboard show the same figures as monthly_pnl_net; loan payment preview = database annuity; payroll gross = base x days present / days in month
 
 ## Note (not changed)
-- Budget "actuals" are spend-based (purchases of materials, not materials consumed), so its Net Profit is not the same figure as the P&L's Net Profit
 - The database accepts a payment larger than its sale; the pages now block it, a database rule would block it everywhere

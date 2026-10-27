@@ -321,13 +321,14 @@ const f0=(n)=>f(n,2);
 const ITEMS=[
   {key:'injera_sales',label:'Injera Sales',group:'revenue'},
   {key:'derkosh_sales',label:'Derkosh Sales',group:'revenue'},
-  {key:'raw_materials',label:'Raw Materials (Grains)',group:'cogs'},
-  {key:'packaging',label:'Packaging (Bags)',group:'cogs'},
+  {key:'raw_materials',label:'Raw Materials Used (Grains)',group:'cogs'},
+  {key:'packaging',label:'Packaging Used (Bags)',group:'cogs'},
   {key:'labor',label:'Labor / Wages',group:'cogs'},
   {key:'electricity',label:'Electricity',group:'cogs'},
   {key:'water',label:'Water',group:'cogs'},
   {key:'rent',label:'Rent',group:'cogs'},
   {key:'maintenance',label:'Maintenance',group:'cogs'},
+  {key:'cogs_other',label:'Other Production Costs & Derkosh Stock Change',group:'cogs'},
   {key:'delivery',label:'Delivery Out & Transport',group:'opex'},
   {key:'marketing',label:'Marketing',group:'opex'},
   {key:'other_opex',label:'Other Operating Expenses',group:'opex'},
@@ -381,7 +382,9 @@ async function loadIdMaps(){
     if(n==='Water')return'water';
     return'other_opex';
   };
+  const transportCatIds=Object.fromEntries(expCats.filter(c=>c.name==='Transport').map(c=>[c.id,true]));
   ID_MAPS={
+    transportCatIds,
     itemLine:Object.fromEntries(items.map(i=>[i.id,itemKey(i.name)])),
     expLine:Object.fromEntries(expCats.map(c=>[c.id,expKey(c.name)])),
     ovhLine:Object.fromEntries(ovhCats.map(c=>[c.id,ovhKey(c.name)]))
@@ -403,30 +406,40 @@ async function loadPeriod(pKey){
   if(PERIOD_CACHE[pKey])return PERIOD_CACHE[pKey];
   await loadIdMaps();
   const {start,end}=periodBounds(pKey);
-  const [salesRows,purchaseRows,ovhRows,pettyRows,loanRows,budgetRows]=await Promise.all([
-    sb('sales?period=eq.'+pKey+'&is_deleted=eq.false&select=product_type,revenue'),
-    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&select=type,item_id,expense_category_id,total_cost,source'), // approved only — pending/rejected purchases are not spend (same rule as the P&L)
+  // ACTUALS are the P&L's own figures (same database views), so the Net Profit here is the P&L's Net Profit.
+  // (They used to be what was BOUGHT in the month, which is not what the P&L counts as cost.)
+  const [pnlRows,batchRows,derkRows,purchaseRows,ovhRows,budgetRows]=await Promise.all([
+    sb('monthly_pnl_net?period=eq.'+pKey+'&select=*'),
+    sb('production_batch_costs?period=eq.'+pKey+'&select=material_cost'),
+    sb('derkosh_stock_monthly?period=eq.'+pKey+'&select=produced_packaging_cost'),
+    sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&type=eq.expense&select=expense_category_id,total_cost'),
     sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
-    sb('petty_cash?period=eq.'+pKey+'&select=amount'),
-    sb('loan_repayment_schedule?status=eq.paid&actual_payment_date=gte.'+start+'&actual_payment_date=lt.'+end+'&select=interest_portion,late_fee_amount'),   // interest PAID in the month incl. late fees — the same rule as the P&L (it used the scheduled due date, so unpaid instalments counted)
     sb('budget_lines?period=eq.'+pKey+'&select=id,line_item,budget_amount,budget_source,created_at,created_by')
   ]);
 
+  const N=x=>Number(x||0);
+  const v=(pnlRows&&pnlRows[0])||{};
   const actual={};ITEMS.forEach(it=>actual[it.key]=0);
-  salesRows.forEach(r=>{
-    const k=r.product_type==='injera'?'injera_sales':(r.product_type==='derkosh'?'derkosh_sales':null);
-    if(k)actual[k]+=Number(r.revenue||0);
-  });
+  actual.injera_sales=N(v.injera_revenue);
+  actual.derkosh_sales=N(v.derkosh_revenue);
+  // Cost of goods = what was USED: materials consumed in production, bags used for Derkosh, and the overhead lines
+  actual.raw_materials=batchRows.reduce((s,r)=>s+N(r.material_cost),0);
+  actual.packaging=derkRows.reduce((s,r)=>s+N(r.produced_packaging_cost),0);
+  const COGS_OVH=['labor','electricity','water','rent','maintenance'];
+  ovhRows.forEach(r=>{const k=ID_MAPS.ovhLine[r.category_id];if(COGS_OVH.includes(k))actual[k]+=N(r.amount);});
+  // Whatever else the P&L puts in cost of goods (other batch costs, other overhead, Derkosh stock movement) goes in one line,
+  // so the lines add up to the P&L's total cost of goods exactly.
+  actual.cogs_other=N(v.total_cogs)-(actual.raw_materials+actual.packaging+COGS_OVH.reduce((s,k)=>s+actual[k],0));
+  // Operating expenses: the P&L's total, split into delivery / marketing / everything else
   purchaseRows.forEach(r=>{
-    if(r.source==='milling_conversion') return; // already represented by its own Teff/Rice/fee purchases — skip to avoid double-counting
-    let k=null;
-    if(r.type==='purchase')k=ID_MAPS.itemLine[r.item_id];
-    else if(r.type==='expense')k=ID_MAPS.expLine[r.expense_category_id];
-    if(k)actual[k]+=Number(r.total_cost||0);
+    const k=ID_MAPS.expLine[r.expense_category_id];
+    if(k==='marketing')actual.marketing+=N(r.total_cost);
   });
-  ovhRows.forEach(r=>{const k=ID_MAPS.ovhLine[r.category_id];if(k)actual[k]+=Number(r.amount||0);});
-  pettyRows.forEach(r=>{actual.other_opex+=Number(r.amount||0);});
-  loanRows.forEach(r=>{actual.interest+=Number(r.interest_portion||0)+Number(r.late_fee_amount||0);});
+  const extraDelivery=purchaseRows.reduce((s,r)=>s+((ID_MAPS.transportCatIds||{})[r.expense_category_id]?N(r.total_cost):0),0);
+  actual.delivery=N(v.delivery_out_cost)+extraDelivery;
+  const totalOpexActual=N(v.total_opex)+N(v.petty_cash_total)+N(v.bank_charges)+N(v.depreciation_expense)-N(v.gain_loss_on_disposal);
+  actual.other_opex=totalOpexActual-actual.delivery-actual.marketing;
+  actual.interest=N(v.interest_expense);
 
   const budget={};ITEMS.forEach(it=>budget[it.key]=0);
   let lastUpdated=null,lastCreatedBy=null,hasManual=false,hasAi=false;

@@ -108,6 +108,13 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
 .right-stack{display:flex;flex-direction:column;gap:14px;position:sticky;top:14px;align-self:start}
 .chart-donut-row{display:grid;grid-template-columns:1.5fr 1.15fr;gap:14px;align-items:stretch}
 .bottom3{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:14px;margin-bottom:16px}
+.use-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:2px 16px 12px}
+.use-sum .u{background:#f6faf7;border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.use-sum .u small{display:block;font-size:10.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px}
+.use-sum .u b{display:block;font-family:'Quicksand',sans-serif;font-size:19px;color:var(--td);margin-top:2px}
+.use-sum .u span{font-size:11px;color:var(--tm);font-weight:600}
+.use-sum .u.warn{background:#fff6e8;border-color:#f0d3a0}
+.use-note{padding:0 16px 14px;font-size:11px;color:var(--tl);line-height:1.5}
 
 /* ══ TOOLBAR / FILTERS ══════════════════════════════ */
 .tbl-tools{display:flex;align-items:center;gap:8px}
@@ -451,17 +458,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
         <div class="kc-val" id="kpiCpiVal"><span>—</span> <span class="u">ETB</span></div>
         <div class="kc-chg" id="kpiCpiChg" style="color:var(--tl)">month-to-date average</div>
       </div>
-      <div class="kc kc-anim" style="--d:4" title="Yield Rate = % of batches where actual pieces/kg ≥ 90% of the monthly type average. Spec §3.5: Actual_Count / Actual_kg_total, flagged if > 8% below standard.">
+      <div class="kc kc-anim" style="--d:4" title="Yield Rate = the share of this month's batches that gave at least 90% of the pieces your Efficiency Target says the ingredients should give (pieces per kg compared with the target). Set the targets under Efficiency Targets.">
         <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
         <span class="kc-lbl">Yield Rate</span>
         <div class="kc-val" id="yieldRateVal"><span>—</span> <span class="u">%</span></div>
         <div class="kc-tgt" id="yieldRateTgt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Target: 90%</div>
       </div>
-      <div class="kc kc-anim" style="--d:5" title="Production Efficiency = actual total pieces ÷ expected pieces (monthly avg rate × total kg used) × 100. Spec §3.5: compares actual output against standard output per kg of ingredient.">
+      <div class="kc kc-anim" style="--d:5" title="Production Efficiency = pieces you actually made ÷ pieces you should have made from the same kilograms at your Efficiency Target × 100. 100% = exactly on target; below 100% = fewer injera than the ingredients should give; above 100% = more.">
         <div class="kc-ico ic-t"><svg viewBox="0 0 24 24"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1117.32 0"/></svg></div>
         <span class="kc-lbl">Production Efficiency</span>
         <div class="kc-val" id="prodEffVal"><span>—</span> <span class="u">%</span></div>
-        <div class="kc-chg" id="prodEffChg">vs avg rate this month</div>
+        <div class="kc-chg" id="prodEffChg">vs your target</div>
       </div>
     </div>
 
@@ -575,6 +582,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
               <div class="qa-txt"><h5>Production Report</h5><p>View production analytics</p></div>
               <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
             </a>
+            <a class="qa-item" onclick="openInjeraUseModal()">
+              <div class="qa-ico ic-o"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg></div>
+              <div class="qa-txt"><h5>Wastage &amp; Own Use</h5><p>Record injera not sold</p></div>
+              <div class="qa-chev"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </a>
             <a class="qa-item" onclick="openMaterialUsage()">
               <div class="qa-ico ic-o"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
               <div class="qa-txt"><h5>Material Usage</h5><p>Track material consumption</p></div>
@@ -686,6 +698,22 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
         <a class="view-all-btn" onclick="openFullCalendar()">View Full Calendar <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
       </div>
 
+    </div>
+
+    <!-- WASTAGE & OWN USE -->
+    <div class="card" id="useCard" style="margin-bottom:16px">
+      <div class="card-hd">
+        <div class="card-ttl">Wastage &amp; Own Use <span class="card-sub" id="useSub">(This Month)</span></div>
+        <button class="btn btn-primary" onclick="openInjeraUseModal()">+ Record</button>
+      </div>
+      <div class="use-sum" id="useSummary"></div>
+      <div class="tbl-wrap">
+        <table class="tbl rcards">
+          <thead><tr><th>Date</th><th>Type</th><th>Pieces</th><th>Batch</th><th>Note</th><th>Value (ETB)</th><th></th></tr></thead>
+          <tbody id="useTbody"><tr><td colspan="7" style="text-align:center;color:var(--tl);padding:18px 0">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="use-note">Injera that were not sold: burnt / torn / spoiled, taken home, given to staff, gifts and samples. Their cost is already part of the cost of production, so the P&amp;L does not change; this shows how many pieces and how much money they are. <b>Unaccounted</b> = made − sold − recorded here; a small number can be injera carried over from the day before or after the month end.</p>
     </div>
 
   </div><!-- /content -->
@@ -1249,6 +1277,7 @@ const FALLBACK_BATCH_STD = {
   Special: { blend: 80.00, corn: 20.00, gomen: 8.00, count: 400 }
 };
 let BATCH_STD = { ...FALLBACK_BATCH_STD };
+let BATCH_STD_LOADED = false;   // true once real Efficiency Targets were read from the database (the built-in 300/400 placeholders are never used as a benchmark)
 
 async function loadBatchStandards(){
   try{
@@ -1263,6 +1292,7 @@ async function loadBatchStandards(){
         gomen: Number(row.target_gomen_kg),
         count: Number(row.target_injera_count)
       };
+      if(Number(row.target_injera_count)>0) BATCH_STD_LOADED = true;
     });
   }catch(e){
     console.error('loadBatchStandards error', e);
@@ -1797,6 +1827,133 @@ function monthLabelFromDate(isoDateStr){
 // Re-renders every widget that depends on batch data — table, KPI cards,
 // cost breakdown donut, material consumption, and ranking — so nothing on
 // the page can go stale after an add/edit/delete (audit fix, see chat).
+
+/* ════════════════════════════════════════════════════════
+   WASTAGE & OWN USE  (table injera_uses, month summary view injera_use_monthly)
+   Injera that were made but not sold. The cost already sits in the cost of production, so nothing in the P&L changes;
+   this tracks pieces and their value (pieces x the month's cost per injera) and shows what is still unaccounted for.
+   ════════════════════════════════════════════════════════ */
+const USE_TYPES = { wastage:'Wastage (burnt / torn / spoiled)', own_use:'Own use (home)', staff:'Staff', gift_sample:'Gift / sample', other:'Other' };
+let INJERA_USES = [], INJERA_SUM = null, INJERA_USES_PERIOD = null;
+
+function usesPeriod(){ return monthLabelToPeriod(currentMonth()); }
+
+async function ensureInjeraUses(force){
+  const period = usesPeriod();
+  if(!force && INJERA_USES_PERIOD === period){ renderInjeraUses(); return; }
+  try{
+    const [rows, sum] = await Promise.all([
+      sbGet(`injera_uses?select=*&period=eq.${period}&is_deleted=eq.false&order=date.desc`),
+      sbGet(`injera_use_monthly?select=*&period=eq.${period}`)
+    ]);
+    if(period !== usesPeriod()) return;          // the month was changed while this was loading
+    INJERA_USES = rows || []; INJERA_SUM = (sum && sum[0]) || null; INJERA_USES_PERIOD = period;
+  }catch(e){
+    console.warn('Wastage & own use could not load.', e.message);
+    INJERA_USES = []; INJERA_SUM = null; INJERA_USES_PERIOD = null;
+  }
+  renderInjeraUses();
+}
+
+function renderInjeraUses(){
+  const sumEl = document.getElementById('useSummary'), tb = document.getElementById('useTbody');
+  if(!sumEl || !tb) return;
+  const S = INJERA_SUM || {};
+  const n = k => Number(S[k] || 0);
+  const made = n('made_qty'), sold = n('sold_qty'), waste = n('wastage_qty');
+  const other = n('own_use_qty') + n('staff_qty') + n('gift_sample_qty') + n('other_qty');
+  const unacc = n('unaccounted_qty');
+  const pct = made > 0 ? (waste / made * 100) : 0;
+  const cpi = S.cost_per_injera != null ? Number(S.cost_per_injera) : null;
+  const warn = made > 0 && Math.abs(unacc) / made > 0.02;      // more than 2% of what was made cannot be explained
+  sumEl.innerHTML = `
+    <div class="u"><small>Made</small><b>${fmt0(made)}</b><span>pieces</span></div>
+    <div class="u"><small>Sold</small><b>${fmt0(sold)}</b><span>pieces</span></div>
+    <div class="u"><small>Wastage</small><b>${fmt0(waste)}</b><span>${made>0?fmt1(pct)+'% of made · ':''}${fmt2(n('wastage_value'))} ETB</span></div>
+    <div class="u"><small>Own use &amp; other</small><b>${fmt0(other)}</b><span>${fmt2(n('own_use_value'))} ETB</span></div>
+    <div class="u ${warn?'warn':''}"><small>Unaccounted</small><b>${unacc<0?'−':''}${fmt0(Math.abs(unacc))}</b><span>${warn?'check this month':'made − sold − recorded'}</span></div>`;
+  const batchNo = id => { const b = id && getBatches().find(x=>x.id===id); return b ? b.batchNo : '—'; };
+  const canDelete = (typeof isManagerUp==='function') && isManagerUp();
+  if(!INJERA_USES.length){
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--tl);padding:18px 0">Nothing recorded this month.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = INJERA_USES.map(r=>{
+    const val = cpi != null ? fmt2(Number(r.quantity) * cpi) : '—';
+    return `<tr>
+      <td>${esc(String(r.date).slice(0,10))}</td>
+      <td>${esc(USE_TYPES[r.use_type] || r.use_type)}</td>
+      <td>${fmt0(Number(r.quantity))}</td>
+      <td>${esc(batchNo(r.batch_id))}</td>
+      <td>${esc(r.note || '')}</td>
+      <td>${val}</td>
+      <td>${canDelete ? `<button class="btn btn-ghost" style="padding:3px 9px;font-size:11px" onclick="deleteInjeraUse('${r.id}')">Delete</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openInjeraUseModal(){
+  const period = usesPeriod();
+  const today = appToday();
+  const date = today.slice(0,7) === period ? today : monthEndISO(period);
+  const batches = getBatches();
+  openModal(`
+    <div class="modal-hd"><h3>Record wastage / own use</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-bd">
+      <p style="font-size:12.5px;color:var(--tm);margin-bottom:14px;line-height:1.5">Injera that were made but not sold. Count whole pieces.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="f-field"><label>Date</label><input type="date" id="useDate" value="${date}" max="${today}"></div>
+        <div class="f-field"><label>Pieces</label><input type="number" id="useQty" min="1" step="1" inputmode="numeric" placeholder="e.g. 50"></div>
+        <div class="f-field"><label>Type</label><select id="useType">${Object.entries(USE_TYPES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select></div>
+        <div class="f-field"><label>Batch (optional)</label><select id="useBatch"><option value="">— none —</option>${batches.map(b=>`<option value="${b.id}">${esc(b.batchNo)} · ${fmt0(b.qty)} pcs</option>`).join('')}</select></div>
+      </div>
+      <div class="f-field" style="margin-top:12px"><label>Note (optional)</label><input type="text" id="useNote" maxlength="200" placeholder="e.g. burnt on the second stove"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveUseBtn" onclick="saveInjeraUse()">Save</button>
+    </div>
+  `);
+}
+
+async function saveInjeraUse(){
+  const date = document.getElementById('useDate').value;
+  const qty = Number(document.getElementById('useQty').value);
+  const type = document.getElementById('useType').value;
+  const batch = document.getElementById('useBatch').value || null;
+  const note = document.getElementById('useNote').value.trim() || null;
+  if(!date){ toast('Please choose the date.','error'); return; }
+  if(!(qty >= 1) || qty !== Math.round(qty)){ toast('Pieces must be a whole number of 1 or more.','error'); return; }
+  const btn = document.getElementById('saveUseBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try{
+    await sbPost('injera_uses', [{ date, use_type: type, quantity: qty, batch_id: batch, note }]);
+    closeModal();
+    toast('Recorded: ' + fmt0(qty) + ' pieces — ' + (USE_TYPES[type] || type),'success');
+    await ensureInjeraUses(true);
+  }catch(err){
+    toast('Not saved — ' + (err.message || 'unknown error'),'error');
+    if(btn){ btn.disabled = false; btn.textContent = 'Save'; }
+  }
+}
+
+function deleteInjeraUse(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
+  const r = INJERA_USES.find(x=>x.id===id); if(!r) return;
+  showConfirm({
+    title: 'Delete this record?',
+    message: `${fmt0(Number(r.quantity))} pieces — ${USE_TYPES[r.use_type] || r.use_type} (${String(r.date).slice(0,10)})`,
+    confirmLabel: 'Delete',
+    onConfirm: async ()=>{
+      try{
+        await sbPatch(`injera_uses?id=eq.${id}`, { is_deleted: true });
+        toast('Record deleted','success');
+        await ensureInjeraUses(true);
+      }catch(err){ toast('Not deleted — ' + (err.message || 'unknown error'),'error'); }
+    }
+  });
+}
+
 function refreshDashboard(){
   renderTable();
   computeKPIs();
@@ -1807,6 +1964,7 @@ function refreshDashboard(){
   renderWeek().catch(e=>console.warn('Weekly calendar could not render.', e.message));
   updateTrendChart(); // rebuilds daily series from getBatches() for the selected month
   updateKpiComparisons().catch(e=>console.warn('KPI vs-last-month comparison could not load.', e.message));
+  ensureInjeraUses(false);   // wastage & own use (loads once per month, then just redraws)
 }
 
 // Invalidates the cached month and re-fetches it from Supabase, then
@@ -1828,6 +1986,7 @@ async function refreshCurrentMonth(){
     setLoading(false);
   }
   state.page=1;
+  INJERA_USES_PERIOD = null;   // 'made' changed, so reload the wastage & own-use summary too
   refreshDashboard();
 }
 
@@ -2054,14 +2213,16 @@ function openMaterialUsage(){
 
 /* ── Full Ranking ── */
 function openFullRanking(){
-  const rows = [...getBatches()].filter(r=>r.status==='Completed').sort((a,b)=>a.costPerInjera-b.costPerInjera).slice(0,12);
+  const _all = getBatches();
+  const { normalAvg, specialAvg, rate } = typeRateAverages(_all);
+  const rows = rankByPerformance(_all.filter(r=>r.status==='Completed'), normalAvg, specialAvg, rate).slice(0,12);
   openModal(`
     <div class="modal-hd"><h3>Full Batch Performance Ranking</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-bd">
       <table class="det-tbl">
-        <thead><tr><th>#</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Injera</th><th>Status</th></tr></thead>
+        <thead><tr><th>#</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Injera</th><th>Yield vs Target</th><th>Rating</th></tr></thead>
         <tbody>
-          ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.batchNo}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td><span class="tag tag-excellent">Excellent</span></td></tr>`).join('')}
+          ${rows.map(({r,y},i)=>{ const pl=perfLabel(y); return `<tr><td>${i+1}</td><td>${r.batchNo}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${y===null?'—':fmt1(y)+'%'}</td><td><span class="tag ${pl.tag}">${pl.label}</span></td></tr>`; }).join('')}
         </tbody>
       </table>
     </div>
@@ -2130,7 +2291,7 @@ function computeAlerts(){
     const actualKg = r.blend + r.corn + (r.gomen||0);
     if(stdKg>0 && actualKg > stdKg*1.10) alerts.material.push(r);
 
-    // Low Yield: pcs-per-kg rate falls below 90% of this month's average
+    // Low Yield: pcs-per-kg rate falls below 90% of the Efficiency Target
     // for the same batch type (same threshold as the Yield Rate KPI card).
     const typeAvg = r.type==='Special' ? specialAvg : normalAvg;
     if(typeAvg>0 && rate(r) < 0.90*typeAvg) alerts.yield.push(r);
@@ -2276,8 +2437,9 @@ async function buildProductionReport(){
   const rows = getBatches();
   const month = currentMonth();
   if(!rows.length){ toast(`No batches recorded for ${month} — nothing to export.`,'error'); return null; }
+  try{ await ensureInjeraUses(false); }catch(e){ /* reported in the notes below */ }
 
-  // Yield = pieces per kg of input vs. this month's average for the same batch type (100% = average).
+  // Yield = pieces per kg of input vs. the Efficiency Target for the same batch type (100% = on target).
   // Same maths as the Yield Rate KPI and the Low Yield alert (typeRateAverages), so exports match the page.
   const { normalAvg, specialAvg } = typeRateAverages(rows);
   const yieldOf = r => {
@@ -2351,7 +2513,7 @@ async function buildProductionReport(){
   const alerts = computeAlerts();
   const reasonText = {
     material:'High material usage (over 10% above standard)',
-    yield:'Low yield (below 90% of the type average)',
+    yield:'Low yield (below 90% of the Efficiency Target)',
     cost:'Cost per injera above target',
     missing:'Missing batch data'
   };
@@ -2373,12 +2535,60 @@ async function buildProductionReport(){
     });
   }
 
+  // ── Wastage & own use (injera made but not sold) ──
+  const usesLoaded = INJERA_USES_PERIOD === monthLabelToPeriod(month);
+  if(usesLoaded){
+    const S = INJERA_SUM || {};
+    const nv = k => Number(S[k] || 0);
+    const made = nv('made_qty'), unacc = nv('unaccounted_qty');
+    const cpi = S.cost_per_injera != null ? Number(S.cost_per_injera) : null;
+    const val = q => cpi != null ? fmt2(q * cpi) : '—';
+    const pctOf = q => made > 0 ? fmt1(q / made * 100) + '%' : '—';
+    const warnUnacc = made > 0 && Math.abs(unacc) / made > 0.02;
+    const lines = [
+      ['Injera made', made, false], ['Injera sold', nv('sold_qty'), false],
+      ['Wastage (burnt / torn / spoiled)', nv('wastage_qty'), true], ['Own use (home)', nv('own_use_qty'), true],
+      ['Staff', nv('staff_qty'), true], ['Gift / sample', nv('gift_sample_qty'), true], ['Other', nv('other_qty'), true]
+    ];
+    const sumRows = lines.map(([label,q,hasVal])=>[label, fmt0(q), pctOf(q), hasVal ? val(q) : '']);
+    sumRows.push([ { v:'Unaccounted (made − sold − recorded)', tone: warnUnacc ? 'warn' : undefined },
+                   { v:(unacc<0?'−':'')+fmt0(Math.abs(unacc)), tone: warnUnacc ? 'warn' : undefined }, pctOf(Math.abs(unacc)), '' ]);
+    rd.tables.push({
+      title: 'Wastage & Own Use — Summary', sheetName: 'Wastage & Own Use',
+      columns: ['Item','Pieces','% of made','Value (ETB)'], rows: sumRows, columnAlign: [null,'right','right','right']
+    });
+    if(INJERA_USES.length){
+      const sumQty = INJERA_USES.reduce((s,r)=>s+Number(r.quantity||0),0);
+      const bNo = id => { const b = id && rows.find(x=>x.id===id); return b ? b.batchNo : '—'; };
+      rd.tables.push({
+        title: 'Wastage & Own Use — Records', sheetName: 'Wastage Records',
+        columns: ['Date','Type','Pieces','Batch','Note','Value (ETB)'],
+        rows: INJERA_USES.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(r=>[
+          String(r.date).slice(0,10), USE_TYPES[r.use_type] || r.use_type, fmt0(Number(r.quantity)), bNo(r.batch_id), r.note || '', val(Number(r.quantity))
+        ]),
+        columnAlign: [null,null,'right',null,null,'right'],
+        totalsRow: ['TOTAL','',fmt0(sumQty),'','',val(sumQty)]
+      });
+    }
+    const usedQty = nv('total_used_qty');
+    if(made > 0 && (usedQty > 0 || warnUnacc) && Array.isArray(rd.insights)){
+      rd.insights.push({ label: warnUnacc ? 'Watch' : 'Waste', color: warnUnacc ? '#C0392B' : '#B9770E',
+        text: `${fmt0(nv('wastage_qty'))} pieces wasted (${pctOf(nv('wastage_qty'))} of made) and ${fmt0(usedQty - nv('wastage_qty'))} used at home, by staff or as gifts` +
+              (cpi != null ? ` — about ${fmt2(usedQty * cpi)} ETB of cost.` : '.') +
+              (warnUnacc ? ` ${fmt0(Math.abs(unacc))} pieces are unaccounted for.` : '') });
+    }
+  }else{
+    rd.notes = (rd.notes||[]).concat(['Wastage & own use could not be loaded for this report, so it is not included.']);
+  }
+
   rd.definitions = (rd.definitions||[]).concat([
-    { term:'Yield', text:`A batch's pieces per kg of input compared with this month's average for the same batch type (Normal or Special). 100% is average; below ${YIELD_TARGET}% is flagged.` },
+    { term:'Unaccounted', text:'Injera made minus injera sold minus the wastage and own use recorded. A small number can be injera carried over from the day before or after the month end; a large one means pieces were not recorded.' },
+    { term:'Yield', text:`A batch's pieces per kg of input compared with the Efficiency Target for its batch type (Normal or Special). 100% = exactly on target; below ${YIELD_TARGET}% is flagged.` },
     { term:'Yield Rate', text:`The share of this month's batches whose yield is at or above ${YIELD_TARGET}% — the same figure as the Yield Rate card on the page.` }
   ]);
   rd.notes = (rd.notes||[]).concat([
-    'Covers all batches recorded for the month, not the table filters currently applied on screen.'
+    'Covers all batches recorded for the month, not the table filters currently applied on screen.',
+    'Wastage and own use: their cost is already part of the cost of production, so the profit figures are not affected.'
   ]);
   return rd;
 }
@@ -2713,14 +2923,12 @@ function renderRanking(){
     return;
   }
   const { normalAvg, specialAvg, rate } = typeRateAverages(all);
-  const top3 = [...completed].sort((a,b)=>a.costPerInjera-b.costPerInjera).slice(0,3);
+  const top3 = rankByPerformance(completed, normalAvg, specialAvg, rate).slice(0,3);
   const medalCls = ['rk-1','rk-2','rk-3'];
-  tbody.innerHTML = top3.map((r,i)=>{
-    const typeAvg = r.type==='Special' ? specialAvg : normalAvg;
-    const yieldPct = typeAvg>0 ? (rate(r)/typeAvg)*100 : 0;
-    const tag = yieldPct>=95 ? 'tag-excellent' : yieldPct>=90 ? 'tag-completed' : 'tag-review';
-    const label = yieldPct>=95 ? 'Excellent' : yieldPct>=90 ? 'Good' : 'Review';
-    return `<tr><td><div class="rk-medal ${medalCls[i]}">${i+1}</div></td><td>${r.batchNo.replace('INJ-2026-','#')}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${fmt1(yieldPct)}%</td><td><span class="tag ${tag}">${label}</span></td></tr>`;
+  tbody.innerHTML = top3.map(({r,y:yieldPctRaw},i)=>{
+    const yieldPct = yieldPctRaw===null ? 0 : yieldPctRaw;
+    const {tag,label} = perfLabel(yieldPctRaw);
+    return `<tr><td><div class="rk-medal ${medalCls[i]}">${i+1}</div></td><td>${r.batchNo.replace('INJ-2026-','#')}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${yieldPctRaw===null?'—':fmt1(yieldPct)+'%'}</td><td><span class="tag ${tag}">${label}</span></td></tr>`;
   }).join('');
 }
 try { renderRanking(); }
@@ -2756,7 +2964,26 @@ function typeRateAverages(rows){
   const normalRates  = rows.filter(r=>r.type==='Normal').map(rate).filter(v=>v>0);
   const specialRates = rows.filter(r=>r.type==='Special').map(rate).filter(v=>v>0);
   const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
-  return { normalAvg: avg(normalRates), specialAvg: avg(specialRates), rate };
+  // The benchmark is the Efficiency Target (pieces per kg the ingredients SHOULD give, from the Efficiency Targets screen).
+  // Before, everything was compared with the month's own average, so a month of equally poor batches still showed 100%.
+  // The month average is only used if no real target is set for that batch type.
+  const bench = (type, monthAvg) => {
+    if(BATCH_STD_LOADED){ const s = BATCH_STD[type]; const tgt = s ? stdEfficiency(s) : 0; if(tgt > 0) return tgt; }
+    return monthAvg;
+  };
+  return { normalAvg: bench('Normal', avg(normalRates)), specialAvg: bench('Special', avg(specialRates)), rate };
+}
+// How a batch did against its target: 100% = exactly the pieces per kg the target says; null = no benchmark / no materials.
+function batchYieldPct(r, normalAvg, specialAvg, rate){
+  const typeBench = r.type==='Special' ? specialAvg : normalAvg;
+  const rt = rate(r);
+  return (typeBench>0 && rt>0) ? (rt/typeBench)*100 : null;
+}
+function perfLabel(y){ return y===null ? {tag:'tag-review',label:'No target'} : y>=100 ? {tag:'tag-excellent',label:'Excellent'} : y>=90 ? {tag:'tag-completed',label:'Good'} : {tag:'tag-review',label:'Review'}; }
+// Best first: highest yield against target (fair between Normal and Special); cheapest per injera breaks ties
+function rankByPerformance(list, normalAvg, specialAvg, rate){
+  return list.map(r=>({r, y:batchYieldPct(r,normalAvg,specialAvg,rate)}))
+    .sort((a,b)=>((b.y===null?-1:b.y)-(a.y===null?-1:a.y)) || (a.r.costPerInjera-b.r.costPerInjera));
 }
 
 function computeKPIs(){
@@ -2825,7 +3052,7 @@ function computeKPIs(){
   }
   if(yrTgt){
     yrTgt.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      ${passing} of ${rows.length} batches ≥ 90% avg`;
+      ${passing} of ${rows.length} batches ≥ 90% of target`;
   }
 
   if(peEl){
@@ -2837,7 +3064,7 @@ function computeKPIs(){
     const sign = diff >= 0 ? '▲ +' : '▼ ';
     const cls  = diff >= 0 ? 'up' : 'dn';
     peChg.className = `kc-chg ${cls}`;
-    peChg.textContent = `${sign}${fmt1(Math.abs(diff))}% vs avg baseline`;
+    peChg.textContent = `${sign}${fmt1(Math.abs(diff))}% vs target`;
   }
 }
 
@@ -3010,6 +3237,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 <script src="/js/responsive.js" defer></script>
 <script>/* double-click protection — see singleFlight() in app-state.js */
-if(typeof singleFlight==='function') singleFlight(['saveBatchStandard']);</script>
+if(typeof singleFlight==='function') singleFlight(['saveBatchStandard', 'saveInjeraUse']);</script>
 </body>
 </html>
