@@ -1,7 +1,25 @@
 /* ============================================================
    MENA INJERA & DERKOSH BMS — SHARED REPORT ENGINE
-   report-engine.js  (v3.39)
+   report-engine.js  (v3.40)
    ------------------------------------------------------------
+   WHAT'S NEW IN v3.40 - one proportion rule, higher resolution, portrait and landscape pages that fill
+   - Chart cards: ONE shape rule for every chart in every report. Bar / line cards sit between 4:3 and 16:9
+     (target 16:10; donuts are square inside their card), the range data-visualisation guidance gives for
+     them. The detailed PDF always draws two cards to a row; a lone or odd last chart keeps the SAME card size and
+     is centred, so no chart is ever stretched across the page or fills one. Rows flex only +-8..10% so a page is
+     packed top to bottom instead of leaving a band of blank paper when a row does not fit.
+   - Resolution: chart bitmaps render at 7 px per PDF point (~500 dpi, was ~300), long side capped at 3200 px.
+     Hairlines, dashes and markers inside the charts scale with it, so they keep the same printed thickness.
+     Excel chart images are 1650x900 (was 1100x600).
+   - Summary page, portrait: chart | donut share one row and the insights run full width beneath (was three cramped
+     columns); the table | ranked list row follows. Landscape keeps chart | donut | insights.
+   - Summary page, both orientations: row 3 is measured first; the room it does not need goes to the chart row
+     (up to ~1.45:1), then to extra table / list rows (more than summaryMaxRows when room remains), then to a
+     little more air between rows. Insight cards grow evenly to end level with the chart cards beside them.
+   - Detail pages: one 14pt gutter and 40pt margins everywhere; a short table (8 rows or fewer) travels whole only
+     when it is about 120pt tall, a taller one can start in the room that is left instead of jumping a page.
+   - No data contract changed: every preset, chart spec and table renders from the same input as before.
+
    WHAT'S NEW IN v3.39 - wiring fixes found while connecting sales / purchases / profit / reports
    - Chart.js plugins registered globally by a page (the pages load chartjs-plugin-datalabels and call
      Chart.register(ChartDataLabels)) no longer leak into the engine's off-screen charts: datalabels is switched
@@ -1385,6 +1403,9 @@
 
   function cleanChartConfig(spec, widthPx, heightPx, palette) {
     const fs = spec.fontPx || Math.max(11, Math.round(widthPx / 46));
+    // v3.40: hairlines, dashes and markers are sized from the text size so they keep the same physical
+    // thickness at any resolution (1 on the old 4.2 px/pt scale = U on the current one).
+    const U = Math.max(1, fs / 30);
     const FONT = 'Nunito, sans-serif';
     const INK = THEME.textDark, MUTED = THEME.textMuted, GRID = '#ECEFEC';
     const minimal = spec.minimal === true;
@@ -1448,12 +1469,12 @@
         const refLike = multi && /average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(s.label || ''));
         const denseLine = nPts > 12;
         const mainCount = multi ? list.filter(x => !(/average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(x.label || '')))).length : 1;
-        const dotR = Math.max(3, fs * 0.3);
+        const dotR = Math.max(3 * U, fs * 0.3);
         return { type: 'line', label: s.label || '', data: s.values, borderColor: color,
-          borderWidth: refLike ? Math.max(1.6, fs * 0.11) : Math.max(2.2, fs * (denseLine ? 0.15 : 0.17)),
+          borderWidth: refLike ? Math.max(1.6 * U, fs * 0.11) : Math.max(2.2 * U, fs * (denseLine ? 0.15 : 0.17)),
           borderDash: refLike ? [Math.round(fs * 0.5), Math.round(fs * 0.4)] : undefined,
           pointRadius: refLike ? 0 : (denseLine ? (c => (c.dataIndex === nPts - 1 ? dotR : 0)) : dotR),
-          pointHoverRadius: 0, pointBackgroundColor: refLike || denseLine ? color : '#FFFFFF', pointBorderColor: color, pointBorderWidth: Math.max(2, fs * 0.13),
+          pointHoverRadius: 0, pointBackgroundColor: refLike || denseLine ? color : '#FFFFFF', pointBorderColor: color, pointBorderWidth: Math.max(2 * U, fs * 0.13),
           tension: denseLine ? 0.25 : 0.3, cubicInterpolationMode: 'monotone', fill: !refLike && mainCount === 1 && !minimal, backgroundColor: gradient(color),
           yAxisID: s.axis === 'right' ? 'y1' : 'y', order: refLike ? 1 : 0 };
       }
@@ -1467,7 +1488,7 @@
     });
 
     const tickFont = size => ({ family: FONT, size: Math.round(size) });
-    const zeroAware = { color: c => (c.tick && c.tick.value === 0 ? '#9AA5A0' : GRID), lineWidth: c => (c.tick && c.tick.value === 0 ? 1.6 : 1), drawTicks: false };
+    const zeroAware = { color: c => (c.tick && c.tick.value === 0 ? '#9AA5A0' : GRID), lineWidth: c => (c.tick && c.tick.value === 0 ? 1.6 * U : U), drawTicks: false };
     // v3.37: a line chart whose values sit in a narrow band (yield 90-96%, cost/kg 6-9) used to be
     // drawn from zero and looked flat. When every value is positive and the lowest is at least half
     // the highest, the axis is fitted to the data (plus room for a reference line) instead.
@@ -1487,13 +1508,13 @@
     }
     const valueAxis = (pos, color) => {
       if (fitRange && pos !== 'right') {
-        return { position: pos, beginAtZero: false, suggestedMin: fitRange.min, suggestedMax: fitRange.max, grace: 0, border: { display: false, dash: [3, 4] },
+        return { position: pos, beginAtZero: false, suggestedMin: fitRange.min, suggestedMax: fitRange.max, grace: 0, border: { display: false, dash: [3 * U, 4 * U] },
           grid: Object.assign({}, zeroAware), display: !minimal,
           ticks: { color: color || MUTED, font: tickFont(fs * 0.9), maxTicksLimit: 5, padding: 6, callback: v => fmtVal(v) } };
       }
       if (minimal && pos !== 'right') return { display: false, beginAtZero: true, grace: hasNeg && horizontal ? '32%' : '14%', stacked: spec.stacked === true };
       return {
-        position: pos, beginAtZero: true, grace: '10%', border: { display: false, dash: [3, 4] }, stacked: spec.stacked === true,
+        position: pos, beginAtZero: true, grace: '10%', border: { display: false, dash: [3 * U, 4 * U] }, stacked: spec.stacked === true,
         grid: pos === 'right' ? { display: false } : Object.assign({}, zeroAware),
         ticks: { color: color || MUTED, font: tickFont(fs * 0.9), maxTicksLimit: 5, padding: 6, callback: v => fmtVal(v) }
       };
@@ -1523,7 +1544,7 @@
         if (!vs || vs.min > 0 || vs.max < 0) return;
         const z = vs.getPixelForValue(0);
         ctx.save();
-        ctx.strokeStyle = '#D5DCD8'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#D5DCD8'; ctx.lineWidth = 1.5 * U;
         ctx.beginPath();
         if (horizontal) { ctx.moveTo(z, chartArea.top); ctx.lineTo(z, chartArea.bottom); }
         else { ctx.moveTo(chartArea.left, z); ctx.lineTo(chartArea.right, z); }
@@ -1535,7 +1556,7 @@
         if (Array.isArray(spec.connectors) && !horizontal) {
           const meta = chart.getDatasetMeta(0);
           const yScale = chart.scales.y;
-          ctx.strokeStyle = '#B4BDB8'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = '#B4BDB8'; ctx.lineWidth = U; ctx.setLineDash([4 * U, 3 * U]);
           spec.connectors.forEach((lvl, i) => {
             const a = meta.data[i], b = meta.data[i + 1];
             if (!a || !b || !Number.isFinite(lvl)) return;
@@ -1545,7 +1566,7 @@
           ctx.setLineDash([]);
         }
         if (spec.refLine && Number.isFinite(spec.refLine.value)) {
-          ctx.strokeStyle = '#6B7280'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = '#6B7280'; ctx.lineWidth = 1.5 * U; ctx.setLineDash([6 * U, 4 * U]);
           ctx.beginPath();
           if (horizontal) {
             const x = chart.scales.x.getPixelForValue(spec.refLine.value);
@@ -1615,12 +1636,22 @@
     };
   }
 
-  // v3.34 — one print-resolution rule for every chart bitmap: 4.2 px per PDF point (~300 dpi).
-  const CHART_PX_PER_PT = 4.2;
+  // v3.40 — one print-resolution rule for every chart bitmap: 7 px per PDF point (~500 dpi, was 4.2 / ~300 dpi).
+  // Publisher artwork guidance asks for 300 dpi minimum and about 500 dpi for charts (line art with text).
+  // The long side is capped so a very large slot can never exceed a browser's canvas limits.
+  const CHART_PX_PER_PT = 7;
+  const CHART_MAX_PX = 3200;
+  // v3.40 — ONE proportion rule for every chart card in every report (summary and detailed, portrait and
+  // landscape). Bar / line cards run between 4:3 and 16:9 (target 16:10); donuts are square inside the card.
+  // The extremes are never used, so a lone chart is neither stretched across the page nor squeezed.
+  const CHART_RATIO = { target: 1.6, min: 4 / 3, max: 16 / 9 };
   // pixel size for a slot of wPt x hPt points, with the bitmap's ratio matching the slot's exactly
   function chartPx(wPt, hPt) {
-    const w = Math.max(120, Math.round(wPt * CHART_PX_PER_PT));
-    return { w, h: Math.max(80, Math.round(w * hPt / wPt)) };
+    let w = Math.max(120, Math.round(wPt * CHART_PX_PER_PT));
+    let h = Math.max(80, Math.round(w * hPt / wPt));
+    const longest = Math.max(w, h);
+    if (longest > CHART_MAX_PX) { const k = CHART_MAX_PX / longest; w = Math.round(w * k); h = Math.round(h * k); }
+    return { w, h };
   }
 
   async function renderChartToImage(chartSpec, widthPx = 900, heightPx = 420) {
@@ -2107,50 +2138,67 @@
     return { summary, extra };
   }
 
-  // Chart grid used for extra charts (index 2+) in detailed mode, and as a
-  // full-width fallback when a module has charts but no table on page 1.
-  // Uses a running x/y cursor (not index math) so page breaks never
-  // misplace a chart — this was the bug in v1.
+  // Chart grid used for extra charts (index 2+) in detailed mode and for every detail section.
+  //
+  // v3.40 — ONE rule for every chart card, on every page, in both orientations:
+  //   * Always two cards to a row. A lone chart (or an odd last one) keeps the SAME card size and is
+  //     centred, so nothing is ever stretched across the page and no chart ever fills a page.
+  //   * Card shape stays inside the CHART_RATIO window (4:3 to 16:9, target 16:10), the range
+  //     data-visualisation guidance gives for bar and line charts. Inside that window the row height
+  //     flexes just enough to fill the page it sits on: rows are packed top to bottom and a row that
+  //     does not fit moves to the next page, so a page is never left with a big empty band.
+  //   * The bitmap is rendered at the exact aspect ratio of the box it is placed in, at CHART_PX_PER_PT.
+  // opts.perRow is accepted for older callers but ignored: the grid is always two wide.
+  function chartGridMetrics(doc, margin) {
+    const usable = doc.internal.pageSize.getWidth() - margin * 2;
+    const gap = 14; // the same gutter the summary page uses between its panels
+    const w = (usable - gap) / 2;
+    // rows may flex only +-8..10% around the target shape so every card in a report looks the same
+    return { usable, gap, w, hMin: w / CHART_RATIO.max, hTarget: w / CHART_RATIO.target, hMax: w / CHART_RATIO.target * 1.1, hLow: w / CHART_RATIO.target * 0.92 };
+  }
+  // The least room one row of chart cards can be drawn in (callers use it to decide on a page break).
+  function minChartRowHeight(doc, margin) { return chartGridMetrics(doc, margin).hLow; }
+
   async function drawCharts(doc, charts, y, pageWidth, margin, opts) {
     if (!charts || !charts.length) return y;
-    const usable = pageWidth - margin * 2;
-    const perRow = (opts && opts.perRow) || (charts.length > 1 ? 2 : 1); // v3.38: perRow lets a lone chart stay half width
-    const gap = 10;
-    const chartW = (usable - gap * (perRow - 1)) / perRow;
-    const chartH = chartW * 0.55;
-    // 72pt reserved above the footer band — same margin the original hardcoded 770 left
-    // on an 842pt-tall portrait page, now computed so it also holds on landscape.
-    const pageBottom = doc.internal.pageSize.getHeight() - 72;
+    const m = chartGridMetrics(doc, margin);
+    const pageBottom = doc.internal.pageSize.getHeight() - PAGE_BOTTOM_RESERVE;
+    const rows = [];
+    for (let i = 0; i < charts.length; i += 2) rows.push(charts.slice(i, i + 2));
 
-    let col = 0;
-    let cx = margin;
     let cy = y;
+    let lastBottom = y;
+    let r = 0;
+    while (r < rows.length) {
+      const rowsLeft = rows.length - r;
+      let avail = pageBottom - cy;
+      let fit = Math.floor((avail + m.gap) / (m.hLow + m.gap));
+      if (fit < 1 && cy > 41) { doc.addPage(); cy = 40; avail = pageBottom - cy; fit = Math.floor((avail + m.gap) / (m.hLow + m.gap)); }
+      fit = Math.max(1, Math.min(fit, rowsLeft));
 
-    for (let i = 0; i < charts.length; i++) {
-      if (col === 0 && cy + chartH > pageBottom) {
-        doc.addPage();
-        cy = 40;
-      }
+      // Everything that is left fits at the target shape -> use it. Otherwise this page is full:
+      // stretch its rows (within the ratio window) so they end at the bottom margin.
+      const allAtTarget = rowsLeft * m.hTarget + (rowsLeft - 1) * m.gap <= avail;
+      let n = allAtTarget ? rowsLeft : fit;
+      let h = allAtTarget ? m.hTarget : Math.max(m.hLow, Math.min(m.hMax, (avail - (n - 1) * m.gap) / n));
 
-      const boxW = chartW - 8, boxH = chartH - 8;
-      const px = chartPx(boxW, boxH);
-      const ptText = perRow === 1 ? 7.8 : 7.2;
-      const img = await renderChartToImage(
-        Object.assign({ fontPx: Math.round(ptText * CHART_PX_PER_PT) }, charts[i]), px.w, px.h);
-      drawCard(doc, cx, cy, chartW, chartH, 6);
-      doc.addImage(img, 'PNG', cx + 4, cy + 4, boxW, boxH, undefined, 'FAST');
-
-      col++;
-      if (col >= perRow) {
-        col = 0;
-        cx = margin;
-        cy += chartH + gap;
-      } else {
-        cx += chartW + gap;
+      for (let k = 0; k < n; k++, r++) {
+        const row = rows[r];
+        const x0 = row.length === 2 ? margin : margin + (m.usable - m.w) / 2; // a single card is centred
+        for (let j = 0; j < row.length; j++) {
+          const cx = x0 + j * (m.w + m.gap);
+          const boxW = m.w - 8, boxH = h - 8;
+          const px = chartPx(boxW, boxH);
+          const spec = Object.assign({ fontPx: Math.round(7.2 * CHART_PX_PER_PT) }, row[j]);
+          const img = await renderChartToImage(spec, px.w, px.h);
+          drawCard(doc, cx, cy, m.w, h, 6);
+          doc.addImage(img, 'PNG', cx + 4, cy + 4, boxW, boxH, undefined, 'FAST');
+        }
+        lastBottom = cy + h;
+        cy += h + m.gap;
       }
     }
-    if (col !== 0) cy += chartH + gap; // close out a half-filled row
-    return cy + 6;
+    return lastBottom + 16;
   }
 
   // opts.bottomMargin (v3.9, optional): the page-bottom margin autoTable breaks at (its
@@ -2198,7 +2246,13 @@
       rows: rows.slice(0, n).map(flat),
       totalsRow: n >= rows.length && table.totalsRow ? flat(table.totalsRow) : undefined
     }, width, 8.5, 5) * 1.1 + 6; // 10% safety: the estimate ignores autoTable's exact column widths
-    if (rows.length <= 8) { const all = probe(rows.length); if (all <= usable) return all; }
+    // v3.40: a short table (8 rows or fewer) still travels whole when it is small (about 120pt); a taller one only
+    // needs half its height (and at least its first three rows) so it can start in the room that is left instead
+    // of jumping to the next page and leaving a band of blank paper behind.
+    if (rows.length <= 8) {
+      const all = probe(rows.length);
+      if (all <= usable) return all <= 120 ? all : Math.min(all, Math.max(probe(Math.min(3, rows.length)), all * 0.5));
+    }
     return Math.min(probe(2), usable);
   }
 
@@ -2400,11 +2454,12 @@
   // (the caller then leaves the table out and points to the detailed report).
   // Hidden rows are never lost: the caller records the table in _truncatedIdx so the
   // detailed PDF prints it in full, and Excel/CSV always carry every row.
-  function fitSummaryTable(doc, raw, width, availH, fontSize, pad) {
+  function fitSummaryTable(doc, raw, width, availH, fontSize, pad, extraRows) {
     const total = (raw.rows || []).length;
     if (!total) return { table: raw, hidden: 0, note: '' };
     const NOTE_H = 12, SAFETY = 6;
-    const startCap = raw.summaryMaxRows ? Math.min(raw.summaryMaxRows, total) : total;
+    // v3.40: room the page has left over is used to show more rows than summaryMaxRows (never fewer)
+    const startCap = raw.summaryMaxRows ? Math.min(raw.summaryMaxRows + (extraRows || 0), total) : total;
     for (let n = startCap; n >= 1; n--) {
       const c = capTableRows(raw, n);
       if (measureTableHeight(doc, c.table, width, fontSize, pad) + (c.note ? NOTE_H : 0) + SAFETY <= availH) return c;
@@ -2545,7 +2600,7 @@
     // Fits one table into the room below startY and draws it; returns the y it ended at.
     // `drawFn(tbl, bm)` draws the (possibly trimmed) table and returns autoTable's finalY.
     const fitAndDraw = (raw, idx, startY, x, width, fontSize, pad, drawFn) => {
-      const fit = fitSummaryTable(doc, raw, width, tableBottom - startY, fontSize, pad);
+      const fit = fitSummaryTable(doc, raw, width, tableBottom - startY, fontSize, pad, reportData._extraRows);
       if (!fit) { // not even one row fits — leave the table out, say so
         markTruncated(idx);
         return drawMoreNote(doc, 'Table not shown here — see the detailed report or Excel export', x, startY);
@@ -2569,153 +2624,166 @@
     const table = rawTable;
     const table2 = rawTable2;
 
-    // ---- ROW 2: chart | chart-or-table | insights ----
-    const panelCount = [primaryChart, secondaryChart || panelTable, insights].filter(Boolean).length;
-    if (panelCount) {
-      // Column widths: when all three are present, insights gets a narrower
-      // share (matches the approved design); with two panels, split evenly;
-      // with one, it takes the full width.
-      let colWidths;
-      if (primaryChart && panelTable && insights) {
-        colWidths = [usable * 0.35, usable * 0.35, usable * 0.30 - (gap * 2 / 3)];
-      } else if (primaryChart && secondaryChart && insights) {
-        colWidths = [usable * 0.38, usable * 0.30, usable * 0.32 - (gap * 2 / 3)];
-      } else if (panelCount === 2) {
-        colWidths = [(usable - gap) / 2, (usable - gap) / 2];
-      } else {
-        colWidths = [usable];
-      }
+    // ---- ROW 2 (v3.40): charts / insights, sized to the room that is really there ----
+    // Landscape: chart | donut-or-table | insights side by side (the approved design).
+    // Portrait: the page is narrow, so chart | donut share one row and the insights run full width
+    // underneath, instead of three cramped columns.
+    // Heights are not fixed any more: row 3 is measured first, and whatever room it does not need
+    // goes to the chart row (inside the chart proportion window), then to extra table / list rows,
+    // then to a little more air between the rows - so the page is filled without a big empty band.
+    const portrait = pageHeight > pageWidth;
+    const hasRow3 = !!(table || table2 || rankedList);
+    const secondPanel = secondaryChart || panelTable;
+    const hasInsights = !!(insights && insights.length);
+    const stacked = portrait && !!primaryChart && !!secondPanel && hasInsights;
+    const R2_TITLE = 14, R2_GAP = 6;
+    const ROW3_MIN = 120;
+    reportData._extraRows = 0; reportData._extraListRows = 0;
 
-      // Row height (v3.9): Row 2 may only use what is left above Row 3's minimum. Charts
-      // render at a fixed height; the insights column is laid out by layoutInsights() —
-      // the same routine drawHighlights() draws from — against the room available, so
-      // long insight text is compacted or shortened to fit instead of clipped or pushed
-      // onto a second page.
-      const hasRow3 = !!(table || table2 || rankedList);
-      const ROW3_MIN = 120;
-      const row2Room = pageBottom - y - 20; // row 2 = title strip (14) + panel + 6 gap
-      const chartPanelH = Math.max(100, Math.min(196, row2Room - (hasRow3 ? 90 : 0))); // v3.37: taller chart/donut cards (was 164)
-      const maxPanelH = Math.max(chartPanelH, Math.min(row2Room - (hasRow3 ? ROW3_MIN : 0), 260));
-      let insightLayout = null;
-      let panelH = chartPanelH;
-      if (insights && insights.length) {
-        const insightsW = colWidths[colWidths.length - 1];
-        insightLayout = layoutInsights(doc, insights, insightsW, maxPanelH - 5);
-        panelH = Math.max(chartPanelH, Math.min(maxPanelH, insightLayout.height + 5));
+    // what row 3 would like at its own row caps
+    const wantRow3 = () => {
+      if (!hasRow3) return 0;
+      const tNeed = (raw, w, fsz, pd) => {
+        if (!raw) return 0;
+        const total = (raw.rows || []).length;
+        if (!total) return 24;
+        const c = capTableRows(raw, raw.summaryMaxRows ? Math.min(raw.summaryMaxRows, total) : total);
+        return measureTableHeight(doc, c.table, w, fsz, pd) + (c.note ? 12 : 0) + 6;
+      };
+      const lNeed = rl => rl ? Math.min((rl.items || []).length, rl.maxRows || 6) * 31 + 20 : 0;
+      if (table && table2) { const lw = usable * (reportData.summaryTableSplit || 0.44); return 17 + Math.max(tNeed(table, lw, 8, 5), tNeed(table2, usable - lw - gap, 8, 5)); }
+      if (table && rankedList) return 17 + Math.max(tNeed(table, usable * 0.52, 8, 5), lNeed(rankedList));
+      if (table) return 16 + tNeed(table, usable, 8.5, 5);
+      return 16 + lNeed(rankedList);
+    };
+    // the tallest a chart card may get (about 1.45 : 1, the same window the detail pages use)
+    const ratioCap = w => Math.round((w - 8) / 1.45) + 26;
+
+    if (primaryChart || secondPanel || hasInsights) {
+      const room = tableBottom - y;
+      const want3 = wantRow3();
+      let colWidths, panelH, insightLayout = null, insH = 0;
+
+      if (stacked) {
+        colWidths = [(usable - gap) * 0.58, (usable - gap) * 0.42];
+        const roomR2 = room - 2 * (R2_TITLE + R2_GAP) - (hasRow3 ? ROW3_MIN : 0);
+        insightLayout = layoutInsights(doc, insights, usable, Math.max(70, roomR2 - 175));
         if (insightLayout.shortened) reportData._insightsShortened = true;
+        insH = insightLayout.height + 5;
+        panelH = Math.max(150, Math.min(190, roomR2 - insH));
+      } else {
+        const panelCount = [primaryChart, secondPanel, hasInsights].filter(Boolean).length;
+        if (primaryChart && panelTable && hasInsights) {
+          colWidths = [usable * 0.35, usable * 0.35, usable * 0.30 - (gap * 2 / 3)];
+        } else if (primaryChart && secondaryChart && hasInsights) {
+          colWidths = [usable * 0.38, usable * 0.30, usable * 0.32 - (gap * 2 / 3)];
+        } else if (panelCount === 2 && primaryChart && hasInsights) {
+          const w0 = Math.min((usable - gap) / 2, Math.round((196 - 26) * 1.75) + 8);
+          colWidths = [w0, usable - gap - w0];
+        } else if (panelCount === 2) {
+          colWidths = [(usable - gap) / 2, (usable - gap) / 2];
+        } else {
+          colWidths = [usable];
+        }
+        const row2Room = pageBottom - y - 20;
+        const chartPanelH = Math.max(100, Math.min(196, row2Room - (hasRow3 ? 90 : 0)));
+        const maxPanelH = Math.max(chartPanelH, Math.min(row2Room - (hasRow3 ? ROW3_MIN : 0), 260));
+        panelH = chartPanelH;
+        if (hasInsights) {
+          insightLayout = layoutInsights(doc, insights, colWidths[colWidths.length - 1], maxPanelH - 5);
+          panelH = Math.max(chartPanelH, Math.min(maxPanelH, insightLayout.height + 5));
+          if (insightLayout.shortened) reportData._insightsShortened = true;
+        }
       }
 
-      let cx = margin;
-      const titleY = y;
-      const bodyY = y + 14;
-      let colIdx = 0;
+      // ---- spend the spare room: chart row first, then more table / list rows, then a little air ----
+      const used = () => (stacked ? 2 * (R2_TITLE + R2_GAP) + panelH + insH : R2_TITLE + R2_GAP + panelH) + want3;
+      let spare = room - used();
+      let gapExtra = 0;
+      if (spare > 0 && (primaryChart || secondPanel)) {
+        const cap = Math.min(stacked ? 252 : 262, ratioCap(colWidths[0]));
+        const grow = Math.min(spare, Math.max(0, cap - panelH));
+        panelH += grow; spare -= grow;
+      }
+      if (spare > 19 && hasRow3) {
+        reportData._extraRows = Math.floor(spare / 19);
+        reportData._extraListRows = Math.floor(spare / 31);
+      }
+      if (spare > 0) gapExtra = Math.min(spare, 14);
 
-      if (primaryChart) {
-        const w = colWidths[colIdx];
-        // Panel sub-heading tier: smaller and colored (primary green) rather than
-        // full dark-text weight, so it reads as clearly subordinate to the 12pt
-        // page-level heading (drawSectionTitle) above it.
-        doc.setFont(THEME.fontHeading, 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(THEME.primary);
-        doc.text(String(primaryChart.title || 'Chart'), cx, titleY);
-        if (primaryChart.subtitle) {
-          doc.setFont(THEME.fontBody, 'normal');
-          doc.setFontSize(7.5);
-          doc.setTextColor(THEME.textMuted);
-          doc.text(primaryChart.subtitle, cx, titleY + 10);
-        }
-        // Chart card border: THEME.border is intentionally light for table gridlines,
-        // but at that weight a standalone box around a chart barely reads as a card.
-        // Use a darker, slightly thicker line here so the box is actually visible.
+      const titleY = y;
+      const bodyY = y + R2_TITLE;
+      const panelTitle = (txt, x, ty) => {
+        doc.setFont(THEME.fontHeading, 'bold'); doc.setFontSize(9); doc.setTextColor(THEME.primary);
+        doc.text(String(txt), x, ty);
+      };
+      const subtitle = (txt, x, ty) => {
+        doc.setFont(THEME.fontBody, 'normal'); doc.setFontSize(7.5); doc.setTextColor(THEME.textMuted);
+        doc.text(txt, x, ty);
+      };
+
+      const drawPrimary = async (cx, w, ty, by, h) => {
+        panelTitle(primaryChart.title || 'Chart', cx, ty);
+        if (primaryChart.subtitle) subtitle(primaryChart.subtitle, cx, ty + 10);
         const cleanP = primaryChart.style !== 'classic';
-        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
-        // showTitle:false — the panel already shows this chart's title as a header
-        // above the box (drawn just above), so Chart.js's own in-canvas title would
-        // just repeat it, tiny and cramped, inside the chart area.
-        // Rendered close to the box's own aspect ratio (computed from w/panelH) at a
-        // higher resolution than the box's point size, so axis labels and gridlines
-        // stay crisp instead of being upscaled/blurred or built for a mismatched
-        // wide aspect and then squeezed, which is what made text illegibly small.
-        const boxW = w - 8, boxH = panelH - 26;
+        drawCard(doc, cx, by + 4, w, h - 18, 6);
+        // showTitle:false - the panel already shows this chart's title above the card. The bitmap is
+        // rendered at exactly the aspect ratio of its box, at the shared print resolution.
+        const boxW = w - 8, boxH = h - 26;
         const px = chartPx(boxW, boxH);
         const img = await renderChartToImage(
           Object.assign({}, primaryChart, { showTitle: false }, cleanP ? { fontPx: Math.round(7.4 * CHART_PX_PER_PT) } : {}),
-          px.w, px.h
-        );
-        doc.addImage(img, 'PNG', cx + 4, bodyY + 8, boxW, boxH, undefined, 'FAST');
-        cx += w + gap;
-        colIdx++;
-      }
-
-      if (secondaryChart) {
-        const w = colWidths[colIdx];
-        // Panel sub-heading tier: smaller and colored (primary green) rather than
-        // full dark-text weight, so it reads as clearly subordinate to the 12pt
-        // page-level heading (drawSectionTitle) above it.
-        doc.setFont(THEME.fontHeading, 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(THEME.primary);
-        doc.text(String(secondaryChart.title || 'Chart'), cx, titleY);
-        // Same darker/thicker border as the chart card above — THEME.border alone
-        // was too faint to read as a card outline.
-        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
-        const side = Math.min(w - 16, panelH - 40);
-        // legendPosition:'bottom' — a 'right' legend has no room to breathe in a
-        // small square box and was rendering illegibly small; a bottom legend below
-        // the ring reads clearly at this size instead.
+          px.w, px.h);
+        doc.addImage(img, 'PNG', cx + 4, by + 8, boxW, boxH, undefined, 'FAST');
+      };
+      const drawDonut = async (cx, w, ty, by, h) => {
+        panelTitle(secondaryChart.title || 'Chart', cx, ty);
+        drawCard(doc, cx, by + 4, w, h - 18, 6);
+        const side = Math.max(60, Math.min(w - 12, h - 32));
+        // legend at the bottom: a right-hand legend has no room in a compact card
         const donutSpec = Object.assign({ fontPx: Math.round(6.6 * CHART_PX_PER_PT) }, secondaryChart, { showTitle: false, legendPosition: 'bottom' });
         const px = chartPx(side, side);
         const img = await renderChartToImage(donutSpec, px.w, px.w);
-        doc.addImage(img, 'PNG', cx + (w - side) / 2, bodyY + 12, side, side, undefined, 'FAST');
-        cx += w + gap;
-        colIdx++;
-      }
-
-      if (panelTable) {
-        const w = colWidths[colIdx];
-        doc.setFont(THEME.fontHeading, 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(THEME.primary);
-        doc.text(String(panelTable.title || 'Breakdown'), cx, titleY);
-        if (panelTable.subtitle) {
-          doc.setFont(THEME.fontBody, 'normal');
-          doc.setFontSize(7.5);
-          doc.setTextColor(THEME.textMuted);
-          doc.text(panelTable.subtitle, cx, titleY + 10);
-        }
-        // Same card outline as the chart panels so the row reads as three matching cards.
-        drawCard(doc, cx, bodyY + 4, w, panelH - 18, 6);
+        doc.addImage(img, 'PNG', cx + (w - side) / 2, by + 4 + ((h - 18) - side) / 2, side, side, undefined, 'FAST');
+      };
+      const drawPanelTbl = (cx, w, ty, by, h) => {
+        panelTitle(panelTable.title || 'Breakdown', cx, ty);
+        if (panelTable.subtitle) subtitle(panelTable.subtitle, cx, ty + 10);
+        drawCard(doc, cx, by + 4, w, h - 18, 6);
         const inset = 7;
         const panelRaw = Object.assign({}, panelTable, { summaryMaxRows: panelTable.summaryMaxRows || 6 });
-        const panelTop = bodyY + 4 + inset;
-        const panelFit = fitSummaryTable(doc, panelRaw, w - inset * 2, (bodyY + panelH - 14) - panelTop - 3, 7.5, 4);
+        const panelTop = by + 4 + inset;
+        const panelFit = fitSummaryTable(doc, panelRaw, w - inset * 2, (by + h - 14) - panelTop - 3, 7.5, 4);
         if (panelFit) {
           const panelEnd = drawTableAt(doc, panelFit.table, panelTop, cx + inset, w - inset * 2,
             { fontSize: 7.5, cellPadding: 4, rightMargin: pageWidth - (cx + w - inset), bottomMargin });
           drawMoreNote(doc, panelFit.note, cx + inset, panelEnd + 1);
         }
-        cx += w + gap;
-        colIdx++;
-      }
+      };
+      const drawInsights = (cx, w, ty, by, h) => {
+        panelTitle('KEY INSIGHTS', cx, ty);
+        // insightLayout is the very layout the panel was sized from, so what is drawn is what was measured.
+        // Cards grow a little to end level with the chart cards beside them (never shrink).
+        drawHighlights(doc, insights, by + 4, pageWidth, cx, { width: w, inline: true, layout: insightLayout, stretchTo: h });
+      };
 
-      if (insights && insights.length) {
-        const w = colWidths[colIdx];
-        // Panel sub-heading tier: smaller and colored (primary green) rather than
-        // full dark-text weight, so it reads as clearly subordinate to the 12pt
-        // page-level heading (drawSectionTitle) above it.
-        doc.setFont(THEME.fontHeading, 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(THEME.primary);
-        doc.text('KEY INSIGHTS', cx, titleY);
-        // insightLayout is the very layout panelH was sized from, so what is drawn is
-        // exactly what was measured.
-        drawHighlights(doc, insights, bodyY + 4, pageWidth, cx, { width: w, inline: true, layout: insightLayout });
+      if (stacked) {
+        let cx = margin;
+        await drawPrimary(cx, colWidths[0], titleY, bodyY, panelH);
+        cx += colWidths[0] + gap;
+        if (secondaryChart) await drawDonut(cx, colWidths[1], titleY, bodyY, panelH);
+        else drawPanelTbl(cx, colWidths[1], titleY, bodyY, panelH);
+        const y2 = bodyY + panelH + R2_GAP + gapExtra;
+        drawInsights(margin, usable, y2, y2 + R2_TITLE, insH + 14);
+        y = y2 + R2_TITLE + insH + R2_GAP + gapExtra + 6; // a little extra air before row 3
+      } else {
+        let cx = margin, colIdx = 0;
+        if (primaryChart) { await drawPrimary(cx, colWidths[colIdx], titleY, bodyY, panelH); cx += colWidths[colIdx] + gap; colIdx++; }
+        if (secondaryChart) { await drawDonut(cx, colWidths[colIdx], titleY, bodyY, panelH); cx += colWidths[colIdx] + gap; colIdx++; }
+        if (panelTable) { drawPanelTbl(cx, colWidths[colIdx], titleY, bodyY, panelH); cx += colWidths[colIdx] + gap; colIdx++; }
+        if (hasInsights) drawInsights(cx, colWidths[colIdx], titleY, bodyY, panelH);
+        y = bodyY + panelH + R2_GAP + gapExtra; // small gap so row 3's title doesn't crowd row 2
       }
-
-      y = bodyY + panelH + 6; // small gap so row 3's title/content doesn't
-                               // crowd directly against row 2's bottom edge
-                               // (e.g. the last insight card's accent bar)
     }
 
     // ---- ROW 3 (v3.2, summaryTables === 2): table | table ----
@@ -2785,7 +2853,7 @@
     // fit or the list is left out with a pointer to the Excel export).
     function drawFittedRankedList(rl, startY, x, width) {
       const items = rl.items || [];
-      const want = Math.min(items.length, rl.maxRows || 6);
+      const want = Math.min(items.length, (rl.maxRows || 6) + (reportData._extraListRows || 0));
       const fits = Math.floor((tableBottom - startY - 12) / 31); // 12 = list top padding
       const show = Math.min(want, Math.max(fits, 0));
       reportData._rankedShown = show; // how many the Summary actually printed (detailed PDF lists the rest)
@@ -2832,10 +2900,17 @@
     const L = layout.level;
     const pageBottom = pageHeight - 62;
 
+    // v3.40: opts.stretchTo - when the stack is shorter than the panel beside it, each card grows evenly
+    // (by at most 14pt) so the stack ends level with its neighbours; the text moves down by half the growth.
+    let grow = 0;
+    if (inline && opts && opts.stretchTo && layout.cards.length) {
+      const lack = (opts.stretchTo - 18) - layout.height;
+      if (lack > 0) grow = Math.min(14, lack / layout.cards.length);
+    }
     let cy = y;
     for (const card of layout.cards) {
       const ins = card.ins;
-      const cardH = card.cardH;
+      const cardH = card.cardH + grow;
       const color = ins.color || THEME.primary;
       const hasIcon = !!ins.icon;
       const textX0 = card.textX0;
@@ -2858,7 +2933,7 @@
         drawIcon(doc, ins.icon, x + L.pad + 7, cy + cardH / 2, 6, color);
       }
 
-      let textY = cy + L.pad + 2;
+      let textY = cy + grow / 2 + L.pad + 2;
       if (ins.label) {
         doc.setFont(THEME.fontHeading, 'bold');
         doc.setFontSize(L.labelFont);
@@ -3264,10 +3339,10 @@
       const title = s.title || 'Details';
       if (!charts.length && !tables.length) { y = drawHighlights(doc, insights, y, pageWidth, margin, { title }); continue; }
       if (!charts.length && !insights.length && tables.length === 1) { y = drawTitledTable(doc, title, tables[0], y, margin); continue; }
-      const chartRowH = ((pageWidth - margin * 2 - 10) / 2) * 0.55 + 16;
+      const chartRowH = minChartRowHeight(doc, margin) + 16; // v3.40: one rule for chart card size
       y = ensureSpace(doc, y, 16 + (charts.length ? chartRowH : tableLeadHeight(doc, tables[0], margin)));
       y = drawSectionTitle(doc, title, y, margin);
-      if (charts.length) y = await drawCharts(doc, charts, y, pageWidth, margin, { perRow: 2 });
+      if (charts.length) y = await drawCharts(doc, charts, y, pageWidth, margin);
       for (const t of tables) y = drawTitledTable(doc, t.title || 'Details', t, y, margin);
       if (insights.length) y = drawHighlights(doc, insights, y, pageWidth, margin, { title: 'Key Points' });
     }
@@ -3672,7 +3747,7 @@
         let col = 0;
         for (let i = 0; i < chartsToEmbed.length; i++) {
           try {
-            const dataUrl = await renderChartToImage(Object.assign({ fontPx: 33 }, chartsToEmbed[i]), 1100, 600);
+            const dataUrl = await renderChartToImage(Object.assign({ fontPx: 50 }, chartsToEmbed[i]), 1650, 900); // v3.40: 5x the 330x180 slot (was 3.3x)
             const imgId = wb.addImage({ buffer: base64ToUint8Array(dataUrl), extension: 'png' });
             ws.addImage(imgId, {
               tl: { col: col * 7, row: (chartTopRow - 1) + Math.floor(i / 2) * 13 },
