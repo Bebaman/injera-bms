@@ -713,7 +713,7 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
           <tbody id="useTbody"><tr><td colspan="7" style="text-align:center;color:var(--tl);padding:18px 0">Loading…</td></tr></tbody>
         </table>
       </div>
-      <p class="use-note">Injera that were not sold: burnt / torn / spoiled, taken home, given to staff, gifts and samples. Their cost is already part of the cost of production, so the P&amp;L does not change; this shows how many pieces and how much money they are. <b>Unaccounted</b> = made − sold − recorded here; a small number can be injera carried over from the day before or after the month end.</p>
+      <p class="use-note">Injera that were not sold: burnt / torn / spoiled, taken home, given to staff, gifts and samples. Their cost is already part of the cost of production, so the P&amp;L does not change; this shows how many pieces and how much money they are. <b>Unaccounted</b> = made − sold − used for Derkosh − recorded here; a small number can be injera carried over from the day before or after the month end.</p>
     </div>
 
   </div><!-- /content -->
@@ -1834,7 +1834,7 @@ function monthLabelFromDate(isoDateStr){
    this tracks pieces and their value (pieces x the month's cost per injera) and shows what is still unaccounted for.
    ════════════════════════════════════════════════════════ */
 const USE_TYPES = { wastage:'Wastage (burnt / torn / spoiled)', own_use:'Own use (home)', staff:'Staff', gift_sample:'Gift / sample', other:'Other' };
-let INJERA_USES = [], INJERA_SUM = null, INJERA_USES_PERIOD = null;
+let INJERA_USES = [], INJERA_SUM = null, INJERA_USES_PERIOD = null, INJERA_DK_USED = 0;
 
 function usesPeriod(){ return monthLabelToPeriod(currentMonth()); }
 
@@ -1842,17 +1842,40 @@ async function ensureInjeraUses(force){
   const period = usesPeriod();
   if(!force && INJERA_USES_PERIOD === period){ renderInjeraUses(); return; }
   try{
-    const [rows, sum] = await Promise.all([
+    // Injera turned into Derkosh (derkosh_batches.injera_used) are not "unaccounted". The database view
+    // injera_use_monthly counts them once audit_22 is applied; until then the page reads them itself.
+    const [rows, sum, dk] = await Promise.all([
       sbGet(`injera_uses?select=*&period=eq.${period}&is_deleted=eq.false&order=date.desc`),
-      sbGet(`injera_use_monthly?select=*&period=eq.${period}`)
+      sbGet(`injera_use_monthly?select=*&period=eq.${period}`),
+      sbGet(`derkosh_batches?select=injera_used&period=eq.${period}&is_deleted=eq.false`)
     ]);
     if(period !== usesPeriod()) return;          // the month was changed while this was loading
     INJERA_USES = rows || []; INJERA_SUM = (sum && sum[0]) || null; INJERA_USES_PERIOD = period;
+    INJERA_DK_USED = (dk || []).reduce((s,r)=>s+Number(r.injera_used||0), 0);
   }catch(e){
     console.warn('Wastage & own use could not load.', e.message);
-    INJERA_USES = []; INJERA_SUM = null; INJERA_USES_PERIOD = null;
+    INJERA_USES = []; INJERA_SUM = null; INJERA_USES_PERIOD = null; INJERA_DK_USED = 0;
   }
   renderInjeraUses();
+}
+
+// One place that turns the month summary into the figures the page and the exports show, so they always agree.
+// Unaccounted = made − sold − used for Derkosh − wastage − own use − staff − gift/sample − other.
+function injeraFigures(){
+  const S = INJERA_SUM || {};
+  const n = k => Number(S[k] || 0);
+  const made = n('made_qty'), sold = n('sold_qty'), waste = n('wastage_qty');
+  const other = n('own_use_qty') + n('staff_qty') + n('gift_sample_qty') + n('other_qty');
+  const viewHasDerkosh = S.derkosh_used_qty !== undefined;          // false until sql/audit_22 is applied
+  const dk = viewHasDerkosh ? n('derkosh_used_qty') : INJERA_DK_USED;
+  const used = waste + other;
+  const unacc = viewHasDerkosh ? n('unaccounted_qty') : (made - sold - dk - used);
+  const cpi = S.cost_per_injera != null ? Number(S.cost_per_injera) : null;
+  return {
+    made, sold, dk, waste, other, used, unacc, cpi,
+    unaccValue: cpi != null ? Math.round(unacc * cpi * 100) / 100 : null,
+    warn: made > 0 && Math.abs(unacc) / made > 0.02      // more than 2% of what was made cannot be explained
+  };
 }
 
 function renderInjeraUses(){
@@ -1860,18 +1883,16 @@ function renderInjeraUses(){
   if(!sumEl || !tb) return;
   const S = INJERA_SUM || {};
   const n = k => Number(S[k] || 0);
-  const made = n('made_qty'), sold = n('sold_qty'), waste = n('wastage_qty');
-  const other = n('own_use_qty') + n('staff_qty') + n('gift_sample_qty') + n('other_qty');
-  const unacc = n('unaccounted_qty');
+  const { made, sold, dk, waste, other, unacc, cpi, unaccValue, warn } = injeraFigures();
   const pct = made > 0 ? (waste / made * 100) : 0;
-  const cpi = S.cost_per_injera != null ? Number(S.cost_per_injera) : null;
-  const warn = made > 0 && Math.abs(unacc) / made > 0.02;      // more than 2% of what was made cannot be explained
+  const unaccVal = unaccValue != null ? ` · ${unaccValue<0?'−':''}${fmt2(Math.abs(unaccValue))} ETB` : '';
   sumEl.innerHTML = `
     <div class="u"><small>Made</small><b>${fmt0(made)}</b><span>pieces</span></div>
     <div class="u"><small>Sold</small><b>${fmt0(sold)}</b><span>pieces</span></div>
+    <div class="u"><small>Used for Derkosh</small><b>${fmt0(dk)}</b><span>${made>0?fmt1(dk/made*100)+'% of made':'pieces'}</span></div>
     <div class="u"><small>Wastage</small><b>${fmt0(waste)}</b><span>${made>0?fmt1(pct)+'% of made · ':''}${fmt2(n('wastage_value'))} ETB</span></div>
     <div class="u"><small>Own use &amp; other</small><b>${fmt0(other)}</b><span>${fmt2(n('own_use_value'))} ETB</span></div>
-    <div class="u ${warn?'warn':''}"><small>Unaccounted</small><b>${unacc<0?'−':''}${fmt0(Math.abs(unacc))}</b><span>${warn?'check this month':'made − sold − recorded'}</span></div>`;
+    <div class="u ${warn?'warn':''}"><small>Unaccounted</small><b>${unacc<0?'−':''}${fmt0(Math.abs(unacc))}</b><span>${warn?'check this month':'made − sold − Derkosh − recorded'}${unaccVal}</span></div>`;
   const batchNo = id => { const b = id && getBatches().find(x=>x.id===id); return b ? b.batchNo : '—'; };
   const canDelete = (typeof isManagerUp==='function') && isManagerUp();
   if(!INJERA_USES.length){
@@ -2540,19 +2561,21 @@ async function buildProductionReport(){
   if(usesLoaded){
     const S = INJERA_SUM || {};
     const nv = k => Number(S[k] || 0);
-    const made = nv('made_qty'), unacc = nv('unaccounted_qty');
-    const cpi = S.cost_per_injera != null ? Number(S.cost_per_injera) : null;
+    const F = injeraFigures();                       // same figures as the tiles on the page
+    const made = F.made, unacc = F.unacc, cpi = F.cpi;
     const val = q => cpi != null ? fmt2(q * cpi) : '—';
     const pctOf = q => made > 0 ? fmt1(q / made * 100) + '%' : '—';
-    const warnUnacc = made > 0 && Math.abs(unacc) / made > 0.02;
+    const warnUnacc = F.warn;
     const lines = [
-      ['Injera made', made, false], ['Injera sold', nv('sold_qty'), false],
+      ['Injera made', made, false], ['Injera sold', F.sold, false],
+      ['Used for Derkosh', F.dk, true],
       ['Wastage (burnt / torn / spoiled)', nv('wastage_qty'), true], ['Own use (home)', nv('own_use_qty'), true],
       ['Staff', nv('staff_qty'), true], ['Gift / sample', nv('gift_sample_qty'), true], ['Other', nv('other_qty'), true]
     ];
     const sumRows = lines.map(([label,q,hasVal])=>[label, fmt0(q), pctOf(q), hasVal ? val(q) : '']);
-    sumRows.push([ { v:'Unaccounted (made − sold − recorded)', tone: warnUnacc ? 'warn' : undefined },
-                   { v:(unacc<0?'−':'')+fmt0(Math.abs(unacc)), tone: warnUnacc ? 'warn' : undefined }, pctOf(Math.abs(unacc)), '' ]);
+    sumRows.push([ { v:'Unaccounted (made − sold − Derkosh − recorded)', tone: warnUnacc ? 'warn' : undefined },
+                   { v:(unacc<0?'−':'')+fmt0(Math.abs(unacc)), tone: warnUnacc ? 'warn' : undefined }, pctOf(Math.abs(unacc)),
+                   F.unaccValue != null ? { v:(F.unaccValue<0?'−':'')+fmt2(Math.abs(F.unaccValue)), tone: warnUnacc ? 'warn' : undefined } : '' ]);
     rd.tables.push({
       title: 'Wastage & Own Use — Summary', sheetName: 'Wastage & Own Use',
       columns: ['Item','Pieces','% of made','Value (ETB)'], rows: sumRows, columnAlign: [null,'right','right','right']
@@ -2570,19 +2593,20 @@ async function buildProductionReport(){
         totalsRow: ['TOTAL','',fmt0(sumQty),'','',val(sumQty)]
       });
     }
-    const usedQty = nv('total_used_qty');
+    const usedQty = F.used;
     if(made > 0 && (usedQty > 0 || warnUnacc) && Array.isArray(rd.insights)){
       rd.insights.push({ label: warnUnacc ? 'Watch' : 'Waste', color: warnUnacc ? '#C0392B' : '#B9770E',
         text: `${fmt0(nv('wastage_qty'))} pieces wasted (${pctOf(nv('wastage_qty'))} of made) and ${fmt0(usedQty - nv('wastage_qty'))} used at home, by staff or as gifts` +
               (cpi != null ? ` — about ${fmt2(usedQty * cpi)} ETB of cost.` : '.') +
-              (warnUnacc ? ` ${fmt0(Math.abs(unacc))} pieces are unaccounted for.` : '') });
+              (warnUnacc ? ` ${fmt0(Math.abs(unacc))} pieces are unaccounted for` + (F.unaccValue != null ? ` (about ${fmt2(Math.abs(F.unaccValue))} ETB).` : '.') : '') });
     }
   }else{
     rd.notes = (rd.notes||[]).concat(['Wastage & own use could not be loaded for this report, so it is not included.']);
   }
 
   rd.definitions = (rd.definitions||[]).concat([
-    { term:'Unaccounted', text:'Injera made minus injera sold minus the wastage and own use recorded. A small number can be injera carried over from the day before or after the month end; a large one means pieces were not recorded.' },
+    { term:'Unaccounted', text:'Injera made minus injera sold, minus injera used to make Derkosh, minus the wastage and own use recorded. A small number can be injera carried over from the day before or after the month end; a large one means pieces were not recorded.' },
+    { term:'Used for Derkosh', text:'Injera turned into Derkosh, taken from the Derkosh batch records for the month. They are not lost: their cost moves to Derkosh.' },
     { term:'Yield', text:`A batch's pieces per kg of input compared with the Efficiency Target for its batch type (Normal or Special). 100% = exactly on target; below ${YIELD_TARGET}% is flagged.` },
     { term:'Yield Rate', text:`The share of this month's batches whose yield is at or above ${YIELD_TARGET}% — the same figure as the Yield Rate card on the page.` }
   ]);
@@ -2938,21 +2962,18 @@ catch(e) { console.warn("Batch ranking table could not render.", e.message); }
    KPI COMPUTATION — spec §3.5
    ════════════════════════════════════════════════════════
    Yield Rate     = % of batches where actual pcs/kg ≥ 90% of
-                    that batch type's monthly average pcs/kg.
+                    the EFFICIENCY TARGET (pcs/kg) for that batch type,
+                    set on the Efficiency Targets screen.
                     (Spec: Actual_Count / Actual_kg_total,
                      flagged if > 8% below standard yield.)
 
    Production Efficiency = (actual total pieces produced) /
-                           (expected pieces at monthly-avg rate × total kg) × 100.
-                    Shows whether the MONTH as a whole is running
-                    above or below its own average baseline.
+                           (pieces the same kg should give at target) × 100.
+                    100% = exactly on target.
 
-   NOTE: The §14.5 batch_standard seed targets (300 / 400 pcs)
-   are placeholder targets that do not match the real workbook's
-   batch outputs (1,750–2,400 pcs). Eyu must calibrate those
-   targets in the Batch Standards screen once real kitchen
-   output figures are confirmed. Until then we use the
-   monthly-average as the internal benchmark.
+   The benchmark is the Efficiency Target (see typeRateAverages()).
+   Only when no target is set for a batch type does it fall back to
+   that month's own average pcs/kg for the type.
    ════════════════════════════════════════════════════════ */
 
 // Shared by computeKPIs() and renderRanking() so "yield vs type average"
