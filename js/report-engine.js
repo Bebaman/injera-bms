@@ -1,7 +1,19 @@
 /* ============================================================
    MENA INJERA & DERKOSH BMS — SHARED REPORT ENGINE
-   report-engine.js  (v3.40)
+   report-engine.js  (v3.41)
    ------------------------------------------------------------
+   v3.41 - Wastage and own use: Derkosh (kg) and Inventory records appear in the PDF / Excel exports (Derkosh: KPI note, insight, 'Wastage, Own Use and
+     Samples' table, stock movement line, cost inside COGS; Inventory: Wastage KPI, insight and 'Wastage and Losses' table). Purchases: a Bank Charge
+     column in the ledger and a Bank Charges KPI when any payment carried a charge. Needs sql/audit_23 for the P&L side.
+   v3.41 - Summary, portrait: a page with ONE chart (production, derkosh, milling, inventory, overhead, suppliers, cash flow, P&L ...) now
+     shows it full width (about 16:9) with the insights beneath, so the page is filled instead of leaving a blank band.
+   v3.41 - Detailed: after a statement table (Cash Flow, P&L, Budget) the trend charts continue on the same page when they fit; they used
+     to start a new page and leave up to half a page blank. Row-3 headings that are 13pt get 10pt more air under the block above.
+   v3.41 - donut charts (e.g. Sales > Sales by Product): the centre total and the % labels on the ring are capped to the report's
+     text size (the total was about 14pt bold next to 7pt text, which made the donut look huge and heavy).
+   v3.41 - line charts (e.g. Sales > Daily Sales) are drawn with a thinner line (about 0.7pt, was 1.2pt), smaller markers and a lighter
+     area fill, so they no longer look bold next to the other charts.
+
    WHAT'S NEW IN v3.40 - one proportion rule, higher resolution, portrait and landscape pages that fill
    - Chart cards: ONE shape rule for every chart in every report. Bar / line cards sit between 4:3 and 16:9
      (target 16:10; donuts are square inside their card), the range data-visualisation guidance gives for
@@ -1434,7 +1446,7 @@
       const a = ctx.chart.chartArea;
       if (!a) return c + '33';
       const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
-      g.addColorStop(0, alpha(c, '66')); g.addColorStop(0.6, alpha(c, '1A')); g.addColorStop(1, alpha(c, '00'));
+      g.addColorStop(0, alpha(c, '47')); g.addColorStop(0.6, alpha(c, '14')); g.addColorStop(1, alpha(c, '00'));
       return g;
     };
     // soft vertical (or horizontal) sheen on bars; solid for waterfalls and charts with negatives
@@ -1469,12 +1481,14 @@
         const refLike = multi && /average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(s.label || ''));
         const denseLine = nPts > 12;
         const mainCount = multi ? list.filter(x => !(/average|avg|target|budget|plan|benchmark|market|prior|previous/i.test(String(x.label || '')))).length : 1;
-        const dotR = Math.max(3 * U, fs * 0.3);
+        // v3.41: lines were drawn at about 1.2pt with 2.2pt dots, which read as heavy next to the bars and the 7pt text.
+        // A 0.65-0.75pt line with small markers matches the rest of the report (same on every module's line charts).
+        const dotR = Math.max(2.4 * U, fs * 0.17);
         return { type: 'line', label: s.label || '', data: s.values, borderColor: color,
-          borderWidth: refLike ? Math.max(1.6 * U, fs * 0.11) : Math.max(2.2 * U, fs * (denseLine ? 0.15 : 0.17)),
+          borderWidth: refLike ? Math.max(1.2 * U, fs * 0.07) : Math.max(1.5 * U, fs * (denseLine ? 0.085 : 0.1)),
           borderDash: refLike ? [Math.round(fs * 0.5), Math.round(fs * 0.4)] : undefined,
           pointRadius: refLike ? 0 : (denseLine ? (c => (c.dataIndex === nPts - 1 ? dotR : 0)) : dotR),
-          pointHoverRadius: 0, pointBackgroundColor: refLike || denseLine ? color : '#FFFFFF', pointBorderColor: color, pointBorderWidth: Math.max(2 * U, fs * 0.13),
+          pointHoverRadius: 0, pointBackgroundColor: refLike || denseLine ? color : '#FFFFFF', pointBorderColor: color, pointBorderWidth: Math.max(1.5 * U, fs * 0.07),
           tension: denseLine ? 0.25 : 0.3, cubicInterpolationMode: 'monotone', fill: !refLike && mainCount === 1 && !minimal, backgroundColor: gradient(color),
           yAxisID: s.axis === 'right' ? 'y1' : 'y', order: refLike ? 1 : 0 };
       }
@@ -1644,7 +1658,7 @@
   // v3.40 — ONE proportion rule for every chart card in every report (summary and detailed, portrait and
   // landscape). Bar / line cards run between 4:3 and 16:9 (target 16:10); donuts are square inside the card.
   // The extremes are never used, so a lone chart is neither stretched across the page nor squeezed.
-  const CHART_RATIO = { target: 1.6, min: 4 / 3, max: 16 / 9 };
+  const CHART_RATIO = { target: 1.6, min: 4 / 3, max: 1.9 }; // 1.9 is a hair wider than 16:9 (1.78); only reached when a row must squeeze onto the end of a page
   // pixel size for a slot of wPt x hPt points, with the bitmap's ratio matching the slot's exactly
   function chartPx(wPt, hPt) {
     let w = Math.max(120, Math.round(wPt * CHART_PX_PER_PT));
@@ -1695,23 +1709,33 @@
               const holeD = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top) * 0.70;
               const holeW = holeD * 0.84;                    // usable width inside the ring
               const unit = holeD / 100;                      // 1% of the hole diameter
+              // v3.41: the total used to be 16% of the hole (about 14pt bold in a summary donut) next to 7pt text everywhere
+              // else, so it looked huge and heavy. It is now capped to the chart's own text size (fontPx): the total at
+              // about 1.3x, the small captions at about 0.95x, with the spacing following the sizes.
+              const fp = chartSpec.fontPx || Math.max(11, Math.round(widthPx / 46));
+              const capSz = Math.max(Math.round(fp * 0.95), 1);
+              let vs = Math.min(16 * unit, fp * 1.3);
+              ctx.font = `700 ${Math.round(vs)}px Quicksand, sans-serif`;
+              if (cl.value) {
+                const vw = ctx.measureText(String(cl.value)).width;
+                if (vw > holeW) { vs *= holeW / vw; ctx.font = `700 ${Math.round(vs)}px Quicksand, sans-serif`; }
+              }
+              const lblSz = Math.min(Math.round(8.5 * unit), capSz);
+              const off = vs * 0.5 + lblSz * 0.8;
               if (cl.top) {
-                ctx.font = `600 ${Math.round(8.5 * unit)}px Nunito, sans-serif`;
+                ctx.font = `600 ${lblSz}px Nunito, sans-serif`;
                 ctx.fillStyle = THEME.textMuted;
-                ctx.fillText(cl.top, cx, cy - 15 * unit);
+                ctx.fillText(cl.top, cx, cy - off);
               }
               if (cl.value) {
-                let vs = 16 * unit;
-                ctx.font = `bold ${Math.round(vs)}px Quicksand, sans-serif`;
-                const vw = ctx.measureText(String(cl.value)).width;
-                if (vw > holeW) { vs *= holeW / vw; ctx.font = `bold ${Math.round(vs)}px Quicksand, sans-serif`; }
+                ctx.font = `700 ${Math.round(vs)}px Quicksand, sans-serif`;
                 ctx.fillStyle = THEME.primaryDark;
-                ctx.fillText(cl.value, cx, cy + 2 * unit);
+                ctx.fillText(cl.value, cx, cy);
               }
               if (cl.bottom) {
-                ctx.font = `600 ${Math.round(8.5 * unit)}px Nunito, sans-serif`;
+                ctx.font = `600 ${lblSz}px Nunito, sans-serif`;
                 ctx.fillStyle = THEME.textMuted;
-                ctx.fillText(cl.bottom, cx, cy + 17 * unit);
+                ctx.fillText(cl.bottom, cx, cy + off);
               }
               ctx.restore();
             }
@@ -1738,7 +1762,9 @@
               // v3.37: label size follows the ring's thickness, so it stays legible when the donut is small
               const a0 = meta.data[0];
               const ringT = a0 ? Math.max(0, a0.outerRadius - a0.innerRadius) : 0;
-              ctx.font = `700 ${Math.max(10, Math.round(ringT > 0 ? ringT * 0.42 : widthPx / 30))}px Nunito, sans-serif`;
+              // v3.41: also capped to the chart's text size (about 1.05x), so the share labels are not bolder than the legend
+              const fpS = chartSpec.fontPx || Math.max(11, Math.round(widthPx / 46));
+              ctx.font = `700 ${Math.max(10, Math.min(Math.round(ringT > 0 ? ringT * 0.42 : widthPx / 30), Math.round(fpS * 1.05)))}px Nunito, sans-serif`;
               ctx.fillStyle = '#FFFFFF';
               meta.data.forEach((arc, i) => {
                 const share = Math.max(vals[i], 0) / total;
@@ -2157,7 +2183,7 @@
     return { usable, gap, w, hMin: w / CHART_RATIO.max, hTarget: w / CHART_RATIO.target, hMax: w / CHART_RATIO.target * 1.1, hLow: w / CHART_RATIO.target * 0.92 };
   }
   // The least room one row of chart cards can be drawn in (callers use it to decide on a page break).
-  function minChartRowHeight(doc, margin) { return chartGridMetrics(doc, margin).hLow; }
+  function minChartRowHeight(doc, margin) { return chartGridMetrics(doc, margin).hMin; }
 
   async function drawCharts(doc, charts, y, pageWidth, margin, opts) {
     if (!charts || !charts.length) return y;
@@ -2172,15 +2198,15 @@
     while (r < rows.length) {
       const rowsLeft = rows.length - r;
       let avail = pageBottom - cy;
-      let fit = Math.floor((avail + m.gap) / (m.hLow + m.gap));
-      if (fit < 1 && cy > 41) { doc.addPage(); cy = 40; avail = pageBottom - cy; fit = Math.floor((avail + m.gap) / (m.hLow + m.gap)); }
+      let fit = Math.floor((avail + m.gap) / (m.hMin + m.gap));
+      if (fit < 1 && cy > 41) { doc.addPage(); cy = 40; avail = pageBottom - cy; fit = Math.floor((avail + m.gap) / (m.hMin + m.gap)); }
       fit = Math.max(1, Math.min(fit, rowsLeft));
 
       // Everything that is left fits at the target shape -> use it. Otherwise this page is full:
       // stretch its rows (within the ratio window) so they end at the bottom margin.
       const allAtTarget = rowsLeft * m.hTarget + (rowsLeft - 1) * m.gap <= avail;
       let n = allAtTarget ? rowsLeft : fit;
-      let h = allAtTarget ? m.hTarget : Math.max(m.hLow, Math.min(m.hMax, (avail - (n - 1) * m.gap) / n));
+      let h = allAtTarget ? m.hTarget : Math.max(m.hMin, Math.min(m.hMax, (avail - (n - 1) * m.gap) / n));
 
       for (let k = 0; k < n; k++, r++) {
         const row = rows[r];
@@ -2635,7 +2661,11 @@
     const hasRow3 = !!(table || table2 || rankedList);
     const secondPanel = secondaryChart || panelTable;
     const hasInsights = !!(insights && insights.length);
-    const stacked = portrait && !!primaryChart && !!secondPanel && hasInsights;
+    // v3.41: a portrait page with ONE chart (production, derkosh, milling, inventory, overhead ...) used to put it in a
+    // 240pt-wide column beside the insights and left a band of empty paper under the tables. Now that chart takes the
+    // full width (kept at or under 16:9, like every other chart) with the insights underneath.
+    const stackedWide = portrait && !!primaryChart && !secondPanel && hasInsights;
+    const stacked = (portrait && !!primaryChart && !!secondPanel && hasInsights) || stackedWide;
     const R2_TITLE = 14, R2_GAP = 6;
     const ROW3_MIN = 120;
     reportData._extraRows = 0; reportData._extraListRows = 0;
@@ -2653,8 +2683,8 @@
       const lNeed = rl => rl ? Math.min((rl.items || []).length, rl.maxRows || 6) * 31 + 20 : 0;
       if (table && table2) { const lw = usable * (reportData.summaryTableSplit || 0.44); return 17 + Math.max(tNeed(table, lw, 8, 5), tNeed(table2, usable - lw - gap, 8, 5)); }
       if (table && rankedList) return 17 + Math.max(tNeed(table, usable * 0.52, 8, 5), lNeed(rankedList));
-      if (table) return 16 + tNeed(table, usable, 8.5, 5);
-      return 16 + lNeed(rankedList);
+      if (table) return 26 + tNeed(table, usable, 8.5, 5);
+      return 26 + lNeed(rankedList);
     };
     // the tallest a chart card may get (about 1.45 : 1, the same window the detail pages use)
     const ratioCap = w => Math.round((w - 8) / 1.45) + 26;
@@ -2665,12 +2695,14 @@
       let colWidths, panelH, insightLayout = null, insH = 0;
 
       if (stacked) {
-        colWidths = [(usable - gap) * 0.58, (usable - gap) * 0.42];
+        colWidths = stackedWide ? [usable] : [(usable - gap) * 0.58, (usable - gap) * 0.42];
         const roomR2 = room - 2 * (R2_TITLE + R2_GAP) - (hasRow3 ? ROW3_MIN : 0);
         insightLayout = layoutInsights(doc, insights, usable, Math.max(70, roomR2 - 175));
         if (insightLayout.shortened) reportData._insightsShortened = true;
         insH = insightLayout.height + 5;
-        panelH = Math.max(150, Math.min(190, roomR2 - insH));
+        // full-width chart: start near 16:9 (width / 1.85) so it is never a thin strip; a half-width chart stays about 190 high
+        const wideBase = Math.round((usable - 8) / 1.85) + 26;
+        panelH = stackedWide ? Math.max(170, Math.min(wideBase, roomR2 - insH)) : Math.max(150, Math.min(190, roomR2 - insH));
       } else {
         const panelCount = [primaryChart, secondPanel, hasInsights].filter(Boolean).length;
         if (primaryChart && panelTable && hasInsights) {
@@ -2701,7 +2733,7 @@
       let spare = room - used();
       let gapExtra = 0;
       if (spare > 0 && (primaryChart || secondPanel)) {
-        const cap = Math.min(stacked ? 252 : 262, ratioCap(colWidths[0]));
+        const cap = stackedWide ? Math.round((usable - 8) / 1.6) + 26 : Math.min(stacked ? 252 : 262, ratioCap(colWidths[0]));
         const grow = Math.min(spare, Math.max(0, cap - panelH));
         panelH += grow; spare -= grow;
       }
@@ -2771,7 +2803,8 @@
         let cx = margin;
         await drawPrimary(cx, colWidths[0], titleY, bodyY, panelH);
         cx += colWidths[0] + gap;
-        if (secondaryChart) await drawDonut(cx, colWidths[1], titleY, bodyY, panelH);
+        if (stackedWide) { /* one full-width chart, nothing beside it */ }
+        else if (secondaryChart) await drawDonut(cx, colWidths[1], titleY, bodyY, panelH);
         else drawPanelTbl(cx, colWidths[1], titleY, bodyY, panelH);
         const y2 = bodyY + panelH + R2_GAP + gapExtra;
         drawInsights(margin, usable, y2, y2 + R2_TITLE, insH + 14);
@@ -2835,7 +2868,7 @@
     }
 
     if (table) {
-      y = drawSectionTitle(doc, table.title || 'Summary Table', y, margin);
+      y = drawSectionTitle(doc, table.title || 'Summary Table', y + 10, margin); // +10: this heading is 13pt, so it needs air under the row above
       const startY = y;
       const endY = fitAndDraw(table, 0, startY, margin, usable, 8.5, 5,
         (t, bm) => { drawTable(doc, t, startY, margin, { bottomMargin: bm }); return doc.lastAutoTable.finalY; });
@@ -2843,7 +2876,7 @@
     }
 
     if (rankedList) {
-      y = drawSectionTitle(doc, rankedList.title || 'Ranking', y, margin);
+      y = drawSectionTitle(doc, rankedList.title || 'Ranking', y + 10, margin);
       return drawFittedRankedList(rankedList, y, margin, usable);
     }
 
@@ -3340,7 +3373,7 @@
       if (!charts.length && !tables.length) { y = drawHighlights(doc, insights, y, pageWidth, margin, { title }); continue; }
       if (!charts.length && !insights.length && tables.length === 1) { y = drawTitledTable(doc, title, tables[0], y, margin); continue; }
       const chartRowH = minChartRowHeight(doc, margin) + 16; // v3.40: one rule for chart card size
-      y = ensureSpace(doc, y, 16 + (charts.length ? chartRowH : tableLeadHeight(doc, tables[0], margin)));
+      y = ensureSpace(doc, y, (charts.length ? 22 : 16) + (charts.length ? chartRowH - 16 : tableLeadHeight(doc, tables[0], margin)));
       y = drawSectionTitle(doc, title, y, margin);
       if (charts.length) y = await drawCharts(doc, charts, y, pageWidth, margin);
       for (const t of tables) y = drawTitledTable(doc, t.title || 'Details', t, y, margin);
@@ -3429,16 +3462,17 @@
         const extraCharts = hasSections ? [] : splitCharts(reportData).extra;
         let freshPage = preTables.length > 0; // a detail page has already been started
         if (extraCharts.length) {
-          doc.addPage();
+          // v3.41: when a statement table was just printed (Cash Flow, P&L, Budget) the charts follow it on the same
+          // page if their heading and first row fit (it used to force a new page and leave up to half a page blank)
+          if (preTables.length) { y = ensureSpace(doc, y, 22 + minChartRowHeight(doc, margin)); }
+          else { doc.addPage(); y = 40; }
           freshPage = true;
-          y = 40;
           y = drawSectionTitle(doc, reportData.detailChartsTitle || 'Additional Charts', y, margin);
           y = await drawCharts(doc, extraCharts, y, pageWidth, margin);
         }
         if (hasSections) {
-          doc.addPage();
+          if (preTables.length) { y += 8; } else { doc.addPage(); y = 40; }   // v3.41: continue after the statement table
           freshPage = true;
-          y = 40;
           y = await drawDetailSections(doc, reportData, y, pageWidth, margin);
         }
         // Tables the summary page already showed in full are skipped; ones the summary
@@ -4176,6 +4210,11 @@
     const oper = tot.operating !== undefined ? tot.operating : sumBy(ledger.filter(r => kindOf(r) === 'operating'), r => r.cost);
     const isLargePending = r => String(r.status || '').toLowerCase() === 'pending' &&
       (r.large || (i.approvalThreshold && Number(r.cost) >= i.approvalThreshold));
+    // v3.41: bank / mobile-money charge paid with a purchase (entered on the Purchases form; Bank and Mobile Money only). It is
+    // NOT part of the cost: the P&L shows it as Bank Charges and Cash Flow takes it out of the same channel.
+    const chargeOf = r => (hasNum(r.bankCharge) && Number(r.bankCharge) > 0 ? Number(r.bankCharge) : 0);
+    const bankChargeTotal = tot.bankCharges !== undefined ? tot.bankCharges : sumBy(ledger, chargeOf);
+    const hasCharges = bankChargeTotal > 0 || ledger.some(r => chargeOf(r) > 0);
     const pendingRows = ledger.filter(isLargePending);
     const pendingAmt = tot.largePending !== undefined ? tot.largePending : sumBy(pendingRows, r => r.cost);
     const pendingCnt = tot.largePending !== undefined ? (i.largePendingCount || 0) : pendingRows.length;
@@ -4228,13 +4267,17 @@
       base.insights = ins.slice(0, 4);
     }
 
+    if (hasCharges) {
+      base.kpis.push({ label: 'Bank Charges', value: fmt.money(bankChargeTotal), unit: base.currency, color: '#8E44AD',
+        delta: `${plural(ledger.filter(r => chargeOf(r) > 0).length, 'payment')} with a charge · not in the total`, deltaTone: undefined });
+    }
     const byDateDesc = ledger.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
     base.tables = [
       { title: 'Purchase Ledger', summaryMaxRows: 4,
-        columns: ['Date', 'Supplier', 'Category', `Cost (${base.currency})`],
-        rows: byDateDesc.map(r => [shortDate(r.date), r.supplier || '', r.category || '', fmt.money2(r.cost)]),
-        columnAlign: [null, null, null, 'right'],
-        totalsRow: ['TOTAL', '', '', fmt.money2(sumBy(ledger, r => r.cost))] },
+        columns: ['Date', 'Supplier', 'Category', `Cost (${base.currency})`].concat(hasCharges ? [`Bank Charge (${base.currency})`] : []),
+        rows: byDateDesc.map(r => [shortDate(r.date), r.supplier || '', r.category || '', fmt.money2(r.cost)].concat(hasCharges ? [chargeOf(r) ? fmt.money2(chargeOf(r)) : '—'] : [])),
+        columnAlign: hasCharges ? [null, null, null, 'right', 'right'] : [null, null, null, 'right'],
+        totalsRow: ['TOTAL', '', '', fmt.money2(sumBy(ledger, r => r.cost))].concat(hasCharges ? [fmt.money2(sumBy(ledger, chargeOf))] : []) },
       { title: 'Spend by Category', columns: ['Category', 'Purchases', `Spend (${base.currency})`, '% of Total'],
         rows: cats.map(c => [c.name, String(c.count), fmt.money2(c.amount), fmt.pct(fmt.share(c.amount, total))]),
         columnAlign: [null, 'right', 'right', 'right'],
@@ -4721,6 +4764,15 @@
         cogsEstimated = true;
       }
     }
+    // v3.41: Derkosh taken out of stock without a sale (wastage, own use, staff, gift / sample). The BMS counts its cost
+    // (kg x weighted average cost per kg) in the Derkosh COGS, so it is added here and the summary matches the P&L.
+    const useLabels = { wastage: 'Wastage', own_use: 'Own use', staff: 'Staff', gift_sample: 'Gift / sample', other: 'Other' };
+    const uses = asArr(i.uses).filter(u => u && hasNum(u.quantity) && Number(u.quantity) > 0)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    const usedQty = sumBy(uses, u => u.quantity);
+    const useRate = wac !== null ? wac : unitCost;
+    const usedCost = usedQty > 0 && useRate !== null && tot.cogs === undefined && cogs !== null ? usedQty * useRate : 0;
+    if (usedCost) cogs += usedCost;
     const grossProfit = tot.grossProfit !== undefined ? tot.grossProfit : (cogs === null ? null : revenue - cogs);
     const margin = grossProfit !== null && revenue ? (grossProfit / revenue) * 100 : null;
     if (cogsEstimated && tot.grossProfit === undefined && grossProfit !== null) {
@@ -4738,12 +4790,12 @@
       { label: 'Derkosh Produced', value: qty(produced), unit, color: '#C89B3C',
         delta: prod.length ? `${prod.length} batch${prod.length > 1 ? 'es' : ''}` : undefined },
       { label: 'Derkosh Sold', value: qty(sold), unit, color: '#2E86DE',
-        delta: sellThrough !== null ? `${fmt.pct(sellThrough, 0)} of production` : undefined },
+        delta: sellThrough !== null ? `${fmt.pct(sellThrough, 0)} of production${usedQty > 0 ? ` · ${qty(usedQty)} ${unit} used` : ''}` : (usedQty > 0 ? `${qty(usedQty)} ${unit} used` : undefined) },
       { label: 'Derkosh Revenue', value: fmt.money(revenue), unit: cur, color: '#1D5C38',
         delta: avgPrice !== null ? `${fmt.n(avgPrice, 2)} ${cur} per ${unit}` : undefined },
       { label: 'Gross Profit', value: grossProfit === null ? '—' : fmt.money(grossProfit), unit: grossProfit === null ? undefined : cur,
         color: grossProfit !== null && grossProfit < 0 ? '#C0392B' : '#8E44AD',
-        delta: margin !== null ? `${fmt.pct(margin)} margin` : undefined,
+        delta: margin !== null ? `${fmt.pct(margin)} margin${usedCost ? ` · incl. ${fmt.money(usedCost)} use cost` : ''}` : undefined,
         deltaTone: margin !== null ? (margin < 0 ? 'warn' : 'good') : undefined }
     ];
     // v3.37: the two per-kg figures get their own cards (six cards in one row, like the Dashboard).
@@ -4798,6 +4850,11 @@
           ins.push({ label: 'Stock', color: '#1D5C38', text: `Production and sales are closely matched — ${fmt.pct(sellThrough === null ? 0 : sellThrough, 0)} of output was sold.` });
         }
       }
+      if (usedQty > 0) {
+        const byT = {}; uses.forEach(u => { byT[u.type] = (byT[u.type] || 0) + Number(u.quantity); });
+        const parts = Object.keys(byT).map(k => `${(useLabels[k] || k).toLowerCase()} ${qty(byT[k])}`).join(', ');
+        ins.push({ label: 'Used', color: '#C77D12', text: `${qty(usedQty)} ${unit} left stock without a sale (${parts})${usedCost ? ` — about ${fmt.money(usedCost)} ${cur} of cost, counted in cost of goods sold` : ''}.` });
+      }
       if (margin !== null) {
         ins.push({ label: 'Profit', color: margin < 0 ? '#C0392B' : '#8E44AD',
           text: grossProfit < 0 ? `Derkosh sold at a gross loss of ${fmt.money(Math.abs(grossProfit))} ${cur} (${fmt.pct(margin)} margin).`
@@ -4832,6 +4889,14 @@
         meta: `${c.count} order${c.count > 1 ? 's' : ''} · ${qty(custQty.get(c.name) || 0)} ${unit}`,
         value: `${fmt.money(c.amount)} ${cur}`, sub: `${fmt.pct(fmt.share(c.amount, revenue))} of revenue` })) };
 
+    if (uses.length) {
+      base.tables.push({ title: 'Wastage, Own Use and Samples', sheetName: 'Wastage and Own Use',
+        columns: ['Date', 'Type', `Quantity (${unit})`, `Cost (${cur})`, 'Note'],
+        rows: uses.map(u => [isoOk(String(u.date || '').slice(0, 10)) ? shortDate(String(u.date).slice(0, 10)) : '—', useLabels[u.type] || u.type || '—', qty(u.quantity),
+          useRate !== null && tot.cogs === undefined ? fmt.money2(Number(u.quantity) * useRate) : '—', u.note || '']),
+        columnAlign: [null, null, 'right', 'right', null],
+        totalsRow: ['TOTAL', plural(uses.length, 'record'), qty(usedQty), usedCost ? fmt.money2(usedCost) : '—', ''] });
+    }
     // Detailed PDF / Excel only (v3.19): revenue and gross profit, by customer and sale by sale.
     // Cost per sale follows the Summary's order: the sale's own BMS cogs, else units x the BMS WAC,
     // else units x this period's average production cost (the Summary footer already says when
@@ -4866,7 +4931,7 @@
           const gp = c.revKnown && c.cogsKnown ? c.rev - c.cogs : null;
           return [c.name, String(c.n), qty(c.q), c.revKnown ? fmt.money2(c.rev) : '—', c.revKnown ? fmt.pct(fmt.share(c.rev, revenue)) : '—',
             c.cogsKnown ? fmt.money2(c.cogs) : '—', gp === null ? '—' : gpTone(gp), gp !== null && c.rev ? margTone((gp / c.rev) * 100) : '—'];
-        }),
+        }).concat(usedCost ? [['Wastage, own use and samples', plural(uses.length, 'record'), qty(usedQty), '—', '—', fmt.money2(usedCost), gpTone(-usedCost), '—']] : []),
         columnAlign: [null, 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
         totalsRow: ['TOTAL', String(sales.length), qty(sold), fmt.money2(revenue), revenue ? '100.0%' : '—', cogs === null ? '—' : fmt.money2(cogs),
           grossProfit === null ? '—' : fmt.money2(grossProfit), margin === null ? '—' : fmt.pct(margin)] });
@@ -4879,7 +4944,7 @@
           return [isoOk(s.date) ? shortDate(s.date) : (s.date ? String(s.date) : '—'), s.customer || '—', hasNum(s.quantity) ? qty(q) : '—',
             rv !== null && hasNum(s.quantity) && q ? fmt.n(rv / q, 2) : '—', rv === null ? '—' : fmt.money2(rv), cg === null ? '—' : fmt.money2(cg),
             gp === null ? '—' : gpTone(gp), gp !== null && rv ? margTone((gp / rv) * 100) : '—'];
-        }),
+        }).concat(usedCost ? [['', 'Wastage, own use and samples', qty(usedQty), '—', '—', fmt.money2(usedCost), gpTone(-usedCost), '—']] : []),
         columnAlign: [null, null, 'right', 'right', 'right', 'right', 'right', 'right'],
         totalsRow: ['TOTAL', plural(sales.length, 'sale'), qty(sold), avgPrice === null ? '—' : fmt.n(avgPrice, 2), fmt.money2(revenue),
           cogs === null ? '—' : fmt.money2(cogs), grossProfit === null ? '—' : fmt.money2(grossProfit), margin === null ? '—' : fmt.pct(margin)] });
@@ -4888,7 +4953,7 @@
       base.checks = (base.checks || []).concat([{ label: 'Derkosh revenue: summary vs. sales ledger', expected: revenue, actual: revSum }]);
       const costed = ledger.filter(s => revOf(s) !== null && saleCogs(s) !== null);
       if (grossProfit !== null && costed.length === ledger.length) {
-        base.checks.push({ label: 'Derkosh gross profit: summary vs. sales ledger', expected: grossProfit, actual: sumBy(costed, s => revOf(s) - saleCogs(s)) });
+        base.checks.push({ label: 'Derkosh gross profit: summary vs. sales ledger', expected: grossProfit, actual: sumBy(costed, s => revOf(s) - saleCogs(s)) - usedCost });
       }
       const noCost = ledger.length - ledger.filter(s => saleCogs(s) !== null).length;
       if (noCost) {
@@ -4923,12 +4988,13 @@
       }
       // Opening stock is optional input; the closing figure is plain arithmetic on supplied numbers.
       if (hasNum(i.openingStock)) {
-        const open = Number(i.openingStock), close = open + produced - sold;
+        const open = Number(i.openingStock), close = open + produced - sold - usedQty;
         base.tables.push({ title: 'Stock Movement', sheetName: 'Stock Movement',
           columns: ['Step', `Quantity (${unit})`], columnAlign: [null, 'right'], statement: true,
-          rowKinds: ['line', 'line', 'line', 'total'],
-          rows: [['Opening stock', qty(open)], ['Add: produced', qty(produced)], ['Less: sold', qty(-sold)],
-            ['Closing stock (calculated)', close < 0 ? { v: qty(close), tone: 'bad' } : qty(close)]] });
+          rowKinds: usedQty > 0 ? ['line', 'line', 'line', 'line', 'total'] : ['line', 'line', 'line', 'total'],
+          rows: [['Opening stock', qty(open)], ['Add: produced', qty(produced)], ['Less: sold', qty(-sold)]]
+            .concat(usedQty > 0 ? [['Less: wastage, own use and samples', qty(-usedQty)]] : [],
+              [['Closing stock (calculated)', close < 0 ? { v: qty(close), tone: 'bad' } : qty(close)]]) });
         if (close < 0) {
           base.footer.notes = (base.footer.notes || []).concat(['Calculated closing Derkosh stock is negative; check the opening stock and the recorded sales.']);
         }
@@ -4945,6 +5011,7 @@
         [`Profit per ${unit}`, profitPerUnit < 0 ? { v: fmt.n(profitPerUnit, 2), tone: 'bad' } : fmt.n(profitPerUnit, 2), fmt.pct(fmt.share(profitPerUnit, avgPrice))]
       ];
       const ueKinds = ['line', 'line', 'total'];
+      if (usedCost && sold > 0) { ueRows.push([`Memo: of which wastage, own use and samples`, fmt.n(usedCost / sold, 2), '']); ueKinds.push('pct'); }
       if (unitCost !== null) { ueRows.push([`Memo: production cost per ${unit}, this period's batches`, fmt.n(unitCost, 2), '']); ueKinds.push('pct'); }
       if (wac !== null) { ueRows.push([`Memo: BMS weighted-average cost per ${unit}`, fmt.n(wac, 2), '']); ueKinds.push('pct'); }
       base.tables.splice(1, 0, { title: `Unit Economics per ${unit}`, sheetName: 'Unit Economics',
@@ -5324,6 +5391,20 @@
         deltaTone: expN ? 'warn' : undefined }
     ];
 
+    // v3.41: stock lost to spoilage, damage, spillage or pests (Inventory > Record Wastage). Valued at each item's average cost;
+    // the BMS counts that value as an operating cost in the P&L.
+    const wasteLines = asArr(i.wastage).filter(w => w && hasNum(w.quantity) && Number(w.quantity) > 0)
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    const wasteHasValue = wasteLines.some(w => hasNum(w.value));
+    const wasteValue = sumBy(wasteLines, w => (hasNum(w.value) ? Number(w.value) : 0));
+    const wasteByItem = new Map();
+    wasteLines.forEach(w => wasteByItem.set(w.item, (wasteByItem.get(w.item) || 0) + (hasNum(w.value) ? Number(w.value) : 0)));
+    const wasteTop = Array.from(wasteByItem.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (wasteLines.length) {
+      base.kpis.push({ label: 'Wastage', value: wasteHasValue ? fmt.money(wasteValue) : String(wasteLines.length), unit: wasteHasValue ? cur : (wasteLines.length === 1 ? 'record' : 'records'),
+        color: '#C0392B', delta: `${plural(wasteLines.length, 'record')} this period`, deltaTone: 'warn' });
+    }
+
     // ---- Row 2 left: price trend ----
     const byItem = new Map();
     asArr(i.priceHistory).forEach(p => {
@@ -5397,6 +5478,11 @@
         const when = e.left === null ? '' : e.left < 0 ? ` (expired ${shortDate(e.expiry)})` : ` (${shortDate(e.expiry)})`;
         warns.push({ label: 'Expiry', color: '#8E44AD', text: `${expired ? plural(expItems.length, 'item is', 'items are') + ` expired or expire${expItems.length === 1 ? 's' : ''}` : plural(expItems.length, 'item expires', 'items expire')} within ${expiryWindow} days — first is ${e.name}${when}.` });
       }
+      if (wasteLines.length) {
+        warns.push({ label: 'Wastage', color: '#C0392B', text: wasteHasValue
+          ? `${fmt.money(wasteValue)} ${cur} of stock was lost as wastage (${plural(wasteLines.length, 'record')})${wasteTop && wasteByItem.size > 1 ? `; most of it ${wasteTop[0]}` : wasteTop ? `: ${wasteTop[0]}` : ''}. It is counted as an operating cost.`
+          : `${plural(wasteLines.length, 'wastage record')} this period.` });
+      }
       if (lowN && !warns.length) {
         infos.push({ label: 'Low stock', color: '#C89B3C', text: `${plural(lowN, 'item is', 'items are')} running low but still above reorder level.` });
       }
@@ -5431,6 +5517,15 @@
           qtyFmt(x.closing)
         ]),
         columnAlign: [null, null, 'right', 'right'] });
+    }
+    if (wasteLines.length) {
+      base.tables.push({ title: 'Wastage and Losses', sheetName: 'Wastage',
+        columns: ['Date', 'Item', 'Reason', 'Quantity', `Cost (${cur})`, 'Note'],
+        rows: wasteLines.map(w => [isoOk(String(w.date || '').slice(0, 10)) ? shortDate(String(w.date).slice(0, 10)) : '—', w.item || '—',
+          String(w.reason || '').replace(/^Wastage\s*-\s*/i, ''), `${qtyFmt(w.quantity)}${w.unit ? ' ' + w.unit : ''}`,
+          hasNum(w.value) ? fmt.money2(w.value) : '—', w.notes || '']),
+        columnAlign: [null, null, null, 'right', 'right', null],
+        totalsRow: ['TOTAL', plural(wasteLines.length, 'record'), '', '', wasteHasValue ? fmt.money2(wasteValue) : '—', ''] });
     }
     // Detailed PDF / Excel only (v3.18): how each material's price moved over the period.
     if (series.size) {
