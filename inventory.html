@@ -305,6 +305,11 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 @media (max-width:480px){
   .kc{min-width:160px}
 }
+
+/* wastage strip */
+.waste-strip{margin:0 0 12px;padding:10px 14px;border-radius:10px;background:#fff6e8;border:1px solid #f0d3a0;font-size:12.5px;color:#7a5a12;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.waste-strip b{color:#5c4208}
+.waste-strip a{margin-left:auto;color:#1d5c38;font-weight:700;cursor:pointer;text-decoration:underline}
 </style>
 <link rel="stylesheet" href="/css/responsive.css">
 </head>
@@ -374,10 +379,13 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
       <div class="qa-pill" onclick="openRecordUsageModal()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-3-3L3 17.5"/></svg>Record Usage</div>
       <div class="qa-pill" onclick="openStockTransferModal()"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>Transfer Stock</div>
       <div class="qa-pill" onclick="openAdjustStockModal()"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Adjust Stock</div>
+      <div class="qa-pill" onclick="openRecordWastageModal()"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>Record Wastage</div>
       <div class="qa-pill" onclick="openImportModal()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import</div>
       <div class="qa-pill" onclick="openExportMenuModal()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</div>
       <div class="qa-pill" onclick="openReportsHubModal()"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Reports</div>
     </div>
+
+    <div class="waste-strip" id="wasteStrip" style="display:none"></div>
 
     <!-- SEARCH & FILTER BAR -->
     <div class="filter-bar">
@@ -1256,6 +1264,7 @@ async function fetchPeriodAdjustments(){
 async function buildInventoryReportData(){
   const mb = monthBounds(currentPeriod);
   const adjByItem = await fetchPeriodAdjustments();
+  const wastageLines = await fetchPeriodWastage();
   // An item with no balance record at all (closing = null) has nothing to report.
   const withBalance = invItems.filter(it=>it.closing!==null && it.closing!==undefined);
   const items = withBalance.map(it=>{
@@ -1286,7 +1295,8 @@ async function buildInventoryReportData(){
     generatedAt: nowStampLabel(),
     asOf: todayInApp(),
     expiringDays: 7,                 // the page flags expiry within 7 days
-    items, priceHistory
+    items, priceHistory,
+    wastage: wastageLines || []
   };
   if(!items.length){ input.status='empty'; input.emptyMessage = `No inventory balances were found for ${mb.label}.`; }
   const data = ReportEngine.presets.inventory(input);
@@ -1597,6 +1607,94 @@ async function submitAdjustStock(){
   } finally {
     if(btn) btn.disabled = false;
   }
+}
+
+/* ════════════════ WASTAGE ════════════════
+   Stock lost to spoilage, damage, spillage or pests. It is saved as a stock adjustment (so the balance, the movement table and the
+   stock value already follow it) with a reason that starts "Wastage". The database (sql/audit_23) values it at the item's weighted
+   average cost and counts that value as an operating cost in the P&L. */
+const WASTE_REASONS = ['Wastage - Spoiled / Expired','Wastage - Damaged / Broken','Wastage - Spillage / Process loss','Wastage - Pests / Moisture','Wastage - Other'];
+function isWastageReason(r){ return /^Wastage/i.test(r||'') || r==='Damaged / Spoiled' || r==='Theft or Loss'; }
+const icWaste = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>';
+function openRecordWastageModal(){
+  if(!requireCurrentMonth('record wastage')) return;
+  const body = `
+    <div class="frm-info-box"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Use this when stock is lost to spoilage, damage, spillage or pests. It comes off the stock, and its cost (at the item's average cost) is counted as an expense in the P&amp;L.</div>
+    <div class="frm-grp"><label class="frm-lbl">Item <span class="req">*</span></label>
+      <select class="frm-sel" id="wsItem" onchange="updateWastageInfo()">${itemOptionsHtml()}</select></div>
+    <div class="frm-info-box" id="wsCurrentBox" style="background:#f7fbf9;border-color:var(--border)"></div>
+    <div class="frm-row">
+      <div class="frm-grp" id="wsQtyGrp"><label class="frm-lbl">Quantity wasted <span class="req">*</span></label>
+        <input class="frm-in" type="number" min="0.01" step="0.01" id="wsQty" placeholder="e.g. 5" oninput="updateWastageInfo()">
+        <div class="frm-hint" id="wsCost"></div>
+        <div class="frm-err">Enter a quantity above 0 and no more than what is in stock.</div></div>
+      <div class="frm-grp"><label class="frm-lbl">Reason <span class="req">*</span></label>
+        <select class="frm-sel" id="wsReason">${WASTE_REASONS.map(r=>`<option>${r}</option>`).join('')}</select></div>
+    </div>
+    <div class="frm-grp"><label class="frm-lbl">Notes</label>
+      <textarea class="frm-txt" id="wsNotes" placeholder="Optional - what happened"></textarea></div>
+  `;
+  const footer = `
+    <span class="modal-ft-note">Logged with the reason for audit</span>
+    <button class="btn-s" onclick="closeModal()">Cancel</button>
+    <button class="btn-p" onclick="submitWastage()">${icCheck}Save Wastage</button>`;
+  openModal({ title:'Record Wastage', sub:'Stock lost or spoiled', iconClass:'ic-b', icon:icWaste, bodyHtml:body, footerHtml:footer });
+  updateWastageInfo();
+}
+function updateWastageInfo(){
+  const item = invItems.find(i=>i.name===document.getElementById('wsItem').value);
+  const box = document.getElementById('wsCurrentBox'), cost = document.getElementById('wsCost');
+  if(item && box) box.innerHTML = `Current balance: <strong>${dash(item.closing)} ${item.unit}</strong>` + (item.wac!=null ? ` &middot; average cost ${fmt(item.wac)} ETB per ${item.unit}` : '');
+  const q = parseFloat(document.getElementById('wsQty').value);
+  if(cost) cost.textContent = (item && q>0 && item.wac!=null) ? `Cost of this wastage: about ${fmt(q*item.wac)} ETB` : '';
+}
+async function submitWastage(){
+  const item = invItems.find(i=>i.name===document.getElementById('wsItem').value);
+  const qty = Math.round((parseFloat(document.getElementById('wsQty').value)||0)*100)/100;
+  const reason = document.getElementById('wsReason').value;
+  const notes = document.getElementById('wsNotes').value.trim() || null;
+  const bad = !(qty>0) || !item || qty > (item.closing||0) + 0.0001;
+  toggleFieldError('wsQty', bad);
+  if(bad) return;
+  const btn = document.querySelector('.btn-p');
+  if(btn) btn.disabled = true;
+  try {
+    const { error } = await db.from('inventory_adjustments').insert({
+      date: todayInApp(), item_id:item.id, quantity_change:-qty, reason, notes
+    });
+    if(error) throw error;
+    closeModal();
+    showToast(`${fmt(qty)} ${item.unit} of ${item.name} recorded as wastage`);
+    await loadFromSupabase();
+  } catch(err){
+    console.error('Wastage save failed:', err);
+    showToast(saveErrMsg(err, 'wastage'));
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+// this month's wastage lines, valued at each item's average cost (the same basis the P&L uses)
+async function fetchPeriodWastage(){
+  try{
+    const res = await db.from('inventory_adjustments').select('date,item_id,quantity_change,reason,notes')
+      .eq('is_deleted',false).eq('period',currentPeriod).lt('quantity_change',0).order('date');
+    if(res.error) throw res.error;
+    return (res.data||[]).filter(a=>isWastageReason(a.reason)).map(a=>{
+      const it = invItems.find(i=>i.id===a.item_id); const q = -num(a.quantity_change);
+      return { date:String(a.date).slice(0,10), item: it?it.name:'Item', unit: it?it.unit:'', quantity:q, reason:a.reason, notes:a.notes||'', value: (it && it.wac!=null) ? Math.round(q*it.wac*100)/100 : null };
+    });
+  }catch(e){ console.warn('Could not load wastage:', e); return null; }
+}
+async function refreshWasteStrip(){
+  const el = document.getElementById('wasteStrip'); if(!el) return;
+  const lines = await fetchPeriodWastage();
+  if(!lines || !lines.length){ el.style.display='none'; return; }
+  const value = lines.reduce((t,l)=>t+(l.value||0),0);
+  const byItem = {}; lines.forEach(l=>{ byItem[l.item] = (byItem[l.item]||0) + (l.value||0); });
+  const top = Object.keys(byItem).sort((a,b)=>byItem[b]-byItem[a])[0];
+  el.style.display='flex';
+  el.innerHTML = `<span>Wastage this month: <b>${lines.length} record${lines.length===1?'':'s'}</b></span><span>Cost: <b>${fmt(value)} ETB</b></span><span>Largest: <b>${top}</b></span><a onclick="openRecordWastageModal()">Record wastage</a>`;
 }
 
 /* ════════════════ 4. STOCK TRANSFER ════════════════ */
@@ -2425,6 +2523,7 @@ function renderAll(){
   safeRender(renderPriceHistory, 'price history chart');
   safeRender(renderTopConsumedItems, 'top consumed items');
   safeRender(refreshBell, 'notification bell');
+  safeRender(refreshWasteStrip, 'wastage strip');
   safeRender(computeKpis, 'kpi computation');
   safeRender(runKpiAnimations, 'kpi animations');
 }

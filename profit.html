@@ -360,7 +360,7 @@ button{font-family:inherit}
                 <div class="export-drop" id="expDrop">
                   <button onclick="event.stopPropagation();closeExpDrop();exportExcel()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>Export as Excel (.xlsx)</button>
                   <button onclick="event.stopPropagation();closeExpDrop();exportPDF('summary')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Summary PDF (1 page)</button>
-                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF()"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (detailed)</button>
+                  <button onclick="event.stopPropagation();closeExpDrop();exportPDF('detailed')"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/><path d="M8 4v5"/></svg>Full Report PDF (detailed)</button>
                 </div>
               </div>
             </div>
@@ -1324,7 +1324,8 @@ function _profitEngineReady(){
 // type: 'detailed' (default) = full report; 'summary' = the one-page summary
 async function exportPDF(type){
   if(!_profitEngineReady()) return;
-  const _pdfOpt = await ReportEngine.askPdfOptions({type: type === 'summary' ? 'summary' : 'detailed', lockType:true}); if(!_pdfOpt) return;
+  // a button that names its type is locked to it; the header / "Distribution Report" entries pass none, so the dialog offers Summary or Detailed
+  const _pdfOpt = await ReportEngine.askPdfOptions(type ? {type: type === 'summary' ? 'summary' : 'detailed', lockType:true} : {type:'detailed'}); if(!_pdfOpt) return;
   try{
     toast('Generating PDF\u2026','info');
     await ReportEngine.generatePDF(buildProfitReportData(),_pdfOpt);

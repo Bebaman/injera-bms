@@ -480,7 +480,7 @@ function deriveTotals(cat){
   const grossMargin = pctOf(grossProfit, totalRevenue);
   const injeraGross = cat.injeraRevenue - injeraCOGS;
   const derkoshGross = cat.derkoshRevenue - derkoshCOGS;
-  const totalOpex = cat.deliveryOut + cat.marketing + cat.otherOperatingExpenses + cat.pettyCash + cat.bankCharges;
+  const totalOpex = cat.deliveryOut + cat.marketing + cat.otherOperatingExpenses + (cat.inventoryWastage||0) + cat.pettyCash + cat.bankCharges;
   const totalExpensesCard = totalOpex + cat.interestExpense + cat.depreciation;
   const netProfit = grossProfit - totalOpex - cat.interestExpense - cat.depreciation + cat.disposalGainLoss;
   const netMargin = pctOf(netProfit, totalRevenue);
@@ -524,12 +524,14 @@ function calcFigures(d){
   const totalOpexView = sum(d.pnl,'total_opex');
   const deliveryOut = sum(d.pnl,'delivery_out_cost') + (expMap['Transport']||0);
   const marketing = expMap['Marketing']||0;
-  const otherOperatingExpenses = totalOpexView - deliveryOut - marketing;
+  // inventory wastage (sql/audit_23) is inside the view's total_opex; it gets its own line so the other lines still add up
+  const inventoryWastage = sum(d.pnl,'inventory_wastage_cost');
+  const otherOperatingExpenses = totalOpexView - deliveryOut - marketing - inventoryWastage;
 
   return deriveTotals({ injeraRevenue, derkoshRevenue,
     materials, otherBatchCosts, transferToDerkosh, derkoshPackaging, derkoshOpeningStock, derkoshClosingStock,
     overheadTotal, labor, electricity, water, rent, maintenance, otherOverhead,
-    deliveryOut, marketing, otherOperatingExpenses,
+    deliveryOut, marketing, otherOperatingExpenses, inventoryWastage,
     pettyCash: sum(d.pnl,'petty_cash_total'), bankCharges: sum(d.pnl,'bank_charges'),
     interestExpense: sum(d.pnl,'interest_expense'), depreciation: sum(d.pnl,'depreciation_expense'),
     disposalGainLoss: sum(d.pnl,'gain_loss_on_disposal'),
@@ -564,7 +566,7 @@ function buildPLRows(cur, ytd){
   rows.push(R('Injera Moved from Production (at cost)','transferToDerkosh'));
   rows.push(R('Packaging (Bags Used)','derkoshPackaging'));
   rows.push({type:'row', label:'Less: Closing Derkosh Stock (unsold, at cost)', curV:-cur.derkoshClosingStock, ytdV:-ytd.derkoshClosingStock});
-  rows.push(T('Derkosh COGS (cost of Derkosh sold)','derkoshCOGS','pl-total'));
+  rows.push(T('Derkosh COGS (cost of Derkosh sold and used)','derkoshCOGS','pl-total'));
   rows.push(T('Derkosh Gross Profit','derkoshGross','pl-gross'));
 
   rows.push({type:'total', label:'Total COGS', curV:cur.totalCOGS, ytdV:ytd.totalCOGS, cls:'pl-total'});
@@ -575,6 +577,7 @@ function buildPLRows(cur, ytd){
   rows.push(R('Delivery Out & Transport','deliveryOut'));
   rows.push(R('Marketing','marketing'));
   rows.push(R('Other Operating Expenses','otherOperatingExpenses'));
+  rows.push(R('Inventory Wastage & Write-offs','inventoryWastage'));
   rows.push(R('Petty Cash Expenses','pettyCash'));
   rows.push(R('Bank Charges','bankCharges'));
   rows.push(T('Total Operating Expenses','totalOpex','pl-total'));
@@ -786,6 +789,7 @@ async function buildPLReportData(){
       line('Delivery Out & Transport','deliveryOut'),
       line('Marketing','marketing'),
       line('Other Operating Expenses','otherOperatingExpenses'),
+      line('Inventory Wastage & Write-offs','inventoryWastage'),
       line('Petty Cash Expenses','pettyCash'),
       line('Bank Charges','bankCharges'),
       line('Interest & Late Fees (Loans)','interestExpense'),
@@ -796,7 +800,8 @@ async function buildPLReportData(){
       notes: [
         'Negative values are shown with a minus sign.',
         'Interest, depreciation and disposal gains/losses are included under operating expenses in this report. The on-screen statement lists them below Total Operating Expenses; net profit is the same.',
-        'Injera moved to Derkosh is taken out of Injera COGS and charged to Derkosh COGS at its production cost, so total COGS counts it once.'
+        'Injera moved to Derkosh is taken out of Injera COGS and charged to Derkosh COGS at its production cost, so total COGS counts it once.',
+        'Derkosh wastage, own use and samples are counted in Derkosh COGS at the weighted average cost per kg; inventory wastage is shown under operating expenses at average cost.'
       ]
     }
   };
@@ -849,8 +854,9 @@ async function _runPLExport(busyText, fn){
 
 async function exportPdf(type){
   if(!_plReady()) return;
-  const kind = type==='summary' ? 'summary' : 'detailed';
-  const _pdfOpt = await ReportEngine.askPdfOptions({type:kind, lockType:true}); if(!_pdfOpt) return;
+  // a button that names its type is locked to it; the header Export PDF passes none, so the dialog offers Summary or Detailed
+  const _pdfOpt = await ReportEngine.askPdfOptions(type ? {type: type==='summary' ? 'summary' : 'detailed', lockType:true} : {type:'detailed'}); if(!_pdfOpt) return;
+  const kind = _pdfOpt.type==='summary' ? 'summary' : 'detailed';
   try{
     await _runPLExport(kind==='summary' ? 'Building your P&L summary…' : 'Building your detailed P&L report…', async ()=>{
       const data = await buildPLReportData();
@@ -908,13 +914,14 @@ const CMP_ROW_DEFS = [
   {type:'row', label:'Injera Moved to Derkosh', key:'transferToDerkosh'},
   {type:'row', label:'Derkosh Packaging', key:'derkoshPackaging'},
   {type:'row', label:'Less: Closing Derkosh Stock', key:'derkoshClosingStockNeg'},
-  {type:'total', label:'Derkosh COGS (sold)', key:'derkoshCOGS'},
+  {type:'total', label:'Derkosh COGS (sold and used)', key:'derkoshCOGS'},
   {type:'total', label:'Total COGS', key:'totalCOGS'},
   {type:'total', label:'Gross Profit', key:'grossProfit'},
   {type:'section', label:'Operating Expenses'},
   {type:'row', label:'Delivery Out & Transport', key:'deliveryOut'},
   {type:'row', label:'Marketing', key:'marketing'},
   {type:'row', label:'Other Operating Expenses', key:'otherOperatingExpenses'},
+  {type:'row', label:'Inventory Wastage & Write-offs', key:'inventoryWastage'},
   {type:'row', label:'Petty Cash Expenses', key:'pettyCash'},
   {type:'row', label:'Bank Charges', key:'bankCharges'},
   {type:'total', label:'Total Operating Expenses', key:'totalOpex'},
@@ -1157,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         selectedMonth: periodToLabel(initialKey),
         onMonthChange: () => refreshPL(),
         showExport: true,
-        onExportPdf: () => exportPdf('detailed'),
+        onExportPdf: () => exportPdf(),
         onExportXlsx: exportExcel,
         notifications
       });

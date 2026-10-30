@@ -324,7 +324,7 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
           <div class="btn-row">
             <button class="btn-prim" onclick="openSaleModal(event)"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Sale</button>
             <button class="btn-sec" onclick="exportExcel(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export Excel</button>
-            <button class="btn-sec" onclick="exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 9 9"/></svg>Export PDF (Detailed)</button>
+            <button class="btn-sec" onclick="exportPDF(event,'detailed')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 9 9"/></svg>Export PDF (Detailed)</button>
             <button class="btn-sec" id="exportPageBtn" onclick="exportPDF(event,'summary')" title="One-page summary PDF with the charts, key figures and top customers"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Summary PDF</button>
             <button class="btn-sec" id="filterBtn" onclick="toggleFilter(event)"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
           </div>
@@ -546,7 +546,8 @@ a:focus-visible,button:focus-visible,.sb-a:focus-visible,.qa-b:focus-visible,.ar
   <div class="modal" style="width:400px">
     <div class="modal-hd"><h3>Sales Reports</h3><div class="modal-x" onclick="closeReportsModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div>
     <div class="modal-bd" style="display:flex;flex-direction:column;gap:10px">
-      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export this month as PDF (detailed)</a>
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event,'summary')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Export this month as PDF (one-page summary)</a>
+      <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportPDF(event,'detailed')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Export this month as PDF (detailed)</a>
       <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" onclick="closeReportsModal();exportExcel(event)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18M16 3v18M3 9h18M3 15h18"/></svg>Export this month as Excel</a>
       <a class="qa-b" style="width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:14px" href="reports.html"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Open Multi-Year Reports module</a>
     </div>
@@ -1885,7 +1886,9 @@ function _salesEngineReady(){
 async function exportPDF(e, type){
   if(e && typeof ripple === 'function') ripple(e);
   if(!_salesEngineReady()) return;
-  const _pdfOpt = await ReportEngine.askPdfOptions({type: type || 'detailed', lockType:true}); if(!_pdfOpt) return;
+  // a button that names its type (Summary PDF / Export PDF (Detailed)) is locked to it; the header Export PDF and the
+  // Reports pop-up pass no type, so the dialog lets the user pick Summary or Detailed (and portrait / landscape)
+  const _pdfOpt = await ReportEngine.askPdfOptions(type ? {type, lockType:true} : {type:'detailed'}); if(!_pdfOpt) return;
   try{
     showToast('Generating PDF\u2026','info');
     const data = await buildSalesReportData();

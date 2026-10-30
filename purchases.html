@@ -848,7 +848,16 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row" id="delivRow">
         <div class="f-grp" id="pChannelGrp" style="grid-column:1 / -1">
           <label>Payment Channel</label>
-          <select id="pChannel"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+          <select id="pChannel" onchange="updateBankChargeVisibility()"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+        </div>
+      </div>
+      <!-- Bank / mobile-money charge: the fee the bank or service took for THIS payment. Kept apart from the cost; the database adds it
+           to the P&L "Bank Charges" line and takes it out of the same channel's balance in Cash Flow. Cash payments have none. -->
+      <div class="f-row" id="pBankChargeRow" style="display:none">
+        <div class="f-grp" style="grid-column:1 / -1">
+          <label>Bank / Mobile Money Charge (ETB) <span style="font-weight:600;color:var(--tl);text-transform:none;letter-spacing:0">— optional</span></label>
+          <input type="number" id="pBankCharge" min="0" step="0.01" value="0" inputmode="decimal" oninput="onBankChargeInput()">
+          <div id="pBankChargeHint" style="font-size:11.5px;color:var(--tm);margin-top:5px;line-height:1.45"></div>
         </div>
       </div>
       <div class="f-row">
@@ -1069,6 +1078,8 @@ function buildPurchasesReportData(){
     category: p.category || '',
     description: p.description || '',
     cost: rowTotal(p),
+    bankCharge: p.bankCharge || 0,            // bank / mobile-money fee paid with this purchase (not part of the cost)
+    channel: p.channel || '',
     type: p.type === 'Expense' ? 'operating' : 'raw',
     status: p.status || ''
   }));
@@ -1083,6 +1094,9 @@ function buildPurchasesReportData(){
     notes.push(assets.length + (assets.length === 1 ? ' asset purchase' : ' asset purchases') + ' (' + fmt(assetTotal) +
       ' ETB) ' + (assets.length === 1 ? 'is' : 'are') + ' capital items and not included in the totals above, matching the Purchases page.');
   }
+
+  const assetCharges = assets.reduce((t,p) => t + (p.bankCharge || 0), 0);
+  if(assetCharges > 0) notes.push('Bank charges on asset purchases (' + fmt(assetCharges) + ' ETB) are included in the P&L Bank Charges line but not in the figures above.');
 
   const input = {
     period: monthLabel(mk),
@@ -1248,7 +1262,7 @@ function renderTable(){
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
         <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
-        <td>${fmt(rowTotal(p))}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
+        <td>${fmt(rowTotal(p))}${p.bankCharge > 0 ? `<div style="font-size:10.5px;color:var(--tl);font-weight:600;margin-top:2px">+ ${fmt(p.bankCharge)} bank charge</div>` : ''}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
         <td style="position:relative">
           <div class="act-dots" onclick="toggleRowMenu(event,'${p.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
@@ -1512,6 +1526,9 @@ function openPurchaseModal(){
   document.getElementById('pUnitPrice').value = 0;
   document.getElementById('pTotal').value = '0';
   document.getElementById('pChannel').value = 'Bank';
+  bankChargeTouched = false;
+  document.getElementById('pBankCharge').value = 0;
+  updateBankChargeVisibility();
   document.getElementById('pStatus').value = 'Completed';
   document.getElementById('pFxToggle').checked = false;
   document.getElementById('pFxAmount').value = 0;
@@ -1559,6 +1576,9 @@ function editPurchase(id){
   document.getElementById('pUnitPrice').value = p.unitPrice;
   document.getElementById('pTotal').value = rowTotal(p).toFixed(2);
   document.getElementById('pChannel').value = p.channel;
+  document.getElementById('pBankCharge').value = (p.channel === 'Cash') ? 0 : (p.bankCharge || 0);
+  bankChargeTouched = true;   // an existing record keeps exactly what was saved
+  updateBankChargeVisibility();
   document.getElementById('pStatus').value = p.status;
   const hasFx = p.originalCurrency && p.originalCurrency !== 'ETB' && p.originalAmount;
   document.getElementById('pFxToggle').checked = !!hasFx;
@@ -1572,6 +1592,35 @@ function editPurchase(id){
 function closePurchaseModal(){
   document.getElementById('purchaseModalOverlay').classList.remove('show');
 }
+/* ════════════════ BANK / MOBILE MONEY CHARGE ════════════════ */
+let bankChargeTouched = false;   // once you type a charge yourself, the Settings default % no longer overwrites it
+function isBankChannel(){ const c = document.getElementById('pChannel').value; return c === 'Bank' || c === 'Mobile Money'; }
+function onBankChargeInput(){ bankChargeTouched = true; updateBankChargeHint(); }
+function updateBankChargeVisibility(){
+  const on = isBankChannel();
+  document.getElementById('pBankChargeRow').style.display = on ? '' : 'none';
+  if(!on){ document.getElementById('pBankCharge').value = 0; bankChargeTouched = false; }
+  else suggestBankCharge();
+  updateBankChargeHint();
+}
+// Only when Settings has a default bank-charge % above 0 and you have not typed a charge yet
+function suggestBankCharge(){
+  if(bankChargeTouched || !isBankChannel() || !(bankFeeConfig.ratePct > 0)) return;
+  const total = parseFloat(document.getElementById('pTotal').value) || 0;
+  const amt = Math.round(getBankFeeAmount(total) * 100) / 100;
+  document.getElementById('pBankCharge').value = amt > 0 ? amt.toFixed(2) : 0;
+}
+function updateBankChargeHint(){
+  const el = document.getElementById('pBankChargeHint');
+  if(!el) return;
+  const ch = document.getElementById('pChannel').value;
+  const total = parseFloat(document.getElementById('pTotal').value) || 0;
+  const fee = parseFloat(document.getElementById('pBankCharge').value) || 0;
+  el.textContent = fee > 0
+    ? `Paid from ${ch}: ${fmt(total + fee)} ETB (cost ${fmt(total)} + charge ${fmt(fee)}). The charge is not part of the cost; it shows as Bank Charges in the P&L and comes out of the ${ch} balance.`
+    : `The fee the bank or mobile-money service took for this payment. Leave 0 if there was none. It is kept apart from the cost and shows as Bank Charges in the P&L.`;
+}
+
 function recalcTotal(){
   const qty = parseFloat(document.getElementById('pQty').value)||0;
   const price = parseFloat(document.getElementById('pUnitPrice').value)||0;
@@ -1588,6 +1637,8 @@ function recalcTotal(){
   }
   updateApprovalReadout(total);
   if(document.getElementById('pType').value === 'Asset Purchase') updateAssetDepreciationPreview();
+  suggestBankCharge();
+  updateBankChargeHint();
 }
 
 function updateApprovalReadout(total){
@@ -1914,6 +1965,10 @@ async function savePurchase(){
       if(!confirm(`Foreign amount × rate = ${fmt(etbEquivalent)} ETB, but qty × unit price = ${fmt(total)} ETB. They differ by more than 1%. Save anyway?`)) return;
     }
   }
+  const channelVal = document.getElementById('pChannel').value;
+  let bankCharge = (channelVal === 'Cash') ? 0 : (parseFloat(document.getElementById('pBankCharge').value) || 0);
+  if(!isFinite(bankCharge) || bankCharge < 0){ showToast('Bank charge cannot be negative'); return; }
+  bankCharge = Math.round(bankCharge * 100) / 100;
   const data = {
     date,
     supplierId,
@@ -1928,7 +1983,8 @@ async function savePurchase(){
     qty,
     unit: document.getElementById('pUnit').value,
     unitPrice,
-    channel: document.getElementById('pChannel').value,
+    channel: channelVal,
+    bankCharge,
     status: resolveApprovalStatus(type, total, existing),
     createdAt: existing ? (existing.createdAt || now) : now,
     vatRatePct: vatSettings.isRegistered ? vatSettings.ratePct : 0,
@@ -2643,6 +2699,7 @@ async function loadFromSupabase(){
           createdAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
           vatRatePct: parseFloat(r.vat_rate_pct || 0),
           vatAmount: parseFloat(r.vat_amount || 0),
+          bankCharge: parseFloat(r.bank_charge_etb || 0),
           originalCurrency: r.original_currency || 'ETB',
           originalAmount: r.original_amount != null ? parseFloat(r.original_amount) : null,
           exchangeRate: r.exchange_rate != null ? parseFloat(r.exchange_rate) : null
@@ -2699,6 +2756,7 @@ async function _saveToSupabaseCore(p){
       quantity: p.qty,
       unit_price: p.unitPrice,
       payment_channel: channelMap[p.channel] || 'bank',
+      bank_charge_etb: (p.channel === 'Cash') ? 0 : (p.bankCharge || 0),   // P&L "Bank Charges" + the channel's cash outflow
       approval_status: toDbApprovalStatus(p),
       rejection_reason: p.status === 'Rejected' ? (p.rejectionReason || null) : null,
       vat_rate_pct: p.vatRatePct || 0,

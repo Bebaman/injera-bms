@@ -875,6 +875,10 @@ async function refreshDashboard(){
   const yesterday = (()=>{ const d=new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
   const weekAgo = (()=>{ const d=new Date(); d.setDate(d.getDate()-6); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
+  // Derkosh wastage / own use / samples (kg) — they leave the stock. The table only exists after sql/audit_23 is run; until then this is empty.
+  let allDerkoshUses = [];
+  try{ allDerkoshUses = (await sbGet(`derkosh_uses?select=quantity,date&is_deleted=eq.false`)) || []; }catch(e){ allDerkoshUses = []; }
+
   try{
     const [
       pnlRows, salesRows, purchasesRows, overheadRows, pettyRows,
@@ -1017,11 +1021,12 @@ async function refreshDashboard(){
     }
     const curD = pnlDerived(pnlCur), prevD = pnlDerived(pnlPrev);
 
-    // ── Derkosh stock (cumulative produced − sold, as of period end) ──
+    // ── Derkosh stock (cumulative produced − sold − used, as of period end) ──
     function derkoshStockAsOf(cutoff){
       const produced = allDerkoshAllTime.filter(r=>r.date<=cutoff).reduce((s,r)=>s+num(r.produced_kg),0);
       const sold = allSalesAllTime.filter(r=>r.product_type==='derkosh' && r.date<=cutoff).reduce((s,r)=>s+num(r.quantity),0);
-      return Math.max(0, produced - sold);
+      const used = allDerkoshUses.filter(r=>r.date<=cutoff).reduce((s,r)=>s+num(r.quantity),0);
+      return Math.max(0, produced - sold - used);
     }
     const derkoshStockCur = derkoshStockAsOf(cutoffCur), derkoshStockPrev = derkoshStockAsOf(cutoffPrev);
 
@@ -1143,16 +1148,20 @@ async function refreshDashboard(){
 
     // ── Manufacturing (current period) ────────────────────
     const flourItem = invItems.find(i=>i.name==='Injera Blend');
-    let flourUsed = 0, injeraBaked = 0, targetTotal = 0;
+    // Production efficiency = injera actually baked / injera the same batches SHOULD have baked, where the expected
+    // figure is each batch's standard (Production → Efficiency Targets: Normal / Special). It is a yield measure per
+    // batch run, not a monthly volume target. A batch whose type has no standard is left out of BOTH sides, so it
+    // cannot push the percentage up (injeraBaked still counts every batch, for the output figures).
+    let flourUsed = 0, injeraBaked = 0, targetTotal = 0, injeraMeasured = 0;
     prodBatchRows.forEach(b=>{
       injeraBaked += num(b.injera_qty);
       (b.production_batch_materials||[]).forEach(m=>{ if(flourItem && m.item_id===flourItem.id) flourUsed += num(m.quantity_used); });
       const std = batchStandardRows.find(s=>s.batch_type===b.type);
-      if(std) targetTotal += num(std.target_injera_count);
+      if(std && num(std.target_injera_count)>0){ targetTotal += num(std.target_injera_count); injeraMeasured += num(b.injera_qty); }
     });
     const batchesCompleted = prodBatchRows.length;
     const derkoshPacked = derkoshPeriodProduced; // same figure computed above for the stock threshold
-    const mfgEfficiency = targetTotal>0 ? clamp(Math.round((injeraBaked/targetTotal)*100), 0, 100) : 0;
+    const mfgEfficiency = targetTotal>0 ? clamp(Math.round((injeraMeasured/targetTotal)*100), 0, 100) : 0;
 
     // ── Today's performance ────────────────────────────────
     const salesTodayTotal = salesToday.reduce((s,r)=>s+num(r.revenue),0);
@@ -1294,7 +1303,7 @@ async function refreshDashboard(){
 
     // ── 4. Production — behind target, completed batches ───
     if(targetTotal>0 && mfgEfficiency<PRODUCTION_TARGET_PCT){
-      alerts.push({icon:'ai-o', svg:'warn', title:'Production below target', sub:`${mfgEfficiency}% of monthly target — ${fmtInt(injeraBaked)} of ${fmtInt(targetTotal)} pcs`, module:'Production', priority:'high', kind:'alert'});
+      alerts.push({icon:'ai-o', svg:'warn', title:'Production below target', sub:`${mfgEfficiency}% of the standard yield for the batches run — ${fmtInt(injeraMeasured)} of ${fmtInt(targetTotal)} pcs expected (alert below ${PRODUCTION_TARGET_PCT}%)`, module:'Production', priority:'high', kind:'alert'});
     }
     if(prodBatchRows.length){
       const latest = [...prodBatchRows].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
@@ -1582,9 +1591,9 @@ async function refreshDashboard(){
     {
       let prevInjeraBaked = 0, prevTargetTotal = 0;
       (prodBatchRowsPrev||[]).forEach(b=>{
-        prevInjeraBaked += num(b.injera_qty);
         const std = batchStandardRows.find(s=>s.batch_type===b.type);
-        if(std) prevTargetTotal += num(std.target_injera_count);
+        // same rule as this period: only batches that have a standard count, on both sides
+        if(std && num(std.target_injera_count)>0){ prevInjeraBaked += num(b.injera_qty); prevTargetTotal += num(std.target_injera_count); }
       });
       const prevMfgEfficiency = prevTargetTotal>0 ? clamp(Math.round((prevInjeraBaked/prevTargetTotal)*100),0,100) : null;
       if(prevMfgEfficiency!=null && targetTotal>0){

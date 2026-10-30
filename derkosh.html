@@ -378,6 +378,31 @@ button{font-family:inherit}
   .card-ttl{font-size:13px}
   .stk-lbl,.stk-val,.mv-lbl,.mv-val{font-size:12px}
 }
+
+/* WASTAGE, OWN USE & SAMPLES (kg) */
+.use-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:2px 16px 12px}
+.use-sum .u{background:#f6faf7;border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.use-sum .u small{display:block;font-size:10.5px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.3px}
+.use-sum .u b{display:block;font-family:'Quicksand',sans-serif;font-size:19px;color:var(--td);margin-top:2px}
+.use-sum .u span{font-size:11px;color:var(--tm);font-weight:600}
+.use-sum .u.tot{background:#fff6e8;border-color:#f0d3a0}
+.use-note{margin:0 16px 12px;padding:10px 12px;border-radius:9px;background:#fff6e8;border:1px solid #f0d3a0;font-size:12px;color:#7a5a12;line-height:1.5}
+.du-ov{position:fixed;inset:0;background:rgba(15,30,22,.5);display:none;align-items:center;justify-content:center;z-index:1200;padding:16px}
+.du-ov.show{display:flex}
+.du-box{background:#fff;border-radius:16px;width:min(440px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.28)}
+.du-hd{padding:16px 18px 6px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.du-hd h3{font-size:16px;color:var(--td);margin:0}
+.du-hd p{font-size:12px;color:var(--tm);margin:3px 0 0}
+.du-x{border:none;background:#f1f5f2;border-radius:8px;width:30px;height:30px;font-size:18px;cursor:pointer;color:var(--tm)}
+.du-bd{padding:8px 18px 4px;display:grid;gap:12px}
+.du-bd label{display:block;font-size:11px;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.3px;margin-bottom:5px}
+.du-bd input,.du-bd select,.du-bd textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 11px;font-size:14px;font-family:'Nunito',sans-serif;color:var(--td);background:#fff;outline:none}
+.du-bd input:focus,.du-bd select:focus,.du-bd textarea:focus{border-color:#27ae60;box-shadow:0 0 0 3px rgba(39,174,96,.12)}
+.du-hint{font-size:11.5px;color:var(--tm);line-height:1.45;margin-top:5px}
+.du-ft{padding:12px 18px 16px;display:flex;gap:10px;justify-content:flex-end}
+.du-btn{border:1px solid var(--border);background:#fff;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;color:var(--td)}
+.du-btn.pri{background:#1d5c38;border-color:#1d5c38;color:#fff}
+.du-btn:disabled{opacity:.6;cursor:default}
 </style>
 <link rel="stylesheet" href="/css/responsive.css">
 </head>
@@ -459,6 +484,7 @@ button{font-family:inherit}
             <div class="stk-row"><span class="stk-lbl">Opening Stock (1 <span id="stk-opening-label"></span>)</span><span class="stk-val" id="stk-opening-val">0.00 kg</span></div>
             <div class="stk-row"><span class="stk-lbl accent">Total Produced</span><span class="stk-val" style="color:#27ae60" id="sP">0.00 kg</span></div>
             <div class="stk-row"><span class="stk-lbl">Total Sold</span><span class="stk-val" style="color:#e5484d" id="sS">0.00 kg</span></div>
+            <div class="stk-row"><span class="stk-lbl">Used (wastage, own use, samples)</span><span class="stk-val" style="color:#c77d12" id="sU">0.00 kg</span></div>
             <div class="stk-row"><span class="stk-lbl">Closing Stock (end of <span id="stk-closing-label"></span>)</span><span class="stk-val" id="sCl">0.00 kg</span></div>
           </div>
           <div class="stk-divider"></div>
@@ -472,6 +498,24 @@ button{font-family:inherit}
             <div class="mv-row"><span class="mv-lbl">Avg Daily Net Change</span><span class="mv-val" id="mvNet">0.00 kg</span></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- WASTAGE, OWN USE & SAMPLES -->
+    <div class="card" id="usesCard" style="margin-top:14px">
+      <div class="card-hd">
+        <div class="card-ttl">Wastage, Own Use &amp; Samples <span class="sub" id="usesLbl">(kg)</span></div>
+        <div class="hd-actions">
+          <button class="btn-add" onclick="openUseModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Record</button>
+        </div>
+      </div>
+      <div class="use-note" id="usesNotice" style="display:none"></div>
+      <div class="use-sum" id="usesSum"></div>
+      <div class="tbl-wrap">
+        <table class="rcards tbl" style="min-width:640px">
+          <thead><tr><th style="padding-left:16px">Date</th><th>Type</th><th>Quantity<span class="th-unit">kg</span></th><th>Batch</th><th>Note</th><th>Cost<span class="th-unit">ETB</span></th><th></th></tr></thead>
+          <tbody id="usesBody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -542,6 +586,28 @@ button{font-family:inherit}
     </div>
   </div>
   <footer class="footer">© 2026 Mena Injera &amp; Derkosh Business Management System v37. All rights reserved.</footer>
+</div>
+
+<!-- RECORD WASTAGE / OWN USE / SAMPLE -->
+<div class="du-ov" id="useOv" onclick="if(event.target===this)closeUseModal()">
+  <div class="du-box" role="dialog" aria-modal="true" aria-labelledby="useTtl">
+    <div class="du-hd"><div><h3 id="useTtl">Record Wastage, Own Use or Sample</h3><p>Derkosh taken out of stock without being sold. Its cost counts in the Derkosh cost of sales.</p></div><button type="button" class="du-x" onclick="closeUseModal()" aria-label="Close">&times;</button></div>
+    <div class="du-bd">
+      <div><label for="useDate">Date</label><input type="date" id="useDate"></div>
+      <div><label for="useType">What happened</label>
+        <select id="useType">
+          <option value="wastage">Wastage (spoiled, burnt, spilled)</option>
+          <option value="own_use">Own use (home)</option>
+          <option value="staff">Staff</option>
+          <option value="gift_sample">Gift / sample</option>
+          <option value="other">Other</option>
+        </select></div>
+      <div><label for="useQty">Quantity (kg)</label><input type="number" id="useQty" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 1.5" oninput="updateUseHint()"><div class="du-hint" id="useHint"></div></div>
+      <div><label for="useBatch">Batch (optional)</label><select id="useBatch"><option value="">— none —</option></select></div>
+      <div><label for="useNote">Note (optional)</label><textarea id="useNote" rows="2" maxlength="200" placeholder="e.g. Sample for new hotel"></textarea></div>
+    </div>
+    <div class="du-ft"><button type="button" class="du-btn" onclick="closeUseModal()">Cancel</button><button type="button" class="du-btn pri" id="saveUseBtn" onclick="saveDerkoshUse()">Save</button></div>
+  </div>
 </div>
 
 <!-- FULL DERKOSH REPORT MODAL -->
@@ -871,11 +937,12 @@ async function updateKPIs(){
     const prevCpk=prevProd?prevCost/prevProd:0;
     const prevProfit=prevRevenue-derkoshCogsOf(await fetchDerkoshStock(prevPeriod));
     // closing stock comparison needs the running balance as of end of prior month
-    const [prior1,prior2]=await Promise.all([
+    const [prior1,prior2,prior3]=await Promise.all([
       sbGet(`derkosh_batches?select=produced_kg&is_deleted=eq.false&period=lte.${prevPeriod}`),
-      sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lte.${prevPeriod}`)
+      sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lte.${prevPeriod}`),
+      fetchDerkoshUsesSafe(`derkosh_uses?select=quantity&is_deleted=eq.false&period=lte.${prevPeriod}`)
     ]);
-    const prevClosing=Math.max(0, prior1.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0) - prior2.reduce((s,r)=>s+parseFloat(r.quantity||0),0));
+    const prevClosing=Math.max(0, prior1.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0) - prior2.reduce((s,r)=>s+parseFloat(r.quantity||0),0) - usedKgSum(prior3));
 
     const pctChange=(cur,prev)=>{
       if(!prev) return cur>0 ? null : 0; // no baseline to compare against
@@ -977,7 +1044,7 @@ let soldThisMonthKg=0;   // total Derkosh kg sold in the selected month
 function monthClosingKg(){
   if(rows && rows.length) return rows[rows.length-1].cl;
   const sold=(derkoshSalesRows||[]).reduce((s,r)=>s+r.quantity,0);
-  return Math.max(0,openingStockKg-sold);
+  return Math.max(0,openingStockKg-sold-usedKgSum(derkoshUses));
 }
 
 async function loadPkgItems(){
@@ -1005,17 +1072,20 @@ async function loadMonth(){
   const tblLbl=document.getElementById('tblLbl'); if(tblLbl) tblLbl.textContent='('+monthLabel+')';
   const reportSub=document.getElementById('reportSub'); if(reportSub) reportSub.textContent=monthLabel;
   try{
-    const [costRows, salesRows, priorProdRows, priorSalesRows] = await Promise.all([
+    const [costRows, salesRows, priorProdRows, priorSalesRows, usesRows, priorUsesRows] = await Promise.all([
       sbGet(`derkosh_batch_costs?select=*&period=eq.${period}&order=date.asc`),
       sbGet(`sales?select=*,customers(name,type)&product_type=eq.derkosh&period=eq.${period}&is_deleted=eq.false`),
       sbGet(`derkosh_batches?select=produced_kg&is_deleted=eq.false&period=lt.${period}`),
-      sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lt.${period}`)
+      sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lt.${period}`),
+      fetchDerkoshUsesSafe(`derkosh_uses?select=*&period=eq.${period}&is_deleted=eq.false&order=date.asc`),
+      fetchDerkoshUsesSafe(`derkosh_uses?select=quantity&is_deleted=eq.false&period=lt.${period}`)
     ]);
+    derkoshUses=usesRows;
 
     // opening stock = all produced before this month minus all sold before this month
     const priorProduced=priorProdRows.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0);
     const priorSold=priorSalesRows.reduce((s,r)=>s+parseFloat(r.quantity||0),0);
-    openingStockKg=Math.max(0,priorProduced-priorSold);
+    openingStockKg=Math.max(0,priorProduced-priorSold-usedKgSum(priorUsesRows));   // kg used (wastage / own use / samples) in earlier months are gone too
 
     // build rows sorted by date, computing a running closing balance
     // (sold this month is attributed cumulatively, matching the sheet's
@@ -1051,6 +1121,9 @@ async function loadMonth(){
     // (before, they were never deducted, so the closing stock was too high whenever sales were larger than the month's production).
     const _fromOpening=soldRemaining;
     rows.forEach(r=>{ r.cl=Math.max(0,r.cl-_fromOpening); });
+    // kg used this month (wastage, own use, samples) come off the running balance from their own date onward
+    // (the last row is the month's closing balance, so it takes every kg used this month, even after the last batch date)
+    rows.forEach((r,i)=>{ r.cl=Math.max(0,r.cl-(i===rows.length-1?usedKgSum(derkoshUses):usedKgUpTo(r.sd))); });
 
     // fetch pkg_item_id + waste_notes separately since the view doesn't expose them
     if(rows.length){
@@ -1079,9 +1152,11 @@ async function loadMonth(){
     document.getElementById('stk-opening-label') && (document.getElementById('stk-opening-label').textContent=monthLabel);
     document.getElementById('stk-closing-label') && (document.getElementById('stk-closing-label').textContent=monthLabel);
     renderTable();
+    renderDerkoshUses();
     renderCustomerTable();
     renderQuickInsights();
-    updateKPIs();
+    try{ await updateKPIs(); }catch(e){ console.warn('KPI refresh:',e&&e.message); }
+    renderDerkoshUses();   // again once the month's cost per kg is known, so each record shows its cost
 
     // Stock Movement card: avg daily production/sales/net over days-in-month
     const [yy,mm]=period.split('-').map(Number);
@@ -1326,11 +1401,14 @@ async function buildDerkoshReportData(){
     openingStock:openingStockKg,
     production:rows.map(r=>({date:r.sd,quantity:r.prod,cost:r.tr+r.pkc})),
     sales:derkoshSalesRows,
+    // wastage, own use, staff, gift / sample (kg), priced like the P&L does: kg x the month's weighted average cost per kg
+    uses:derkoshUses.map(u=>({date:String(u.date).slice(0,10),type:u.use_type,quantity:parseFloat(u.quantity||0),note:u.note||''})),
+    closingStock:monthClosingKg(),
     // cost of goods sold = kg sold x weighted average cost per kg (carries older stock), same as the database P&L
     unitCost:(derkoshStockRow&&derkoshStockRow.wac_per_kg!=null)?parseFloat(derkoshStockRow.wac_per_kg):(totProduced>0?totCost/totProduced:undefined)
   };
   if(previousRevenue!==undefined){ input.previousRevenue=previousRevenue; input.previousLabel=previousLabel; }
-  if(!rows.length && !derkoshSalesRows.length){
+  if(!rows.length && !derkoshSalesRows.length && !derkoshUses.length){
     input.status='empty';
     input.emptyMessage='No Derkosh production or sales recorded for '+monthLabel+'.';
   }
@@ -1364,6 +1442,110 @@ async function exportExcel(){
     console.error('Excel export failed:',err);
     toast('Could not generate Excel file: '+(err.message||'please try again'),'error');
   }
+}
+
+/* ══ WASTAGE, OWN USE & SAMPLES (kg) ═════════════════════
+   Derkosh taken out of stock without a sale. Like Injera's "Wastage & Own Use", but in kg, and with a cost: the kg leave the
+   stock and kg x the month's weighted average cost per kg is part of the Derkosh COGS (database view derkosh_stock_monthly,
+   sql/audit_23), so this page, the P&L and the exports agree. Until audit_23 is run the table does not exist: the page then
+   shows a one-line notice and everything else works as before. */
+const DK_USE_TYPES={wastage:'Wastage',own_use:'Own use',staff:'Staff',gift_sample:'Gift / sample',other:'Other'};
+let derkoshUses=[];            // this month's records
+let derkoshUsesReady=true;     // false = the table is not there yet (audit_23 not run)
+function duEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function duMissing(e){ return /404|derkosh_uses|schema cache|does not exist|PGRST20/i.test(String((e&&e.message)||'')); }
+async function fetchDerkoshUsesSafe(path){
+  try{ const r=await sbGet(path); derkoshUsesReady=true; return r||[]; }
+  catch(e){ if(duMissing(e)) derkoshUsesReady=false; else console.warn('derkosh_uses:',e.message); return []; }
+}
+function usedKgSum(list){ return (list||[]).reduce((t,r)=>t+parseFloat(r.quantity||0),0); }
+function usedKgUpTo(dateIso){ return derkoshUses.filter(u=>String(u.date).slice(0,10)<=dateIso).reduce((t,u)=>t+parseFloat(u.quantity||0),0); }
+function derkoshWacNow(){ return (derkoshStockRow&&derkoshStockRow.wac_per_kg!=null)?parseFloat(derkoshStockRow.wac_per_kg):null; }
+
+function renderDerkoshUses(){
+  const body=document.getElementById('usesBody'); if(!body) return;
+  const lbl=document.getElementById('usesLbl'); if(lbl) lbl.textContent='('+periodLabel(currentPeriod())+')';
+  const note=document.getElementById('usesNotice'), sum=document.getElementById('usesSum');
+  const sU=document.getElementById('sU'); if(sU) sU.textContent=f(usedKgSum(derkoshUses))+' kg';
+  if(!derkoshUsesReady){
+    note.style.display='block';
+    note.innerHTML='This section needs one database update. Run <b>sql/audit_23_wastage_own_use.sql</b> once in the Supabase SQL editor, then refresh this page.';
+    sum.innerHTML=''; body.innerHTML=''; return;
+  }
+  note.style.display='none';
+  const by=t=>derkoshUses.filter(u=>u.use_type===t).reduce((s,u)=>s+parseFloat(u.quantity||0),0);
+  const total=usedKgSum(derkoshUses);
+  const wac=derkoshWacNow();
+  const cost=wac!=null?total*wac:null;
+  const prod=rows.reduce((t,r)=>t+r.prod,0);
+  const tile=(label,kg,extra)=>`<div class="u"><small>${label}</small><b>${f(kg)} kg</b><span>${extra||'&nbsp;'}</span></div>`;
+  sum.innerHTML=
+    tile('Wastage',by('wastage'),prod>0?f(by('wastage')/prod*100,1)+'% of produced':'')+
+    tile('Own use &amp; staff',by('own_use')+by('staff'),'')+
+    tile('Gift / sample',by('gift_sample'),'')+
+    tile('Other',by('other'),'')+
+    `<div class="u tot"><small>Total used</small><b>${f(total)} kg</b><span>${cost!=null?f(cost)+' ETB cost (in COGS)':'cost shown once there is production'}</span></div>`;
+  const canDelete=(typeof isManagerUp==='function')&&isManagerUp();
+  const batchNo=id=>{ if(!id) return '—'; const b=rows.find(r=>r.id===id); return b?b.date:'—'; };
+  if(!derkoshUses.length){ body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--tl);padding:18px 0">Nothing recorded this month.</td></tr>'; return; }
+  body.innerHTML=derkoshUses.map(u=>{
+    const c=wac!=null?f(parseFloat(u.quantity||0)*wac):'—';
+    return `<tr><td style="padding-left:16px">${duEsc(String(u.date).slice(0,10))}</td><td>${duEsc(DK_USE_TYPES[u.use_type]||u.use_type)}</td><td>${f(u.quantity)}</td><td>${duEsc(batchNo(u.batch_id))}</td><td>${duEsc(u.note||'')}</td><td>${c}</td><td>${canDelete?`<button type="button" class="du-btn" style="padding:4px 10px;font-size:11px" onclick="deleteDerkoshUse('${duEsc(u.id)}')">Delete</button>`:''}</td></tr>`;
+  }).join('');
+}
+
+function openUseModal(){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
+  if(!derkoshUsesReady){ toast('Run sql/audit_23_wastage_own_use.sql in Supabase first, then refresh.','error'); return; }
+  const period=currentPeriod(); const [y,m]=period.split('-').map(Number);
+  const first=`${period}-01`, last=`${period}-${String(new Date(y,m,0).getDate()).padStart(2,'0')}`;
+  const today=appToday(); const max=today<last?today:last;
+  const d=document.getElementById('useDate'); d.min=first; d.max=max<first?first:max; d.value=(today>=first&&today<=max)?today:max;
+  document.getElementById('useType').value='wastage';
+  document.getElementById('useQty').value=''; document.getElementById('useNote').value='';
+  const bsel=document.getElementById('useBatch');
+  bsel.innerHTML='<option value="">— none —</option>'+rows.map(r=>`<option value="${duEsc(r.id)}">${duEsc(r.date)} — ${f(r.prod)} kg</option>`).join('');
+  updateUseHint();
+  document.getElementById('saveUseBtn').disabled=false; document.getElementById('saveUseBtn').textContent='Save';
+  document.getElementById('useOv').classList.add('show'); document.body.style.overflow='hidden';
+}
+function closeUseModal(){ document.getElementById('useOv').classList.remove('show'); document.body.style.overflow=''; }
+function updateUseHint(){
+  const el=document.getElementById('useHint'); if(!el) return;
+  const stock=monthClosingKg(); const q=parseFloat(document.getElementById('useQty').value)||0; const wac=derkoshWacNow();
+  el.textContent=`In stock now: ${f(stock)} kg`+(q>0&&wac!=null?` · this costs about ${f(q*wac)} ETB`:'');
+}
+async function saveDerkoshUse(){
+  const date=document.getElementById('useDate').value, type=document.getElementById('useType').value;
+  const qty=Math.round((parseFloat(document.getElementById('useQty').value)||0)*100)/100;
+  const batch=document.getElementById('useBatch').value||null, note=(document.getElementById('useNote').value||'').trim()||null;
+  if(!date){ toast('Pick a date','error'); return; }
+  if(!(qty>0)){ toast('Enter the quantity in kg','error'); return; }
+  const stock=monthClosingKg();
+  if(qty>stock+0.005){ toast(`Only ${f(stock)} kg of Derkosh in stock`,'error'); return; }
+  const btn=document.getElementById('saveUseBtn'); btn.disabled=true; btn.textContent='Saving…';
+  try{
+    await sbPost('derkosh_uses',[{date,use_type:type,quantity:qty,batch_id:batch,note}]);
+    closeUseModal();
+    toast(`Recorded: ${f(qty)} kg — ${DK_USE_TYPES[type]||type}`,'success');
+    await loadMonth();
+  }catch(err){
+    toast('Not saved — '+(err.message||'unknown error'),'error');
+    btn.disabled=false; btn.textContent='Save';
+  }
+}
+function deleteDerkoshUse(id){
+  if(typeof workerBlocked==='function' && workerBlocked()) return;
+  const r=derkoshUses.find(x=>x.id===id); if(!r) return;
+  showConfirm({
+    title:'Delete this record?',
+    message:`${f(r.quantity)} kg — ${DK_USE_TYPES[r.use_type]||r.use_type} (${String(r.date).slice(0,10)})`,
+    confirmLabel:'Delete',
+    onConfirm:async()=>{
+      try{ await sbPatch(`derkosh_uses?id=eq.${id}`,{is_deleted:true}); toast('Record deleted','success'); await loadMonth(); }
+      catch(err){ toast('Not deleted — '+(err.message||'unknown error'),'error'); }
+    }
+  });
 }
 
 /* ══ MODAL ───────────────────────────────────────── */
@@ -1628,29 +1810,31 @@ async function loadHistoryAndRenderCharts(){
   const labels=periods.map(periodLabel);
   try{
     const perPeriod=await Promise.all(periods.map(async p=>{
-      const [costRows, salesRows, stockRow] = await Promise.all([
+      const [costRows, salesRows, stockRow, usedRows] = await Promise.all([
         sbGet(`derkosh_batch_costs?select=produced_kg,transfer_cost,packaging_cost&period=eq.${p}`),
         sbGet(`sales?select=quantity,revenue&product_type=eq.derkosh&period=eq.${p}&is_deleted=eq.false`),
-        fetchDerkoshStock(p)
+        fetchDerkoshStock(p),
+        fetchDerkoshUsesSafe(`derkosh_uses?select=quantity&is_deleted=eq.false&period=eq.${p}`)
       ]);
       const prod=costRows.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0);
       const cost=costRows.reduce((s,r)=>s+parseFloat(r.transfer_cost||0)+parseFloat(r.packaging_cost||0),0);
       const sold=salesRows.reduce((s,r)=>s+parseFloat(r.quantity||0),0);
       const revenue=salesRows.reduce((s,r)=>s+parseFloat(r.revenue||0),0);
-      return {period:p,prod,cost:derkoshCogsOf(stockRow),sold,revenue,cpk:prod?cost/prod:0};   // cost = cost of Derkosh sold
+      return {period:p,prod,cost:derkoshCogsOf(stockRow),sold,used:usedKgSum(usedRows),revenue,cpk:prod?cost/prod:0};   // cost = cost of Derkosh sold and used
     }));
     // running closing stock across the 6-month window, seeded from the
     // opening stock of the first period in the window
     let running=0;
     try{
       const firstPeriod=periods[0];
-      const [prior1,prior2]=await Promise.all([
+      const [prior1,prior2,prior3]=await Promise.all([
         sbGet(`derkosh_batches?select=produced_kg&is_deleted=eq.false&period=lt.${firstPeriod}`),
-        sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lt.${firstPeriod}`)
+        sbGet(`sales?select=quantity&product_type=eq.derkosh&is_deleted=eq.false&period=lt.${firstPeriod}`),
+        fetchDerkoshUsesSafe(`derkosh_uses?select=quantity&is_deleted=eq.false&period=lt.${firstPeriod}`)
       ]);
-      running=Math.max(0, prior1.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0) - prior2.reduce((s,r)=>s+parseFloat(r.quantity||0),0));
+      running=Math.max(0, prior1.reduce((s,r)=>s+parseFloat(r.produced_kg||0),0) - prior2.reduce((s,r)=>s+parseFloat(r.quantity||0),0) - usedKgSum(prior3));
     }catch{ running=0; }
-    const closingSeries=perPeriod.map(row=>{ running+=row.prod-row.sold; return Math.max(0,running); });
+    const closingSeries=perPeriod.map(row=>{ running+=row.prod-row.sold-(row.used||0); return Math.max(0,running); });
 
     renderCharts(labels, perPeriod, closingSeries);
   }catch(err){
