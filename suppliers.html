@@ -629,7 +629,7 @@ html,body{overflow-x:hidden}
       </div>
       <div style="min-width:0">
       <table class="tbl">
-        <thead><tr><th>Date</th><th>Description</th><th>Amount (ETB)</th><th>Running Balance</th></tr></thead>
+        <thead><tr><th>Date</th><th>Description</th><th>Amount (ETB)</th><th>Owed Balance</th></tr></thead>
         <tbody id="ledgerTbody"></tbody>
       </table>
       </div>
@@ -1085,7 +1085,8 @@ function renderDetails(s){
       <div class="sd-cell"><label>Bank Name</label><span>${esc(s.bankName)||'—'}</span></div>
       <div class="sd-cell"><label>Bank Account</label><span>${maskBankAccount(s.bankAccount)}</span></div>
       <div class="sd-cell"><label>Credit Limit</label><span>${s.creditLimit!=null ? fmt(s.creditLimit)+' ETB' : 'Not set'}</span></div>
-      <div class="sd-cell"><label>Credit Used (This Month)</label><span>${s.creditLimit!=null ? fmt(s.month)+' ETB ('+Math.min(100,Math.round(s.month/s.creditLimit*100))+'%)' : '—'}</span></div>
+      <div class="sd-cell"><label>Owed to Supplier</label><span style="${(s.owed||0)>0.005?'color:#c0392b;font-weight:800':''}">${fmt(s.owed||0)} ETB${s.creditLimit ? ' ('+Math.min(999,Math.round((s.owed||0)/s.creditLimit*100))+'% of limit)' : ''}</span></div>
+      <div class="sd-cell"><label>Next Payment Due</label><span>${(s.owed||0)>0.005 && s.nextDue ? fmtDate(s.nextDue) : '—'}</span></div>
     </div>
     </div>
   `;
@@ -1683,15 +1684,22 @@ function renderLedger(){
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--tl);padding:20px">No purchases on file for this supplier yet.</td></tr>`;
     return;
   }
+  // Owed balance: credit purchases add to it, payments to the supplier take away. Purchases paid at once (cash / bank / mobile) never add.
+  const credIds = new Set(rows.filter(r=>r.payment_channel==='credit').map(r=>r.id));
+  const ev = rows.map(r=>({ date:r.date, ord:0, owe:r.payment_channel==='credit',
+      desc: esc(r.item_name||'Purchase') + (r.payment_channel==='credit' ? ' <span style="color:#c0392b;font-weight:700">(on credit' + (r.due_date ? ', due ' + fmtDate(r.due_date) : '') + ')</span>' : ' <span style="color:var(--tl)">(paid)</span>'),
+      amt:(Number(r.total_cost)||0)+(Number(r.vat_amount)||0) }))
+    .concat(allSupplierPayments.filter(x=>credIds.has(x.purchase_id)).map(x=>({ date:x.payment_date, ord:1, owe:true,
+      desc:'Payment to supplier (' + esc(x.channel) + ')' + (x.note ? ' — ' + esc(x.note) : ''), amt:-(Number(x.amount_paid)||0) })))
+    .sort((a,b)=> (new Date(a.date)-new Date(b.date)) || (a.ord-b.ord));
   let balance = 0;
-  tbody.innerHTML = rows.map(r=>{
-    const amt = Number(r.total_cost)||0;
-    balance += amt;
+  tbody.innerHTML = ev.map(e=>{
+    if(e.owe) balance += e.amt;
     return `<tr>
-      <td data-label="Date">${fmtDate(r.date)}</td>
-      <td data-label="Description">${esc(r.item_name||'Purchase')}</td>
-      <td data-label="Amount (ETB)">${fmt(amt)}</td>
-      <td data-label="Running Balance">${fmt(balance)}</td>
+      <td data-label="Date">${fmtDate(e.date)}</td>
+      <td data-label="Description">${e.desc}</td>
+      <td data-label="Amount (ETB)">${fmt(e.amt)}</td>
+      <td data-label="Owed Balance">${fmt(balance)}</td>
     </tr>`;
   }).join('');
 }
@@ -1702,18 +1710,20 @@ function openPurchaseReportModal(){
   const totalAll = suppliers.reduce((a,s)=>a+s.allTime,0);
   const totalMonth = suppliers.reduce((a,s)=>a+s.month,0);
   const top = suppliers.slice().sort((a,b)=>b.month-a.month).slice(0,5);
-  const overLimit = suppliers.filter(s=>s.creditLimit!=null && s.month>s.creditLimit);
+  const overLimit = suppliers.filter(s=>s.creditLimit!=null && (s.owed||0)>s.creditLimit);
+  const totalOwed = suppliers.reduce((a,s)=>a+(s.owed||0),0);
   document.getElementById('purchaseReportBody').innerHTML = `
     <div class="sd-grid" style="border:1px solid var(--border);border-radius:10px;margin-bottom:16px">
       <div class="sd-cell"><label>Total Purchases (All Time)</label><span>${fmt(totalAll)} ETB</span></div>
       <div class="sd-cell"><label>Total Purchases (This Month)</label><span>${fmt(totalMonth)} ETB</span></div>
       <div class="sd-cell"><label>Active Suppliers</label><span>${active.length}</span></div>
+      <div class="sd-cell"><label>Total Owed to Suppliers</label><span style="${totalOwed>0.005?'color:#c0392b;font-weight:800':''}">${fmt(totalOwed)} ETB</span></div>
       <div class="sd-cell"><label>Suppliers With Orders This Month</label><span>${suppliers.filter(s=>s.month>0).length}</span></div>
     </div>
     ${overLimit.length ? `
     <div style="border:1px solid #f5c2c0;background:#fdf2f1;border-radius:10px;padding:12px 14px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:4px">⚠ ${overLimit.length} supplier(s) over credit limit this month</div>
-      ${overLimit.map(s=>`<div style="font-size:11.5px;color:var(--tm)">${s.name}: ${fmt(s.month)} ETB spent vs ${fmt(s.creditLimit)} ETB limit</div>`).join('')}
+      <div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:4px">⚠ ${overLimit.length} supplier(s) over credit limit</div>
+      ${overLimit.map(s=>`<div style="font-size:11.5px;color:var(--tm)">${s.name}: ${fmt(s.owed||0)} ETB owed vs ${fmt(s.creditLimit)} ETB limit</div>`).join('')}
     </div>` : ''}
     <div class="card-ttl" style="margin-bottom:8px">Top 5 Purchases This Month</div>
     <div style="min-width:0">
@@ -2263,13 +2273,18 @@ async function saveSupplierProductsToSupabase(s){
    KPIs, Recent Purchases, Supplier Performance, Price Trend/Market Average,
    and the Ledger) and rolls each supplier's allTime/month/lastPurchase up
    from it. */
+let allSupplierPayments = [];   // payments made against credit purchases (supplier_payments)
 async function loadPurchasesFromSupabase(){
   try{
-    const [purchaseRows, items, expCats] = await Promise.all([
-      sbGet('purchases?select=id,date,period,supplier_id,item_id,expense_category_id,quantity,unit_price,total_cost,payment_channel,approval_status&is_deleted=eq.false&approval_status=neq.rejected&supplier_id=not.is.null&order=date.desc'), // rejected purchases are not spend
+    const [purchaseRows, items, expCats, balRows, payRows] = await Promise.all([
+      sbGet('purchases?select=id,date,period,supplier_id,item_id,expense_category_id,quantity,unit_price,total_cost,vat_amount,due_date,payment_channel,approval_status&is_deleted=eq.false&approval_status=neq.rejected&supplier_id=not.is.null&order=date.desc'), // rejected purchases are not spend
       sbGet('inventory_items?select=id,name,unit'),
-      sbGet('expense_categories?select=id,name')
+      sbGet('expense_categories?select=id,name'),
+      sbGet('supplier_balances?select=*').catch(()=>[]),
+      sbGet('supplier_payments?select=id,purchase_id,payment_date,amount_paid,channel,note&order=payment_date.asc').catch(()=>[])
     ]);
+    allSupplierPayments = payRows || [];
+    const balMap = new Map((balRows||[]).map(b=>[b.supplier_id, b]));
     const itemById = new Map((items||[]).map(i=>[i.id,i]));
     const expById = new Map((expCats||[]).map(e=>[e.id,e]));
     const supplierById_ = new Map(suppliers.map(s=>[s._dbId||s.id, s]));
@@ -2288,6 +2303,9 @@ async function loadPurchasesFromSupabase(){
 
     suppliers.forEach(s=>{
       const dbId = s._dbId || s.id;
+      const bal = balMap.get(dbId);
+      s.owed = bal ? (Number(bal.outstanding)||0) : 0;      // what we still owe this supplier on credit purchases
+      s.nextDue = bal ? bal.next_due_date : null;
       const rows = allPurchases.filter(r=>r.supplier_id===dbId);
       if(rows.length===0) return;
       s.allTime = rows.reduce((sum,r)=>sum+(Number(r.total_cost)||0), 0);
