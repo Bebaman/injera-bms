@@ -458,11 +458,11 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
         <div class="kc-val" id="kpiCpiVal"><span>—</span> <span class="u">ETB</span></div>
         <div class="kc-chg" id="kpiCpiChg" style="color:var(--tl)">month-to-date average</div>
       </div>
-      <div class="kc kc-anim" style="--d:4" title="Yield Rate = the share of this month's batches that gave at least 90% of the pieces your Efficiency Target says the ingredients should give (pieces per kg compared with the target). Set the targets under Efficiency Targets.">
+      <div class="kc kc-anim" style="--d:4" title="Yield Rate = the share of this month's batches that gave at least 95% of the pieces your Efficiency Target says the ingredients should give (pieces per kg compared with the target). Set the targets under Efficiency Targets.">
         <div class="kc-ico ic-g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
         <span class="kc-lbl">Yield Rate</span>
         <div class="kc-val" id="yieldRateVal"><span>—</span> <span class="u">%</span></div>
-        <div class="kc-tgt" id="yieldRateTgt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Target: 90%</div>
+        <div class="kc-tgt" id="yieldRateTgt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Target: 95%</div>
       </div>
       <div class="kc kc-anim" style="--d:5" title="Production Efficiency = pieces you actually made ÷ pieces you should have made from the same kilograms at your Efficiency Target × 100. 100% = exactly on target; below 100% = fewer injera than the ingredients should give; above 100% = more.">
         <div class="kc-ico ic-t"><svg viewBox="0 0 24 24"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1117.32 0"/></svg></div>
@@ -606,17 +606,17 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.logo-txt h2,.dnut-lbl strong{font-family:'Quic
           <div>
             <div class="al" onclick="filterByAlert('material')">
               <div class="al-ic ai-r"><svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg></div>
-              <div class="al-bd"><h5>High Material Usage</h5><p>Batches exceeding material target</p></div>
+              <div class="al-bd"><h5>High Material Usage</h5><p>Ingredients above the recipe</p></div>
               <div class="al-cnt ac-r" id="alertCountMaterial">0</div>
             </div>
             <div class="al" onclick="filterByAlert('yield')">
               <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-              <div class="al-bd"><h5>Low Yield</h5><p>Below 90% yield rate</p></div>
+              <div class="al-bd"><h5>Low Yield</h5><p>Below 95% yield rate</p></div>
               <div class="al-cnt ac-o" id="alertCountYield">0</div>
             </div>
             <div class="al" onclick="filterByAlert('cost')">
               <div class="al-ic ai-o"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
-              <div class="al-bd"><h5>Cost Above Target</h5><p>Cost per injera above target</p></div>
+              <div class="al-bd"><h5>Cost Above Target</h5><p>Cost above target, not explained by low yield</p></div>
               <div class="al-cnt ac-o" id="alertCountCost">0</div>
             </div>
             <div class="al" style="border-bottom:none" onclick="filterByAlert('missing')">
@@ -961,6 +961,9 @@ async function loadMonth(monthLabel){
       qty: b.injera_qty,
       overhead: cost ? Number(cost.overhead_cost) : 0,
       other: Number(b.other_cost),
+      ciuStart: b.ciu_start_kwh==null ? null : Number(b.ciu_start_kwh),
+      ciuStop: b.ciu_stop_kwh==null ? null : Number(b.ciu_stop_kwh),
+      ciuRecharge: Number(b.ciu_recharge_kwh||0),
       status: STATUS_LABEL[b.status] || 'Completed',
     };
     // Prefer the view's own material_cost/total_cost when available (it reflects
@@ -1446,6 +1449,17 @@ function openAddModal(editId){
         </div>
       </div>
 
+      <!-- Electricity (CIU prepaid meter, kWh remaining) — for batch comparison only, no effect on costs -->
+      <div class="f-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div class="f-field"><label>CIU at start (kWh)</label>
+          <input type="number" step="0.01" min="0" id="f_ciu_start" value="${b&&b.ciuStart!=null?b.ciuStart:''}" placeholder="optional"></div>
+        <div class="f-field"><label>CIU at stop (kWh)</label>
+          <input type="number" step="0.01" min="0" id="f_ciu_stop" value="${b&&b.ciuStop!=null?b.ciuStop:''}" placeholder="optional"></div>
+        <div class="f-field"><label>Recharged during batch (kWh)</label>
+          <input type="number" step="0.01" min="0" id="f_ciu_recharge" value="${b&&b.ciuRecharge?b.ciuRecharge:''}" placeholder="0">
+          <span class="f-hint">Only if you topped up mid-batch</span></div>
+      </div>
+
       <!-- Status (edit only — new batches default to Completed) -->
       ${isEdit ? `<div class="f-field" style="margin-bottom:16px">
         <label>Status</label>
@@ -1547,7 +1561,7 @@ function recalcForm(){
   if(stdRow && stdCount && stdBlend){
     const actualKg = blend + corn + gomen;
     const actualEff = actualKg>0 ? qty/actualKg : 0;
-    const effOk = qty===0 || targetEff===0 || actualEff >= targetEff*0.90; // flag if >10% below target
+    const effOk = qty===0 || targetEff===0 || actualEff >= targetEff*0.95; // flag if >5% below target
     const kgOk  = actualKg===0 || stdKg(std)===0 || actualKg <= stdKg(std)*1.05; // flag if >5% over target kg
     stdCount.innerHTML = (qty===0 || actualKg===0)
       ? 'Efficiency — —'
@@ -1655,6 +1669,14 @@ async function saveBatch(editId){
   const other    = parseFloat(document.getElementById('f_other')?.value  || '0');
   const statusLabel = document.getElementById('f_status')?.value || 'Completed';
   const locationName = document.getElementById('f_location')?.value || 'Main Kitchen';
+  const ciuStartRaw = document.getElementById('f_ciu_start')?.value ?? '';
+  const ciuStopRaw  = document.getElementById('f_ciu_stop')?.value ?? '';
+  const ciuStart = ciuStartRaw!=='' ? parseFloat(ciuStartRaw) : null;
+  const ciuStop  = ciuStopRaw!=='' ? parseFloat(ciuStopRaw) : null;
+  const ciuRecharge = parseFloat(document.getElementById('f_ciu_recharge')?.value || '0') || 0;
+  if((ciuStart===null) !== (ciuStop===null)){ toast('Enter both CIU readings (start and stop), or leave both empty.','error'); return; }
+  if((ciuStart!==null && (ciuStart<0 || ciuStop<0)) || ciuRecharge<0){ toast('CIU readings cannot be negative.','error'); return; }
+  if(ciuStart!==null && ciuStop > ciuStart + ciuRecharge){ toast('CIU stop reading cannot be higher than start + recharge. Check the readings.','error'); return; }
 
   // Required field checks
   if(!type){ toast('Batch Type is required.','error'); return; }
@@ -1758,6 +1780,7 @@ async function saveBatch(editId){
         type: type.toLowerCase(),
         injera_qty: qty,
         other_cost: other,
+        ciu_start_kwh: ciuStart, ciu_stop_kwh: ciuStop, ciu_recharge_kwh: ciuRecharge,
         status: STATUS_VALUE[statusLabel] || 'completed',
         location_id: locationId
       });
@@ -1773,6 +1796,7 @@ async function saveBatch(editId){
         type: type.toLowerCase(),
         injera_qty: qty,
         other_cost: other,
+        ciu_start_kwh: ciuStart, ciu_stop_kwh: ciuStop, ciu_recharge_kwh: ciuRecharge,
         status: STATUS_VALUE[statusLabel] || 'completed',
         location_id: locationId
       });
@@ -2237,15 +2261,18 @@ function openFullRanking(){
   const _all = getBatches();
   const { normalAvg, specialAvg, rate } = typeRateAverages(_all);
   const rows = rankByPerformance(_all.filter(r=>r.status==='Completed'), normalAvg, specialAvg, rate).slice(0,12);
+  const _kw = _all.map(kwhPer100).filter(v=>v!==null && v>0);
+  const KWH_AVG = _kw.length ? _kw.reduce((a,b)=>a+b,0)/_kw.length : 0;
   openModal(`
     <div class="modal-hd"><h3>Full Batch Performance Ranking</h3><button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-bd">
       <table class="det-tbl">
-        <thead><tr><th>#</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Injera</th><th>Yield vs Target</th><th>Rating</th></tr></thead>
+        <thead><tr><th>#</th><th>Batch No.</th><th>Type</th><th>Qty</th><th>Cost/Injera</th><th>Yield vs Target</th><th>Rating</th><th>kWh</th><th>kWh/100 pcs</th><th>kWh/kg</th></tr></thead>
         <tbody>
-          ${rows.map(({r,y},i)=>{ const pl=perfLabel(y); return `<tr><td>${i+1}</td><td>${r.batchNo}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${y===null?'—':fmt1(y)+'%'}</td><td><span class="tag ${pl.tag}">${pl.label}</span></td></tr>`; }).join('')}
+          ${rows.map(({r,y},i)=>{ const pl=perfLabel(y); return `<tr><td>${i+1}</td><td>${r.batchNo}</td><td>${r.type}</td><td>${fmt0(r.qty)}</td><td>${fmt2(r.costPerInjera)}</td><td>${y===null?'—':fmt1(y)+'%'}</td><td><span class="tag ${pl.tag}">${pl.label}</span></td>${(()=>{ const k=batchKwh(r), p=kwhPer100(r), g=kwhPerKg(r); const hi=(p!==null && KWH_AVG>0 && p>KWH_AVG*1.2); return `<td>${k===null?'no reading':fmt1(k)}</td><td${hi?' style="color:#e5484d;font-weight:700"':''}>${p===null?'—':fmt1(p)+(hi?' ⚠':'')}</td><td>${g===null?'—':fmt2(g)}</td>`; })()}</tr>`; }).join('')}
         </tbody>
       </table>
+      <p style="font-size:11px;color:var(--tl);margin-top:8px">Electricity is read from the prepaid CIU (whole meter, so lights etc. are included) and is for comparing batches only — it does not change COGS or the P&L. ${KWH_AVG>0?`Month average: ${fmt1(KWH_AVG)} kWh per 100 pcs; ⚠ = more than 20% above it.`:'No batches with both CIU readings yet.'}</p>
     </div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
   `, true);
@@ -2308,14 +2335,19 @@ function computeAlerts(){
 
     // High Material Usage: total kg input exceeds this batch type's
     // standard blend+corn+gomen by more than 10%.
-    const stdKg = std.blend + std.corn + std.gomen;
-    const actualKg = r.blend + r.corn + (r.gomen||0);
-    if(stdKg>0 && actualKg > stdKg*1.10) alerts.material.push(r);
+    // (changed) judged on ingredients used per kg of blend against the recipe scaled to this batch's blend, by cost —
+    // batch size no longer matters; too few pieces from the same ingredients is the Low Yield alert's job.
+    if(std.blend>0 && r.blend>0){
+      const f = r.blend/std.blend;
+      const expCost = r.blend*WAC.blend + std.corn*f*WAC.corn + std.gomen*f*WAC.gomen;
+      const actCost = r.blend*WAC.blend + r.corn*WAC.corn + (r.gomen||0)*WAC.gomen;
+      if(expCost>0 && actCost > expCost*1.05) alerts.material.push(r);
+    }
 
-    // Low Yield: pcs-per-kg rate falls below 90% of the Efficiency Target
+    // Low Yield: pcs-per-kg rate falls below 95% of the Efficiency Target
     // for the same batch type (same threshold as the Yield Rate KPI card).
     const typeAvg = r.type==='Special' ? specialAvg : normalAvg;
-    if(typeAvg>0 && rate(r) < 0.90*typeAvg) alerts.yield.push(r);
+    if(typeAvg>0 && rate(r) < 0.95*typeAvg) alerts.yield.push(r);
 
     // Cost Above Target: cost/injera exceeds the standard's implied
     // target (target kg cost proportional to target count — i.e. what
@@ -2323,7 +2355,7 @@ function computeAlerts(){
     // material use and yield).
     if(std.count>0){
       const targetCpi = ((std.blend*WAC.blend + std.corn*WAC.corn + std.gomen*WAC.gomen) / std.count) + overheadPerInjera();
-      if(targetCpi>0 && r.costPerInjera > targetCpi*1.05) alerts.cost.push(r);
+      if(targetCpi>0 && r.costPerInjera > targetCpi*1.05 && !alerts.yield.includes(r)) alerts.cost.push(r); // low-yield batches are already flagged for the same reason
     }
   });
   return alerts;
@@ -2349,8 +2381,8 @@ function renderNotifBell(alerts){
   const list = document.getElementById('notifList');
   if(!list) return;
   const defs = [
-    { key:'material', label:'High Material Usage', sub:'exceeding material target', cls:'ai-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
-    { key:'yield', label:'Low Yield', sub:'below 90% yield rate', cls:'ai-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    { key:'material', label:'High Material Usage', sub:'ingredients above recipe', cls:'ai-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+    { key:'yield', label:'Low Yield', sub:'below 95% yield rate', cls:'ai-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
     { key:'cost', label:'Cost Above Target', sub:'above target cost per injera', cls:'ai-o', icon:'<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>' },
     { key:'missing', label:'Missing Batch Data', sub:'with incomplete information', cls:'ai-b', icon:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>' },
   ];
@@ -2396,8 +2428,8 @@ function clearAlertFilter(){
 function openAllAlerts(){
   const alerts = computeAlerts();
   const defs = [
-    { key:'material', label:'High Material Usage', sub:'batches exceeding material target — review blend ratios.', cls:'ai-r', cntCls:'ac-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
-    { key:'yield', label:'Low Yield', sub:'batches below the 90% yield rate target.', cls:'ai-o', cntCls:'ac-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    { key:'material', label:'High Material Usage', sub:'batches using more corn/gomen per kg of blend than the recipe — review blend ratios.', cls:'ai-r', cntCls:'ac-r', icon:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+    { key:'yield', label:'Low Yield', sub:'batches below the 95% yield rate target.', cls:'ai-o', cntCls:'ac-o', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
     { key:'cost', label:'Cost Above Target', sub:'batches with cost per injera above target.', cls:'ai-o', cntCls:'ac-o', icon:'<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>' },
     { key:'missing', label:'Missing Batch Data', sub:'batches with incomplete field information.', cls:'ai-b', cntCls:'ac-b', icon:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>' },
   ];
@@ -2423,7 +2455,7 @@ function openAllAlerts(){
    Reports cover the WHOLE selected month — the same set of batches
    the KPI cards use — not the table's search/status filters.
    ════════════════════════════════════════════════════════ */
-const YIELD_TARGET = 90; // % of the type average — same 90% line the Yield Rate card and Low Yield alert use
+const YIELD_TARGET = 95; // % of the Efficiency Target — same 95% line the Yield Rate card and Low Yield alert use
 
 function sessionName(){
   const s = CURRENT_SESSION || {};
@@ -2533,8 +2565,8 @@ async function buildProductionReport(){
   // ── Flagged batches, with the reason(s) from the page's own alert rules ──
   const alerts = computeAlerts();
   const reasonText = {
-    material:'High material usage (over 10% above standard)',
-    yield:'Low yield (below 90% of the Efficiency Target)',
+    material:'High material usage (ingredients over 5% above the recipe for the blend used)',
+    yield:'Low yield (below 95% of the Efficiency Target)',
     cost:'Cost per injera above target',
     missing:'Missing batch data'
   };
@@ -2961,7 +2993,7 @@ catch(e) { console.warn("Batch ranking table could not render.", e.message); }
 /* ════════════════════════════════════════════════════════
    KPI COMPUTATION — spec §3.5
    ════════════════════════════════════════════════════════
-   Yield Rate     = % of batches where actual pcs/kg ≥ 90% of
+   Yield Rate     = % of batches where actual pcs/kg ≥ 95% of
                     the EFFICIENCY TARGET (pcs/kg) for that batch type,
                     set on the Efficiency Targets screen.
                     (Spec: Actual_Count / Actual_kg_total,
@@ -3000,7 +3032,11 @@ function batchYieldPct(r, normalAvg, specialAvg, rate){
   const rt = rate(r);
   return (typeBench>0 && rt>0) ? (rt/typeBench)*100 : null;
 }
-function perfLabel(y){ return y===null ? {tag:'tag-review',label:'No target'} : y>=100 ? {tag:'tag-excellent',label:'Excellent'} : y>=90 ? {tag:'tag-completed',label:'Good'} : {tag:'tag-review',label:'Review'}; }
+function perfLabel(y){ return y===null ? {tag:'tag-review',label:'No target'} : y>=100 ? {tag:'tag-excellent',label:'Excellent'} : y>=95 ? {tag:'tag-completed',label:'Good'} : {tag:'tag-review',label:'Review'}; }
+// Electricity per batch from the prepaid CIU (counts down): used = start + recharge − stop. Comparison only — never feeds COGS / P&L.
+function batchKwh(r){ return (r.ciuStart==null || r.ciuStop==null) ? null : Math.max(0, r.ciuStart + (r.ciuRecharge||0) - r.ciuStop); }
+function kwhPer100(r){ const k=batchKwh(r); return (k===null || !(r.qty>0)) ? null : k/r.qty*100; }
+function kwhPerKg(r){ const k=batchKwh(r), kg=r.blend+r.corn+(r.gomen||0); return (k===null || !(kg>0)) ? null : k/kg; }
 // Best first: highest yield against target (fair between Normal and Special); cheapest per injera breaks ties
 function rankByPerformance(list, normalAvg, specialAvg, rate){
   return list.map(r=>({r, y:batchYieldPct(r,normalAvg,specialAvg,rate)}))
@@ -3043,8 +3079,8 @@ function computeKPIs(){
 
   if(overallAvg === 0) return;
 
-  // ── Yield Rate: % batches meeting ≥ 90% of type avg ──
-  const threshold = 0.90;
+  // ── Yield Rate: % batches meeting ≥ 95% of target ──
+  const threshold = 0.95;
   const passing = rows.filter(r=>{
     const typeAvg = r.type === 'Special' ? specialAvg : normalAvg;
     return rate(r) >= threshold * typeAvg;
@@ -3073,7 +3109,7 @@ function computeKPIs(){
   }
   if(yrTgt){
     yrTgt.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      ${passing} of ${rows.length} batches ≥ 90% of target`;
+      ${passing} of ${rows.length} batches ≥ 95% of target`;
   }
 
   if(peEl){
