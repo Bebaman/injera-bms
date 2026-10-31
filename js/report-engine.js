@@ -7015,6 +7015,9 @@
     const prevDist = num(i.previousDistributable);
     const prevInj = num(i.previousInjections);
     const distChange = distributable !== null && prevDist !== null ? pctChg(distributable, prevDist) : null;
+    // v3.41: tithe set aside from net cash profit before the distribution (Distribution page, needs sql/audit_24)
+    const tithe = num(i.tithe) !== null && num(i.tithe) > 0 ? num(i.tithe) : null;
+    const tithePctIn = num(i.tithePct);
 
     // ---- the distribution record ----
     const shareholders = asArr(i.shareholders).filter(s => s && s.name).map(s => ({ name: String(s.name), pct: num(s.sharePct) }));
@@ -7047,6 +7050,8 @@
         delta: distChange !== null ? `${fmt.signedPct(distChange)} vs ${prevLabel}`
           : (distributable !== null && netProfit > 0 ? `${fmt.pct(fmt.share(distributable, netProfit), 0)} of net cash profit` : undefined),
         deltaTone: distChange === null ? undefined : (distChange >= 0 ? 'good' : 'warn') },
+      ...(tithe !== null ? [{ label: 'Tithe Set Aside', value: fmt.money(tithe), unit: cur, color: '#C77D12',
+        delta: tithePctIn !== null ? `${fmt.pct(tithePctIn, 0)} of net cash profit, taken first` : 'Taken before the distribution' }] : []),
       { label: 'Closing Cash', value: closing === null ? '—' : fmt.money(closing), unit: closing === null ? undefined : cur,
         color: closing !== null && closing < 0 ? '#C0392B' : '#2E86DE',
         delta: closing !== null && distributable !== null
@@ -7111,6 +7116,9 @@
       }
       if (pending.length) {
         warns.push({ label: 'Pending', color: '#C89B3C', text: `${plural(pending.length, 'distribution is', 'distributions are')} still pending (${fmt.money(sumBy(pending, d => d.amt))} ${cur}).` });
+      }
+      if (tithe !== null) {
+        infos.push({ label: 'Tithe', color: '#C77D12', text: `${fmt.money(tithe)} ${cur} was set aside as tithe before the distribution${distributable !== null ? `; the remaining profit gave a distributable amount of ${fmt.money(distributable)} ${cur}` : ''}. It stays in the business accounts until it is given.` });
       }
       if (distributable !== null && distributable > 0 && shareholders.length >= 2 && shareholders.every(s => s.pct !== null)) {
         infos.push({ label: 'Split', color: '#2E86DE', text: `At the current ownership split, ${fmt.money(distributable)} ${cur} divides as ${shareholders.slice(0, 3).map(s => `${s.name} ${pctText(s.pct)} (${fmt.money(distributable * s.pct / 100)} ${cur})`).join(', ')}.` });
