@@ -218,6 +218,9 @@ button{font-family:inherit}
 .dist-left{display:flex;flex-direction:column;gap:14px;min-width:0}
 .dist-right{display:flex;flex-direction:column;gap:14px}
 .pd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 17px 16px}
+.tithe-line{margin:-4px 17px 14px;padding:10px 13px;border-radius:10px;background:#fff6e8;border:1px solid #f0d3a0;font-size:12.5px;color:#7a5a12;line-height:1.5}
+.tithe-line b{color:#5c4208}
+.tithe-off{margin:-4px 17px 14px;padding:9px 13px;border-radius:10px;background:#f4f6f5;border:1px dashed var(--border);font-size:12px;color:var(--muted)}
 
 @media(max-width:1180px){
   .dist-main{grid-template-columns:1fr}
@@ -337,6 +340,7 @@ button{font-family:inherit}
               <div class="kc-val"><span id="pdRetained">26,702.10</span><span class="u">ETB</span></div>
             </div>
           </div>
+          <div class="tithe-line" id="pdTitheLine" style="display:none"></div>
 
           <div class="tbl-wrap">
             <table class="rcards tbl">
@@ -367,7 +371,7 @@ button{font-family:inherit}
           </div>
           <div class="tbl-wrap">
             <table class="rcards tbl">
-              <thead><tr><th>Month</th><th>Net Cash Profit <span class="th-unit">(ETB)</span></th><th>Distribution %</th><th>Distributable Amount <span class="th-unit">(ETB)</span></th><th>Distributed Amount <span class="th-unit">(ETB)</span></th><th>Retained Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
+              <thead><tr><th>Month</th><th>Net Cash Profit <span class="th-unit">(ETB)</span></th><th>Tithe Set Aside <span class="th-unit">(ETB)</span></th><th>Distribution %</th><th>Distributable Amount <span class="th-unit">(ETB)</span></th><th>Distributed Amount <span class="th-unit">(ETB)</span></th><th>Retained Amount <span class="th-unit">(ETB)</span></th><th>Status</th></tr></thead>
               <tbody id="histBody"></tbody>
             </table>
           </div>
@@ -398,6 +402,10 @@ button{font-family:inherit}
             <div class="sum-row">
               <div class="sum-ic ic-t"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg></div>
               <div class="sum-bd"><span class="sum-lbl">Total Distributable Profit (Recorded Months)</span><span class="sum-val" id="sumDistributableProfit">0.00 ETB</span></div>
+            </div>
+            <div class="sum-row" id="sumTitheRow" style="display:none">
+              <div class="sum-ic ic-y"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z"/></svg></div>
+              <div class="sum-bd"><span class="sum-lbl">Total Tithe Set Aside (Recorded Months)</span><span class="sum-val" id="sumTithe">0.00 ETB</span></div>
             </div>
             <div class="sum-row">
               <div class="sum-ic ic-y"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
@@ -483,6 +491,7 @@ button{font-family:inherit}
           </div>
         </div>
         <div class="split-preview" id="editPreview">
+          <div class="split-row" id="prevTitheRow" style="display:none"><span id="prevTitheLbl">Tithe set aside</span><b id="prevTithe">0.00 ETB</b></div>
           <div class="split-row"><span>Distributable Amount</span><b id="prevDistAmt">2,966.90 ETB</b></div>
           <div id="prevShareholderRows"></div>
           <div class="split-row"><span>Retained in Business</span><b id="prevRetained">26,702.10 ETB</b></div>
@@ -509,6 +518,7 @@ button{font-family:inherit}
         <div class="split-preview">
           <div class="split-row"><span>Month</span><b id="recMonth">May 2026</b></div>
           <div class="split-row"><span>Net Cash Profit</span><b id="recNet">29,669.00 ETB</b></div>
+          <div class="split-row" id="recTitheRow" style="display:none"><span id="recTitheLbl">Tithe set aside</span><b id="recTithe">0.00 ETB</b></div>
           <div class="split-row"><span>Distribution %</span><b id="recPct">10.00%</b></div>
           <div class="split-row"><span>Distributable Amount</span><b id="recDistAmt">2,966.90 ETB</b></div>
         </div>
@@ -579,6 +589,11 @@ button{font-family:inherit}
             <span class="fg-hint">Applied to any month that hasn't had its % edited or recorded yet</span>
           </div>
           <div class="fg">
+            <label>Tithe %</label>
+            <div class="fg-wrap"><input type="number" id="dsTithePct" class="pu" min="0" max="100" step="0.01"><span class="fg-suf">%</span></div>
+            <span class="fg-hint" id="dsTitheHint">Set aside from net cash profit first; the Distribution % then applies to what is left. 0 turns it off.</span>
+          </div>
+          <div class="fg">
             <label>Rounding</label>
             <div class="fg-wrap"><input type="text" id="dsRounding" readonly></div>
             <span class="fg-hint">Set in Settings &gt; Accounting (rounds every ETB amount on this page)</span>
@@ -644,9 +659,19 @@ async function loadShareholders(){
   shareholders = [{id:null,name:'Eyasu Mesfin',pct:80},{id:null,name:'Kaleb Mekonnen',pct:20}];
 }
 
+/* ══ TITHE ═══════════════════════════════════════════
+   Tithe % of net cash profit is set aside FIRST; the Distribution % then applies to the profit that is left, and that is what is
+   shared between the shareholders. The set-aside money stays in the business accounts until it is given. It needs the columns
+   from sql/audit_24_tithe.sql; until they exist TITHE_READY is false and the page behaves exactly as before. */
+let tithePct = 0, TITHE_READY = false, TITHE_CACHE = null;
+function titheFor(net){ return (TITHE_READY && net > 0 && tithePct > 0) ? roundAmt(net * tithePct / 100) : 0; }
+
 async function loadDefaultPct(){
   try{
-    const rows = await sbGet('business_settings?select=default_distribution_pct,rounding_mode&limit=1');
+    let rows;
+    try{ rows = await sbGet('business_settings?select=default_distribution_pct,rounding_mode,tithe_pct&limit=1'); TITHE_READY = true; }
+    catch(e1){ TITHE_READY = false; rows = await sbGet('business_settings?select=default_distribution_pct,rounding_mode&limit=1'); }
+    tithePct = (TITHE_READY && rows && rows[0] && rows[0].tithe_pct!=null) ? n(rows[0].tithe_pct) : 0;
     if(rows && rows[0] && rows[0].default_distribution_pct!=null) defaultPct = n(rows[0].default_distribution_pct);
     // rounding_mode from Settings > Accounting (added 2026-07) — '2dp' = nearest 0.01 ETB,
     // 'whole' = nearest 1 ETB. Governs how each shareholder's distribution amount is rounded.
@@ -663,9 +688,10 @@ async function loadMonthlyCashFlow(){
     const rows = await sbGet('monthly_cash_flow?select=*&order=period.asc');
     (rows||[]).forEach(r=>{
       const p = r.period;
-      if(!byPeriod[p]) byPeriod[p] = {opening:0,salesReceipts:0,arCollected:0,opPayments:0,payroll:0,pettyCash:0,otherIn:0,otherOut:0,closing:0};
+      if(!byPeriod[p]) byPeriod[p] = {opening:0,salesReceipts:0,arCollected:0,opPayments:0,payroll:0,pettyCash:0,otherIn:0,otherOut:0,closing:0,vatIn:0,vatOut:0,debt:0,capex:0};
       const b = byPeriod[p];
       b.opening += n(r.opening_balance); b.salesReceipts += n(r.sales_receipts); b.arCollected += n(r.ar_collected);
+      b.vatIn += n(r.vat_received); b.vatOut += n(r.vat_paid);
       b.opPayments += n(r.op_payments); b.payroll += n(r.payroll_payments); b.pettyCash += n(r.petty_cash_payments);
       b.closing += n(r.closing_balance);
     });
@@ -675,6 +701,11 @@ async function loadMonthlyCashFlow(){
   try{
     const oc = await sbGet('monthly_operating_other_cash?select=period,op_other_in,op_other_out');
     (oc||[]).forEach(r=>{ if(byPeriod[r.period]){ byPeriod[r.period].otherIn += n(r.op_other_in); byPeriod[r.period].otherOut += n(r.op_other_out); } });
+  }catch(err){ /* view not available: older database */ }
+  // Loan repayments and equipment purchases leave the business before anything can be shared out
+  try{
+    const dc = await sbGet('monthly_debt_capex_cash?select=period,debt_service_out,capex_out');
+    (dc||[]).forEach(r=>{ if(byPeriod[r.period]){ byPeriod[r.period].debt += n(r.debt_service_out); byPeriod[r.period].capex += n(r.capex_out); } });
   }catch(err){ /* view not available: older database */ }
   return byPeriod;
 }
@@ -722,7 +753,11 @@ async function buildHistory(){
   if(!periods.includes(curKey)) periods.push(curKey);
   periods.sort();
 
-  OWNER_ACT_CACHE = null; DIST_CACHE = null;
+  OWNER_ACT_CACHE = null; DIST_CACHE = null; TITHE_CACHE = {};
+  if(TITHE_READY){
+    try{ (await sbGet('profit_distributions?select=period,tithe_pct,tithe_amount') || []).forEach(r=>{ TITHE_CACHE[r.period] = { pct: n(r.tithe_pct), amount: n(r.tithe_amount) }; }); }
+    catch(e){ console.log('tithe load failed:', e.message); }
+  }
   try{
     const [oa, dr] = await Promise.all([
       sbGet(`cash_flow_entries?select=period,entry_type,amount,date,description&entry_type=in.(capital_injection,capital_withdrawal)&order=date.asc`),
@@ -737,11 +772,11 @@ async function buildHistory(){
     const hasOpeningBalance = !!b;
     const { injections, withdrawals, injectionList } = await loadOwnerActivity(key);
     const distRec = await loadDistributionRecord(key);
-    const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected + b.otherIn - b.opPayments - b.payroll - b.pettyCash - b.otherOut) : 0;
+    const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected + b.otherIn - b.opPayments - b.payroll - b.pettyCash - b.otherOut - (b.vatIn - b.vatOut) - b.debt - b.capex) : 0;
     rows.push({
       key, m: periodLabel(key), hasOpeningBalance,
-      cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected+b.otherIn) : 0,
-      cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash+b.otherOut) : 0,
+      cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected+b.otherIn-b.vatIn) : 0,
+      cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash+b.otherOut-b.vatOut+b.debt+b.capex) : 0,
       net, injections, withdrawals, injectionList,
       openCash: hasOpeningBalance ? b.opening : null,
       closeCash: hasOpeningBalance ? b.closing : null,
@@ -750,7 +785,9 @@ async function buildHistory(){
       recordedShares: distRec ? distRec.shares : null,
       recordedNet: distRec ? distRec.net : null,
       recordedDistAmt: distRec ? distRec.distAmt : null,
-      recordedRetained: distRec ? distRec.retained : null
+      recordedRetained: distRec ? distRec.retained : null,
+      recordedTithe: distRec && TITHE_CACHE && TITHE_CACHE[key] ? TITHE_CACHE[key].amount : 0,
+      recordedTithePct: distRec && TITHE_CACHE && TITHE_CACHE[key] ? TITHE_CACHE[key].pct : 0
     });
   }
   history = rows;
@@ -778,20 +815,24 @@ async function refreshAll(){
 // than the month picker currently shows.
 async function loadAllTimeSummary(){
   let dist = [];
-  try{ dist = await sbGet('profit_distributions?select=distribution_pct,net_cash_profit,distributable_amount,retained_amount,period') || []; }
+  try{ dist = await sbGet('profit_distributions?select=distribution_pct,net_cash_profit,distributable_amount,retained_amount,period' + (TITHE_READY ? ',tithe_amount' : '')) || []; }
   catch(err){ console.log('profit_distributions summary load failed:', err.message); }
 
   let cashRows = [];
-  try{ cashRows = await sbGet('monthly_cash_flow?select=period,sales_receipts,ar_collected,op_payments,payroll_payments,petty_cash_payments') || []; }
+  try{ cashRows = await sbGet('monthly_cash_flow?select=period,sales_receipts,ar_collected,op_payments,payroll_payments,petty_cash_payments,vat_received,vat_paid') || []; }
   catch(err){ console.log('monthly_cash_flow summary load failed:', err.message); }
 
   const netByPeriod = {};
   cashRows.forEach(r=>{
-    netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.sales_receipts)+n(r.ar_collected)-n(r.op_payments)-n(r.payroll_payments)-n(r.petty_cash_payments);
+    netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.sales_receipts)+n(r.ar_collected)-n(r.op_payments)-n(r.payroll_payments)-n(r.petty_cash_payments)-(n(r.vat_received)-n(r.vat_paid));
   });
   try{
     const oc = await sbGet('monthly_operating_other_cash?select=period,op_other_in,op_other_out');
     (oc||[]).forEach(r=>{ netByPeriod[r.period] = (netByPeriod[r.period]||0) + n(r.op_other_in) - n(r.op_other_out); });
+  }catch(err){ /* view not available: older database */ }
+  try{
+    const dc = await sbGet('monthly_debt_capex_cash?select=period,debt_service_out,capex_out');
+    (dc||[]).forEach(r=>{ netByPeriod[r.period] = (netByPeriod[r.period]||0) - n(r.debt_service_out) - n(r.capex_out); });
   }catch(err){ /* view not available: older database */ }
   const totalNetAllTime = Object.values(netByPeriod).reduce((a,b)=>a+b,0);
 
@@ -801,6 +842,7 @@ async function loadAllTimeSummary(){
     monthsWithDist: dist.length,
     avgPct: dist.length ? dist.reduce((a,r)=>a+n(r.distribution_pct),0)/dist.length : 0,
     totalDistributableProfit: dist.reduce((a,r)=>a+n(r.net_cash_profit),0),
+    totalTithe: dist.reduce((a,r)=>a+n(r.tithe_amount),0),
     totalNetAllTime
   };
 }
@@ -812,6 +854,7 @@ function renderSummary(sum){
   document.getElementById('sumAvgPct').textContent = sum.avgPct.toFixed(1)+'%';
   document.getElementById('sumDistributableProfit').textContent = f(sum.totalDistributableProfit)+' ETB';
   document.getElementById('sumNetAllTime').textContent = f(sum.totalNetAllTime)+' ETB';
+  const tr = document.getElementById('sumTitheRow'); if(tr){ tr.style.display = TITHE_READY ? '' : 'none'; document.getElementById('sumTithe').textContent = f(sum.totalTithe||0)+' ETB'; }
 }
 
 function roundAmt(v){ return Math.round(v/ROUNDING_UNIT)*ROUNDING_UNIT; }
@@ -819,8 +862,10 @@ function f(v){ const dp = ROUNDING_UNIT<1?2:0; return roundAmt(v).toLocaleString
 
 // Generalized N-way split — last shareholder absorbs the rounding remainder (same rule as before).
 function computeSplit(net, pct){
-  const distAmt = net * (pct/100);
-  const retained = net - distAmt;
+  const tithe = titheFor(net);                 // set aside first
+  const base = net - tithe;                    // the profit the Distribution % applies to
+  const distAmt = base * (pct/100);
+  const retained = base - distAmt;
   const shares = [];
   let allocated = 0;
   shareholders.forEach((sh, i) => {
@@ -829,7 +874,7 @@ function computeSplit(net, pct){
     else { amt = roundAmt(distAmt * (sh.pct/100)); allocated += amt; }
     shares.push({ name: sh.name, pct: sh.pct, amount: amt });
   });
-  return { distAmt, retained, shares };
+  return { tithe, distAmt, retained, shares };
 }
 
 // Recorded periods show the real, frozen amounts that were actually paid out
@@ -837,9 +882,9 @@ function computeSplit(net, pct){
 // distribution must not silently reflow if today's % is different).
 // Not-yet-recorded periods show a live preview from current ownership %.
 function getDisplaySplit(rec){
-  if(rec.recorded){ return { distAmt: rec.recordedDistAmt, retained: rec.recordedRetained, shares: rec.recordedShares, recorded:true }; }
+  if(rec.recorded){ return { tithe: rec.recordedTithe||0, tithePct: rec.recordedTithePct||0, distAmt: rec.recordedDistAmt, retained: rec.recordedRetained, shares: rec.recordedShares, recorded:true }; }
   const sp = computeSplit(rec.net, rec.pct);
-  return { distAmt: sp.distAmt, retained: sp.retained, shares: sp.shares.map(s=>({...s, status:'Preview'})), recorded:false };
+  return { tithe: sp.tithe, tithePct: sp.tithe ? tithePct : 0, distAmt: sp.distAmt, retained: sp.retained, shares: sp.shares.map(s=>({...s, status:'Preview'})), recorded:false };
 }
 
 function renderCashPosition(rec){
@@ -921,9 +966,27 @@ function renderMonth(){
   const disp = getDisplaySplit(rec);
   document.getElementById('pdDistAmt').textContent = f(disp.distAmt);
   document.getElementById('pdRetained').textContent = f(disp.retained);
+  renderTitheLine(rec, disp);
   renderShareholderTable(disp);
   renderCashPosition(rec);
   renderHistory();
+}
+
+function renderTitheLine(rec, disp){
+  const el = document.getElementById('pdTitheLine'); if(!el) return;
+  if(!TITHE_READY){
+    el.className = 'tithe-off'; el.style.display = '';
+    el.innerHTML = 'Tithe is not switched on yet. Run <b>sql/audit_24_tithe.sql</b> once in the Supabase SQL editor, then refresh this page.';
+    return;
+  }
+  const tp = rec.recorded ? disp.tithePct : tithePct;
+  if(!(disp.tithe > 0)){
+    el.className = 'tithe-off'; el.style.display = '';
+    el.textContent = tp > 0 ? 'No tithe this month (net cash profit is not positive).' : 'Tithe is switched off (0%). Change it under Distribution Settings.';
+    return;
+  }
+  el.className = 'tithe-line'; el.style.display = '';
+  el.innerHTML = `<b>Tithe set aside: ${f(disp.tithe)} ETB</b> (${(Math.round(tp*100)/100)}% of net cash profit). It is taken first and stays in the business accounts until it is given; the Distribution % then applies to the remaining ${f(rec.recorded ? (rec.recordedNet||0) - disp.tithe : rec.net - disp.tithe)} ETB.`;
 }
 
 function renderHistory(){
@@ -937,11 +1000,11 @@ function renderHistory(){
     const disp = getDisplaySplit(h);
     const tr = document.createElement('tr');
     if(i===curIdx) tr.className='row-cur';
-    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${h.pct.toFixed(2)}%</td><td>${f(disp.distAmt)}</td><td>${f(disp.distAmt)}</td><td>${f(disp.retained)}</td><td><span class="tbl-badge">${h.recorded?'Paid':'Preview'}</span></td>`;
+    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${TITHE_READY ? f(disp.tithe||0) : '—'}</td><td>${h.pct.toFixed(2)}%</td><td>${f(disp.distAmt)}</td><td>${f(disp.distAmt)}</td><td>${f(disp.retained)}</td><td><span class="tbl-badge">${h.recorded?'Paid':'Preview'}</span></td>`;
     body.appendChild(tr);
   }
   if(!shown){
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:22px">No distributions recorded yet — use "Record Distribution" once a month has Net Cash Profit to distribute.</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No distributions recorded yet — use "Record Distribution" once a month has Net Cash Profit to distribute.</td></tr>';
   }
 }
 
@@ -1075,6 +1138,8 @@ function previewEditSplit(){
   const rec = history[curIdx];
   const pct = parseFloat(document.getElementById('editPct').value)||0;
   const sp = computeSplit(rec.net, pct);
+  const pr = document.getElementById('prevTitheRow');
+  if(pr){ pr.style.display = sp.tithe>0 ? '' : 'none'; document.getElementById('prevTitheLbl').textContent = 'Tithe set aside ('+(Math.round(tithePct*100)/100)+'%)'; document.getElementById('prevTithe').textContent = f(sp.tithe)+' ETB'; }
   document.getElementById('prevDistAmt').textContent = f(sp.distAmt)+' ETB';
   document.getElementById('prevShareholderRows').innerHTML = sp.shares.map(s=>
     `<div class="split-row"><span>${s.name} (${s.pct.toFixed(2)}%)</span><b>${f(s.amount)} ETB</b></div>`
@@ -1101,6 +1166,8 @@ function openRecordModal(){
   document.getElementById('recMonth').textContent = rec.m;
   document.getElementById('recNet').textContent = f(rec.net)+' ETB';
   document.getElementById('recPct').textContent = rec.pct.toFixed(2)+'%';
+  const rr = document.getElementById('recTitheRow');
+  if(rr){ rr.style.display = sp.tithe>0 ? '' : 'none'; document.getElementById('recTitheLbl').textContent = 'Tithe set aside ('+(Math.round(tithePct*100)/100)+'%)'; document.getElementById('recTithe').textContent = f(sp.tithe)+' ETB'; }
   document.getElementById('recDistAmt').textContent = f(sp.distAmt)+' ETB';
   document.getElementById('recDate').value = appToday();
   document.getElementById('recordModalOverlay').classList.add('show');
@@ -1137,13 +1204,16 @@ async function submitRecordModal(e){
       const ls = await sbGet(`profit_distribution_lines?select=id&distribution_id=eq.${s.id}&limit=1`);
       if(!(ls && ls.length)) await sbDelete(`profit_distributions?id=eq.${s.id}`);
     }
-    await sbPost('profit_distributions', [{
+    const paidOut = lines.reduce((t,l)=>t+l.amount,0);
+    const header = {
       id: distId, period: rec.key, distribution_pct: rec.pct, net_cash_profit: rec.net,
       // header = exactly what the lines pay out (lines are rounded to the accounting unit), so
-      // distributable + retained always equals net cash profit and the cash ledger reconciles
-      distributable_amount: lines.reduce((t,l)=>t+l.amount,0),
-      retained_amount: rec.net - lines.reduce((t,l)=>t+l.amount,0)
-    }]);
+      // tithe + distributable + retained always equals net cash profit and the cash ledger reconciles
+      distributable_amount: paidOut,
+      retained_amount: rec.net - sp.tithe - paidOut
+    };
+    if(TITHE_READY){ header.tithe_pct = sp.tithe > 0 ? tithePct : 0; header.tithe_amount = sp.tithe; }
+    await sbPost('profit_distributions', [header]);
     headerSaved = true;
     await sbPost('profit_distribution_lines', lines);
     toast('Distribution recorded and paid for '+rec.m,'success');
@@ -1181,6 +1251,9 @@ let distSettingsRowId = null;
 async function openDistributionSettingsModal(){
   document.getElementById('dsDefaultPct').value = defaultPct.toFixed(2);
   document.getElementById('dsRounding').value = ROUNDING_UNIT===1 ? 'Whole Birr (1 ETB)' : '2 Decimal Places (0.01 ETB)';
+  const tp = document.getElementById('dsTithePct');
+  tp.value = tithePct.toFixed(2); tp.disabled = !TITHE_READY;
+  document.getElementById('dsTitheHint').textContent = TITHE_READY ? 'Set aside from net cash profit first; the Distribution % then applies to what is left. 0 turns it off.' : 'Needs sql/audit_24_tithe.sql to be run once in Supabase first.';
   try{
     const rows = await sbGet('business_settings?select=id&limit=1');
     if(rows && rows[0]) distSettingsRowId = rows[0].id;
@@ -1193,8 +1266,13 @@ async function submitDistributionSettingsModal(e){
   const pct = parseFloat(document.getElementById('dsDefaultPct').value)||0;
   if(!distSettingsRowId){ toast('Could not find the business settings record to update','error'); return; }
   try{
-    await sbPatch(`business_settings?id=eq.${distSettingsRowId}`, { default_distribution_pct: pct });
-    toast('Default Distribution % updated to '+pct.toFixed(2)+'%','success');
+    const upd = { default_distribution_pct: pct };
+    if(TITHE_READY){
+      const tp = Math.min(100, Math.max(0, parseFloat(document.getElementById('dsTithePct').value)||0));
+      upd.tithe_pct = tp;
+    }
+    await sbPatch(`business_settings?id=eq.${distSettingsRowId}`, upd);
+    toast('Saved: Distribution '+pct.toFixed(2)+'%'+(TITHE_READY?' · Tithe '+upd.tithe_pct.toFixed(2)+'%':''),'success');
   }catch(err){
     console.error(err);
     toast('Could not save: '+err.message,'error');
@@ -1264,7 +1342,13 @@ function buildProfitReportData(){
   } else {
     calc.push({ label: 'Net cash profit', amount: net, kind: 'subtotal', note: 'As recorded with the distribution' });
   }
-  calc.push({ label: 'Distribution % applied to net cash profit: ' + pctTxt(rec.pct), kind: 'note' });
+  const titheAmt = disp.tithe || 0;
+  if(titheAmt > 0){
+    calc.push({ label: 'Less: tithe set aside (' + pctTxt(disp.tithePct || tithePct) + ' of net cash profit)', amount: -titheAmt, note: 'Taken first; stays in the business accounts until it is given' });
+    calc.push({ label: 'Profit after tithe', amount: net - titheAmt, kind: 'subtotal' });
+    input.tithe = titheAmt; input.tithePct = disp.tithePct || tithePct;
+  }
+  calc.push({ label: 'Distribution % applied to ' + (titheAmt > 0 ? 'profit after tithe' : 'net cash profit') + ': ' + pctTxt(rec.pct), kind: 'note' });
   calc.push({ label: 'Distributable amount', amount: disp.distAmt, kind: 'total',
               note: rec.recorded ? 'Recorded distribution' : 'Preview from the current ownership %; not yet recorded' });
   calc.push({ label: 'Retained in the business', amount: disp.retained });
@@ -1284,23 +1368,23 @@ function buildProfitReportData(){
 
   // ---- every month on record (the old Excel's history sheet), plus a trend of the last six ----
   const rows = [];
-  let sNet = 0, sDist = 0, sRet = 0;
+  let sNet = 0, sDist = 0, sRet = 0, sTithe = 0;
   history.forEach(h => {
     if(!h.recorded && !h.hasOpeningBalance) return;
     const d = getDisplaySplit(h);
     const hn = h.hasOpeningBalance ? h.net : (h.recordedNet || 0);
     if(!h.recorded && hn === 0) return;
-    sNet += roundAmt(hn); sDist += roundAmt(d.distAmt); sRet += roundAmt(d.retained);
-    rows.push([h.m, f(hn), pctTxt(h.pct), f(d.distAmt), f(d.retained), h.recorded ? 'Recorded' : 'Preview']);
+    sNet += roundAmt(hn); sDist += roundAmt(d.distAmt); sRet += roundAmt(d.retained); sTithe += roundAmt(d.tithe || 0);
+    rows.push([h.m, f(hn)].concat(TITHE_READY ? [f(d.tithe || 0)] : [], [pctTxt(h.pct), f(d.distAmt), f(d.retained), h.recorded ? 'Recorded' : 'Preview']));
   });
   if(rows.length > 1){
     base.tables = base.tables || [];
     base.tables.push({
       title: 'Distribution History by Month', sheetName: 'Distribution History', // Excel forbids a sheet named exactly "History"
-      columns: ['Month', 'Net Cash Profit (ETB)', 'Distribution %', 'Distributable (ETB)', 'Retained (ETB)', 'Status'],
+      columns: ['Month', 'Net Cash Profit (ETB)'].concat(TITHE_READY ? ['Tithe (ETB)'] : [], ['Distribution %', 'Distributable (ETB)', 'Retained (ETB)', 'Status']),
       rows,
-      columnAlign: [null, 'right', 'right', 'right', 'right', null],
-      totalsRow: ['TOTAL', f(sNet), '', f(sDist), f(sRet), '']
+      columnAlign: TITHE_READY ? [null, 'right', 'right', 'right', 'right', 'right', null] : [null, 'right', 'right', 'right', 'right', null],
+      totalsRow: ['TOTAL', f(sNet)].concat(TITHE_READY ? [f(sTithe)] : [], ['', f(sDist), f(sRet), ''])
     });
     const recent = history.filter(h => h.recorded || h.hasOpeningBalance).slice(-6);
     if(recent.length > 1){

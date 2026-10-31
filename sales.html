@@ -921,7 +921,7 @@ async function loadCustomerBalances() {
 
 async function loadSales() {
   try {
-    const qs = `select=id,date,product_type,customer_id,quantity,payment_method,unit_price,revenue,settled_date,customers(name,type,credit_limit)` +
+    const qs = `select=id,date,product_type,customer_id,quantity,payment_method,unit_price,revenue,vat_amount,settled_date,customers(name,type,credit_limit)` +
                `&date=gte.${currentPeriod}-01&date=lte.${periodEndDate(currentPeriod)}&is_deleted=eq.false&order=date.desc`;
     const data = await sbGet(`sales?${qs}`);
     allSales = (data || []).map(r => ({
@@ -1639,13 +1639,13 @@ function openCollectModal(e, saleId) {
     if (sale) {
       custSel.value = sale.customer_id;
       custSel.disabled = true;
-      document.getElementById('c-amount').value = parseFloat(sale.revenue||0).toFixed(2);
+      document.getElementById('c-amount').value = (parseFloat(sale.revenue||0) + parseFloat(sale.vat_amount||0)).toFixed(2);
       lockedNote.style.display = 'block';
       targetFld.value = sale.id;
       // pre-fill what is STILL owed on this sale (payments already made are taken off)
       sbGet(`credit_payments?select=amount_paid&sale_id=eq.${sale.id}`).then(rows => {
         const paid = (rows || []).reduce((t, p) => t + parseFloat(p.amount_paid || 0), 0);
-        const owed = Math.round((parseFloat(sale.revenue || 0) - paid) * 100) / 100;
+        const owed = Math.round((parseFloat(sale.revenue || 0) + parseFloat(sale.vat_amount || 0) - paid) * 100) / 100;
         if (owed > 0 && String(document.getElementById('c-target-sale-id').value) === String(sale.id)) document.getElementById('c-amount').value = owed.toFixed(2);
       }).catch(() => {});
     }
@@ -1679,7 +1679,7 @@ async function savePayment() {
       // A specific sale was locked in (e.g. via "Settle" on a sale row) —
       // pay exactly that sale, same as before.
       const sale = allSales.find(r => String(r.id) === String(targetId));
-      const saleRevenue = parseFloat(sale?.revenue || 0);
+      const saleRevenue = parseFloat(sale?.revenue || 0) + parseFloat(sale?.vat_amount || 0); // what the customer owes, VAT included
       // The database would accept a payment larger than the sale (making the customer's balance negative and overstating
       // cash received), so check it here against what is still owed on this sale.
       const paidRows = await sbGet(`credit_payments?select=amount_paid&sale_id=eq.${targetId}`) || [];
@@ -1696,7 +1696,7 @@ async function savePayment() {
       // No specific sale chosen — apply the payment across this customer's
       // unsettled credit sales, oldest first, splitting across as many as
       // needed (same FIFO logic as the Customers module).
-      const unsettled = await sbGet(`sales?select=id,date,revenue&customer_id=eq.${custId}&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false&order=date.asc`);
+      const unsettled = await sbGet(`sales?select=id,date,revenue,vat_amount&customer_id=eq.${custId}&payment_method=eq.credit&settled_date=is.null&is_deleted=eq.false&order=date.asc`);
       if (!unsettled?.length) { showToast('No outstanding credit sales for this customer', 'err'); return; }
       const saleIds = unsettled.map(s=>s.id);
       const existingPayments = await sbGetInChunks('credit_payments?select=sale_id,amount_paid','sale_id',saleIds) || [];
@@ -1711,7 +1711,7 @@ async function savePayment() {
       for (const s of unsettled) {
         if (remaining<=0) break;
         const alreadyPaid = paidBySale[s.id]||0;
-        const balance = parseFloat(s.revenue||0) - alreadyPaid;
+        const balance = parseFloat(s.revenue||0) + parseFloat(s.vat_amount||0) - alreadyPaid;
         if (balance<=0) continue;
         const applyAmount = Math.round(Math.min(remaining, balance) * 100) / 100;
         if (applyAmount <= 0) continue;

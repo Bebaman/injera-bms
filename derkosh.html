@@ -501,24 +501,6 @@ button{font-family:inherit}
       </div>
     </div>
 
-    <!-- WASTAGE, OWN USE & SAMPLES -->
-    <div class="card" id="usesCard" style="margin-top:14px">
-      <div class="card-hd">
-        <div class="card-ttl">Wastage, Own Use &amp; Samples <span class="sub" id="usesLbl">(kg)</span></div>
-        <div class="hd-actions">
-          <button class="btn-add" onclick="openUseModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Record</button>
-        </div>
-      </div>
-      <div class="use-note" id="usesNotice" style="display:none"></div>
-      <div class="use-sum" id="usesSum"></div>
-      <div class="tbl-wrap">
-        <table class="rcards tbl" style="min-width:640px">
-          <thead><tr><th style="padding-left:16px">Date</th><th>Type</th><th>Quantity<span class="th-unit">kg</span></th><th>Batch</th><th>Note</th><th>Cost<span class="th-unit">ETB</span></th><th></th></tr></thead>
-          <tbody id="usesBody"></tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- CHARTS: 3-column grid — Production vs Sales / Closing Stock Trend / Cost per Kg Trend (spans both rows)
          on row 1, Sales Summary by Customer / Revenue vs Cost vs Gross Profit / Quick Insights on row 2 -->
     <div class="der-grid3">
@@ -582,6 +564,24 @@ button{font-family:inherit}
         <div class="card-hd"><div class="card-ttl">Quick Insights</div></div>
         <div id="quickInsights"></div>
         <a class="view-exp" href="#" onclick="event.preventDefault();openReport()">&#8600; View Full Derkosh Report</a>
+      </div>
+    </div>
+
+    <!-- WASTAGE, OWN USE & SAMPLES -->
+    <div class="card" id="usesCard" style="margin-top:0">
+      <div class="card-hd">
+        <div class="card-ttl">Wastage, Own Use &amp; Samples <span class="sub" id="usesLbl">(kg)</span></div>
+        <div class="hd-actions">
+          <button class="btn-add" onclick="openUseModal()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Record</button>
+        </div>
+      </div>
+      <div class="use-note" id="usesNotice" style="display:none"></div>
+      <div class="use-sum" id="usesSum"></div>
+      <div class="tbl-wrap">
+        <table class="rcards tbl" style="min-width:640px">
+          <thead><tr><th style="padding-left:16px">Date</th><th>Type</th><th>Quantity<span class="th-unit">kg</span></th><th>Batch</th><th>Note</th><th>Cost<span class="th-unit">ETB</span></th><th></th></tr></thead>
+          <tbody id="usesBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
