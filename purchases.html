@@ -848,7 +848,15 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
       <div class="f-row" id="delivRow">
         <div class="f-grp" id="pChannelGrp" style="grid-column:1 / -1">
           <label>Payment Channel</label>
-          <select id="pChannel" onchange="updateBankChargeVisibility()"><option>Bank</option><option>Cash</option><option>Mobile Money</option></select>
+          <select id="pChannel" onchange="updateBankChargeVisibility()"><option>Bank</option><option>Cash</option><option>Mobile Money</option><option>On Credit</option></select>
+        </div>
+      </div>
+      <!-- On credit: nothing leaves cash/bank now; the cost still counts in the P&L and stock. Pay the supplier later with "Pay supplier" on the row. -->
+      <div class="f-row" id="pDueRow" style="display:none">
+        <div class="f-grp" style="grid-column:1 / -1">
+          <label>Payment Due Date <span style="font-weight:600;color:var(--tl);text-transform:none;letter-spacing:0">— optional</span></label>
+          <input type="date" id="pDueDate">
+          <div style="font-size:11.5px;color:var(--tm);margin-top:5px;line-height:1.45">Bought on credit: no cash or bank money leaves now. The cost still counts in the P&L and stock, and you owe the supplier until you record payments.</div>
         </div>
       </div>
       <!-- Bank / mobile-money charge: the fee the bank or service took for THIS payment. Kept apart from the cost; the database adds it
@@ -915,6 +923,33 @@ h1,h2,h3,h4,h5,.kc-val,.card-ttl,.dnut-lbl strong{font-family:'Quicksand','Segoe
 </div>
 
 <!-- ════ DISPOSE ASSET MODAL ════ -->
+<!-- ════ PAY SUPPLIER MODAL ════ -->
+<div class="modal-overlay" id="payModalOverlay" onclick="if(event.target===this)closePayModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>Pay Supplier <span id="payInfo" style="font-size:12px;font-weight:600;color:var(--tl);margin-left:4px"></span></h3>
+      <div class="modal-x" onclick="closePayModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    </div>
+    <div class="modal-bd">
+      <input type="hidden" id="payPurchaseId">
+      <div id="paySummary" style="font-size:12.5px;color:var(--tm);margin-bottom:12px;line-height:1.6"></div>
+      <div class="f-row">
+        <div class="f-grp"><label>Payment Date</label><input type="date" id="payDate"></div>
+        <div class="f-grp"><label>Amount (ETB)</label><input type="number" id="payAmount" min="0" step="0.01"></div>
+      </div>
+      <div class="f-row">
+        <div class="f-grp"><label>Paid From</label><select id="payChannel"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile">Mobile Money</option></select></div>
+        <div class="f-grp"><label>Note <span style="font-weight:600;color:var(--tl);text-transform:none;letter-spacing:0">— optional</span></label><input type="text" id="payNote"></div>
+      </div>
+      <div id="payHistory" style="font-size:12px;color:var(--tm);margin-top:10px"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-sec" onclick="closePayModal()">Close</button>
+      <button class="btn-pri" id="paySaveBtn" onclick="savePayment()">Record Payment</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="disposeModalOverlay" onclick="if(event.target===this)closeDisposeModal()">
   <div class="modal">
     <div class="modal-hd">
@@ -1262,7 +1297,7 @@ function renderTable(){
       <tr class="row-anim" data-id="${p.id}">
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td><td class="col-type">${p.type}</td><td>${p.category}</td><td>${p.description}</td>
         <td>${Number(p.qty).toFixed(2)}</td><td class="col-unit">${p.unit}</td><td class="col-unit-price">${fmt(p.unitPrice)}</td>
-        <td>${fmt(rowTotal(p))}${p.bankCharge > 0 ? `<div style="font-size:10.5px;color:var(--tl);font-weight:600;margin-top:2px">+ ${fmt(p.bankCharge)} bank charge</div>` : ''}</td><td class="col-channel">${p.channel}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
+        <td>${fmt(rowTotal(p))}${p.bankCharge > 0 ? `<div style="font-size:10.5px;color:var(--tl);font-weight:600;margin-top:2px">+ ${fmt(p.bankCharge)} bank charge</div>` : ''}</td><td class="col-channel">${p.channel}${p.channel === 'On Credit' ? `<div style="font-size:10.5px;font-weight:700;margin-top:2px;color:${p.outstanding > 0.005 ? '#c0392b' : '#1a6b3c'}">${p.outstanding > 0.005 ? 'Owed ' + fmt(p.outstanding) : 'Settled'}${p.dueDate && p.outstanding > 0.005 ? ' · due ' + fmtDate(p.dueDate) : ''}</div>` : ''}</td><td><span class="pill-sm ${statusPillClass(p.status)}">${p.status}</span></td>
         <td style="position:relative">
           <div class="act-dots" onclick="toggleRowMenu(event,'${p.id}')">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
@@ -1315,6 +1350,10 @@ function toggleRowMenu(e, id){
   closeRowMenu();
   const cell = e.currentTarget;
   const p = purchases.find(x=>x.id===id);
+  const payItem = (p && p.channel === 'On Credit' && p.status !== 'Pending' && p.status !== 'Rejected') ? `
+    <div class="row-menu-item" style="color:#1a6b3c" onclick="openPayModal('${id}')">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg> Pay supplier
+    </div>` : '';
   const menu = document.createElement('div');
   menu.className = 'row-menu';
   const approvalItems = (p && p.status === 'Pending') ? `
@@ -1326,6 +1365,7 @@ function toggleRowMenu(e, id){
     </div>
   ` : '';
   menu.innerHTML = `
+    ${payItem}
     ${approvalItems}
     <div class="row-menu-item" onclick="editPurchase('${id}')">
       <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg> Edit
@@ -1445,6 +1485,56 @@ function openDisposeModal(id){
   updateDisposePreview();
   document.getElementById('disposeModalOverlay').classList.add('show');
 }
+/* ════════════════ PAY SUPPLIER (credit purchases) ════════════════ */
+async function openPayModal(id){
+  closeRowMenu();
+  const p = purchases.find(x=>x.id===id); if(!p) return;
+  document.getElementById('payPurchaseId').value = id;
+  document.getElementById('payInfo').textContent = '· ' + p.supplier;
+  document.getElementById('payDate').value = appToday();
+  document.getElementById('payChannel').value = 'cash';
+  document.getElementById('payNote').value = '';
+  await refreshPayModal(id);
+  document.getElementById('payModalOverlay').classList.add('show');
+}
+function closePayModal(){ document.getElementById('payModalOverlay').classList.remove('show'); }
+async function refreshPayModal(id){
+  const p = purchases.find(x=>x.id===id); if(!p) return;
+  let pays = [];
+  try { pays = await sbGet(`supplier_payments?select=id,payment_date,amount_paid,channel,note&purchase_id=eq.${p._dbId}&order=payment_date.asc`); } catch(e){ console.log('payments load failed:', e.message); }
+  const due = rowTotal(p) + (p.vatAmount || 0);
+  const paid = pays.reduce((t,x)=>t + parseFloat(x.amount_paid), 0);
+  const left = Math.max(0, due - paid);
+  document.getElementById('paySummary').innerHTML = `${p.category} · ${fmtDate(p.date)}${p.dueDate ? ' · due ' + fmtDate(p.dueDate) : ''}<br>Total <b>${fmt(due)}</b> · Paid <b>${fmt(paid)}</b> · Still owed <b style="color:${left>0.005?'#c0392b':'#1a6b3c'}">${fmt(left)}</b> ETB`;
+  document.getElementById('payAmount').value = left > 0.005 ? left.toFixed(2) : '';
+  document.getElementById('paySaveBtn').disabled = !(left > 0.005);
+  document.getElementById('payHistory').innerHTML = pays.length ? '<b>Payments</b>' + pays.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><span>${fmtDate(x.payment_date)} · ${x.channel}${x.note ? ' · ' + x.note : ''}</span><span>${fmt(x.amount_paid)} <a href="#" style="color:#e53935;margin-left:8px" onclick="deletePayment('${x.id}','${id}');return false">remove</a></span></div>`).join('') : '';
+}
+async function savePayment(){
+  const id = document.getElementById('payPurchaseId').value;
+  const p = purchases.find(x=>x.id===id); if(!p) return;
+  const amount = Math.round((parseFloat(document.getElementById('payAmount').value) || 0) * 100) / 100;
+  const date = document.getElementById('payDate').value;
+  if(!date){ showToast('Choose the payment date'); return; }
+  if(!(amount > 0)){ showToast('Enter the amount paid'); return; }
+  try {
+    await sbPost('supplier_payments', { purchase_id: p._dbId, payment_date: date, amount_paid: amount, channel: document.getElementById('payChannel').value, note: document.getElementById('payNote').value.trim() || null });
+    showToast('Payment recorded');
+    await loadFromSupabase();
+    if(typeof renderTable === 'function') renderTable();
+    await refreshPayModal(id);
+  } catch(err){ showToast('Could not record payment: ' + (err.message || err)); }
+}
+async function deletePayment(payId, id){
+  if(!confirm('Remove this payment? The money goes back to the supplier balance and the channel.')) return;
+  try {
+    await sbDelete(`supplier_payments?id=eq.${payId}`);
+    showToast('Payment removed');
+    await loadFromSupabase();
+    if(typeof renderTable === 'function') renderTable();
+    await refreshPayModal(id);
+  } catch(err){ showToast('Could not remove payment: ' + (err.message || err)); }
+}
 function closeDisposeModal(){ document.getElementById('disposeModalOverlay').classList.remove('show'); }
 function updateDisposePreview(){
   const a = fixedAssets.find(x=>x.id===document.getElementById('disposeAssetId').value); if(!a) return;
@@ -1526,6 +1616,7 @@ function openPurchaseModal(){
   document.getElementById('pUnitPrice').value = 0;
   document.getElementById('pTotal').value = '0';
   document.getElementById('pChannel').value = 'Bank';
+  document.getElementById('pDueDate').value = '';
   bankChargeTouched = false;
   document.getElementById('pBankCharge').value = 0;
   updateBankChargeVisibility();
@@ -1576,7 +1667,8 @@ function editPurchase(id){
   document.getElementById('pUnitPrice').value = p.unitPrice;
   document.getElementById('pTotal').value = rowTotal(p).toFixed(2);
   document.getElementById('pChannel').value = p.channel;
-  document.getElementById('pBankCharge').value = (p.channel === 'Cash') ? 0 : (p.bankCharge || 0);
+  document.getElementById('pBankCharge').value = (p.channel === 'Cash' || p.channel === 'On Credit') ? 0 : (p.bankCharge || 0);
+  document.getElementById('pDueDate').value = p.dueDate || '';
   bankChargeTouched = true;   // an existing record keeps exactly what was saved
   updateBankChargeVisibility();
   document.getElementById('pStatus').value = p.status;
@@ -1597,6 +1689,8 @@ let bankChargeTouched = false;   // once you type a charge yourself, the Setting
 function isBankChannel(){ const c = document.getElementById('pChannel').value; return c === 'Bank' || c === 'Mobile Money'; }
 function onBankChargeInput(){ bankChargeTouched = true; updateBankChargeHint(); }
 function updateBankChargeVisibility(){
+  const dueRow = document.getElementById('pDueRow');
+  if(dueRow) dueRow.style.display = (document.getElementById('pChannel').value === 'On Credit') ? '' : 'none';
   const on = isBankChannel();
   document.getElementById('pBankChargeRow').style.display = on ? '' : 'none';
   if(!on){ document.getElementById('pBankCharge').value = 0; bankChargeTouched = false; }
@@ -1966,7 +2060,7 @@ async function savePurchase(){
     }
   }
   const channelVal = document.getElementById('pChannel').value;
-  let bankCharge = (channelVal === 'Cash') ? 0 : (parseFloat(document.getElementById('pBankCharge').value) || 0);
+  let bankCharge = (channelVal === 'Cash' || channelVal === 'On Credit') ? 0 : (parseFloat(document.getElementById('pBankCharge').value) || 0);
   if(!isFinite(bankCharge) || bankCharge < 0){ showToast('Bank charge cannot be negative'); return; }
   bankCharge = Math.round(bankCharge * 100) / 100;
   const data = {
@@ -1984,6 +2078,7 @@ async function savePurchase(){
     unit: document.getElementById('pUnit').value,
     unitPrice,
     channel: channelVal,
+    dueDate: channelVal === 'On Credit' ? (document.getElementById('pDueDate').value || null) : null,
     bankCharge,
     status: resolveApprovalStatus(type, total, existing),
     createdAt: existing ? (existing.createdAt || now) : now,
@@ -2669,6 +2764,9 @@ async function loadFromSupabase(){
     loadBusinessSettingsFromSupabase()
   ]);
   try {
+    window.PAYABLES = {};   // credit purchases: how much is paid / still owed (view purchase_payables)
+    try { (await sbGet('purchase_payables?select=purchase_id,paid,outstanding')).forEach(x=>{ PAYABLES[x.purchase_id] = { paid: parseFloat(x.paid)||0, outstanding: parseFloat(x.outstanding)||0 }; }); }
+    catch(e){ console.log('purchase_payables unavailable:', e.message); }
     const data = await sbGet(`${PURCHASES_TABLE}?select=*,suppliers(name)&is_deleted=eq.false&order=date.desc`);
 
     if(data && data.length > 0){
@@ -2693,13 +2791,16 @@ async function loadFromSupabase(){
           qty: parseFloat(r.quantity ?? 1),
           unit: isAsset ? 'unit' : (catObj && catObj.unit ? catObj.unit : (isExpense ? 'ls' : 'kg')),
           unitPrice: parseFloat(r.unit_price || 0),
-          channel: r.payment_channel === 'mobile' ? 'Mobile Money' : r.payment_channel === 'bank' ? 'Bank' : r.payment_channel === 'cash' ? 'Cash' : 'Bank',
+          channel: r.payment_channel === 'mobile' ? 'Mobile Money' : r.payment_channel === 'bank' ? 'Bank' : r.payment_channel === 'cash' ? 'Cash' : r.payment_channel === 'credit' ? 'On Credit' : 'Bank',
           status: fromDbApprovalStatus(r.approval_status),
           rejectionReason: r.rejection_reason || '',
           createdAt: r.created_at ? new Date(r.created_at).getTime() : undefined,
           vatRatePct: parseFloat(r.vat_rate_pct || 0),
           vatAmount: parseFloat(r.vat_amount || 0),
           bankCharge: parseFloat(r.bank_charge_etb || 0),
+          dueDate: r.due_date || '',
+          paid: (PAYABLES[r.id] && PAYABLES[r.id].paid) || 0,
+          outstanding: PAYABLES[r.id] ? PAYABLES[r.id].outstanding : (r.payment_channel === 'credit' ? parseFloat(r.total_cost||0) + parseFloat(r.vat_amount||0) : 0),
           originalCurrency: r.original_currency || 'ETB',
           originalAmount: r.original_amount != null ? parseFloat(r.original_amount) : null,
           exchangeRate: r.exchange_rate != null ? parseFloat(r.exchange_rate) : null
@@ -2739,7 +2840,7 @@ async function saveToSupabase(p){
 }
 async function _saveToSupabaseCore(p){
   try {
-    const channelMap = {'Bank':'bank','Cash':'cash','Mobile Money':'mobile'};
+    const channelMap = {'Bank':'bank','Cash':'cash','Mobile Money':'mobile','On Credit':'credit'};
     const supObj = supplierById(p.supplierId);
     const isExpense = p.type === 'Expense';
     const isAsset = p.type === 'Asset Purchase';
@@ -2756,7 +2857,8 @@ async function _saveToSupabaseCore(p){
       quantity: p.qty,
       unit_price: p.unitPrice,
       payment_channel: channelMap[p.channel] || 'bank',
-      bank_charge_etb: (p.channel === 'Cash') ? 0 : (p.bankCharge || 0),   // P&L "Bank Charges" + the channel's cash outflow
+      due_date: p.channel === 'On Credit' ? (p.dueDate || null) : null,
+      bank_charge_etb: (p.channel === 'Cash' || p.channel === 'On Credit') ? 0 : (p.bankCharge || 0),   // P&L "Bank Charges" + the channel's cash outflow
       approval_status: toDbApprovalStatus(p),
       rejection_reason: p.status === 'Rejected' ? (p.rejectionReason || null) : null,
       vat_rate_pct: p.vatRatePct || 0,
