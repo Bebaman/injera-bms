@@ -120,7 +120,7 @@ button{font-family:inherit}
 .vc-legend span{display:flex;align-items:center;gap:5px}
 .vc-dot{width:9px;height:9px;border-radius:3px;display:inline-block}
 .chart-frame{position:relative;height:250px}
-.chart-frame.vc{height:340px;padding:0 17px 16px}
+.chart-frame.vc{height:430px;padding:0 17px 16px}
 
 /* QUICK ACTIONS */
 .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px 17px 17px}
@@ -166,7 +166,9 @@ button{font-family:inherit}
 .btn-solid svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .ai-note{background:#f6f1fd;border:1px solid #e3d5fb;border-radius:10px;padding:11px 13px;font-size:11.5px;color:#5b21b6;line-height:1.5;margin-bottom:14px;display:flex;gap:9px}
 .ai-note svg{width:16px;height:16px;stroke:#8b5cf6;fill:none;stroke-width:2;flex-shrink:0;margin-top:1px}
-
+.mb-drv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 8px;font-size:11px;color:var(--tl);font-weight:600}
+.mb-drv input{width:110px;border:1.5px solid #dde8e2;border-radius:8px;padding:6px 8px;font-size:12px;font-family:'Nunito',sans-serif;outline:none}
+.mb-drv input:focus{border-color:#27ae60}
 @media(max-width:1180px){
   .bva-main{grid-template-columns:1fr}
 }
@@ -190,16 +192,16 @@ button{font-family:inherit}
     <div class="bva-main">
       <div class="card">
         <div class="card-hd">
-          <div class="card-ttl">Budget vs Actual Statement <span class="sub" id="tblLbl">(May 2026)</span><span class="sub" style="margin-left:8px">All amounts in ETB</span></div>
+          <div class="card-ttl">Budget vs Actual Statement <span class="sub" id="tblLbl"></span><span class="sub" style="margin-left:8px">All amounts in ETB</span><span class="sub" id="tblNote" style="margin-left:8px;color:#b46c05;font-weight:700"></span></div>
           <div class="hd-actions">
             <button class="btn-tool" onclick="openManualBudget()"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg>Manual Budget</button>
             <button class="btn-tool" onclick="openTrendModal()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-4 4"/></svg>View 3-Month Trend</button>
-            <button class="btn-add" style="background:linear-gradient(135deg,#1d6b42,#27ae60)" onclick="openAiSuggestion()"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>AI Budget Suggestion</button>
+            <button class="btn-add" style="background:linear-gradient(135deg,#1d6b42,#27ae60)" onclick="openAiSuggestion()"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Suggested Budget</button>
           </div>
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="bvaTbl">
-            <thead><tr><th>Particulars</th><th>Budget<br><span style="font-weight:600">May 2026</span></th><th>Actual<br><span style="font-weight:600">May 2026</span></th><th>Variance<br>ETB</th><th>Variance<br>%</th><th>Trend<br>vs Apr 2026</th><th>Status</th></tr></thead>
+            <thead><tr><th>Particulars</th><th>Budget<br><span id="thBud" style="font-weight:600">&nbsp;</span></th><th>Actual<br><span id="thAct" style="font-weight:600">&nbsp;</span></th><th>Variance<br>ETB</th><th>Variance<br>%</th><th>Trend<br>vs Apr 2026</th><th>Status</th></tr></thead>
             <tbody id="bvaBody"></tbody>
           </table>
         </div>
@@ -208,12 +210,13 @@ button{font-family:inherit}
 
       <div class="bva-side">
         <div class="card">
-          <div class="card-hd"><div class="card-ttl">Budget Summary <span class="sub" id="bsLbl">(May 2026)</span></div></div>
+          <div class="card-hd"><div class="card-ttl">Budget Summary <span class="sub" id="bsLbl"></span></div></div>
           <div class="bs-list" id="bsList"></div>
           <div class="bs-meta">
-            <div class="bs-meta-row"><span class="k">Budget Source</span><span class="v"><span class="bs-tag" id="bsSourceTag">Manual</span></span></div>
-            <div class="bs-meta-row"><span class="k">Created By</span><span class="v">—</span></div>
-            <div class="bs-meta-row"><span class="k">Last Updated</span><span class="v" id="bsUpdated">Apr 30, 2026 10:45 AM</span></div>
+            <div class="bs-meta-row"><span class="k">Budget Source</span><span class="v"><span class="bs-tag" id="bsSourceTag">—</span></span></div>
+            <div class="bs-meta-row"><span class="k">Lines Budgeted</span><span class="v" id="bsCount">—</span></div>
+            <div class="bs-meta-row"><span class="k">Updated By</span><span class="v" id="bsCreated">—</span></div>
+            <div class="bs-meta-row"><span class="k">Last Updated</span><span class="v" id="bsUpdated">—</span></div>
           </div>
         </div>
 
@@ -227,7 +230,7 @@ button{font-family:inherit}
           <div class="card-hd"><div class="card-ttl">Quick Actions</div></div>
           <div class="qa-grid">
             <div class="qa-btn" onclick="openManualBudget()"><div class="qa-ic g"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div><span>Edit Budget</span></div>
-            <div class="qa-btn" onclick="openAiSuggestion()"><div class="qa-ic p"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div><span>AI Budget Suggestion</span></div>
+            <div class="qa-btn" onclick="openAiSuggestion()"><div class="qa-ic p"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div><span>Suggested Budget</span></div>
             <div class="qa-btn" onclick="exportExcel()"><div class="qa-ic xl"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="19"/><line x1="15" y1="13" x2="9" y2="19"/></svg></div><span>Export Report<br>(Excel)</span></div>
             <div class="qa-btn" onclick="exportPdf()"><div class="qa-ic pdf"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="13" y2="18"/></svg></div><span>Export Report<br>(PDF)</span></div>
           </div>
@@ -244,11 +247,12 @@ button{font-family:inherit}
   <div class="modal wide">
     <div class="modal-hdr">
       <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/></svg></div>
-      <div class="modal-hdr-txt"><h3>Manual Budget Entry</h3><p id="manualSub">Set ETB targets for each P&amp;L line &middot; May 2026</p></div>
+      <div class="modal-hdr-txt"><h3>Manual Budget Entry</h3><p id="manualSub">Set ETB targets for each P&amp;L line</p></div>
       <button class="modal-hdr-close" onclick="closeManualBudget()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body" id="manualBody"></div>
     <div class="modal-footer">
+      <button class="btn-ghost" id="copyPrevBtn" style="margin-right:auto" onclick="copyPrevBudget()">Copy from previous month</button>
       <button class="btn-ghost" onclick="closeManualBudget()">Cancel</button>
       <button class="btn-solid" onclick="saveManualBudget()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Save Budget</button>
     </div>
@@ -260,7 +264,7 @@ button{font-family:inherit}
   <div class="modal wide">
     <div class="modal-hdr purple">
       <div class="modal-hdr-ico"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div>
-      <div class="modal-hdr-txt"><h3>AI Budget Suggestion</h3><p>System-suggested targets &middot; 3-month rolling average</p></div>
+      <div class="modal-hdr-txt"><h3>Suggested Budget</h3><p>System-suggested targets &middot; 3-month rolling average</p></div>
       <button class="modal-hdr-close" onclick="closeAiSuggestion()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
@@ -268,8 +272,8 @@ button{font-family:inherit}
       <div id="aiBody"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeAiSuggestion()">Reject All</button>
-      <button class="btn-solid purple" onclick="acceptAiSuggestion()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Accept All</button>
+      <button class="btn-ghost" onclick="closeAiSuggestion()">Cancel</button>
+      <button class="btn-solid purple" onclick="acceptAiSuggestion()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Apply Suggestions</button>
     </div>
   </div>
 </div>
@@ -360,7 +364,7 @@ async function loadIdMaps(){
   const [items,expCats,ovhCats]=await Promise.all([
     sb('inventory_items?select=id,name'),
     sb('expense_categories?select=id,name'),
-    sb('overhead_categories?select=id,name')
+    sb('overhead_categories?select=id,name,system_key')
   ]);
   const itemKey=n=>['Corn','Gomen Zere','Injera Blend','Teff','Rice'].includes(n)?'raw_materials':(['Large Bags','Small Bags'].includes(n)?'packaging':null);
   const expKey=n=>{
@@ -374,20 +378,13 @@ async function loadIdMaps(){
     if(n==='Maintenance')return'maintenance';
     return'other_opex';
   };
-  const ovhKey=n=>{
-    if(n==='Electricity')return'electricity';
-    if(n==='Labor/Wages')return'labor';
-    if(n==='Maintenance')return'maintenance';
-    if(n==='Rent')return'rent';
-    if(n==='Water')return'water';
-    return'other_opex';
-  };
+  const ovhKey=c=>({electricity:'electricity',labor:'labor',maintenance:'maintenance',rent:'rent',water:'water'})[c.system_key]||'other_opex';
   const transportCatIds=Object.fromEntries(expCats.filter(c=>c.name==='Transport').map(c=>[c.id,true]));
   ID_MAPS={
     transportCatIds,
     itemLine:Object.fromEntries(items.map(i=>[i.id,itemKey(i.name)])),
     expLine:Object.fromEntries(expCats.map(c=>[c.id,expKey(c.name)])),
-    ovhLine:Object.fromEntries(ovhCats.map(c=>[c.id,ovhKey(c.name)]))
+    ovhLine:Object.fromEntries(ovhCats.map(c=>[c.id,ovhKey(c)]))
   };
   return ID_MAPS;
 }
@@ -414,7 +411,7 @@ async function loadPeriod(pKey){
     sb('derkosh_stock_monthly?period=eq.'+pKey+'&select=produced_packaging_cost'),
     sb('purchases?period=eq.'+pKey+'&is_deleted=eq.false&approval_status=in.(auto_approved,approved)&type=eq.expense&select=expense_category_id,total_cost'),
     sb('monthly_overhead?period=eq.'+pKey+'&select=category_id,amount'),
-    sb('budget_lines?period=eq.'+pKey+'&select=id,line_item,budget_amount,budget_source,created_at,created_by')
+    sb('budget_lines?period=eq.'+pKey+'&select=id,line_item,budget_amount,budget_source,created_at,created_by,updated_at,updated_by,quantity,unit_price')
   ]);
 
   const N=x=>Number(x||0);
@@ -441,18 +438,19 @@ async function loadPeriod(pKey){
   actual.other_opex=totalOpexActual-actual.delivery-actual.marketing;
   actual.interest=N(v.interest_expense);
 
-  const budget={};ITEMS.forEach(it=>budget[it.key]=0);
+  const budget={},isSet={},drivers={};ITEMS.forEach(it=>{budget[it.key]=0;isSet[it.key]=false;});
   let lastUpdated=null,lastCreatedBy=null,hasManual=false,hasAi=false;
   budgetRows.forEach(r=>{
-    if(budget.hasOwnProperty(r.line_item))budget[r.line_item]=Number(r.budget_amount||0);
-    if(!lastUpdated||r.created_at>lastUpdated){lastUpdated=r.created_at;lastCreatedBy=r.created_by;}
+    if(budget.hasOwnProperty(r.line_item)){budget[r.line_item]=Number(r.budget_amount||0);isSet[r.line_item]=budget[r.line_item]!==0;}
+    if(r.quantity!=null||r.unit_price!=null)drivers[r.line_item]={q:r.quantity,p:r.unit_price};
+    const ts=r.updated_at||r.created_at;if(!lastUpdated||ts>lastUpdated){lastUpdated=ts;lastCreatedBy=r.updated_by||r.created_by;}
     if(r.budget_source==='manual')hasManual=true;
     if(r.budget_source==='accepted_suggestion'||r.budget_source==='suggested')hasAi=true;
   });
   const data={
-    actual,budget,lastUpdated,lastCreatedBy,
-    hasBudget:budgetRows.length>0,
-    source:budgetRows.length===0?null:(hasAi&&!hasManual?'ai':'manual')
+    actual,budget,isSet,drivers,lastUpdated,lastCreatedBy,
+    hasBudget:ITEMS.some(it=>isSet[it.key]),
+    source:!ITEMS.some(it=>isSet[it.key])?null:(hasAi&&!hasManual?'ai':'manual')
   };
   PERIOD_CACHE[pKey]=data;
   return data;
@@ -460,7 +458,7 @@ async function loadPeriod(pKey){
 
 async function computeMonth(pKey){
   const d=await loadPeriod(pKey);
-  const rows={};ITEMS.forEach(it=>rows[it.key]={budget:d.budget[it.key],actual:d.actual[it.key]});
+  const rows={};ITEMS.forEach(it=>rows[it.key]={budget:d.budget[it.key],actual:d.actual[it.key],set:d.isSet[it.key]});
   const rev=ITEMS.filter(i=>i.group==='revenue'),cogs=ITEMS.filter(i=>i.group==='cogs'),opex=ITEMS.filter(i=>i.group==='opex');
   const sum=(arr,fn)=>arr.reduce((a,i)=>a+fn(rows[i.key]),0);
   const totRevB=sum(rev,r=>r.budget),totRevA=sum(rev,r=>r.actual);
@@ -477,13 +475,15 @@ function variancePct(row){return row.budget===0?0:((row.actual-row.budget)/Math.
 let CUR=null; // last-rendered month's computed data (used by modals/exports)
 
 /* ══════════════════════ TREND ARROW ══════════════════════ */
-function trendArrow(thisPct,lastPct){
-  const diff=thisPct-lastPct;
-  if(Math.abs(diff)<1)return{cls:'trend-stable',arrow:'&#8594;',txt:'Stable'};
-  if(thisPct>lastPct)return{cls:'trend-up',arrow:'&#8593;',txt:'Improving'};
-  return{cls:'trend-dn',arrow:'&#8595;',txt:'Worsening'};
+function trendArrow(thisPct,lastPct,lowerBetter,unit){
+  const diff=thisPct-lastPct,disp=Math.abs(diff).toFixed(1)+(unit||'%');
+  if(Math.abs(diff)<1)return{cls:'trend-stable',arrow:'&#8594;',txt:'Stable',disp};
+  const better=lowerBetter?thisPct<lastPct:thisPct>lastPct;
+  return better?{cls:'trend-up',arrow:'&#8593;',txt:'Improving',disp}:{cls:'trend-dn',arrow:'&#8595;',txt:'Worsening',disp};
 }
+let BADGE_NOBUDGET=false;
 function statusBadge(variance,group,thresh){
+  if(BADGE_NOBUDGET)return'<span class="status-badge target">No budget</span>';
   thresh=thresh||0.5;
   if(Math.abs(variance)<=thresh)return'<span class="status-badge target">&#8594; On Target</span>';
   if(group==='revenue')return variance>0?'<span class="status-badge beat"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Beat</span>':'<span class="status-badge miss">Miss</span>';
@@ -509,17 +509,24 @@ async function renderTable(){
   }
   if(myToken!==renderToken)return; // a newer render started; drop this one
   CUR=cur;
+  if(typeof refreshNotifications==='function')refreshNotifications(buildNotifications(cur));
   const prevIdx2=curMonthIdx>0?curMonthIdx-1:null;
   const prevLabel=prevIdx2!==null?MONTHS[prevIdx2]:'—';
+  const canTrend=!!(prev&&prev.meta.hasBudget&&cur.meta.hasBudget);
+  BADGE_NOBUDGET=!cur.meta.hasBudget;
   document.getElementById('tblLbl').textContent='('+MONTHS[curMonthIdx]+')';
   document.getElementById('bsLbl').textContent='('+MONTHS[curMonthIdx]+')';
+  document.getElementById('tblNote').textContent=curMonthIdx===PERIODS.length-1?'Month in progress — actuals to date':'';
   document.querySelector('thead th:nth-child(6)').innerHTML='Trend<br>vs '+prevLabel;
+  document.getElementById('thBud').textContent=MONTHS[curMonthIdx];
+  document.getElementById('thAct').textContent=MONTHS[curMonthIdx];
 
   function lineHtml(it,label,extraCls){
     const row=cur.rows[it.key];
+    if(!row.set)return `<tr class="data-row ${extraCls||''}"><td>${label}</td><td class="val-zero">—</td><td>${f0(row.actual)}</td><td class="val-zero">—</td><td class="val-zero">—</td><td class="trend-stable">—</td><td><span class="status-badge target">Not set</span></td></tr>`;
     const v=row.actual-row.budget,vp=variancePct(row);
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const prow=prev.rows[it.key],pvp=variancePct(prow);trend=trendArrow(vp,pvp);}
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const prow=prev.rows[it.key],pvp=variancePct(prow);trend=trendArrow(vp,pvp,it.group!=='revenue');}
     const cls=it.group==='revenue'?valClsRev(v):valCls(v);
     const badge=statusBadge(v,it.group);
     return `<tr class="data-row ${extraCls||''}">
@@ -528,7 +535,7 @@ async function renderTable(){
       <td>${f0(row.actual)}</td>
       <td class="${cls}">${f0(v)}</td>
       <td class="${cls}">${vp.toFixed(1)}%</td>
-      <td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?variancePct(prev.rows[it.key]):0)).toFixed(1)}%</td>
+      <td class="${trend.cls}">${trend.arrow} ${trend.disp}</td>
       <td>${badge}</td>
     </tr>`;
   }
@@ -538,47 +545,47 @@ async function renderTable(){
   ITEMS.filter(i=>i.group==='revenue').forEach(it=>html+=lineHtml(it,it.label));
   {
     const v=cur.totRevA-cur.totRevB,vp=cur.totRevB?v/cur.totRevB*100:0;
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const pv=prev.totRevA-prev.totRevB,pvp=prev.totRevB?pv/prev.totRevB*100:0;trend=trendArrow(vp,pvp);}
-    html+=`<tr class="tot-row"><td>Total Revenue</td><td>${f0(cur.totRevB)}</td><td>${f0(cur.totRevA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totRevB?(prev.totRevA-prev.totRevB)/prev.totRevB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue')}</td></tr>`;
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const pv=prev.totRevA-prev.totRevB,pvp=prev.totRevB?pv/prev.totRevB*100:0;trend=trendArrow(vp,pvp);}
+    html+=`<tr class="tot-row"><td>Total Revenue</td><td>${f0(cur.totRevB)}</td><td>${f0(cur.totRevA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${trend.disp}</td><td>${statusBadge(v,'revenue')}</td></tr>`;
   }
 
   html+='<tr class="sec-row"><td colspan="7">Cost of Goods Sold</td></tr>';
   ITEMS.filter(i=>i.group==='cogs').forEach(it=>html+=lineHtml(it,it.label));
   {
     const v=cur.totCogsA-cur.totCogsB,vp=cur.totCogsB?v/cur.totCogsB*100:0;
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const pv=prev.totCogsA-prev.totCogsB,pvp=prev.totCogsB?pv/prev.totCogsB*100:0;trend=trendArrow(vp,pvp);}
-    html+=`<tr class="tot-row"><td>Total COGS</td><td>${f0(cur.totCogsB)}</td><td>${f0(cur.totCogsA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totCogsB?(prev.totCogsA-prev.totCogsB)/prev.totCogsB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'cogs')}</td></tr>`;
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const pv=prev.totCogsA-prev.totCogsB,pvp=prev.totCogsB?pv/prev.totCogsB*100:0;trend=trendArrow(vp,pvp,true);}
+    html+=`<tr class="tot-row"><td>Total COGS</td><td>${f0(cur.totCogsB)}</td><td>${f0(cur.totCogsA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${trend.disp}</td><td>${statusBadge(v,'cogs')}</td></tr>`;
   }
 
   {
     const v=cur.gpA-cur.gpB,vp=cur.gpB?v/cur.gpB*100:0;
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const pv=prev.gpA-prev.gpB,pvp=prev.gpB?pv/prev.gpB*100:0;trend=trendArrow(vp,pvp);}
-    html+=`<tr class="gp-row"><td>Gross Profit</td><td>${f0(cur.gpB)}</td><td>${f0(cur.gpA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.gpB?(prev.gpA-prev.gpB)/prev.gpB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue')}</td></tr>`;
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const pv=prev.gpA-prev.gpB,pvp=prev.gpB?pv/prev.gpB*100:0;trend=trendArrow(vp,pvp);}
+    html+=`<tr class="gp-row"><td>Gross Profit</td><td>${f0(cur.gpB)}</td><td>${f0(cur.gpA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${trend.disp}</td><td>${statusBadge(v,'revenue')}</td></tr>`;
     const mv=cur.gmA-cur.gmB;
-    let mtrend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){mtrend=trendArrow(cur.gmA-cur.gmB,prev.gmA-prev.gmB);}
-    html+=`<tr class="gp-row"><td>Gross Margin %</td><td>${cur.gmB.toFixed(1)}%</td><td>${cur.gmA.toFixed(1)}%</td><td class="${valClsRev(mv)}">${mv>=0?'+':''}${mv.toFixed(1)} pp</td><td>&mdash;</td><td class="${mtrend.cls}">${mtrend.arrow} ${Math.abs(mv).toFixed(1)} pp</td><td>${statusBadge(mv,'revenue',0.3)}</td></tr>`;
+    let mtrend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){mtrend=trendArrow(cur.gmA-cur.gmB,prev.gmA-prev.gmB,false,' pp');}
+    html+=`<tr class="gp-row"><td>Gross Margin %</td><td>${cur.gmB.toFixed(1)}%</td><td>${cur.gmA.toFixed(1)}%</td><td class="${valClsRev(mv)}">${mv>=0?'+':''}${mv.toFixed(1)} pp</td><td>&mdash;</td><td class="${mtrend.cls}">${mtrend.arrow} ${mtrend.disp}</td><td>${statusBadge(mv,'revenue',0.3)}</td></tr>`;
   }
 
   html+='<tr class="sec-row"><td colspan="7">Operating Expenses</td></tr>';
   ITEMS.filter(i=>i.group==='opex').forEach(it=>html+=lineHtml(it,it.label));
   {
     const v=cur.totOpexA-cur.totOpexB,vp=cur.totOpexB?v/cur.totOpexB*100:0;
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const pv=prev.totOpexA-prev.totOpexB,pvp=prev.totOpexB?pv/prev.totOpexB*100:0;trend=trendArrow(vp,pvp);}
-    html+=`<tr class="tot-row"><td>Total Operating Expenses</td><td>${f0(cur.totOpexB)}</td><td>${f0(cur.totOpexA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.totOpexB?(prev.totOpexA-prev.totOpexB)/prev.totOpexB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'opex')}</td></tr>`;
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const pv=prev.totOpexA-prev.totOpexB,pvp=prev.totOpexB?pv/prev.totOpexB*100:0;trend=trendArrow(vp,pvp,true);}
+    html+=`<tr class="tot-row"><td>Total Operating Expenses</td><td>${f0(cur.totOpexB)}</td><td>${f0(cur.totOpexA)}</td><td class="${valCls(v)}">${f0(v)}</td><td class="${valCls(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${trend.disp}</td><td>${statusBadge(v,'opex')}</td></tr>`;
   }
 
   html+=lineHtml(ITEMS.find(i=>i.key==='interest'),'Interest Expense (Loan)');
 
   {
     const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
-    let trend={cls:'trend-stable',arrow:'&#8594;'};
-    if(prev){const pv=prev.npA-prev.npB,pvp=prev.npB?pv/prev.npB*100:0;trend=trendArrow(vp,pvp);}
-    html+=`<tr class="np-row"><td>NET PROFIT</td><td>${f0(cur.npB)}</td><td>${f0(cur.npA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${Math.abs(vp-(prev?(prev.npB?(prev.npA-prev.npB)/prev.npB*100:0):0)).toFixed(1)}%</td><td>${statusBadge(v,'revenue',0.5)}</td></tr>`;
+    let trend={cls:'trend-stable',arrow:'&#8594;',disp:'—'};
+    if(canTrend){const pv=prev.npA-prev.npB,pvp=prev.npB?pv/prev.npB*100:0;trend=trendArrow(vp,pvp);}
+    html+=`<tr class="np-row"><td>NET PROFIT</td><td>${f0(cur.npB)}</td><td>${f0(cur.npA)}</td><td class="${valClsRev(v)}">${f0(v)}</td><td class="${valClsRev(v)}">${vp.toFixed(1)}%</td><td class="${trend.cls}">${trend.arrow} ${trend.disp}</td><td>${statusBadge(v,'revenue',0.5)}</td></tr>`;
   }
 
   document.getElementById('bvaBody').innerHTML=html;
@@ -591,34 +598,33 @@ async function renderSummary(cur){
   await loadUsers();
   const v=cur.npA-cur.npB,vp=cur.npB?v/cur.npB*100:0;
   const html=`
-    <div class="bs-row"><div class="bs-ic g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></div><div class="bs-txt"><div class="bs-lbl">Budgeted Net Profit</div><div class="bs-val">${f0(cur.npB)} ETB</div></div></div>
+    <div class="bs-row"><div class="bs-ic g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></div><div class="bs-txt"><div class="bs-lbl">Budgeted Net Profit <span style="font-weight:500;color:var(--tl)">(calculated from line budgets)</span></div><div class="bs-val">${f0(cur.npB)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic g"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="bs-txt"><div class="bs-lbl">Actual Net Profit</div><div class="bs-val">${f0(cur.npA)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic ${v<0?'r':'g'}"><svg viewBox="0 0 24 24"><path d="${v<0?'M12 5v14M19 12l-7 7-7-7':'M12 19V5M5 12l7-7 7 7'}"/></svg></div><div class="bs-txt"><div class="bs-lbl">Variance</div><div class="bs-val ${v<0?'neg':'pos'}">${f0(v)} ETB</div></div></div>
     <div class="bs-row"><div class="bs-ic o"><svg viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div><div class="bs-txt"><div class="bs-lbl">Variance %</div><div class="bs-val ${vp<0?'neg':'pos'}">${vp.toFixed(1)}%</div></div></div>`;
   document.getElementById('bsList').innerHTML=html;
   const m=cur.meta;
   const isAi=m.source==='ai',isManual=m.source==='manual';
-  const tagLabel=!m.hasBudget?'Not Set':(isAi?'AI Suggested':(isManual?'Manual':'Manual'));
-  document.getElementById('bsSourceTag').outerHTML=`<span class="bs-tag${isAi?' ai':''}" id="bsSourceTag">${tagLabel}</span>`;
-  document.querySelector('.bs-meta-row .v').textContent=(m.lastCreatedBy&&USERS_MAP[m.lastCreatedBy])||(OWNER?OWNER.name:'—');
+  const tagLabel=!m.hasBudget?'Not Set':(isAi?'Suggested':(isManual?'Manual':'Manual'));
+  const tagEl=document.getElementById('bsSourceTag');tagEl.textContent=tagLabel;tagEl.className='bs-tag'+(isAi?' ai':'');
+  document.getElementById('bsCreated').textContent=(m.lastCreatedBy&&USERS_MAP[m.lastCreatedBy])||'—';
+  document.getElementById('bsCount').textContent=ITEMS.filter(i=>cur.rows[i.key].set).length+' of '+ITEMS.length;
   document.getElementById('bsUpdated').textContent=m.lastUpdated?new Date(m.lastUpdated).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+new Date(m.lastUpdated).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'Not set yet';
 }
 
 /* ══════════════════════ VARIANCE BY CATEGORY CHART ══════════════════════ */
 let chVar=null;
 function renderVarChart(cur){
+  const ln=(label,key,rev)=>({label,v:cur.rows[key].actual-cur.rows[key].budget,fav:rev?(v=>v>=0):(v=>v<=0),set:cur.rows[key].set});
   const cats=[
     {label:'Revenue',v:cur.totRevA-cur.totRevB,fav:v=>v>=0},
-    {label:'Raw Materials',v:cur.rows.raw_materials.actual-cur.rows.raw_materials.budget,fav:v=>v<=0},
-    {label:'Packaging',v:cur.rows.packaging.actual-cur.rows.packaging.budget,fav:v=>v<=0},
-    {label:'Labor / Wages',v:cur.rows.labor.actual-cur.rows.labor.budget,fav:v=>v<=0},
-    {label:'Electricity',v:cur.rows.electricity.actual-cur.rows.electricity.budget,fav:v=>v<=0},
-    {label:'Water',v:cur.rows.water.actual-cur.rows.water.budget,fav:v=>v<=0},
-    {label:'Maintenance',v:cur.rows.maintenance.actual-cur.rows.maintenance.budget,fav:v=>v<=0},
+    ln('Raw Materials','raw_materials'),ln('Packaging','packaging'),ln('Labor / Wages','labor'),ln('Electricity','electricity'),
+    ln('Water','water'),ln('Rent','rent'),ln('Maintenance','maintenance'),ln('Other Production','cogs_other'),
+    ln('Delivery & Transport','delivery'),ln('Marketing','marketing'),
     {label:'Operating Expenses',v:cur.totOpexA-cur.totOpexB,fav:v=>v<=0},
     {label:'Interest Expense',v:cur.intA-cur.intB,fav:v=>v<=0},
     {label:'Net Profit',v:cur.npA-cur.npB,fav:v=>v>=0}
-  ];
+  ].filter(c=>c.set!==false);
   const labels=cats.map(c=>c.label);
   const data=cats.map(c=>Math.abs(c.v)<1?0:(c.fav(c.v)?Math.abs(c.v):-Math.abs(c.v)));
   const colors=cats.map(c=>Math.abs(c.v)<1?'#94a89f':(c.fav(c.v)?'#27ae60':'#e5484d'));
@@ -651,9 +657,11 @@ function onMonthChange(label){
 }
 
 /* ══════════════════════ MANUAL BUDGET MODAL ══════════════════════ */
-function openManualBudget(){
+async function openManualBudget(){
   if(!CUR)return;
   document.getElementById('manualSub').textContent='Set ETB targets for each P&L line · '+MONTHS[curMonthIdx];
+  let loanInt=0;
+  try{const {start,end}=periodBounds(curPeriod());const L=await sb('loan_repayment_schedule?due_date=gte.'+start+'&due_date=lt.'+end+'&select=interest_portion');loanInt=L.reduce((t,r)=>t+Number(r.interest_portion||0),0);}catch(e){}
   const groups=[['Revenue','revenue'],['Cost of Goods Sold','cogs'],['Operating Expenses','opex'],['Other','interest']];
   let html='';
   groups.forEach(([label,g])=>{
@@ -661,25 +669,47 @@ function openManualBudget(){
     if(!items.length)return;
     html+=`<div class="mb-grp"><div class="mb-grp-ttl">${label}</div>`;
     items.forEach(it=>{
-      const row=CUR.rows[it.key];
-      html+=`<div class="mb-row"><div class="lbl">${it.label}</div><input type="number" step="0.01" id="mb_${it.key}" value="${row.budget}"><div class="cur">Actual: ${f0(row.actual)}</div><div></div></div>`;
+      const row=CUR.rows[it.key],dr=(CUR.meta.drivers||{})[it.key];
+      const fromLoan=it.key==='interest'&&!row.set&&loanInt>0;
+      const val=row.set?row.budget:(fromLoan?Math.round(loanInt*100)/100:'');
+      html+=`<div class="mb-row"><div class="lbl">${it.label}</div><input type="number" min="0" step="0.01" id="mb_${it.key}" value="${val}" placeholder="Not set"><div class="cur">${fromLoan?'From loan schedule · ':''}Actual: ${f0(row.actual)}</div><div></div></div>`;
+      if(g==='revenue')html+=`<div class="mb-drv">Quantity <input type="number" min="0" step="1" id="mq_${it.key}" value="${dr&&dr.q!=null?dr.q:''}" oninput="drvCalc('${it.key}')"> × Price (ETB) <input type="number" min="0" step="0.01" id="mp_${it.key}" value="${dr&&dr.p!=null?dr.p:''}" oninput="drvCalc('${it.key}')"> fills the amount above</div>`;
     });
     html+='</div>';
   });
   document.getElementById('manualBody').innerHTML=html;
+  document.getElementById('copyPrevBtn').style.display=curMonthIdx>0?'':'none';
   document.getElementById('manualOverlay').classList.add('show');
+}
+function drvCalc(key){
+  const q=parseFloat(document.getElementById('mq_'+key).value),p=parseFloat(document.getElementById('mp_'+key).value);
+  if(!isNaN(q)&&!isNaN(p)&&q>=0&&p>=0)document.getElementById('mb_'+key).value=Math.round(q*p*100)/100;
+}
+async function copyPrevBudget(){
+  if(curMonthIdx<1)return;
+  const d=await loadPeriod(PERIODS[curMonthIdx-1].key);
+  let n=0;
+  ITEMS.forEach(it=>{
+    const el=document.getElementById('mb_'+it.key);
+    if(!el||!d.isSet[it.key])return;
+    el.value=d.budget[it.key];n++;
+    const dr=d.drivers[it.key],q=document.getElementById('mq_'+it.key),pr=document.getElementById('mp_'+it.key);
+    if(q){q.value=dr&&dr.q!=null?dr.q:'';pr.value=dr&&dr.p!=null?dr.p:'';}
+  });
+  toast(n?('Copied '+n+' lines from '+MONTHS[curMonthIdx-1]+' — review, then Save'):('No budget set in '+MONTHS[curMonthIdx-1]),n?'success':'info');
 }
 function closeManualBudget(){document.getElementById('manualOverlay').classList.remove('show');}
 
-async function upsertBudgetLine(pKey,lineItem,amount,source,suggestedAmount){
-  await loadUsers();
+async function upsertBudgetLine(pKey,lineItem,amount,source,suggestedAmount,drv){
   const existing=await sb('budget_lines?period=eq.'+pKey+'&line_item=eq.'+lineItem+'&select=id');
-  const body={budget_amount:amount,budget_source:source,suggested_amount:(suggestedAmount===undefined?null:suggestedAmount)};
-  if(existing.length){
-    await sbWrite('budget_lines?id=eq.'+existing[0].id,'PATCH',body);
-  }else{
-    await sbWrite('budget_lines','POST',{period:pKey,line_item:lineItem,created_by:OWNER?OWNER.id:null,...body});
+  if(!amount){ // blank or 0 = no budget for this line
+    if(existing.length)await sbWrite('budget_lines?id=eq.'+existing[0].id,'DELETE');
+    return;
   }
+  const body={budget_amount:amount,budget_source:source,suggested_amount:(suggestedAmount===undefined?null:suggestedAmount)};
+  if(drv!==undefined){body.quantity=drv.q;body.unit_price=drv.p;}
+  if(existing.length)await sbWrite('budget_lines?id=eq.'+existing[0].id,'PATCH',body);
+  else await sbWrite('budget_lines','POST',{period:pKey,line_item:lineItem,...body}); // created_by/updated_by are stamped by the database
 }
 
 async function saveManualBudget(){
@@ -687,7 +717,7 @@ async function saveManualBudget(){
   const jobs=[];
   ITEMS.forEach(it=>{
     const el=document.getElementById('mb_'+it.key);
-    if(el){const val=parseFloat(el.value);if(!isNaN(val))jobs.push(upsertBudgetLine(pKey,it.key,val,'manual'));}
+    if(el){const val=parseFloat(el.value);{const q=document.getElementById('mq_'+it.key),pr=document.getElementById('mp_'+it.key);const drv=q?{q:parseFloat(q.value)||null,p:parseFloat(pr.value)||null}:undefined;jobs.push(upsertBudgetLine(pKey,it.key,isNaN(val)?0:val,'manual',undefined,drv));}}
   });
   try{
     await Promise.all(jobs);
@@ -703,14 +733,13 @@ async function saveManualBudget(){
 
 /* ══════════════════════ AI BUDGET SUGGESTION (3-month rolling average of real actuals) ══════════════════════ */
 async function suggestedBudget(it){
-  const n=Math.min(3,curMonthIdx);
-  if(n<=0)return CUR.rows[it.key].budget;
-  let s=0;
-  for(let k=1;k<=n;k++){
+  let sum=0,n=0;
+  for(let k=1;k<=3&&curMonthIdx-k>=0;k++){
     const d=await loadPeriod(PERIODS[curMonthIdx-k].key);
-    s+=d.actual[it.key];
+    if(!Object.values(d.actual).some(x=>x))continue; // month with no data at all
+    sum+=d.actual[it.key];n++;
   }
-  return Math.round(s/n);
+  return n?Math.round(sum/n):CUR.rows[it.key].budget;
 }
 async function openAiSuggestion(){
   if(!CUR)return;
@@ -748,7 +777,7 @@ async function acceptAiSuggestion(){
     invalidatePeriod(pKey);
     closeAiSuggestion();
     await renderTable();
-    toast('AI-suggested budget applied for '+MONTHS[curMonthIdx],'success');
+    toast('Suggested budget applied for '+MONTHS[curMonthIdx],'success');
   }catch(err){
     console.error('Failed to apply AI suggestion:',err);
     toast('Could not save budget — check your connection and try again','error');
@@ -783,7 +812,7 @@ async function openTrendModal(){
         {label:'Actual Net Profit',data:actuals,backgroundColor:'#27ae60',borderRadius:5,maxBarThickness:34}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom',labels:{font:{family:'Nunito',size:11,weight:'700'},color:'#5e7268',boxWidth:12,boxHeight:12}},
+        plugins:{datalabels:{display:false},legend:{position:'bottom',labels:{font:{family:'Nunito',size:11,weight:'700'},color:'#5e7268',boxWidth:12,boxHeight:12}},
           tooltip:{backgroundColor:'#16261e',padding:9,cornerRadius:8,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' ETB'}}},
         scales:{x:{grid:{display:false},ticks:{font:{family:'Nunito',size:11},color:'#9aada5'}},y:{grid:{color:'#eef3f0'},ticks:{font:{family:'Nunito',size:10.5},color:'#9aada5'}}}
       }
@@ -935,7 +964,7 @@ function buildNotifications(cur){
       onExportXlsx:exportExcel,
       notifications:[]
     });
-    toast('Could not connect to the database — check your network settings','error');
+    toast('Could not load Budget vs Actual: '+(err.message||'unknown error'),'error');
   }
 })();
 </script>
