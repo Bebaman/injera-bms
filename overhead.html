@@ -1590,10 +1590,10 @@ async function onOhCategoryChange(isEdit){
     rentBox.style.display = '';
     prepaidInfo = await loadPrepaidInfo(cat, period, editId);
     if(prepaidInfo.wac===null){
-      rentBox.innerHTML = '<b>No prepaid purchase found.</b> Record the prepaid purchase first (Purchases → Rent Prepaid, quantity in months).';
+      rentBox.innerHTML = '<b>No prepaid purchase found.</b> To charge an amount above 0, record the prepaid purchase first (Purchases → Rent Prepaid, quantity in months). You can still save 0 ETB for this month.';
     } else {
       if(!editId && !(parseFloat(amt.value)>0)) amt.value = Math.round(prepaidInfo.wac*100)/100;
-      rentBox.innerHTML = 'Monthly cost from the prepaid purchase: <b>'+fmt(prepaidInfo.wac)+' ETB</b>. Months of '+esc(cat.name.toLowerCase())+' left in stock: <b>'+(prepaidInfo.closing===null?'—':(Math.round(prepaidInfo.closing*100)/100))+'</b>. Tap Save to confirm this month.';
+      rentBox.innerHTML = 'Monthly cost from the prepaid purchase: <b>'+fmt(prepaidInfo.wac)+' ETB</b>. Months of '+esc(cat.name.toLowerCase())+' left in stock: <b>'+(prepaidInfo.closing===null?'—':(Math.round(prepaidInfo.closing*100)/100))+'</b>. Tap Save to confirm this month (change the amount to 0 if no rent is charged).';
     }
     recalcOhPreview();
   } else if(cat.kind==='bill'){
@@ -1648,7 +1648,9 @@ async function saveOverhead(){
       await sbUpsert('electricity_meter_readings', { period, remaining_kwh: kwh, note: (description && description !== window._ohAutoDesc) ? description : null }, 'period');
       toast('Meter reading saved — electricity overhead calculated','success');
     } else {
-      if(NEW_DB && cat && cat.kind==='prepaid' && amount<=0){ toast('Enter the monthly amount to confirm','error'); return; }
+      // 0 ETB is a valid amount for a prepaid category (e.g. a month with no rent due). The database
+      // accepts amount >= 0 and, for 0, simply stores no stock usage, so we only block an empty/invalid field.
+      if(NEW_DB && cat && cat.kind==='prepaid' && document.getElementById('ohAmount').value.trim()===''){ toast('Enter the monthly amount (0 is allowed)','error'); return; }
       let body = { period, category_id, description, amount };
       if(NEW_DB && cat && cat.kind==='bill'){
         const paidDate = document.getElementById('ohPaidDate').value || null;

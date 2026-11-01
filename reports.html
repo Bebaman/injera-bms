@@ -721,7 +721,7 @@ if(!window.SB_URL || !window.SB_KEY){
    sales, production_batches, derkosh_batches, monthly_overhead, purchases —
    grouped by period (YYYY-MM) and year. This mirrors the year-end close
    architecture in Part 3.15 of the spec: comparisons only make sense once
-   WAC has been reset per year, so all 4 years below are treated as CLOSED
+   WAC has been reset per year, so every year below is treated as CLOSED
    except the current year, which is YTD through the most recent month with data. */
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -729,8 +729,12 @@ const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct',
 // this file — was previously hardcoded to 2026 in ~20 places, which would
 // have silently gone stale on Jan 1 of the following year.
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS_ALL = [2023,2024,2025,CURRENT_YEAR];
-const YEAR_COLOR = {2023:'#1d5c38', 2024:'#2563eb', 2025:'#f59e0b', [CURRENT_YEAR]:'#e53935'};
+// The business's records start in 2026 — earlier years (2023-2025) have no data and are no longer listed.
+// FIRST_YEAR is the only place that decides where the report begins; every later year is added automatically.
+const FIRST_YEAR = 2026;
+const YEARS_ALL = Array.from({length: Math.max(1, CURRENT_YEAR - FIRST_YEAR + 1)}, (_,i)=> FIRST_YEAR + i);
+const YEAR_PALETTE = ['#e53935','#2563eb','#f59e0b','#1d5c38','#8b5cf6','#0891b2'];
+const YEAR_COLOR = Object.fromEntries(YEARS_ALL.map((y,i)=>[y, YEAR_PALETTE[i % YEAR_PALETTE.length]]));
 
 // Empty report state used before/unless Supabase aggregation succeeds. No
 // fabricated fallback numbers are used anywhere in this file — every figure
@@ -753,7 +757,7 @@ let yearData = {};
 YEARS_ALL.forEach(y=>{ yearData[y] = emptyYearData(); }); // seeded up front so the
 // very first renderAll() (fired by setView() before loadFromSupabase() has
 // resolved) has safe zeroed data instead of hitting yearData[y] === undefined.
-let topCustomers = [];       // [{id, name, y2023..yCURRENT_YEAR, firstPeriod, lastPeriod}], populated from real sales
+let topCustomers = [];       // [{id, name, y<year> per year in YEARS_ALL, firstPeriod, lastPeriod}], populated from real sales
 let custMonthlyReal = {};    // custMonthlyReal[customerId][period] = revenue, for custMonthly()
 let ingredientMonthly = {};  // ingredientMonthly[key][year] = [12 values or null], key in blend/corn/gomen/teff/rice
 let derkoshAsp = {};         // derkoshAsp[year] = avg ETB/kg for the year (annual); monthly handled via derkoshAspMonthly
@@ -949,8 +953,8 @@ const RATE_METRICS = new Set(['margin','grossMargin','cogsPct','asp','derkoshAsp
 /* ════════════════ ROLLING AVERAGE HELPERS (Price History module, spec §3.3) ════════════════
    "Compare current price against 3-month average and 6-month average.
    Flags if current price is more than 10% above average." */
-function absIdx(year,i){ return (year-2023)*12+i; }
-function fromAbsIdx(idx){ return {year:2023+Math.floor(idx/12), i:((idx%12)+12)%12}; }
+function absIdx(year,i){ return (year-FIRST_YEAR)*12+i; }
+function fromAbsIdx(idx){ return {year:FIRST_YEAR+Math.floor(idx/12), i:((idx%12)+12)%12}; }
 function latestDataPoint(){
   let bestAbs=-1, bestYear=null, bestI=null;
   YEARS_ALL.forEach(y=>{
@@ -1731,7 +1735,7 @@ function renderMonthlySnapshot(d){
   // ══ 6. INVENTORY SUMMARY ══
   const openingValue = (d.openingBal||[]).reduce((s,r)=>s+num(r.opening_value),0);
   const closingValue = (d.closingBal||[]).reduce((s,r)=>s+num(r.closing_value),0);
-  const purchasesValue = (d.purchases||[]).filter(p=>p.type==='purchase').reduce((s,p)=>s+num(p.total_cost),0);
+  const purchasesValue = (d.purchases||[]).filter(p=>p.type==='purchase' && p.source!=='milling_conversion').reduce((s,p)=>s+num(p.total_cost),0);
   const inventoryValueChange = closingValue - openingValue;
   const lowStock = (d.stockAlerts||[]).filter(s=>s.low_stock);
   const invHtml = `
@@ -1805,7 +1809,8 @@ function renderMonthlySnapshot(d){
   const totalProdCost = (d.prodCosts||[]).reduce((s,b)=>s+num(b.total_cost),0);
   const avgProductionCost = (d.prodCosts||[]).length ? totalProdCost/(d.prodCosts||[]).length : null;
   const costPerInjera = injeraProducedTotal>0 ? totalProdCost/injeraProducedTotal : null;
-  const revenuePerInjera = injeraProducedTotal>0 ? num(p.injera_revenue)/injeraProducedTotal : null;
+  const injeraSoldQty = (d.sales||[]).filter(r=>r.product_type!=='derkosh').reduce((s,r)=>s+num(r.quantity),0);
+  const revenuePerInjera = injeraSoldQty>0 ? num(p.injera_revenue)/injeraSoldQty : null;   // price per injera SOLD (same as the Average Selling Price)
   const profitPerInjera = (costPerInjera!=null && revenuePerInjera!=null) ? revenuePerInjera-costPerInjera : null;
   const avgInventory = (openingValue+closingValue)/2;
   const inventoryTurnover = avgInventory>0 ? totalCogs/avgInventory : null;
@@ -2009,6 +2014,13 @@ function effectiveReportConfig(){
 }
 
 /* ════════════════ KPI ROW ════════════════ */
+// Which total sits on top of the revenue-weighted ratio for each percentage metric
+const WEIGHTED_RATIOS = { margin:'net', grossMargin:'gross', cogsPct:'cogs' };
+function ratioParts(y, view, monthIdx){
+  if(view==='annual' || monthIdx===-1){ const t = yearTotals(y); return {rev:t.rev, net:t.net, gross:t.rev-t.cogs, cogs:t.cogs}; }
+  const r = yearData[y] && yearData[y].months[monthIdx];
+  return r ? {rev:num(r.rev), net:num(r.net), gross:num(r.rev)-num(r.cogs), cogs:num(r.cogs)} : {rev:0, net:0, gross:0, cogs:0};
+}
 function kpiAggregate(metricKey, years, view, monthIdx){
   const isRate = RATE_METRICS.has(metricKey);
   let total=0, count=0;
@@ -2016,7 +2028,14 @@ function kpiAggregate(metricKey, years, view, monthIdx){
     const v = metricValue(metricKey, y, view, monthIdx);
     if(v!=null){ total+=v; count++; }
   });
-  const value = isRate ? (count? total/count : 0) : total;
+  let value = isRate ? (count? total/count : 0) : total;
+  // Margins / COGS % over several years must be weighted by revenue (total profit / total revenue),
+  // not the plain average of each year's percentage.
+  if(WEIGHTED_RATIOS[metricKey] && years.length>1){
+    const parts = years.map(y=> ratioParts(y, view, monthIdx));
+    const rv = parts.reduce((s,p)=>s+p.rev,0);
+    if(rv>0) value = parts.reduce((s,p)=>s+p[WEIGHTED_RATIOS[metricKey]],0) / rv * 100;
+  }
   const sorted=[...years].sort((a,b)=>a-b);
   let changePct=null, compareLabel='';
   if(sorted.length>=2){
@@ -2141,7 +2160,7 @@ function renderIngredientKpis(ing, years, view, monthIdx){
   const cogsAgg = kpiAggregate('cogsPct', years, view, monthIdx);
 
   const cards = [
-    kpiCardHtml(0, m.icon, m.cls, m.label+' — Current Price', current, m.decimals, m.unit, null, 'as of '+dateLabel),
+    kpiCardHtml(0, m.icon, m.cls, m.label+' — Current Price', current==null?0:current, m.decimals, m.unit, null, 'as of '+dateLabel),
     kpiCardHtml(1, 'trend', 'ic-b', '3-Month Rolling Average', avg3==null?0:avg3, m.decimals, m.unit, null, 'through '+dateLabel),
     kpiCardHtml(2, 'trend', 'ic-c', '6-Month Rolling Average', avg6==null?0:avg6, m.decimals, m.unit, null, 'through '+dateLabel),
     priceAlertCardHtml(diffPct, alertOn),
@@ -2873,8 +2892,8 @@ function renderRetentionTable(){
       tbody += `<td style="text-align:right;font-weight:600">${v==null?'—':fmt0(v)}</td>`;
       if(idx>0){
         const prevY = years[idx-1];
-        const prev = c['y'+prevY];
-        if(prev==null && v!=null){
+        const prev = c['y'+prevY] ? c['y'+prevY] : null;   // 0 = no sales that year
+        if(prev==null && v>0){
           tbody += `<td style="text-align:right;color:#1a6b3c;font-weight:700">NEW</td>`;
         } else if(prev!=null && (v==null || v===0)){
           tbody += `<td style="text-align:right;color:#c0392b;font-weight:700">CHURNED</td>`;
@@ -3015,8 +3034,8 @@ function showRetentionDetail(){
       const v = c['y'+y];
       tbody += `<td>${v==null?'—':fmt0(v)}</td>`;
       if(idx>0){
-        const prev = c['y'+years[idx-1]];
-        if(prev==null && v!=null) tbody += `<td class="var-fav">NEW</td>`;
+        const prev = c['y'+years[idx-1]] ? c['y'+years[idx-1]] : null;   // 0 = no sales that year
+        if(prev==null && v>0) tbody += `<td class="var-fav">NEW</td>`;
         else if(prev!=null && (v==null||v===0)) tbody += `<td class="var-unfav">CHURNED</td>`;
         else if(prev!=null && v!=null && prev>0){
           const chg = (v-prev)/prev*100;
@@ -3208,8 +3227,9 @@ function renderCumulativeChart(){
     const data = [];
     for(let i=0;i<12;i++){
       if(i<monthsInYear(y)){
-        const v = m.monthly(y,i) || 0;
-        running += v; count++;
+        const raw = m.monthly(y,i);
+        if(raw==null && isRate){ data.push(count ? running/count : null); continue; }   // no price that month: keep the average, don't pull it toward 0
+        running += (raw || 0); count++;
         data.push(isRate ? running/count : running);
       } else data.push(null);
     }
@@ -3437,6 +3457,8 @@ function buildYoyPlExecSummary(sorted){
     items.push({icon:'barchart', cls:'ic-c', html: pace!=null
       ? `<b>${last} (YTD) is currently</b> tracking ${pace>=0?'+':''}${pace.toFixed(0)}% ${pace>=0?'ahead of':'behind'} the same period last year`
       : `<b>${last} (YTD)</b> — not enough prior-year data to compare pacing`});
+  } else if(lastN<12){
+    items.push({icon:'barchart', cls:'ic-c', html:`<b>${last} (YTD)</b> covers January\u2013${MONTH_ABBR[lastN-1]} only; year-on-year pacing will appear once a second year is on record`});
   } else {
     items.push({icon:'barchart', cls:'ic-c', html:`<b>${last}</b> is the most recent full year on record`});
   }
@@ -3719,8 +3741,8 @@ renderHeader({
   title: 'Multi-Year Reporting',
   subtitle: 'Compare performance across years',
   showMonthPicker: true,
-  months: [`2023 - ${CURRENT_YEAR}`, `${CURRENT_YEAR-4} - ${CURRENT_YEAR-1}`, `${CURRENT_YEAR-2} - ${CURRENT_YEAR}`],
-  selectedMonth: `2023 - ${CURRENT_YEAR}`,
+  months: Array.from(new Set([`${YEARS_ALL[0]} - ${CURRENT_YEAR}`, `${Math.max(YEARS_ALL[0], CURRENT_YEAR-1)} - ${CURRENT_YEAR}`])),
+  selectedMonth: `${YEARS_ALL[0]} - ${CURRENT_YEAR}`,
   onMonthChange: onRangeChange,
   showExport: true,
   onExportPdf: () => exportPdf(),

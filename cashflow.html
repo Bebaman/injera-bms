@@ -468,7 +468,6 @@ let RAW = {
   openingBalances: {},      // { period: { cash, bank, mobile } }
   sales: [],                // rows for active period
   creditPayments: [],
-  supplierPayments: [],     // payments made to suppliers against credit purchases
   purchases: [],
   payroll: [],
   pettyCash: [],
@@ -536,7 +535,7 @@ function bagFromRows(period, rows, statics, ok){
   return {
     period,
     openingBalance: openingBalances, // {cash,bank,mobile} for THIS period only
-    sales: rows.sales||[], creditPayments: rows.cp||[], supplierPayments: rows.sp||[], purchases: rows.purch||[], payroll: rows.payroll||[],
+    sales: rows.sales||[], creditPayments: rows.cp||[], purchases: rows.purch||[], payroll: rows.payroll||[],
     pettyCash: rows.petty||[], cfEntries: rows.cfe||[],
     expenseCatById: statics.expenseCatById, itemById: statics.itemById,
     loanRepayments: rows.loan||[],
@@ -561,13 +560,12 @@ async function fetchPeriodData(period){
     sbGet(`payroll_detail?select=*&period=eq.${period}`),
     sbGet(`petty_cash?select=*&period=eq.${period}`),
     sbGet(`cash_flow_entries?select=*&period=eq.${period}`),
-    sbGet(`supplier_payments?select=*&period=eq.${period}`),
     sbGet(`loan_repayment_schedule?select=*&status=eq.paid&actual_payment_date=gte.${startDate}&actual_payment_date=lte.${endDate}`)
   ]), loadStatics() ]);
 
   const val = i => (results[i].status==='fulfilled') ? (results[i].value||[]) : [];
   const data = bagFromRows(period,
-    { ob:val(0), sales:val(1), cp:val(2), purch:val(3), payroll:val(4), petty:val(5), cfe:val(6), sp:val(7), loan:val(8) },
+    { ob:val(0), sales:val(1), cp:val(2), purch:val(3), payroll:val(4), petty:val(5), cfe:val(6), loan:val(7) },
     statics, !results.some(r => r.status==='rejected'));
   if(data.ok) PERIOD_CACHE[period] = data;
   return data;
@@ -592,19 +590,19 @@ async function prefetchChain(period){
   const [res, statics] = await Promise.all([ Promise.allSettled([
     rng('channel_opening_balances'), rng('sales','&is_deleted=eq.false'), rng('credit_payments'),
     rng('purchases','&is_deleted=eq.false&approval_status=in.(auto_approved,approved)'),
-    rng('payroll_detail'), rng('petty_cash'), rng('cash_flow_entries'), rng('supplier_payments'),
+    rng('payroll_detail'), rng('petty_cash'), rng('cash_flow_entries'),
     sbGet(`loan_repayment_schedule?select=*&status=eq.paid&actual_payment_date=gte.${startDate}&actual_payment_date=lte.${endDate}`)
   ]), loadStatics() ]);
   if(res.some(r => r.status==='rejected') || !statics.ok) return;   // incomplete: use the safe per-month path
-  const [ob, sales, cp, purch, payroll, petty, cfe, sp, loan] = res.map(r => r.value || []);
+  const [ob, sales, cp, purch, payroll, petty, cfe, loan] = res.map(r => r.value || []);
   const by = (rows, keyFn) => { const m = {}; rows.forEach(r => { const k = keyFn(r); if(k){ (m[k] = m[k] || []).push(r); } }); return m; };
   const g = { ob: by(ob,r=>r.period), sales: by(sales,r=>r.period), cp: by(cp,r=>r.period), purch: by(purch,r=>r.period),
-              payroll: by(payroll,r=>r.period), petty: by(petty,r=>r.period), cfe: by(cfe,r=>r.period), sp: by(sp,r=>r.period),
+              payroll: by(payroll,r=>r.period), petty: by(petty,r=>r.period), cfe: by(cfe,r=>r.period),
               loan: by(loan,r=>String(r.actual_payment_date||'').slice(0,7)) };
   for(let p = A; p <= B; p = nextMonthKey(p)){
     if(p === B) continue;          // the viewed month is always loaded fresh by loadMonthData()
     PERIOD_CACHE[p] = bagFromRows(p, { ob:g.ob[p], sales:g.sales[p], cp:g.cp[p], purch:g.purch[p], payroll:g.payroll[p],
-                                       petty:g.petty[p], cfe:g.cfe[p], sp:g.sp[p], loan:g.loan[p] }, statics, true);
+                                       petty:g.petty[p], cfe:g.cfe[p], loan:g.loan[p] }, statics, true);
   }
   CHAIN_DONE[period] = true;
 }
@@ -656,7 +654,6 @@ async function loadMonthData(period){
   RAW.openingBalances = { [period]: resolvedOpening };
   RAW.sales = data.sales;
   RAW.creditPayments = data.creditPayments;
-  RAW.supplierPayments = data.supplierPayments || [];
   RAW.purchases = data.purchases;
   RAW.payroll = data.payroll;
   RAW.pettyCash = data.pettyCash;
@@ -675,7 +672,7 @@ async function loadMonthData(period){
 // channel -> category_name(exact spec label) -> amount, for a fixed set of line items.
 function computeCashFlow(data){
   data = data || { period: RAW.period, openingBalance: (RAW.openingBalances[RAW.period]||{}),
-    sales: RAW.sales, creditPayments: RAW.creditPayments, supplierPayments: RAW.supplierPayments, purchases: RAW.purchases,
+    sales: RAW.sales, creditPayments: RAW.creditPayments, purchases: RAW.purchases,
     payroll: RAW.payroll, pettyCash: RAW.pettyCash, cfEntries: RAW.cfEntries,
     expenseCatById: RAW.expenseCatById, itemById: RAW.itemById, loanRepayments: RAW.loanRepayments };
 
@@ -750,11 +747,6 @@ function computeCashFlow(data){
     }
   });
 
-  // Money paid to suppliers against credit purchases: cash leaves on the payment date, not on the purchase date
-  // (a credit purchase's own channel is 'credit', so the loop above already skipped it).
-  const supplierPaid = zero();
-  (data.supplierPayments||[]).forEach(sp=>{ if(CHANNELS.includes(sp.channel)) supplierPaid[sp.channel] += parseFloat(sp.amount_paid||0); });
-
   const laborWages = zero();
   data.payroll.forEach(pr=>{
     if(CHANNELS.includes(pr.payment_channel)) laborWages[pr.payment_channel] += parseFloat(pr.net_pay||0);
@@ -764,7 +756,7 @@ function computeCashFlow(data){
   data.pettyCash.forEach(pc=>{ pettyCashOut.cash += parseFloat(pc.amount||0); });
 
   const otherCashOut = zero();
-  const overheadPaid = zero(), advancesPaid = zero();   // overhead bills paid / salary advances (own lines)
+  const overheadPaid = zero(), advancesPaid = zero(), distBankFees = zero();   // overhead bills paid / salary advances / bank charges paid with profit distributions (own lines)
   data.cfEntries.forEach(e=>{
     // Same exclusion as otherCashIncome above — a transfer's "out" leg isn't a real
     // operating expense, it's the same money reappearing on the other account.
@@ -772,6 +764,7 @@ function computeCashFlow(data){
       const a = parseFloat(e.amount||0);
       if(e.entry_type === 'overhead_payment') overheadPaid[e.channel] += a;
       else if(e.entry_type === 'payroll_advance') advancesPaid[e.channel] += a;
+      else if(e.entry_type === 'bank_charge') distBankFees[e.channel] += a;   // shown on the Bank Charges line, counted once
       else otherCashOut[e.channel] += a;
     }
   });
@@ -782,7 +775,7 @@ function computeCashFlow(data){
   const maintenance = expenseByCat['Maintenance'] || zero();
   const deliveryOut = expenseByCat['Delivery Out'] || zero();
   const marketing = expenseByCat['Marketing'] || zero();
-  const bankCharges = addChan(expenseByCat['Bank Charges'] || zero(), bankFeesOnPurchases);
+  const bankCharges = addChan(expenseByCat['Bank Charges'] || zero(), bankFeesOnPurchases, distBankFees);
   const otherOverheadCats = Object.keys(expenseByCat).filter(k=>!['Rent','Electricity','Water','Maintenance','Delivery Out','Marketing','Bank Charges','Labor'].includes(k));
   const otherOverhead = zero();
   otherOverheadCats.forEach(k=> CHANNELS.forEach(c=> otherOverhead[c] += expenseByCat[k][c]));
@@ -793,7 +786,7 @@ function computeCashFlow(data){
   CHANNELS.forEach(c=>{
     totalOperatingPayments[c] = rawMaterials[c] + packaging[c] + laborWages[c] + rent[c] + electricity[c] +
       water[c] + maintenance[c] + deliveryOut[c] + marketing[c] + otherOverhead[c] + bankCharges[c] + pettyCashOut[c] + otherCashOut[c] +
-      overheadPaid[c] + advancesPaid[c] + supplierPaid[c];
+      overheadPaid[c] + advancesPaid[c];
   });
 
   const netOperating = zero();
@@ -833,7 +826,7 @@ function computeCashFlow(data){
       // Skip here — handled above via loan_repayment_schedule's principal/interest split,
       // which is the authoritative source. Left as a no-op to avoid double-counting.
     }
-    else if(e.entry_type === 'profit_distribution'){
+    else if(e.entry_type === 'profit_distribution' || e.entry_type === 'tithe_payment'){   // tithe given is a payout like the distribution
       const label = e.description || 'Profit distribution';
       distributions[label] = distributions[label] || zero();
       distributions[label][e.channel] += (e.direction==='out'? amt : -amt);
@@ -881,7 +874,7 @@ function computeCashFlow(data){
   return {
     opening, cashSalesInjera, cashSalesDerkosh, salesByChannel, creditCollected, otherCashIncome, totalOperatingReceipts,
     rawMaterials, packaging, laborWages, rent, electricity, water, maintenance, deliveryOut, marketing,
-    otherOverhead, bankCharges, pettyCashOut, otherCashOut, overheadPaid, advancesPaid, supplierPaid, totalOperatingPayments, netOperating,
+    otherOverhead, bankCharges, pettyCashOut, otherCashOut, overheadPaid, advancesPaid, totalOperatingPayments, netOperating,
     equipPurchases, equipSales, netInvesting,
     capitalInjection, capitalWithdrawal, loanReceived, loanPrincipal, loanInterest, otherFinancing, distributions, netFinancing,
     transferIn, transferOut, netTransfers,
@@ -942,7 +935,6 @@ function renderCashFlowTable(cf){
   h += tblRow('Marketing', negate(cf.marketing), { cls:'cf-line' });
   h += tblRow('Bank Charges', negate(cf.bankCharges), { cls:'cf-line' });
   h += tblRow('Overhead Bills Paid', negate(cf.overheadPaid), { cls:'cf-line' });
-  if(rowTotal(cf.supplierPaid) !== 0) h += tblRow('Payments to Suppliers (credit purchases)', negate(cf.supplierPaid), { cls:'cf-line' });
   h += tblRow('Petty Cash Expenses', { cash: -cf.pettyCashOut.cash }, { cls:'cf-line' });
   h += tblRow('Other Operating Expenses', negate(addChan(cf.otherOverhead, cf.otherCashOut)), { cls:'cf-line' });
   h += tblRow('Total Operating Payments', negate(cf.totalOperatingPayments), { cls:'cf-sub' });
@@ -1256,7 +1248,6 @@ function cfStatementLines(cf){
     cfLine('Marketing', cf.marketing, -1),
     cfLine('Bank charges', cf.bankCharges, -1),
     cfLine('Overhead bills paid', cf.overheadPaid, -1),
-    cfLine('Payments to suppliers (credit purchases)', cf.supplierPaid, -1),
     cfLine('Petty cash expenses', cf.pettyCashOut, -1),
     cfLine('Other operating expenses', addChan(cf.otherOverhead, cf.otherCashOut), -1)
   ].filter(cfNonZero);
@@ -1326,7 +1317,6 @@ function cfTransactions(){
     if(p.source === 'milling_conversion' || !ok(p.payment_channel)) return;
     add(outflows, p.date || p.purchase_date, p.description || p.supplier || (p.type === 'expense' ? 'Expense' : 'Purchase'), p.payment_channel, parseFloat(p.total_cost||0), 'operating');
   });
-  (RAW.supplierPayments||[]).forEach(sp => { if(ok(sp.channel)) add(outflows, sp.payment_date, 'Supplier payment (credit purchase)', sp.channel, parseFloat(sp.amount_paid||0), 'operating'); });
   RAW.payroll.forEach(pr => { if(ok(pr.payment_channel)) add(outflows, pr.payment_date, 'Payroll', pr.payment_channel, parseFloat(pr.net_pay||0), 'operating'); });
   RAW.pettyCash.forEach(pc => add(outflows, pc.date, pc.description || 'Petty cash expense', 'cash', parseFloat(pc.amount||0), 'operating'));
   (RAW.loanRepayments||[]).forEach(r => {

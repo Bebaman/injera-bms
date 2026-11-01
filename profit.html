@@ -529,13 +529,47 @@ button{font-family:inherit}
           </div>
           <div class="fg">
             <label>Paid From</label>
-            <div class="fg-wrap"><select id="recChannel"><option value="bank">Bank</option><option value="cash">Cash</option><option value="mobile">Mobile Money</option></select></div>
+            <div class="fg-wrap"><select id="recChannel" onchange="onRecChannelChange()"><option value="bank">Bank</option><option value="cash">Cash</option><option value="mobile">Mobile Money</option></select></div>
+          </div>
+          <div class="fg" id="recFeeRow" style="grid-column:1/-1">
+            <label>Bank / transfer charge (ETB)</label>
+            <div class="fg-wrap"><input type="number" id="recBankCharge" value="0" min="0" step="0.01" oninput="onRecFeeInput()"></div>
+            <span class="fg-hint" id="recFeeHint">The fee the bank or mobile-money service took for sending these payments. Leave 0 if there was none.</span>
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-ghost" onclick="closeRecordModal()">Cancel</button>
         <button type="submit" class="btn-solid"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Confirm &amp; Record</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- GIVE TITHE MODAL -->
+<div class="modal-overlay" id="titheModalOverlay" onclick="if(event.target===this)closeTitheModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-txt"><h3>Record Tithe Given</h3><p>Money leaving the business for the tithe set aside this month</p></div>
+      <button class="modal-hdr-close" onclick="closeTitheModal()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <form onsubmit="submitTitheModal(event)">
+      <div class="modal-body">
+        <div class="split-preview">
+          <div class="split-row"><span>Month</span><b id="thMonth"></b></div>
+          <div class="split-row"><span>Tithe set aside</span><b id="thDue"></b></div>
+        </div>
+        <div class="form-grid" style="margin-top:12px">
+          <div class="fg"><label>Amount given (ETB)</label><div class="fg-wrap"><input type="number" id="thAmount" min="0.01" step="0.01" required oninput="updateTitheHint()"></div></div>
+          <div class="fg"><label>Date</label><div class="fg-wrap"><input type="date" id="thDate" required></div></div>
+          <div class="fg"><label>Paid From</label><div class="fg-wrap"><select id="thChannel" onchange="onTitheChannelChange()"><option value="bank">Bank</option><option value="cash">Cash</option><option value="mobile">Mobile Money</option></select></div></div>
+          <div class="fg" id="thFeeRow"><label>Bank / transfer charge (ETB)</label><div class="fg-wrap"><input type="number" id="thFee" value="0" min="0" step="0.01" oninput="titheFeeTouched=true;updateTitheHint()"></div></div>
+          <div class="fg" style="grid-column:1/-1"><span class="fg-hint" id="thHint"></span></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeTitheModal()">Cancel</button>
+        <button type="submit" class="btn-solid"><span>Save</span></button>
       </div>
     </form>
   </div>
@@ -664,6 +698,8 @@ async function loadShareholders(){
    shared between the shareholders. The set-aside money stays in the business accounts until it is given. It needs the columns
    from sql/audit_24_tithe.sql; until they exist TITHE_READY is false and the page behaves exactly as before. */
 let tithePct = 0, TITHE_READY = false, TITHE_CACHE = null;
+let bankFeePct = 0, recFeeTouched = false, titheFeeTouched = false;
+let DISTID_CACHE = {}, DISTFEE = {}, TITHEPAID = {}, TITHEFEE = {};   // by distribution id: bank charge on the payout / tithe given {amount,date} / bank charge on the tithe
 function titheFor(net){ return (TITHE_READY && net > 0 && tithePct > 0) ? roundAmt(net * tithePct / 100) : 0; }
 
 async function loadDefaultPct(){
@@ -677,6 +713,11 @@ async function loadDefaultPct(){
     // 'whole' = nearest 1 ETB. Governs how each shareholder's distribution amount is rounded.
     if(rows && rows[0] && rows[0].rounding_mode === 'whole') ROUNDING_UNIT = 1;
   }catch(err){ console.log('business_settings load failed, defaulting distribution % to 10 and rounding to 2dp:', err.message); }
+  // Default bank-charge % from Settings > Accounting (same value Purchases uses). Only used to suggest a charge.
+  try{
+    const bf = await sbGet('business_settings?select=bank_charge_default_pct&limit=1');
+    if(bf && bf[0] && bf[0].bank_charge_default_pct!=null) bankFeePct = n(bf[0].bank_charge_default_pct);
+  }catch(e){ bankFeePct = 0; }
 }
 
 // The real subledger — monthly_cash_flow is a Supabase VIEW, one row per period per
@@ -753,7 +794,16 @@ async function buildHistory(){
   if(!periods.includes(curKey)) periods.push(curKey);
   periods.sort();
 
-  OWNER_ACT_CACHE = null; DIST_CACHE = null; TITHE_CACHE = {};
+  OWNER_ACT_CACHE = null; DIST_CACHE = null; TITHE_CACHE = {}; DISTID_CACHE = {}; DISTFEE = {}; TITHEPAID = {}; TITHEFEE = {};
+  try{ (await sbGet('profit_distributions?select=id,period') || []).forEach(r=>{ DISTID_CACHE[r.period] = r.id; }); }catch(e){ console.log('distribution ids load failed:', e.message); }
+  try{
+    (await sbGet('cash_flow_entries?select=ref_id,entry_type,amount,date,description&entry_type=in.(bank_charge,tithe_payment)&direction=eq.out') || []).forEach(r=>{
+      if(!r.ref_id) return;
+      if(r.entry_type==='tithe_payment') TITHEPAID[r.ref_id] = { amount: (TITHEPAID[r.ref_id]?TITHEPAID[r.ref_id].amount:0) + n(r.amount), date: r.date };
+      else if(/tithe/i.test(r.description||'')) TITHEFEE[r.ref_id] = (TITHEFEE[r.ref_id]||0) + n(r.amount);
+      else DISTFEE[r.ref_id] = (DISTFEE[r.ref_id]||0) + n(r.amount);
+    });
+  }catch(e){ console.log('bank charge / tithe entries load failed:', e.message); }
   if(TITHE_READY){
     try{ (await sbGet('profit_distributions?select=period,tithe_pct,tithe_amount') || []).forEach(r=>{ TITHE_CACHE[r.period] = { pct: n(r.tithe_pct), amount: n(r.tithe_amount) }; }); }
     catch(e){ console.log('tithe load failed:', e.message); }
@@ -774,7 +824,7 @@ async function buildHistory(){
     const distRec = await loadDistributionRecord(key);
     const net = hasOpeningBalance ? (b.salesReceipts + b.arCollected + b.otherIn - b.opPayments - b.payroll - b.pettyCash - b.otherOut - (b.vatIn - b.vatOut) - b.debt - b.capex) : 0;
     rows.push({
-      key, m: periodLabel(key), hasOpeningBalance,
+      key, m: periodLabel(key), hasOpeningBalance, distId: DISTID_CACHE[key] || null,
       cashIn: hasOpeningBalance ? (b.salesReceipts+b.arCollected+b.otherIn-b.vatIn) : 0,
       cashOut: hasOpeningBalance ? (b.opPayments+b.payroll+b.pettyCash+b.otherOut-b.vatOut+b.debt+b.capex) : 0,
       net, injections, withdrawals, injectionList,
@@ -961,12 +1011,13 @@ function renderMonth(){
   const rec = history[curIdx];
   document.getElementById('msel').value = rec.m;
   document.getElementById('pdLbl').textContent = '('+rec.m+')';
-  document.getElementById('pdNet').textContent = f(rec.net);
+  document.getElementById('pdNet').textContent = f(rec.recorded && rec.recordedNet!=null ? rec.recordedNet : rec.net);   // a recorded month shows the profit the distribution was based on (a later bank charge lowers the live figure)
   document.getElementById('pdPct').textContent = rec.pct.toFixed(2);
   const disp = getDisplaySplit(rec);
   document.getElementById('pdDistAmt').textContent = f(disp.distAmt);
   document.getElementById('pdRetained').textContent = f(disp.retained);
   renderTitheLine(rec, disp);
+  renderBankFeeLine(rec);
   renderShareholderTable(disp);
   renderCashPosition(rec);
   renderHistory();
@@ -989,6 +1040,29 @@ function renderTitheLine(rec, disp){
   el.innerHTML = `<b>Tithe set aside: ${f(disp.tithe)} ETB</b> (${(Math.round(tp*100)/100)}% of net cash profit). It is taken first and stays in the business accounts until it is given; the Distribution % then applies to the remaining ${f(rec.recorded ? (rec.recordedNet||0) - disp.tithe : rec.net - disp.tithe)} ETB.`;
 }
 
+// Under the tithe line: the bank charge paid with the distribution, and the tithe itself (given or still to give).
+function renderBankFeeLine(rec){
+  const tl = document.getElementById('pdTitheLine'); if(!tl) return;
+  let el = document.getElementById('pdBankFeeLine');
+  if(!el){ el = document.createElement('div'); el.id = 'pdBankFeeLine'; el.className = 'tithe-off'; el.style.marginTop = '6px'; tl.parentNode.insertBefore(el, tl.nextSibling); }
+  const id = rec.distId;
+  const parts = [];
+  const fee = id ? (DISTFEE[id] || 0) : 0;
+  if(rec.recorded && fee > 0) parts.push(`<div><b>Bank charge paid with the payout: ${f(fee)} ETB</b> — taken from the same account as the payments; a business expense, not part of the shareholders' amounts.</div>`);
+  const titheDue = rec.recorded ? (rec.recordedTithe || 0) : 0;
+  if(TITHE_READY && titheDue > 0 && id){
+    const given = TITHEPAID[id];
+    if(given){
+      const tf = TITHEFEE[id] || 0;
+      parts.push(`<div><b>Tithe given: ${f(given.amount)} ETB</b> on ${esc2(given.date||'')}${tf>0 ? ` · bank charge ${f(tf)} ETB` : ''}.</div>`);
+    } else {
+      parts.push(`<div>Tithe of <b>${f(titheDue)} ETB</b> is set aside and not yet given. <button type="button" class="btn-tool" style="margin-left:6px" onclick="openTitheModal()">Record tithe given</button></div>`);
+    }
+  }
+  if(parts.length){ el.style.display = ''; el.innerHTML = parts.join(''); } else el.style.display = 'none';
+}
+function esc2(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 function renderHistory(){
   const body = document.getElementById('histBody');
   body.innerHTML = '';
@@ -1000,7 +1074,7 @@ function renderHistory(){
     const disp = getDisplaySplit(h);
     const tr = document.createElement('tr');
     if(i===curIdx) tr.className='row-cur';
-    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.net)}</td><td>${TITHE_READY ? f(disp.tithe||0) : '—'}</td><td>${h.pct.toFixed(2)}%</td><td>${f(disp.distAmt)}</td><td>${f(disp.distAmt)}</td><td>${f(disp.retained)}</td><td><span class="tbl-badge">${h.recorded?'Paid':'Preview'}</span></td>`;
+    tr.innerHTML = `<td style="font-weight:700">${h.m}</td><td>${f(h.recorded && h.recordedNet!=null ? h.recordedNet : h.net)}</td><td>${TITHE_READY ? f(disp.tithe||0) : '—'}</td><td>${h.pct.toFixed(2)}%</td><td>${f(disp.distAmt)}</td><td>${f(disp.distAmt)}</td><td>${f(disp.retained)}</td><td><span class="tbl-badge">${h.recorded?'Paid':'Preview'}</span></td>`;
     body.appendChild(tr);
   }
   if(!shown){
@@ -1170,7 +1244,35 @@ function openRecordModal(){
   if(rr){ rr.style.display = sp.tithe>0 ? '' : 'none'; document.getElementById('recTitheLbl').textContent = 'Tithe set aside ('+(Math.round(tithePct*100)/100)+'%)'; document.getElementById('recTithe').textContent = f(sp.tithe)+' ETB'; }
   document.getElementById('recDistAmt').textContent = f(sp.distAmt)+' ETB';
   document.getElementById('recDate').value = appToday();
+  recFeeTouched = false;
+  document.getElementById('recBankCharge').value = 0;
+  onRecChannelChange();
   document.getElementById('recordModalOverlay').classList.add('show');
+}
+// Bank charge: only bank / mobile-money payments carry one. Suggest the Settings default % until the user types a figure.
+function recPaidTotal(){ const rec = history[curIdx]; return computeSplit(rec.net, rec.pct).shares.reduce((t,s)=>t+s.amount,0); }
+function onRecChannelChange(){
+  const ch = document.getElementById('recChannel').value;
+  const row = document.getElementById('recFeeRow');
+  const on = ch !== 'cash';
+  row.style.display = on ? '' : 'none';
+  if(!on){ document.getElementById('recBankCharge').value = 0; recFeeTouched = false; }
+  else if(!recFeeTouched && bankFeePct > 0){
+    const amt = Math.round(recPaidTotal() * bankFeePct) / 100;
+    document.getElementById('recBankCharge').value = amt > 0 ? amt.toFixed(2) : 0;
+  }
+  updateRecFeeHint();
+}
+function onRecFeeInput(){ recFeeTouched = true; updateRecFeeHint(); }
+function updateRecFeeHint(){
+  const el = document.getElementById('recFeeHint'); if(!el) return;
+  const fee = parseFloat(document.getElementById('recBankCharge').value) || 0;
+  const paid = recPaidTotal();
+  const chSel = document.getElementById('recChannel');
+  const chName = chSel.options[chSel.selectedIndex].text;
+  el.textContent = fee > 0
+    ? `${chName} balance goes down by ${f(paid + fee)} ETB (payments ${f(paid)} + charge ${f(fee)}). The charge is a business expense, not part of the shareholders' amounts.`
+    : 'The fee the bank or mobile-money service took for sending these payments. Leave 0 if there was none.';
 }
 function closeRecordModal(){ document.getElementById('recordModalOverlay').classList.remove('show'); }
 async function submitRecordModal(e){
@@ -1183,6 +1285,9 @@ async function submitRecordModal(e){
   if(!(rec.net > 0)){ toast('This month has no positive net cash profit to distribute','error'); return; }
   const totalOwnership = shareholders.reduce((t,x)=>t+Number(x.pct||0),0);
   if(Math.abs(totalOwnership-100) > 0.01){ toast('Active shareholder percentages total '+totalOwnership.toFixed(2)+'% — they must total 100% before distributing','error'); return; }
+  let bankCharge = payChannel === 'cash' ? 0 : (parseFloat(document.getElementById('recBankCharge').value) || 0);
+  if(!isFinite(bankCharge) || bankCharge < 0){ toast('Bank charge cannot be negative','error'); return; }
+  bankCharge = Math.round(bankCharge * 100) / 100;
   const distId = crypto.randomUUID();
   // profit_distribution_lines.shareholder_id is required — if the shareholders table
   // failed to load and we're on the hardcoded fallback (no real ids), stop before
@@ -1216,7 +1321,13 @@ async function submitRecordModal(e){
     await sbPost('profit_distributions', [header]);
     headerSaved = true;
     await sbPost('profit_distribution_lines', lines);
-    toast('Distribution recorded and paid for '+rec.m,'success');
+    // The fee leaves the same account as the payments, so the bank balance in the system matches the bank statement.
+    // It is an operating cash-out (it reduces the month's cash profit and shows as Bank Charges in Cash Flow).
+    if(bankCharge > 0){
+      await sbPost('cash_flow_entries', [{ date: paymentDate, channel: payChannel, direction: 'out', category: 'operating', entry_type: 'bank_charge',
+        description: 'Bank charge on profit distribution ' + rec.key, amount: bankCharge, ref_id: distId }]);
+    }
+    toast('Distribution recorded and paid for '+rec.m+(bankCharge>0 ? ' (bank charge '+f(bankCharge)+' ETB saved)' : ''),'success');
   }catch(err){
     console.error(err);
     // The header and its lines are two separate saves: if the lines failed, take the header back out so nothing half-recorded is left.
@@ -1229,6 +1340,64 @@ async function submitRecordModal(e){
   loadAllTimeSummary().then(renderSummary);
   renderMonth();
   buildTrendChart();
+}
+
+/* ══ GIVE TITHE ═══════════════════════════════
+   Giving the tithe takes money out of an account, so it is recorded like the payout: a financing cash-out
+   (not an expense, and it does not change net cash profit) plus the bank charge, if any, as an operating cash-out. ══ */
+function openTitheModal(){
+  const rec = history[curIdx];
+  if(!rec || !rec.recorded || !rec.distId || !(rec.recordedTithe > 0)){ toast('There is no recorded tithe for this month','info'); return; }
+  if(TITHEPAID[rec.distId]){ toast('The tithe for '+rec.m+' is already recorded as given','info'); return; }
+  document.getElementById('thMonth').textContent = rec.m;
+  document.getElementById('thDue').textContent = f(rec.recordedTithe)+' ETB';
+  document.getElementById('thAmount').value = (Math.round(rec.recordedTithe*100)/100).toFixed(2);
+  document.getElementById('thDate').value = appToday();
+  document.getElementById('thChannel').value = 'bank';
+  titheFeeTouched = false; document.getElementById('thFee').value = 0;
+  onTitheChannelChange();
+  document.getElementById('titheModalOverlay').classList.add('show');
+}
+function closeTitheModal(){ document.getElementById('titheModalOverlay').classList.remove('show'); }
+function onTitheChannelChange(){
+  const on = document.getElementById('thChannel').value !== 'cash';
+  document.getElementById('thFeeRow').style.display = on ? '' : 'none';
+  if(!on){ document.getElementById('thFee').value = 0; titheFeeTouched = false; }
+  else if(!titheFeeTouched && bankFeePct > 0){
+    const amt = Math.round((parseFloat(document.getElementById('thAmount').value)||0) * bankFeePct) / 100;
+    document.getElementById('thFee').value = amt > 0 ? amt.toFixed(2) : 0;
+  }
+  updateTitheHint();
+}
+function updateTitheHint(){
+  const amt = parseFloat(document.getElementById('thAmount').value)||0, fee = parseFloat(document.getElementById('thFee').value)||0;
+  const sel = document.getElementById('thChannel');
+  document.getElementById('thHint').textContent = fee > 0
+    ? `${sel.options[sel.selectedIndex].text} balance goes down by ${f(amt+fee)} ETB (tithe ${f(amt)} + charge ${f(fee)}).`
+    : `${sel.options[sel.selectedIndex].text} balance goes down by ${f(amt)} ETB. Enter the bank charge if the transfer had one.`;
+}
+async function submitTitheModal(e){
+  e.preventDefault();
+  const rec = history[curIdx];
+  if(!rec || !rec.distId){ toast('Reload the page and try again','error'); return; }
+  const amount = Math.round((parseFloat(document.getElementById('thAmount').value)||0)*100)/100;
+  const date = document.getElementById('thDate').value;
+  const channel = document.getElementById('thChannel').value;
+  let fee = channel==='cash' ? 0 : Math.round((parseFloat(document.getElementById('thFee').value)||0)*100)/100;
+  if(!(amount > 0)){ toast('Enter the amount given','error'); return; }
+  if(!date){ toast('Choose the date','error'); return; }
+  if(fee < 0){ toast('Bank charge cannot be negative','error'); return; }
+  if(TITHEPAID[rec.distId]){ toast('The tithe for '+rec.m+' is already recorded as given','info'); return; }
+  try{
+    const rows = [{ date, channel, direction:'out', category:'financing', entry_type:'tithe_payment', description:'Tithe given '+rec.key, amount, ref_id: rec.distId }];
+    if(fee > 0) rows.push({ date, channel, direction:'out', category:'operating', entry_type:'bank_charge', description:'Bank charge on tithe payment '+rec.key, amount: fee, ref_id: rec.distId });
+    await sbPost('cash_flow_entries', rows);
+    toast('Tithe recorded as given'+(fee>0?' (bank charge '+f(fee)+' ETB saved)':''),'success');
+  }catch(err){ console.error(err); toast('Could not save the tithe: '+err.message,'error'); return; }
+  closeTitheModal();
+  await refreshAll();
+  loadAllTimeSummary().then(renderSummary);
+  renderMonth();
 }
 
 /* ══ SHAREHOLDER MODAL ═══════════════════════ */
@@ -1527,6 +1696,6 @@ initPage();
 </script>
 <script src="/js/responsive.js" defer></script>
 <script>/* double-click protection — see singleFlight() in app-state.js */
-if(typeof singleFlight==='function') singleFlight(['saveShareholderChanges', 'submitRecordModal', 'submitDistributionSettingsModal']);</script>
+if(typeof singleFlight==='function') singleFlight(['saveShareholderChanges', 'submitRecordModal', 'submitDistributionSettingsModal', 'submitTitheModal']);</script>
 </body>
 </html>
