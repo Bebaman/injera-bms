@@ -176,6 +176,59 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .info-note{display:flex;align-items:flex-start;gap:8px;font-size:11.5px;color:var(--tm);padding:10px 17px;background:#f7fbf9;border-top:1px solid var(--border)}
 .info-note svg{width:14px;height:14px;stroke:#9aada5;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;margin-top:1px}
 
+/* ══ REPORT PAGES — shared design pass ═══════════════════════════════
+   Brings the overview, year-over-year, charts, tables and summaries in line with the
+   Monthly Report look: soft rounded cards, tinted KPI cards with an accent bar, a toolbar
+   card for the filters, quiet tables with a green total band. Layout widths are unchanged. */
+.rpt-bar{background:#fff;border:1px solid #e6efea;border-radius:16px;padding:12px 16px;box-shadow:0 1px 2px rgba(27,67,50,.04),0 8px 24px -18px rgba(27,67,50,.3)}
+.rpt-sel-grp label{font-size:11px;text-transform:none;letter-spacing:.02em;color:#4d6b5c}
+.rpt-sel{border-color:#dcebe3;border-radius:10px;height:38px}
+.rpt-sel:focus{border-color:#52B788;box-shadow:0 0 0 3px rgba(82,183,136,.2)}
+.toggle2{border-color:#dcebe3;border-radius:10px;height:38px}
+.toggle2 button.on{background:linear-gradient(135deg,#1B4332,#2D6A4F)}
+.rsel{border-color:#dcebe3;border-radius:10px}
+.yr-chip{font-size:12.5px;padding:6px 13px;background:linear-gradient(135deg,#1B4332,#2D6A4F);border-color:transparent;color:#fff}
+.yr-chip:hover{background:linear-gradient(135deg,#143527,#245a42)}
+.yr-chip.off{background:#fff;border:1px solid #dcebe3;color:#6b8578}
+.yr-chip.off:hover{background:#f3f9f6}
+
+.kc{position:relative;border-radius:16px;border-color:#e6efea;background:linear-gradient(180deg,#fff 0%,#f7fbf9 100%);box-shadow:0 1px 2px rgba(27,67,50,.04),0 10px 24px -18px rgba(27,67,50,.35);overflow:hidden}
+.kc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#52B788,#2D6A4F)}
+.kc-lbl{font-size:11.5px;color:#5f7b6d}
+.kc-val{font-size:22px;font-variant-numeric:tabular-nums}
+.kc-chg{font-size:11.5px}
+.kc:hover{box-shadow:0 14px 30px -16px rgba(27,67,50,.45)}
+
+.card{border-radius:18px;border-color:#e6efea;box-shadow:0 1px 2px rgba(27,67,50,.04),0 8px 24px -16px rgba(27,67,50,.28)}
+.card-hd{padding:18px 22px 12px}
+.card-ttl{font-size:15.5px}
+.chart-box{padding:0 22px 20px}
+.exec-list{padding:16px 22px 20px;gap:10px}
+.exec-list li{font-size:13px;line-height:1.6}
+.exec-list li::before{top:8px;background:#52B788}
+.exec-row{gap:14px;padding:6px 22px 22px}
+.exec-item{background:#f8fbf9;border:1px solid #e6efea;border-radius:14px;padding:14px 16px;gap:12px}
+.exec-item .ei-txt{font-size:12.5px;line-height:1.55}
+.var-pill{font-size:11px;padding:4px 11px}
+.info-note{background:#f8fbf9;border-top:1px solid #e6efea;font-size:12px;padding:12px 22px}
+
+.tbl,.tbl-yoy,.tbl-sb{font-variant-numeric:tabular-nums}
+.tbl th{padding:11px 16px;font-size:11.5px;text-transform:none;letter-spacing:.02em;color:#4d6b5c;background:#f3f9f6;border-bottom-color:#dcebe3}
+.tbl td{padding:11px 16px;border-bottom-color:#eff5f2}
+.tbl tr:hover td,.tbl-yoy tr:hover td,.tbl-sb tr:hover td{background:#f8fcfa}
+.tbl .tot td,.tbl-yoy .tot td,.tbl-sb .tot td{background:linear-gradient(180deg,#e3f4ea,#d9f0e3);border-top:1.5px solid #9fd2b6;color:#12392a;font-weight:800}
+.tbl .tot td:nth-child(2){color:#12392a}
+.tbl-yoy th{font-size:10.5px;text-transform:none;letter-spacing:.02em;color:#4d6b5c;background:#f3f9f6;border-bottom-color:#dcebe3}
+.tbl-yoy td{padding-top:9px;padding-bottom:9px;border-bottom-color:#eff5f2}
+.tbl-yoy .grp-hd th{background:#e8f5ee;color:#1a6b3c;border-bottom-color:#cfe8da}
+.tbl-sb th{font-size:10.5px;text-transform:none;letter-spacing:.02em;color:#4d6b5c;background:#f3f9f6;border-bottom-color:#dcebe3}
+.tbl-sb td{border-bottom-color:#eff5f2}
+.heatmap-tbl th{text-transform:none;font-size:10.5px;color:#5f7b6d}
+.heatmap-tbl td{border-radius:6px}
+.dm-panel{border-radius:18px}
+.dm-hd{padding:18px 22px}
+.dm-body th{text-transform:none;font-size:11.5px;color:#4d6b5c;border-bottom:1px solid #dcebe3}
+
 @media (max-width:1200px){
   .kpi-row{grid-template-columns:repeat(3,1fr)}
   .bot3{grid-template-columns:1fr 1fr}
@@ -241,12 +294,176 @@ h1,h2,h3,h4,h5,.kc-val,.dnut-lbl strong{font-family:'Quicksand','Segoe UI',Robot
 .dm-body th:first-child,.dm-body td:first-child{text-align:left}
 .dm-body td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
 .dm-body tr:last-child td{border-bottom:none}
-#snapshotBody table{width:100%;border-collapse:collapse;font-size:12px}
-#snapshotBody th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:var(--tl);font-weight:700;padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap}
-#snapshotBody th:first-child,#snapshotBody td:first-child{text-align:left}
-#snapshotBody td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
-#snapshotBody tr:last-child td{border-bottom:none}
 .dm-note{font-size:11.5px;color:var(--tl);margin-top:14px;line-height:1.5;padding:10px 12px;background:#f7fbf9;border-radius:8px}
+
+/* ══ MONTHLY REPORT — design ═════════════════════════════════════════
+   Same green identity as the rest of the BMS. Soft rounded cards with numbered
+   headings, a hero banner for the month's headline number, tinted KPI cards,
+   a "where the revenue went" bar, a gauge for efficiency, and quiet tables
+   (text left, numbers right, tabular digits, totals in a green band). */
+#snapshotBody{display:flex;flex-direction:column;gap:22px;min-width:0}
+.rp-meta{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rp-gen{font-size:11.5px;color:var(--tl)}
+
+/* hero */
+.rp-hero{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;
+  padding:28px 32px;border-radius:20px;color:#fff;
+  background:radial-gradient(900px 300px at 100% -20%,rgba(82,183,136,.55),transparent 60%),radial-gradient(500px 260px at -10% 120%,rgba(82,183,136,.25),transparent 60%),linear-gradient(135deg,#1B4332 0%,#2D6A4F 100%);
+  box-shadow:0 14px 34px -14px rgba(27,67,50,.6)}
+.rp-hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:34px solid rgba(255,255,255,.06);pointer-events:none}
+.rp-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#b7e4c7}
+.rp-hero-title{font-family:'Quicksand',sans-serif;font-size:15px;font-weight:600;color:#d8f3dc;margin-top:10px}
+.rp-hero-month{font-family:'Quicksand',sans-serif;font-size:34px;font-weight:700;line-height:1.1;margin-top:2px}
+.rp-hero-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.rp-hero .rp-pill{background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(2px)}
+.rp-hero .rp-pill.ok{background:rgba(82,183,136,.35)}
+.rp-hero .rp-pill.wait{background:rgba(242,194,96,.3);color:#fff3d1}
+.rp-pill.health.pos{background:rgba(82,183,136,.35)}
+.rp-pill.health.warn{background:rgba(242,194,96,.3);color:#fff3d1}
+.rp-pill.health.neg{background:rgba(240,141,106,.4)}
+.rp-hero-r{text-align:right;position:relative;z-index:1}
+.rp-hero-k{font-size:12.5px;font-weight:700;color:#b7e4c7;letter-spacing:.04em}
+.rp-hero-v{font-family:'Quicksand',sans-serif;font-size:46px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rp-hero-v small{font-size:15px;font-weight:600;color:#b7e4c7}
+.rp-hero-s{margin-top:8px;font-size:13px;color:#d8f3dc;display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.rp-chip{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.rp-chip.up{background:rgba(82,183,136,.35);color:#eafff3}
+.rp-chip.down{background:rgba(240,141,106,.4);color:#fff0ea}
+
+/* cards */
+.rp-card{background:#fff;border:1px solid #e6efea;border-radius:18px;box-shadow:0 1px 2px rgba(27,67,50,.04),0 8px 24px -16px rgba(27,67,50,.25);min-width:0;overflow:hidden}
+.rp-card-hd{padding:18px 22px 0}
+.rp-card-hd h3{display:flex;align-items:center;gap:10px;font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--td);margin:0}
+.rp-num{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#e5f5ed;color:#1B4332;font-size:12.5px;font-weight:800}
+.rp-card-bd{padding:14px 22px 22px;min-width:0}
+.rp-card-bd h4{font-family:'Quicksand',sans-serif;font-size:13px;font-weight:700;color:var(--td);margin:18px 0 8px}
+.rp-grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+.rp-split{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin-top:8px}
+
+/* KPI cards */
+.rp-score{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.rp-tile{position:relative;border-radius:14px;padding:16px 18px 15px;background:linear-gradient(180deg,#f6fbf8,#fff);border:1px solid #e1eee7;min-width:0}
+.rp-tile::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0;background:#52B788}
+.rp-tile:nth-child(2)::before{background:#2D6A4F}
+.rp-tile:nth-child(3)::before{background:#f2c260}
+.rp-tile:nth-child(4)::before{background:#74c69d}
+.rp-tile-l{font-size:12px;font-weight:700;color:var(--tl)}
+.rp-tile-v{font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;color:var(--td);margin:6px 0 4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rp-tile-v small{font-size:11.5px;font-weight:600;color:var(--tl)}
+.rp-tile-s{font-size:12px;color:var(--tl);line-height:1.45}
+.rp-tile-s.pos{color:#1a7a45;font-weight:700}
+.rp-tile-s.neg{color:#c0392b;font-weight:700}
+.rp-tile-s.warn{color:#b45309;font-weight:700}
+
+/* revenue split */
+.rp-flow{margin-top:22px;padding:16px 18px;border-radius:14px;background:#f8fbf9;border:1px solid #e6efea}
+.rp-flow-h{font-family:'Quicksand',sans-serif;font-size:13.5px;font-weight:700;color:var(--td);margin-bottom:10px}
+.rp-flow-bar{display:flex;height:16px;border-radius:10px;overflow:hidden;background:#e8f1ec;gap:2px}
+.rp-flow-bar span{display:block;min-width:3px}
+.rp-flow-leg{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:12px}
+.rp-flow-leg div{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--td)}
+.rp-flow-leg i{flex:none;width:10px;height:10px;border-radius:3px}
+.rp-flow-leg span{color:var(--tl)}
+.rp-flow-leg b{font-variant-numeric:tabular-nums}
+.rp-flow-loss{margin-top:10px;font-size:12.5px;font-weight:700;color:#c0392b}
+.rp-points{margin:18px 0 0 18px;font-size:13px;line-height:1.7;color:var(--td)}
+.rp-points li::marker{color:#52B788}
+
+/* tie-out chips */
+.rp-checks{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.rp-chk{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:20px}
+.rp-chk i{font-style:normal;font-weight:800}
+.rp-chk.ok{background:#e5f5ed;color:#1a6b3c}
+.rp-chk.bad{background:#fdecea;color:#b3261e}
+.rp-pill{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px}
+.rp-pill.ok{background:#e5f5ed;color:#1a6b3c}
+.rp-pill.wait{background:#fef3e2;color:#b45309}
+
+/* gauge */
+.rp-gauge{display:flex;align-items:center;gap:18px;padding:14px 16px;margin-bottom:14px;border-radius:14px;background:#f8fbf9;border:1px solid #e6efea}
+.rp-ring{flex:none;width:104px;height:104px}
+.rp-ring .trk{fill:none;stroke:#e1ece6;stroke-width:9}
+.rp-ring .val{fill:none;stroke:#52B788;stroke-width:9;stroke-linecap:round}
+.rp-ring.mid .val{stroke:#f2b84b}
+.rp-ring.low .val{stroke:#e5694f}
+.rp-ring .pc{font-family:'Quicksand',sans-serif;font-size:21px;font-weight:700;fill:#1b4332;text-anchor:middle}
+.rp-ring .pl{font-size:8.5px;fill:#6b8578;text-anchor:middle}
+.rp-gauge-h{font-size:12px;font-weight:700;color:var(--tl)}
+.rp-gauge-v{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;color:var(--td);margin:3px 0}
+.rp-gauge-v small{font-size:12px;font-weight:600;color:var(--tl)}
+.rp-gauge-s{font-size:12px;color:var(--tl)}
+
+/* tables */
+.rp-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid #e6efea;border-radius:12px}
+.rt{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;font-variant-numeric:tabular-nums;color:var(--td)}
+.rt caption{text-align:left;padding:8px 12px;font-size:11.5px;color:var(--tl)}
+.rt th{padding:11px 16px;font-size:11.5px;font-weight:700;letter-spacing:.02em;color:#4d6b5c;background:#f3f9f6;border-bottom:1px solid #dcebe3;white-space:nowrap}
+.rt td{padding:11px 16px;border-bottom:1px solid #eff5f2;vertical-align:baseline}
+.rt tbody tr:last-child td{border-bottom:none}
+.rt .t{text-align:left}
+.rt .n{text-align:right;white-space:nowrap}
+.rt td.t{min-width:0;overflow-wrap:break-word}
+.rt tbody tr:hover td{background:#f8fcfa}
+.rt tr.sub td{font-weight:700;background:#f8fcfa;color:#1b4332}
+.rt tr.ind td:first-child{padding-left:32px;font-size:12.5px}
+.rt tr.ind td{color:var(--tl)}
+.rt tr.tot td{font-weight:800;background:linear-gradient(180deg,#e3f4ea,#d9f0e3);border-top:1.5px solid #9fd2b6;border-bottom:none;color:#12392a}
+.rt tr.faint td{color:var(--tl)}
+.rt tr.bad td,.rt td.bad{color:#c0392b;font-weight:700}
+.rt .muted,.muted{color:var(--tl);font-weight:500}
+.rt td.pos,.rt tr.ind td.pos{color:#1a7a45;font-weight:700}
+.rt td.neg,.rt tr.ind td.neg{color:#c0392b;font-weight:700}
+.rt td.n .muted{margin-left:8px}
+.rt-kv td.t{width:64%}
+.mini{height:4px;border-radius:3px;background:#edf3f0;margin-top:6px;overflow:hidden}
+.mini i{display:block;height:100%;border-radius:3px;background:#52B788}
+.rt.wide{min-width:780px}
+.rt.wide td:first-child,.rt.wide th:first-child{position:sticky;left:0}
+.rt.wide th:first-child{background:#f3f9f6}
+.rt.wide tbody td:first-child{background:#fff}
+.rt.wide tbody tr.sub td:first-child{background:#f8fcfa}
+.rt.wide tbody tr.tot td:first-child{background:#dcf1e5}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:10px;background:#eef4f1;color:var(--tl);vertical-align:1px}
+.tag.warn{background:#fef3e2;color:#b45309}
+.rp-note{font-size:12px;line-height:1.55;color:var(--tl);margin:12px 2px 0}
+.rp-note code{font-size:11px;background:#f3f9f6;padding:1px 6px;border-radius:5px}
+.rp-warn{margin-top:14px;padding:12px 14px;border-radius:12px;background:#fef3e2;border:1px solid #f4d9a8;color:#8a4b08;font-size:12.5px;line-height:1.55}
+
+/* notes */
+.rp-lbl{display:block;font-size:12.5px;font-weight:700;color:var(--td);margin-bottom:6px}
+.rp-text{width:100%;border:1px solid #dcebe3;border-radius:12px;padding:12px 14px;font-family:'Nunito',sans-serif;font-size:13px;color:var(--td);resize:vertical;background:#fcfefd}
+.rp-text:focus{outline:2px solid #b7e4c7;border-color:#52B788}
+.rp-actions{margin-top:10px}
+.rp-approval{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid #eef4f1}
+
+@media (max-width:1100px){ .rp-grid2{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:700px){
+  #snapshotBody{gap:16px}
+  .rp-hero{padding:22px 20px;border-radius:16px;align-items:flex-start}
+  .rp-hero-r{text-align:left}
+  .rp-hero-s{justify-content:flex-start}
+  .rp-hero-month{font-size:28px}
+  .rp-hero-v{font-size:36px}
+  .rp-card{border-radius:14px}
+  .rp-card-hd{padding:14px 14px 0} .rp-card-bd{padding:12px 14px 16px}
+  .rt{font-size:12px} .rt th,.rt td{padding:9px 10px}
+  .rt tr.ind td:first-child{padding-left:22px}
+  .rp-score{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .rp-tile{padding:13px 14px 12px}
+  .rp-tile-v{font-size:19px}
+  .rp-gauge{flex-direction:row;padding:12px}
+  .rp-ring{width:88px;height:88px}
+  .rp-meta{margin-left:0}
+}
+
+/* Other report tables: aligned digits, and the first column stays visible while the table scrolls sideways */
+.tbl,.tbl-yoy,.tbl-sb,.heatmap-tbl{font-variant-numeric:tabular-nums}
+.tbl-yoy{min-width:560px}
+.tbl-yoy th:first-child,.tbl-yoy td:first-child{position:sticky;left:0;z-index:1;background:#fff}
+.tbl-yoy th:first-child{background:#f3f9f6}
+.tbl-yoy .grp-hd th:first-child{background:#e8f5ee}
+.tbl-yoy .tot td:first-child{background:#dcf1e5}
+.tbl-yoy tbody tr:not(.tot):hover td:first-child{background:#f8fcfa}
 @media (max-width:600px){
   .dm-panel{max-height:90vh}
   .dm-body{padding:14px}
@@ -747,10 +964,10 @@ function emptyYearData(){
       m: MONTH_ABBR[i], hasData:false, rev:0, net:0, cogs:0, opex:0, interest:0,
       gross:0, operatingProfit:0, injeraRev:0, derkoshRev:0,
       injeraQty:0, derkoshQty:0, injeraAsp:null, derkoshAsp:null,
-      injeraCogs:0, derkoshCogs:0, expectedInjeraQty:null
+      injeraCogs:0, derkoshCogs:0, expectedInjeraQty:null, measuredInjeraQty:0
     })),
     injera:0, derkosh:0, asp:null, derkoshAsp:null, injeraRev:0, derkoshRev:0, opex:0, interest:0,
-    injeraCogs:0, derkoshCogs:0, expectedInjera:null
+    injeraCogs:0, derkoshCogs:0, expectedInjera:null, measuredInjera:0
   };
 }
 let yearData = {};
@@ -1167,14 +1384,14 @@ async function loadFromSupabase(){
            wacRes, payrollRes, overheadRes, itemsRes, batchStdRes, dbcRes] = await withTimeout(Promise.all([
       db.from('monthly_pnl_net').select('period,injera_revenue,derkosh_revenue,total_revenue,total_cogs,total_overhead,total_opex,interest_expense,injera_cogs,derkosh_cogs,petty_cash_total,bank_charges,depreciation_expense,gain_loss_on_disposal,gross_profit,net_profit'),
       db.from('sales').select('date,period,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted', false),
-      db.from('production_batches').select('period,injera_qty,type').eq('is_deleted', false),
+      db.from('production_batches').select('id,period,injera_qty,type').eq('is_deleted', false),
       db.from('derkosh_batches').select('period,produced_kg,pkg_item_id,bags_used').eq('is_deleted', false),
-      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.is_deleted', false),
+      db.from('production_batch_materials').select('batch_id,item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.is_deleted', false),
       db.from('monthly_wac').select('item_id,period,wac_per_unit'),
       db.from('payroll_detail').select('period,gross_pay'),
       db.from('monthly_overhead').select('period,amount,overhead_categories(name)'),
       db.from('inventory_items').select('id,name'),
-      db.from('batch_standards').select('batch_type,target_injera_count'), // reference table, not period-scoped — same standards apply to every period
+      db.from('batch_standards').select('batch_type,target_injera_count,target_blend_kg,target_corn_kg,target_gomen_kg'), // reference table, not period-scoped — same standards apply to every period
       db.from('derkosh_batch_costs').select('period,transfer_cost') // injera moved to Derkosh (taken out of injera COGS)
     ]), 20000, 'Reports data load');
 
@@ -1210,18 +1427,23 @@ async function loadFromSupabase(){
       (batchCountByTypePeriod[r.period] = batchCountByTypePeriod[r.period]||{});
       batchCountByTypePeriod[r.period][r.type] = (batchCountByTypePeriod[r.period][r.type]||0) + 1;
     });
-    const stdByType = Object.fromEntries((batchStdRes.data||[]).map(s=>[s.batch_type, num(s.target_injera_count)]));
-    // Expected Injera output per period: for each batch type actually run
-    // that period, count × that type's target_injera_count from Batch
-    // Standards — same methodology already used in the Monthly Snapshot's
-    // "Production Efficiency" line, just aggregated across a full year here.
-    const expectedInjeraByPeriod = {};
-    Object.entries(batchCountByTypePeriod).forEach(([period,counts])=>{
-      let expected = 0, anyStd = false;
-      Object.entries(counts).forEach(([type,count])=>{
-        if(stdByType[type]!=null){ expected += stdByType[type]*count; anyStd = true; }
-      });
-      expectedInjeraByPeriod[period] = anyStd ? expected : null; // null = no standard exists for any batch type run that period
+    // Expected Injera output per period, measured per kilogram like the Production page: each batch is judged against
+    // (its standard's injera count) x (kg it actually used / the standard's kg of blend + corn + gomen). A partial 2 kg batch
+    // is therefore compared with 2 kg of output, not a full batch. Only batches that have both a standard and recorded
+    // materials are measured, and measuredInjeraByPeriod holds the matching actual output so the ratio compares like with like.
+    const stdFull = {};
+    (batchStdRes.data||[]).forEach(st=>{
+      stdFull[String(st.batch_type).toLowerCase()] = {count:num(st.target_injera_count), kg:num(st.target_blend_kg)+num(st.target_corn_kg)+num(st.target_gomen_kg)};
+    });
+    const kgByBatchId = {};
+    (prodMatRes.data||[]).forEach(r=>{ kgByBatchId[r.batch_id] = (kgByBatchId[r.batch_id]||0) + num(r.quantity_used); });
+    const expectedInjeraByPeriod = {}, measuredInjeraByPeriod = {};
+    (prodBatchRes.data||[]).forEach(r=>{
+      const st = stdFull[String(r.type).toLowerCase()], kg = kgByBatchId[r.id]||0;
+      if(st && st.count>0 && st.kg>0 && kg>0){
+        expectedInjeraByPeriod[r.period] = (expectedInjeraByPeriod[r.period]||0) + st.count*(kg/st.kg);
+        measuredInjeraByPeriod[r.period] = (measuredInjeraByPeriod[r.period]||0) + num(r.injera_qty);
+      }
     });
     const derkoshKgByPeriod = {};
     (derkoshBatchRes.data||[]).forEach(r=>{ derkoshKgByPeriod[r.period] = (derkoshKgByPeriod[r.period]||0) + num(r.produced_kg); });
@@ -1321,7 +1543,8 @@ async function loadFromSupabase(){
           injeraQty: iQty, derkoshQty: dQty, injeraAsp, derkoshAsp: derkoshAspVal,
           injeraCogs: pnl ? num(pnl.injera_cogs) : 0, derkoshCogs: pnl ? num(pnl.derkosh_cogs) : 0,
           transferToDerkosh: transferByPeriod[period] || 0,
-          expectedInjeraQty: expectedInjeraByPeriod[period] ?? null
+          expectedInjeraQty: expectedInjeraByPeriod[period] ?? null,
+          measuredInjeraQty: measuredInjeraByPeriod[period] || 0
         });
 
         compAmt.blend += materialCostByPeriod.blend[period] || 0;
@@ -1355,7 +1578,8 @@ async function loadFromSupabase(){
         injeraRev: months.reduce((s,m)=>s+m.injeraRev,0), derkoshRev: months.reduce((s,m)=>s+m.derkoshRev,0),
         transferToDerkosh: months.reduce((s,m)=>s+(m.transferToDerkosh||0),0),
         injeraCogs: months.reduce((s,m)=>s+m.injeraCogs,0), derkoshCogs: months.reduce((s,m)=>s+m.derkoshCogs,0),
-        expectedInjera: months.some(m=>m.expectedInjeraQty!=null) ? months.reduce((s,m)=>s+(m.expectedInjeraQty||0),0) : null
+        expectedInjera: months.some(m=>m.expectedInjeraQty!=null) ? months.reduce((s,m)=>s+(m.expectedInjeraQty||0),0) : null,
+        measuredInjera: months.reduce((s,m)=>s+(m.measuredInjeraQty||0),0)
       };
       cogsComponentAmounts[y] = compAmt;
       derkoshAsp[y] = derkoshQtyYear>0 ? derkoshRevYearSales/derkoshQtyYear : null;
@@ -1469,12 +1693,12 @@ function currentUserId(){
 // other report types behave when their data hasn't loaded.
 function renderSnapshotShell(label){
   const sections = [
-    '1. Executive Summary — '+label, '2. P&amp;L Summary', '3. Cash Flow Summary',
-    '4. Sales Summary', '5. Production Summary', '6. Inventory Summary',
-    '7. Itemized Purchases', '8. Milling Conversions', '9. Expense Breakdown',
-    '10. Key Business KPIs', '11. Notes &amp; Approvals'
+    '1. Executive summary — '+label, '2. Profit and loss', '3. Cash flow',
+    '4. Sales', '5. Production', '6. Inventory',
+    '7. Itemized purchases', '8. Milling conversions', '9. Expense breakdown',
+    '10. Key business KPIs', '11. Notes and approvals'
   ];
-  return sections.map(t=>`<div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">${t}</div></div><div class="card-bd"><div class="dm-note">Loading…</div></div></div>`).join('');
+  return sections.map(t=>`<section class="rp-card"><header class="rp-card-hd"><h3>${t}</h3></header><div class="rp-card-bd"><div class="dm-note">Loading…</div></div></section>`).join('');
 }
 
 async function loadMonthlySnapshot(){
@@ -1496,6 +1720,7 @@ async function loadMonthlySnapshot(){
         <div class="rpt-sel-grp"><label>Month</label>
           <select class="rpt-sel" id="snapshotMonthSel" onchange="snapshotPeriod=this.value;loadMonthlySnapshot()">${periodOptions}</select>
         </div>
+        <div class="rp-meta" id="snapshotMeta"></div>
       </div>
       <div id="snapshotErrBanner"></div>
       <div id="snapshotBody">${renderSnapshotShell(shellLabel)}</div>
@@ -1508,13 +1733,13 @@ async function loadMonthlySnapshot(){
       db.from('monthly_pnl_net').select('*').eq('period', snapshotPeriod),
       db.from('monthly_pnl_net').select('*').eq('period', prevPeriod),
       db.from('monthly_cash_flow').select('*').eq('period', snapshotPeriod),
-      db.from('purchases').select('date,type,quantity,unit_price,total_cost,payment_channel,inventory_items(name,unit),expense_categories(name),suppliers(name),source').eq('is_deleted',false).eq('period',snapshotPeriod).order('date'),
+      db.from('purchases').select('date,type,quantity,unit_price,total_cost,payment_channel,approval_status,inventory_items(name,unit),expense_categories(name,system_key),suppliers(name),source').eq('is_deleted',false).eq('period',snapshotPeriod).order('date'),
       db.from('milling_conversions').select('*').eq('period', snapshotPeriod).order('date'),
       db.from('sales').select('date,product_type,revenue,quantity,customer_id,customers(name)').eq('is_deleted',false).eq('period',snapshotPeriod),
       db.from('production_batch_costs').select('*').eq('period', snapshotPeriod),
       db.from('derkosh_batches').select('produced_kg').eq('is_deleted',false).eq('period', snapshotPeriod),
-      db.from('production_batches').select('type,injera_qty').eq('is_deleted',false).eq('period',snapshotPeriod),
-      db.from('production_batch_materials').select('item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.period', snapshotPeriod).eq('production_batches.is_deleted', false),
+      db.from('production_batches').select('id,type,injera_qty').eq('is_deleted',false).eq('period',snapshotPeriod),
+      db.from('production_batch_materials').select('batch_id,item_id,quantity_used,production_batches!inner(period,is_deleted)').eq('production_batches.period', snapshotPeriod).eq('production_batches.is_deleted', false),
       db.from('payroll_detail').select('gross_pay').eq('period', snapshotPeriod),
       db.from('monthly_overhead').select('amount,overhead_categories(name)').eq('period', snapshotPeriod),
       db.from('inventory_items').select('id,name,unit'),
@@ -1577,296 +1802,438 @@ async function loadMonthlySnapshot(){
   }
 }
 
+/* ── Monthly report helpers ───────────────────────────────────────────────
+   Money is shown with 2 decimals everywhere in this report so every column
+   adds up exactly on the page (whole-number rounding made rows look like they
+   did not foot). Negatives use accounting brackets. */
+const rpEsc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rpMoney = v => { const n=Number(v); if(!isFinite(n)) return '—'; const r=Math.round(n*100)/100; return r<0 ? '('+fmt(Math.abs(r))+')' : fmt(r); };
+const rpQty = (v,d) => { const n=Number(v); return isFinite(n) ? n.toLocaleString('en-US',{minimumFractionDigits:d==null?2:d,maximumFractionDigits:d==null?2:d}) : '—'; };
+const rpPct = (v,d) => (v==null||!isFinite(v)) ? '—' : v.toFixed(d==null?1:d)+'%';
+const rpSigned = (v,fmtFn) => { if(v==null||!isFinite(v)) return '—'; const r=Math.round(v*100)/100; if(r===0) return fmtFn(0); return (r>0?'+':'−')+fmtFn(Math.abs(r)); };
+const rpDeltaPct = (cur,prev) => (prev==null||!isFinite(prev)||prev===0) ? null : (cur-prev)/Math.abs(prev)*100;
+// css class for a change: goodWhenUp=true for revenue/profit, false for costs
+const rpTone = (diff,goodWhenUp) => (diff==null||Math.round(diff*100)===0) ? '' : ((diff>0)===goodWhenUp ? 'pos' : 'neg');
+const rpCard = (title, body, extra) => {
+  const m = String(title).match(/^(\d+)\.\s*([\s\S]*)$/);
+  const head = m ? `<span class="rp-num">${m[1]}</span><span>${m[2]}</span>` : title;
+  return `<section class="rp-card${extra?' '+extra:''}"><header class="rp-card-hd"><h3>${head}</h3></header><div class="rp-card-bd">${body}</div></section>`;
+};
+// thin proportional bar placed under a label
+const rpMini = (pct, color) => `<div class="mini"><i style="width:${Math.max(0,Math.min(100,pct||0)).toFixed(1)}%;${color?'background:'+color:''}"></i></div>`;
+// circular gauge; the ring stops at 100% but the number can exceed it
+const rpRing = (pct, tone) => {
+  const r=42, C=2*Math.PI*r, f=Math.max(0,Math.min(100,pct))/100*C;
+  return `<svg class="rp-ring ${tone}" viewBox="0 0 100 100" role="img" aria-label="${pct.toFixed(0)} percent"><circle cx="50" cy="50" r="${r}" class="trk"/><circle cx="50" cy="50" r="${r}" class="val" stroke-dasharray="${f.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="50" class="pc">${pct.toFixed(0)}%</text><text x="50" y="65" class="pl">of target</text></svg>`;
+};
+const rpTable = (cls, head, body, caption) => `<div class="rp-scroll"><table class="rt ${cls||''}">${caption?`<caption>${caption}</caption>`:''}${head?`<thead>${head}</thead>`:''}<tbody>${body}</tbody></table></div>`;
+
 function renderMonthlySnapshot(d){
   window._lastSnapshotData = d;   // kept so the export can build that month's profit and loss
   const label = periodLabelFull(snapshotPeriod);
   const p = d.pnl || {};
-  // total_cogs already has 100% of that period's overhead allocated into it
-  // (verified against the live production_batch_costs/derkosh_batch_costs
-  // view definitions — overhead_cost is folded into each batch's total_cost,
-  // and total_cogs sums those). total_overhead is the same overhead figure
-  // exposed again for breakdown purposes only — adding it here would double
-  // it. Labor/payroll is tracked via payroll_detail, which the monthly_pnl
-  // view never references at all, so it's shown in Purchases/Payroll detail
-  // below, not folded into this top-line COGS either.
-  const totalCogs = num(p.total_cogs);
-  // identical to the database: revenue - COGS - operating expenses - petty cash - bank charges - interest - depreciation + disposal gain/loss
-  const opexAll = num(p.total_opex) + num(p.petty_cash_total) + num(p.bank_charges);
-  const financeAll = num(p.interest_expense) + num(p.depreciation_expense) - num(p.gain_loss_on_disposal);
-  const netApprox = (p.net_profit !== undefined && p.net_profit !== null) ? num(p.net_profit) : (num(p.total_revenue) - totalCogs - opexAll - financeAll);
-  const rev = num(p.total_revenue);
-  const grossMargin = rev>0 ? (rev-totalCogs)/rev*100 : null;
-  const netMargin = rev>0 ? netApprox/rev*100 : null;
+  const pv = d.prevPnl || null;
+  const hasPrev = !!pv;
+  const prevLabel = periodLabelFull(prevPeriodOf(snapshotPeriod));
+  const checks = [];   // {ok, text} — every figure that must tie to another is verified and shown at the top
+
+  // ── Profit & loss figures. total_cogs already contains 100% of the month's overhead (production_batch_costs
+  // absorbs it; the rest is added by the view), so overhead is never added on top. Net profit is the database figure.
+  const parts = x => {
+    const rev = num(x.total_revenue), cogs = num(x.total_cogs);
+    const opex = num(x.total_opex);                                   // includes inventory wastage and count variance
+    const petty = num(x.petty_cash_total) + num(x.bank_charges);
+    const fin = num(x.interest_expense) + num(x.depreciation_expense) - num(x.gain_loss_on_disposal);
+    const gross = rev - cogs;
+    const netCalc = gross - opex - petty - fin;
+    const net = (x.net_profit!==undefined && x.net_profit!==null) ? num(x.net_profit) : netCalc;
+    return {rev, cogs, opex, petty, fin, gross, net, netCalc, injRev:num(x.injera_revenue), derRev:num(x.derkosh_revenue),
+            oh:num(x.total_overhead), wastage:num(x.inventory_wastage_cost), countVar:num(x.inventory_count_variance)};
+  };
+  const cur = parts(p), prv = hasPrev ? parts(pv) : null;
+  const rev = cur.rev, totalCogs = cur.cogs, netApprox = cur.net;
+  const grossMargin = rev>0 ? cur.gross/rev*100 : null;
+  const netMargin = rev>0 ? cur.net/rev*100 : null;
+  const prevGrossMargin = prv && prv.rev>0 ? prv.gross/prv.rev*100 : null;
+  const prevNetMargin = prv && prv.rev>0 ? prv.net/prv.rev*100 : null;
+  if(d.pnl){
+    const tie = Math.abs(cur.netCalc - cur.net) < 0.01;
+    checks.push({ok:tie, text: tie ? 'P&L lines add up to net profit' : `P&L lines (${rpMoney(cur.netCalc)}) differ from the database net profit (${rpMoney(cur.net)})`});
+    const revTie = Math.abs(cur.injRev + cur.derRev - cur.rev) < 0.01;
+    checks.push({ok:revTie, text: revTie ? 'Injera + Derkosh revenue = total revenue' : 'Product revenue lines do not add up to total revenue'});
+  }
 
   const itemNameById = Object.fromEntries((d.items||[]).map(it=>[it.id, it.name]));
   const idByName = Object.fromEntries((d.items||[]).map(it=>[it.name, it.id]));
 
-  // ══ 1. EXECUTIVE SUMMARY ══
-  let health = {label:'No Data Yet', cls:'ic-o', icon:'clock'};
-  if(netMargin!=null){
-    if(netMargin>=15) health = {label:'Strong', cls:'ic-g', icon:'trend'};
-    else if(netMargin>=5) health = {label:'Stable', cls:'ic-t', icon:'trend'};
-    else if(netMargin>=0) health = {label:'Thin Margins', cls:'ic-o', icon:'percent'};
-    else health = {label:'Loss-Making', cls:'ic-r', icon:'trend'};
-  }
-  const injeraProducedTotal = (d.batchTypes||[]).reduce((s,b)=>s+num(b.injera_qty),0);
-  const derkoshProducedTotal = (d.derkoshBatches||[]).reduce((s,b)=>s+num(b.produced_kg),0);
-  const execBullets = [];
-  execBullets.push({icon:'clock', cls:'ic-c', html:`<b>Reporting period:</b> ${label}`});
-  if(d.prevPnl){
-    const prevRev = num(d.prevPnl.total_revenue);
-    const revDelta = prevRev>0 ? (rev-prevRev)/prevRev*100 : null;
-    execBullets.push({icon:'trend', cls: revDelta==null?'ic-c':(revDelta>=0?'ic-g':'ic-r'), html: revDelta!=null
-      ? `<b>Revenue ${revDelta>=0?'up':'down'} ${Math.abs(revDelta).toFixed(1)}%</b> vs ${periodLabelFull(prevPeriodOf(snapshotPeriod))}`
-      : `<b>Revenue:</b> ${fmt0(rev)} ETB (no prior-month comparison available)`});
-  } else {
-    execBullets.push({icon:'money', cls:'ic-b', html:`<b>Total Revenue:</b> ${fmt0(rev)} ETB`});
-  }
-  execBullets.push({icon:'money', cls: netApprox>=0?'ic-g':'ic-r', html: p.total_revenue!=null
-    ? `<b>Net Profit:</b> ${fmt0(netApprox)} ETB${netMargin!=null?` (${netMargin.toFixed(1)}% margin)`:''}`
-    : `<b>Net Profit:</b> no sales recorded yet for ${label}`});
-  execBullets.push({icon:'box', cls:'ic-p', html:`<b>Production:</b> ${fmt0(injeraProducedTotal)} injera pieces, ${fmt(derkoshProducedTotal)} kg derkosh`});
-  execBullets.push({icon: health.icon, cls: health.cls, html:`<b>Overall business health:</b> ${health.label}`});
-
-  const execHtml = execBullets.map(b=>`<div class="exec-item"><div class="ei-ico ${b.cls}"><svg viewBox="0 0 24 24">${ICONS[b.icon]}</svg></div><div class="ei-txt">${b.html}</div></div>`).join('');
-
-  // ══ 2. P&L SUMMARY ══
-  const plHtml = !d.pnl ? `<div class="dm-note">No sales recorded for ${label} yet.</div>` : `
-    <table class="mtbl"><tbody>
-      <tr><td>Injera Revenue</td><td>${fmt0(p.injera_revenue)}</td></tr>
-      <tr><td>Derkosh Revenue</td><td>${fmt0(p.derkosh_revenue)}</td></tr>
-      <tr><td><strong>Total Revenue</strong></td><td><strong>${fmt0(p.total_revenue)}</strong></td></tr>
-      <tr><td>COGS (Materials + Production Overhead, per batch)</td><td>${fmt0(totalCogs)}</td></tr>
-      <tr><td style="padding-left:24px;color:var(--muted)">&nbsp;&nbsp;of which: Overhead (Electricity/Water/Rent/Maintenance/Other) — included above</td><td style="color:var(--muted)">${fmt0(p.total_overhead)}</td></tr>
-      <tr><td><strong>Gross Profit</strong></td><td><strong>${fmt0(rev-totalCogs)}</strong></td></tr>
-      <tr><td>Operating Expenses</td><td>${fmt0(p.total_opex)}</td></tr>
-      <tr><td>Petty Cash &amp; Bank Charges</td><td>${fmt0(num(p.petty_cash_total)+num(p.bank_charges))}</td></tr>
-      <tr><td>Finance &amp; Other (Interest, Depreciation, Disposal Gain/Loss)</td><td>${fmt0(financeAll)}</td></tr>
-      <tr><td><strong>Net Profit</strong></td><td><strong>${fmt0(netApprox)}</strong></td></tr>
-    </tbody></table>
-    <div class="dm-note">Sifting Fees, Grinding Fees, Delivery In, and Milling Material Transport are folded into COGS via Injera Blend's cost — not double-counted in Operating Expenses. See the Milling Conversions table below for their itemized breakdown. Net profit is read from the database (monthly_pnl_net), so it matches the Dashboard and the P&L Statement.</div>`;
-
-  // ══ 3. CASH FLOW SUMMARY ══
-  let cfHtml = '<div class="dm-note">No cash flow data for this month yet.</div>';
-  const cfRows = d.cfRows||[];
-  if(cfRows.length){
-    const rows = cfRows.map(c=>{
-      const totalIn = num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in);
-      const totalOut = num(c.op_payments)+num(c.payroll_payments)+num(c.petty_cash_payments)+num(c.other_out);
-      return `<tr><td>${c.channel}</td><td>${fmt0(c.opening_balance)}</td><td>${fmt0(totalIn)}</td><td>${fmt0(totalOut)}</td><td>${fmt0(c.closing_balance)}</td></tr>`;
-    }).join('');
-    const grand = cfRows.reduce((s,c)=>({
-      opening: s.opening+num(c.opening_balance),
-      totalIn: s.totalIn+num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in),
-      totalOut: s.totalOut+num(c.op_payments)+num(c.payroll_payments)+num(c.petty_cash_payments)+num(c.other_out),
-      closing: s.closing+num(c.closing_balance)
-    }), {opening:0,totalIn:0,totalOut:0,closing:0});
-    cfHtml = `<table class="mtbl"><thead><tr><th>Channel</th><th>Opening</th><th>Cash In</th><th>Cash Out</th><th>Closing</th></tr></thead>
-      <tbody>${rows}<tr><td><strong>Total</strong></td><td><strong>${fmt0(grand.opening)}</strong></td><td><strong>${fmt0(grand.totalIn)}</strong></td><td><strong>${fmt0(grand.totalOut)}</strong></td><td><strong>${fmt0(grand.closing)}</strong></td></tr></tbody></table>`;
-  }
-
-  // ══ 4. SALES SUMMARY ══
+  // ── Sales (used by several sections)
   const sales = d.sales||[];
+  const totalSales = sales.reduce((s,r)=>s+num(r.revenue),0);
+  const derkoshSold = sales.filter(r=>r.product_type==='derkosh').reduce((s,r)=>s+num(r.quantity),0);
+  const injeraSoldQty = sales.filter(r=>r.product_type!=='derkosh').reduce((s,r)=>s+num(r.quantity),0);
+  if(d.pnl && sales.length){
+    const t = Math.abs(totalSales - cur.rev) < 0.01;
+    checks.push({ok:t, text: t ? 'Sales list adds up to P&L revenue' : `Sales list (${rpMoney(totalSales)}) differs from P&L revenue (${rpMoney(cur.rev)})`});
+  }
+
+  // ── Production: yield is measured per kg of everything that went in (blend + corn + gomen), the same way the
+  // Production page and the Dashboard do, and the target is scaled to the kg each batch actually used.
+  const batches = d.batchTypes||[];
+  const injeraProducedTotal = batches.reduce((s,b)=>s+num(b.injera_qty),0);
+  const derkoshProducedTotal = (d.derkoshBatches||[]).reduce((s,b)=>s+num(b.produced_kg),0);
+  const blendId = idByName['Injera Blend'], cornId = idByName['Corn'], gomenId = idByName['Gomen Zere'];
+  const matBy = {blend:0, corn:0, gomen:0};
+  const kgByBatch = {};
+  (d.prodMaterials||[]).forEach(m=>{
+    const q = num(m.quantity_used);
+    if(m.item_id===blendId) matBy.blend += q; else if(m.item_id===cornId) matBy.corn += q; else if(m.item_id===gomenId) matBy.gomen += q;
+    kgByBatch[m.batch_id] = (kgByBatch[m.batch_id]||0) + q;
+  });
+  const stdByType = {};
+  (d.batchStandards||[]).forEach(s=>{ stdByType[String(s.batch_type).toLowerCase()] = s; });
+  let measuredInjera = 0, measuredKg = 0, expectedInjera = 0;
+  batches.forEach(b=>{
+    const std = stdByType[String(b.type).toLowerCase()];
+    const kg = kgByBatch[b.id] || 0;
+    const stdKg = std ? num(std.target_blend_kg)+num(std.target_corn_kg)+num(std.target_gomen_kg) : 0;
+    if(std && stdKg>0 && num(std.target_injera_count)>0 && kg>0){
+      measuredInjera += num(b.injera_qty); measuredKg += kg;
+      expectedInjera += num(std.target_injera_count) * (kg/stdKg);
+    }
+  });
+  const allKg = matBy.blend + matBy.corn + matBy.gomen;
+  const efficiencyPct = expectedInjera>0 ? measuredInjera/expectedInjera*100 : null;
+  const actualYield = measuredKg>0 ? measuredInjera/measuredKg : null;
+  const targetYield = measuredKg>0 && expectedInjera>0 ? expectedInjera/measuredKg : null;
+  const effTone = efficiencyPct==null ? '' : (efficiencyPct>=90 ? 'good' : (efficiencyPct>=75 ? 'mid' : 'low'));
+  const ringHtml = efficiencyPct==null ? '' : `<div class="rp-gauge">${rpRing(efficiencyPct, effTone)}<div class="rp-gauge-t"><div class="rp-gauge-h">Production efficiency</div><div class="rp-gauge-v">${rpQty(actualYield)} <small>injera per kg</small></div><div class="rp-gauge-s">Target ${rpQty(targetYield)} injera per kg</div></div></div>`;
+  const prodHtml = ringHtml + rpTable('rt-kv', '', `
+      <tr><td class="t">Injera produced</td><td class="n">${rpQty(injeraProducedTotal,0)} pcs</td></tr>
+      <tr><td class="t">Derkosh produced</td><td class="n">${rpQty(derkoshProducedTotal)} kg</td></tr>
+      <tr><td class="t">Batches run</td><td class="n">${batches.length}</td></tr>
+      <tr class="ind"><td class="t">Injera Blend used</td><td class="n">${rpQty(matBy.blend)} kg</td></tr>
+      <tr class="ind"><td class="t">Corn used</td><td class="n">${rpQty(matBy.corn)} kg</td></tr>
+      <tr class="ind"><td class="t">Gomen Zere used</td><td class="n">${rpQty(matBy.gomen)} kg</td></tr>
+      <tr class="sub"><td class="t">Total input</td><td class="n">${rpQty(allKg)} kg</td></tr>
+      <tr><td class="t">Yield (injera per kg of input)</td><td class="n">${actualYield!=null ? rpQty(actualYield)+' <span class="muted">target '+rpQty(targetYield)+'</span>' : '—'}</td></tr>
+      <tr class="tot"><td class="t">Production efficiency</td><td class="n">${efficiencyPct!=null ? rpPct(efficiencyPct) : '—'}</td></tr>`)
+    + `<p class="rp-note">Production efficiency = injera made ÷ injera the same kilograms should have made at the Efficiency Target. 100% means exactly on target. A small batch is judged against its own kilograms, not against a full batch.</p>`;
+
+  // ── Cash flow
+  const cfRows = (d.cfRows||[]).filter(c=>['opening_balance','sales_receipts','ar_collected','other_in','op_payments','payroll_payments','petty_cash_payments','other_out','closing_balance'].some(k=>Math.abs(num(c[k]))>0.0049));
+  const cfCalc = c => {
+    const tin = num(c.sales_receipts)+num(c.ar_collected)+num(c.other_in);
+    const tout = num(c.op_payments)+num(c.payroll_payments)+num(c.petty_cash_payments)+num(c.other_out);
+    return {open:num(c.opening_balance), tin, tout, net:tin-tout, close:num(c.closing_balance)};
+  };
+  let cfTotals = {open:0,tin:0,tout:0,net:0,close:0};
+  let cfHtml = '<div class="dm-note">No cash movements recorded for this month.</div>';
+  if(cfRows.length){
+    let allTie = true;
+    const body = cfRows.map(c=>{
+      const x = cfCalc(c);
+      cfTotals.open+=x.open; cfTotals.tin+=x.tin; cfTotals.tout+=x.tout; cfTotals.net+=x.net; cfTotals.close+=x.close;
+      const tie = Math.abs(x.open + x.net - x.close) < 0.01; if(!tie) allTie = false;
+      return `<tr><td class="t">${rpEsc(String(c.channel||'').replace(/^./,ch=>ch.toUpperCase()))}</td><td class="n">${rpMoney(x.open)}</td><td class="n">${rpMoney(x.tin)}</td><td class="n">${rpMoney(x.tout)}</td><td class="n ${rpTone(x.net,true)}">${rpSigned(x.net,rpMoney)}</td><td class="n${tie?'':' bad'}">${rpMoney(x.close)}</td></tr>`;
+    }).join('');
+    checks.push({ok:allTie, text: allTie ? 'Cash: opening + in − out = closing for every channel' : 'Cash: a channel does not add up (opening + in − out ≠ closing)'});
+    cfHtml = rpTable('', `<tr><th class="t">Channel</th><th class="n">Opening</th><th class="n">Cash in</th><th class="n">Cash out</th><th class="n">Net change</th><th class="n">Closing</th></tr>`,
+      body + `<tr class="tot"><td class="t">Total</td><td class="n">${rpMoney(cfTotals.open)}</td><td class="n">${rpMoney(cfTotals.tin)}</td><td class="n">${rpMoney(cfTotals.tout)}</td><td class="n ${rpTone(cfTotals.net,true)}">${rpSigned(cfTotals.net,rpMoney)}</td><td class="n">${rpMoney(cfTotals.close)}</td></tr>`);
+  }
+
+  // ── 1. Executive summary: scorecard first, then the few things worth reading
+  let health = {label:'No data yet', tone:'mute'};
+  if(netMargin!=null){
+    if(netMargin>=15) health = {label:'Strong', tone:'pos'};
+    else if(netMargin>=5) health = {label:'Stable', tone:'pos'};
+    else if(netMargin>=0) health = {label:'Thin margins', tone:'warn'};
+    else health = {label:'Loss-making', tone:'neg'};
+  }
+  const tile = (name, value, sub, tone) => `<div class="rp-tile"><div class="rp-tile-l">${name}</div><div class="rp-tile-v">${value}</div><div class="rp-tile-s ${tone||''}">${sub}</div></div>`;
+  const dRev = hasPrev ? rpDeltaPct(cur.rev, prv.rev) : null;
+  const dGross = hasPrev ? rpDeltaPct(cur.gross, prv.gross) : null;
+  const dNet = hasPrev ? rpDeltaPct(cur.net, prv.net) : null;
+  const vsPrev = v => v==null ? (hasPrev ? 'no change base' : 'no prior month') : `${v>=0?'▲':'▼'} ${Math.abs(v).toFixed(1)}% vs ${prevLabel}`;
+  const scoreHtml = `<div class="rp-score">
+    ${tile('Revenue', rpMoney(cur.rev)+' <small>ETB</small>', vsPrev(dRev), rpTone(dRev,true))}
+    ${tile('Gross profit', rpMoney(cur.gross)+' <small>ETB</small>', grossMargin!=null ? rpPct(grossMargin)+' margin'+(prevGrossMargin!=null?' · '+prevLabel+' '+rpPct(prevGrossMargin):'') : '—', '')}
+    ${tile('Cash at close', cfRows.length ? rpMoney(cfTotals.close)+' <small>ETB</small>' : '—', cfRows.length ? rpSigned(cfTotals.net,rpMoney)+' this month' : 'no cash movements', cfRows.length ? rpTone(cfTotals.net,true) : '')}
+    ${tile('Production', rpQty(injeraProducedTotal,0)+' <small>injera</small>', rpQty(derkoshProducedTotal)+' kg derkosh', '')}
+  </div>`;
+
+  // Where each 100 ETB of revenue went (costs first, profit last). If the month lost money the bar shows costs only.
+  const otherCosts = cur.petty + cur.fin;
+  const segs = [
+    {n:'Cost of goods', v:cur.cogs, c:'#9bbfae'},
+    {n:'Operating expenses', v:cur.opex, c:'#f2c260'},
+    {n:'Other costs', v:otherCosts, c:'#f08d6a'},
+    {n:'Net profit', v:Math.max(cur.net,0), c:'#2fa56b'}
+  ];
+  const segBase = Math.max(cur.rev, segs.reduce((x,y)=>x+Math.max(y.v,0),0));
+  let flowHtml = '';
+  if(d.pnl && cur.rev>0 && segBase>0){
+    const per100 = v => (Math.max(v,0)/segBase*100);
+    flowHtml = `<div class="rp-flow"><div class="rp-flow-h">${segBase>cur.rev+0.005 ? 'Where each 100 ETB of spending went' : 'Where each 100 ETB of revenue went'}</div>
+      <div class="rp-flow-bar">${segs.filter(x=>x.v>0.0049).map(x=>`<span style="width:${per100(x.v).toFixed(2)}%;background:${x.c}" title="${x.n}: ${per100(x.v).toFixed(1)}"></span>`).join('')}</div>
+      <div class="rp-flow-leg">${segs.filter(x=>x.v>0.0049 || x.n==='Net profit').map(x=>`<div><i style="background:${x.c}"></i><span>${x.n}</span><b>${per100(x.v).toFixed(2)}</b></div>`).join('')}</div>
+      ${cur.net<0 ? `<div class="rp-flow-loss">Loss of ${rpMoney(Math.abs(cur.net))} ETB this month</div>` : ''}</div>`;
+  }
+
+  const pc = d.periodClose || null;
+  const approved = !!(pc && pc.locked);
+  const approvedHtml = approved
+    ? `<span class="rp-pill ok">Approved by ${rpEsc(pc.users?.name||'Accountant')} on ${new Date(pc.closed_at).toLocaleDateString()}</span>`
+    : `<span class="rp-pill wait">Pending accountant approval</span>`;
+  // Hero banner: net profit is the headline number of the month
+  const heroTrend = (dNet!=null) ? `<span class="rp-chip ${dNet>=0?'up':'down'}">${dNet>=0?'▲':'▼'} ${Math.abs(dNet).toFixed(1)}% vs ${prevLabel}</span>` : '';
+  const heroHtml = `<div class="rp-hero">
+    <div class="rp-hero-l">
+      <div class="rp-eyebrow">Mena Injera &amp; Derkosh</div>
+      <div class="rp-hero-title">Monthly report</div>
+      <div class="rp-hero-month">${label}</div>
+      <div class="rp-hero-pills">${approvedHtml}<span class="rp-pill health ${health.tone}">${health.label}</span></div>
+    </div>
+    <div class="rp-hero-r">
+      <div class="rp-hero-k">Net profit</div>
+      <div class="rp-hero-v">${d.pnl ? rpMoney(cur.net) : '—'} <small>ETB</small></div>
+      <div class="rp-hero-s">${netMargin!=null ? rpPct(netMargin)+' of revenue' : ''} ${heroTrend}</div>
+    </div>
+  </div>`;
+  const points = [];
+  if(d.pnl){
+    if(netMargin!=null && prevNetMargin!=null){
+      const dm = netMargin - prevNetMargin;
+      points.push(`Net margin ${dm>=0?'rose':'fell'} ${Math.abs(dm).toFixed(1)} points to ${rpPct(netMargin)} (${prevLabel}: ${rpPct(prevNetMargin)}).`);
+    }
+    if(cur.rev>0 && cur.derRev>0 && cur.injRev>0){
+      points.push(`Revenue mix: Derkosh ${rpPct(cur.derRev/cur.rev*100,0)}, Injera ${rpPct(cur.injRev/cur.rev*100,0)}.`);
+    } else if(cur.rev>0){
+      points.push(`All revenue came from ${cur.derRev>0?'Derkosh':'Injera'} this month.`);
+    }
+  }
+  if(efficiencyPct!=null) points.push(`Production ran at ${rpPct(efficiencyPct)} of target yield (${rpQty(actualYield)} vs ${rpQty(targetYield)} injera per kg).`);
+  if(cfRows.length && cur.rev>0){
+    const collected = cfRows.reduce((s,c)=>s+num(c.sales_receipts)+num(c.ar_collected),0);
+    points.push(`Cash collected from customers: ${rpMoney(collected)} ETB against ${rpMoney(cur.rev)} ETB of sales.`);
+  }
+  const pointsHtml = points.length ? `<ul class="rp-points">${points.map(t=>`<li>${t}</li>`).join('')}</ul>` : '';
+
+  // ── 2. P&L: this month, prior month, change, share of revenue
+  const plRow = (name, a, b, opt) => {
+    opt = opt||{};
+    const share = (rev>0 && opt.share!==false) ? rpPct(a/rev*100) : '—';
+    const diff = (hasPrev && b!=null) ? a-b : null;
+    return `<tr class="${opt.cls||''}"><td class="t">${name}</td><td class="n">${rpMoney(a)}</td><td class="n">${hasPrev&&b!=null?rpMoney(b):'—'}</td><td class="n ${rpTone(diff,opt.up!==false)}">${diff==null?'—':rpSigned(diff,rpMoney)}</td><td class="n muted">${share}</td></tr>`;
+  };
+  const otherOpex = cur.opex - cur.wastage - cur.countVar;
+  const plBody = !d.pnl ? '' :
+      plRow('Injera revenue', cur.injRev, prv&&prv.injRev) +
+      plRow('Derkosh revenue', cur.derRev, prv&&prv.derRev) +
+      plRow('Total revenue', cur.rev, prv&&prv.rev, {cls:'sub'}) +
+      plRow('Cost of goods sold', cur.cogs, prv&&prv.cogs, {up:false}) +
+      plRow('of which production overhead', cur.oh, prv&&prv.oh, {cls:'ind', up:false}) +
+      plRow('Gross profit', cur.gross, prv&&prv.gross, {cls:'sub'}) +
+      plRow('Operating expenses', cur.opex, prv&&prv.opex, {up:false}) +
+      ((cur.wastage||cur.countVar) ? plRow('of which inventory wastage and count variance', cur.wastage+cur.countVar, prv&&(prv.wastage+prv.countVar), {cls:'ind', up:false}) : '') +
+      plRow('Petty cash and bank charges', cur.petty, prv&&prv.petty, {up:false}) +
+      plRow('Interest, depreciation and disposal gain/loss', cur.fin, prv&&prv.fin, {up:false}) +
+      plRow('Net profit', cur.net, prv&&prv.net, {cls:'tot'});
+  const plHtml = !d.pnl
+    ? `<div class="dm-note">No sales or costs recorded for ${label} yet.</div>`
+    : rpTable('', `<tr><th class="t">ETB</th><th class="n">${label}</th><th class="n">${hasPrev?prevLabel:'Prior month'}</th><th class="n">Change</th><th class="n">% of revenue</th></tr>`, plBody)
+      + `<p class="rp-note">Overhead is already inside COGS, so it is not deducted a second time. Milling fees (sifting, grinding, delivery in, transport) are part of Injera Blend cost and also sit inside COGS. Net profit comes from the database view <code>monthly_pnl_net</code>.</p>`;
+
+  // ── 4. Sales
   let salesHtml = '<div class="dm-note">No sales logged for this month yet.</div>';
   if(sales.length){
-    const totalSales = sales.reduce((s,r)=>s+num(r.revenue),0);
-    const orders = sales.length;
-    const aov = orders>0 ? totalSales/orders : 0;
     const byCust = {};
-    sales.forEach(r=>{
-      if(!r.customer_id) return;
-      const name = r.customers?.name || 'Unknown Customer';
-      byCust[name] = (byCust[name]||0) + num(r.revenue);
-    });
-    const topCust = Object.entries(byCust).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const byProduct = {injera:{rev:0,qty:0}, derkosh:{rev:0,qty:0}};
-    sales.forEach(r=>{
-      const k = r.product_type==='derkosh' ? 'derkosh' : 'injera';
-      byProduct[k].rev += num(r.revenue);
-      byProduct[k].qty += num(r.quantity);
-    });
-    salesHtml = `
-      <table class="mtbl"><tbody>
-        <tr><td>Total Sales</td><td>${fmt0(totalSales)} ETB</td></tr>
-        <tr><td>Orders</td><td>${orders}</td></tr>
-        <tr><td>Average Order Value</td><td>${fmt0(aov)} ETB</td></tr>
-      </tbody></table>
-      <div class="bot2" style="margin-top:14px;margin-bottom:0">
-        <div>
-          <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Top Customers</div>
-          <table class="mtbl"><tbody>${topCust.length ? topCust.map(([name,v])=>`<tr><td>${name}</td><td>${fmt0(v)}</td></tr>`).join('') : '<tr><td colspan="2">No customer-linked sales</td></tr>'}</tbody></table>
-        </div>
-        <div>
-          <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Top Products</div>
-          <table class="mtbl"><tbody>
-            <tr><td>Injera</td><td>${fmt0(byProduct.injera.qty)} pcs — ${fmt0(byProduct.injera.rev)} ETB</td></tr>
-            <tr><td>Derkosh</td><td>${fmt(byProduct.derkosh.qty)} kg — ${fmt0(byProduct.derkosh.rev)} ETB</td></tr>
-          </tbody></table>
-        </div>
-      </div>`;
+    sales.forEach(r=>{ const name = r.customer_id ? (r.customers?.name || 'Unknown customer') : 'No customer linked'; byCust[name] = (byCust[name]||0) + num(r.revenue); });
+    const custRows = Object.entries(byCust).sort((a,b)=>b[1]-a[1]);
+    const shown = custRows.slice(0,5), rest = custRows.slice(5).reduce((s,[,v])=>s+v,0);
+    const custBody = shown.map(([n,v])=>`<tr><td class="t">${rpEsc(n)}${rpMini(totalSales>0?v/totalSales*100:0)}</td><td class="n">${rpMoney(v)}</td><td class="n muted">${totalSales>0?rpPct(v/totalSales*100):'—'}</td></tr>`).join('')
+      + (rest>0 ? `<tr><td class="t">Other customers</td><td class="n">${rpMoney(rest)}</td><td class="n muted">${rpPct(rest/totalSales*100)}</td></tr>` : '')
+      + `<tr class="tot"><td class="t">Total</td><td class="n">${rpMoney(totalSales)}</td><td class="n">100.0%</td></tr>`;
+    const injRev = sales.filter(r=>r.product_type!=='derkosh').reduce((s,r)=>s+num(r.revenue),0);
+    const derRev = totalSales - injRev;
+    const prodRow = (n, qty, unit, r, dec) => `<tr><td class="t">${n}</td><td class="n">${qty>0?rpQty(qty,dec)+' '+unit:'—'}</td><td class="n">${rpMoney(r)}</td><td class="n muted">${qty>0?rpMoney(r/qty)+'/'+unit:'—'}</td></tr>`;
+    salesHtml = rpTable('rt-kv', '', `
+        <tr><td class="t">Total sales</td><td class="n">${rpMoney(totalSales)} ETB</td></tr>
+        <tr><td class="t">Sales entries</td><td class="n">${sales.length}</td></tr>
+        <tr><td class="t">Average sale value</td><td class="n">${rpMoney(totalSales/sales.length)} ETB</td></tr>`)
+      + `<div class="rp-split">
+          <div><h4>By customer</h4>${rpTable('', `<tr><th class="t">Customer</th><th class="n">Sales</th><th class="n">Share</th></tr>`, custBody)}</div>
+          <div><h4>By product</h4>${rpTable('', `<tr><th class="t">Product</th><th class="n">Quantity</th><th class="n">Sales</th><th class="n">Avg price</th></tr>`,
+            prodRow('Injera', injeraSoldQty, 'pc', injRev, 0) + prodRow('Derkosh', derkoshSold, 'kg', derRev, 2))}</div>
+        </div>`;
   }
 
-  // ══ 5. PRODUCTION SUMMARY ══
-  const blendId = idByName['Injera Blend'], cornId = idByName['Corn'], gomenId = idByName['Gomen Zere'];
-  const flourConsumed = (d.prodMaterials||[]).filter(m=>m.item_id===blendId).reduce((s,m)=>s+num(m.quantity_used),0);
-  const stdByType = Object.fromEntries((d.batchStandards||[]).map(s=>[s.batch_type, s]));
-  const batchCountByType = {};
-  (d.batchTypes||[]).forEach(b=>{ batchCountByType[b.type] = (batchCountByType[b.type]||0)+1; });
-  let expectedInjera = 0, expectedMaterial = 0;
-  Object.entries(batchCountByType).forEach(([type,count])=>{
-    const std = stdByType[type];
-    if(!std) return;
-    expectedInjera += num(std.target_injera_count)*count;
-    expectedMaterial += (num(std.target_blend_kg)+num(std.target_corn_kg)+num(std.target_gomen_kg))*count;
-  });
-  const efficiencyPct = expectedInjera>0 ? (injeraProducedTotal/expectedInjera*100) : null;
-  const actualMaterial = (d.prodMaterials||[]).filter(m=>[blendId,cornId,gomenId].includes(m.item_id)).reduce((s,m)=>s+num(m.quantity_used),0);
-  const wastePct = expectedMaterial>0 ? ((actualMaterial-expectedMaterial)/expectedMaterial*100) : null;
-  const prodHtml = `
-    <table class="mtbl"><tbody>
-      <tr><td>Injera Produced</td><td>${fmt0(injeraProducedTotal)} pcs</td></tr>
-      <tr><td>Derkosh Produced</td><td>${fmt(derkoshProducedTotal)} kg</td></tr>
-      <tr><td>Injera Blend Consumed</td><td>${fmt(flourConsumed)} kg</td></tr>
-      <tr><td>Production Efficiency</td><td>${efficiencyPct!=null ? efficiencyPct.toFixed(1)+'% of standard output' : '— (no batch standard for batches this month)'}</td></tr>
-      <tr><td>Material Usage vs Standard</td><td>${wastePct!=null ? `${wastePct>=0?'+':''}${wastePct.toFixed(1)}%` : '—'}</td></tr>
-    </tbody></table>
-    <div class="dm-note">Production Efficiency compares actual Injera output to Batch Standards' target count for the batch types run this month. Material Usage vs Standard compares actual Injera Blend/Corn/Gomen Zere consumption to the standard recipe quantities for those same batches — positive means more material was used than the standard recipe calls for.</div>`;
-
-  // ══ 6. INVENTORY SUMMARY ══
+  // ── 6. Inventory
   const openingValue = (d.openingBal||[]).reduce((s,r)=>s+num(r.opening_value),0);
   const closingValue = (d.closingBal||[]).reduce((s,r)=>s+num(r.closing_value),0);
-  const purchasesValue = (d.purchases||[]).filter(p=>p.type==='purchase' && p.source!=='milling_conversion').reduce((s,p)=>s+num(p.total_cost),0);
-  const inventoryValueChange = closingValue - openingValue;
+  const purchasesValue = (d.purchases||[]).filter(x=>x.type==='purchase' && x.source!=='milling_conversion').reduce((s,x)=>s+num(x.total_cost),0);
   const lowStock = (d.stockAlerts||[]).filter(s=>s.low_stock);
-  const invHtml = `
-    <table class="mtbl"><tbody>
-      <tr><td>Opening Inventory Value</td><td>${fmt0(openingValue)}</td></tr>
-      <tr><td>Purchases (Materials)</td><td>${fmt0(purchasesValue)}</td></tr>
-      <tr><td>Inventory Value Change</td><td>${inventoryValueChange>=0?'+':''}${fmt0(inventoryValueChange)}</td></tr>
-      <tr><td><strong>Closing Inventory Value</strong></td><td><strong>${fmt0(closingValue)}</strong></td></tr>
-    </tbody></table>
-    <div class="dm-note">Inventory Value Change is Closing minus Opening — it isn't the same as consumption (this report has no inventory-movement ledger to separate consumption from shrinkage/waste/write-offs).</div>
-    <div style="margin-top:12px">
-      <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Low-Stock Items ${lowStock.length?`(${lowStock.length})`:''}</div>
-      ${lowStock.length
-        ? `<table class="mtbl"><tbody>${lowStock.map(s=>`<tr><td>${s.name}</td><td>${fmt(s.closing_qty)} on hand (reorder at ${fmt(s.reorder_level)})</td></tr>`).join('')}</tbody></table>`
-        : '<div class="dm-note">No items currently below reorder level.</div>'}
-      <div class="dm-note">Reflects current stock levels as of today, not historical stock for ${label} — the underlying data has no per-period history to look back on.</div>
-    </div>`;
+  const invHtml = rpTable('rt-kv', '', `
+      <tr><td class="t">Opening stock value</td><td class="n">${rpMoney(openingValue)}</td></tr>
+      <tr class="tot"><td class="t">Closing stock value</td><td class="n">${rpMoney(closingValue)}</td></tr>
+      <tr><td class="t">Change in stock value</td><td class="n ${rpTone(closingValue-openingValue,true)}">${rpSigned(closingValue-openingValue,rpMoney)}</td></tr>
+      <tr><td class="t">Materials bought this month</td><td class="n">${rpMoney(purchasesValue)}</td></tr>`)
+    + `<p class="rp-note">Closing minus opening is the net change in stock value. It is not the same as usage, because this report has no stock ledger to separate usage from waste and write-offs.</p>
+    <h4>Low-stock items${lowStock.length?` (${lowStock.length})`:''}</h4>
+    ${lowStock.length
+      ? rpTable('', `<tr><th class="t">Item</th><th class="n">On hand</th><th class="n">Reorder at</th></tr>`, lowStock.map(s=>`<tr><td class="t">${rpEsc(s.name)}</td><td class="n">${rpQty(s.closing_qty)}</td><td class="n">${rpQty(s.reorder_level)}</td></tr>`).join(''))
+      : '<div class="dm-note">No items are below their reorder level.</div>'}
+    <p class="rp-note">Low-stock status is as of today, not as of ${label}.</p>`;
 
-  // ══ 7. ITEMIZED PURCHASES ══
+  // ── 7. Itemized purchases
   const purchases = d.purchases||[];
   let purchHtml = '<div class="dm-note">No purchases logged for this month yet.</div>';
   if(purchases.length){
-    const rows = purchases.map(p2=>{
-      const category = p2.inventory_items?.name || p2.expense_categories?.name || (p2.type==='asset'?'Asset':'—');
-      const isSynthetic = p2.source==='milling_conversion';
-      return `<tr${isSynthetic?' style="color:var(--tl)"':''}><td>${p2.date}</td><td>${category}${isSynthetic?' <span style="font-size:10px">(from milling)</span>':''}</td><td>${p2.suppliers?.name||'—'}</td><td>${p2.quantity!=null?fmt(p2.quantity):'—'}</td><td>${p2.unit_price!=null?fmt(p2.unit_price):'—'}</td><td>${fmt0(p2.total_cost)}</td><td>${p2.payment_channel||'—'}</td></tr>`;
+    const real = purchases.filter(x=>x.source!=='milling_conversion');
+    const sumType = t => real.filter(x=>x.type===t).reduce((s,x)=>s+num(x.total_cost),0);
+    const total = real.reduce((s,x)=>s+num(x.total_cost),0);
+    const rows = purchases.map(x=>{
+      const category = x.inventory_items?.name || x.expense_categories?.name || (x.type==='asset'?'Asset':'—');
+      const synthetic = x.source==='milling_conversion';
+      const pending = x.approval_status && !['approved','auto_approved'].includes(x.approval_status);
+      return `<tr${synthetic?' class="faint"':''}><td class="t">${rpEsc(x.date)}</td><td class="t">${rpEsc(category)}${synthetic?' <span class="tag">from milling</span>':''}${pending?' <span class="tag warn">'+rpEsc(x.approval_status)+'</span>':''}</td><td class="t">${rpEsc(x.suppliers?.name||'—')}</td><td class="n">${x.quantity!=null?rpQty(x.quantity):'—'}</td><td class="n">${x.unit_price!=null?rpMoney(x.unit_price):'—'}</td><td class="n">${rpMoney(x.total_cost)}</td><td class="t">${rpEsc(x.payment_channel||'—')}</td></tr>`;
     }).join('');
-    const total = purchases.filter(p2=>p2.source!=='milling_conversion').reduce((s,p2)=>s+num(p2.total_cost),0);
-    purchHtml = `<table class="mtbl"><thead><tr><th>Date</th><th>Item/Category</th><th>Supplier</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Channel</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      <div class="dm-note">Real cash total (excludes the "from milling" rows, which are cost-only entries already represented by their own Teff/Rice/fee purchases above): <strong>${fmt0(total)} ETB</strong></div>`;
+    const subs = [['Inventory purchases','purchase'],['Operating expenses','expense'],['Assets','asset']].filter(([,t])=>sumType(t)!==0)
+      .map(([n,t])=>`<tr class="sub"><td class="t" colspan="5">${n}</td><td class="n">${rpMoney(sumType(t))}</td><td></td></tr>`).join('');
+    purchHtml = rpTable('wide', `<tr><th class="t">Date</th><th class="t">Item / category</th><th class="t">Supplier</th><th class="n">Qty</th><th class="n">Unit price</th><th class="n">Total</th><th class="t">Channel</th></tr>`,
+      rows + subs + `<tr class="tot"><td class="t" colspan="5">Total spent (excludes “from milling” rows)</td><td class="n">${rpMoney(total)}</td><td></td></tr>`)
+      + `<p class="rp-note">“From milling” rows are cost-only entries already represented by the Teff, Rice and fee purchases, so they are not counted in the total.</p>`;
   }
 
-  // ══ 8. MILLING CONVERSIONS ══
+  // ── 8. Milling conversions
   const millings = d.millings||[];
   let millHtml = '<div class="dm-note">No milling runs recorded for this month yet.</div>';
   if(millings.length){
-    const rows = millings.map(m=>`<tr><td>${m.date}</td><td>${fmt(m.teff_qty)} kg</td><td>${fmt(m.rice_qty)} kg</td><td>${fmt0(m.sifting_cost)}</td><td>${fmt0(m.grinding_cost)}</td><td>${fmt0(m.transport_cost)}</td><td>${fmt(m.blend_qty_produced)} kg</td><td>${fmt0(m.total_cost)}</td><td>${fmt((num(m.total_cost)/num(m.blend_qty_produced))||0)}</td></tr>`).join('');
-    millHtml = `<table class="mtbl"><thead><tr><th>Date</th><th>Teff Used</th><th>Rice Used</th><th>Sifting</th><th>Grinding</th><th>Transport</th><th>Blend Produced</th><th>Total Cost</th><th>Cost/kg</th></tr></thead>
-      <tbody>${rows}</tbody></table>`;
+    const T = {teff:0,rice:0,blend:0,mat:0,fees:0,cost:0};
+    let millTie = true;
+    const rows = millings.map(m=>{
+      const mat = num(m.teff_cost)+num(m.rice_cost), fees = num(m.sifting_cost)+num(m.grinding_cost)+num(m.transport_cost);
+      const tie = Math.abs(mat+fees-num(m.total_cost)) < 0.01; if(!tie) millTie = false;
+      const inKg = num(m.teff_qty)+num(m.rice_qty);
+      T.teff+=num(m.teff_qty); T.rice+=num(m.rice_qty); T.blend+=num(m.blend_qty_produced); T.mat+=mat; T.fees+=fees; T.cost+=num(m.total_cost);
+      return `<tr><td class="t">${rpEsc(m.date)}</td><td class="n">${rpQty(m.teff_qty)}</td><td class="n">${rpQty(m.rice_qty)}</td><td class="n">${rpQty(m.blend_qty_produced)}</td><td class="n muted">${inKg>0?rpPct(num(m.blend_qty_produced)/inKg*100):'—'}</td><td class="n">${rpMoney(mat)}</td><td class="n">${rpMoney(fees)}</td><td class="n${tie?'':' bad'}">${rpMoney(m.total_cost)}</td><td class="n">${num(m.blend_qty_produced)>0?rpMoney(num(m.total_cost)/num(m.blend_qty_produced)):'—'}</td></tr>`;
+    }).join('');
+    checks.push({ok:millTie, text: millTie ? 'Milling: raw material + fees = total cost' : 'Milling: a run’s raw material + fees do not equal its total cost'});
+    const tIn = T.teff+T.rice;
+    millHtml = rpTable('wide', `<tr><th class="t">Date</th><th class="n">Teff (kg)</th><th class="n">Rice (kg)</th><th class="n">Blend made (kg)</th><th class="n">Yield</th><th class="n">Raw material</th><th class="n">Fees</th><th class="n">Total cost</th><th class="n">Cost per kg</th></tr>`,
+      rows + `<tr class="tot"><td class="t">Total</td><td class="n">${rpQty(T.teff)}</td><td class="n">${rpQty(T.rice)}</td><td class="n">${rpQty(T.blend)}</td><td class="n">${tIn>0?rpPct(T.blend/tIn*100):'—'}</td><td class="n">${rpMoney(T.mat)}</td><td class="n">${rpMoney(T.fees)}</td><td class="n">${rpMoney(T.cost)}</td><td class="n">${T.blend>0?rpMoney(T.cost/T.blend):'—'}</td></tr>`)
+      + `<p class="rp-note">Yield = blend made ÷ teff and rice put in. Raw material = teff cost + rice cost. Fees = sifting + grinding + transport. Cost per kg in the total row is total cost ÷ total blend, not an average of the rows.</p>`;
   }
 
-  // ══ 9. EXPENSE BREAKDOWN ══
+  // ── 9. Expense breakdown that ties to the P&L
   const salaries = (d.payroll||[]).reduce((s,r)=>s+num(r.gross_pay),0);
   const overheadByCat = {};
-  (d.overhead||[]).forEach(r=>{
-    const name = r.overhead_categories?.name || 'Other Overhead';
-    overheadByCat[name] = (overheadByCat[name]||0) + num(r.amount);
-  });
-  const utilities = (overheadByCat['Electricity']||0) + (overheadByCat['Water']||0);
-  const rentAmt = overheadByCat['Rent']||0;
-  const maintenanceAmt = overheadByCat['Maintenance']||0;
-  const otherOverheadAmt = overheadByCat['Other Overhead']||0;
-  const opexPurchases = purchases.filter(p=>p.type==='expense' && !MILLING_FEE_CATEGORIES.includes(p.expense_categories?.name));
-  const otherOpexTotal = opexPurchases.reduce((s,p)=>s+num(p.total_cost),0);
+  (d.overhead||[]).forEach(r=>{ const n = r.overhead_categories?.name || 'Other overhead'; overheadByCat[n] = (overheadByCat[n]||0) + num(r.amount); });
+  const overheadSum = Object.values(overheadByCat).reduce((s,v)=>s+v,0);
+  // Only approved/auto-approved expenses reach the P&L, and milling categories are inside COGS — same rules as the database view.
+  const MILL_KEYS = ['milling_fees','sifting','grinding','delivery_in','milling_transport'];
+  const isApproved = x => ['approved','auto_approved'].includes(x.approval_status);
+  const opexRows = purchases.filter(x=>x.type==='expense' && x.source!=='milling_conversion' && isApproved(x)
+      && !MILL_KEYS.includes(x.expense_categories?.system_key) && !MILLING_FEE_CATEGORIES.includes(x.expense_categories?.name));
+  const pendingExpenses = purchases.filter(x=>x.type==='expense' && x.source!=='milling_conversion' && !isApproved(x));
   const opexByCat = {};
-  opexPurchases.forEach(p=>{ const name=p.expense_categories?.name||'Other'; opexByCat[name]=(opexByCat[name]||0)+num(p.total_cost); });
-  const expHtml = `
-    <table class="mtbl"><tbody>
-      <tr><td>Salaries &amp; Wages</td><td>${fmt0(salaries)}</td></tr>
-      <tr><td>Utilities (Electricity + Water)</td><td>${fmt0(utilities)}</td></tr>
-      <tr><td>Rent</td><td>${fmt0(rentAmt)}</td></tr>
-      <tr><td>Maintenance</td><td>${fmt0(maintenanceAmt)}</td></tr>
-      <tr><td>Other Overhead</td><td>${fmt0(otherOverheadAmt)}</td></tr>
-      <tr><td><strong>Other Operating Expenses</strong></td><td><strong>${fmt0(otherOpexTotal)}</strong></td></tr>
-      ${Object.entries(opexByCat).map(([name,v])=>`<tr><td style="padding-left:24px;font-size:11.5px;color:var(--tl)">${name}</td><td style="font-size:11.5px;color:var(--tl)">${fmt0(v)}</td></tr>`).join('')}
-    </tbody></table>
-    <div class="dm-note">Milling-related expense categories (Sifting Fees, Grinding Fees, Delivery In, Milling Material Transport) are excluded here since they're already folded into COGS — see the P&amp;L note above and the Milling Conversions table.</div>`;
+  opexRows.forEach(x=>{ const n = x.expense_categories?.name||'Other'; opexByCat[n] = (opexByCat[n]||0) + num(x.total_cost); });
+  const opexListed = Object.values(opexByCat).reduce((s,v)=>s+v,0) + cur.wastage + cur.countVar;
+  const opexGap = d.pnl ? cur.opex - opexListed : 0;
+  if(d.pnl){
+    const ohTie = Math.abs(overheadSum - cur.oh) < 0.01;
+    checks.push({ok:ohTie, text: ohTie ? 'Overhead list adds up to P&L overhead' : `Overhead list (${rpMoney(overheadSum)}) differs from P&L overhead (${rpMoney(cur.oh)})`});
+    const opTie = Math.abs(opexGap) < 0.01;
+    checks.push({ok:opTie, text: opTie ? 'Expense list adds up to P&L operating expenses' : `Expense list is ${rpMoney(Math.abs(opexGap))} ${opexGap>0?'below':'above'} P&L operating expenses`});
+  }
+  const expAll = Math.max(overheadSum + (d.pnl?cur.opex:opexListed), 0.01);
+  const catRows = (obj,color) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`<tr class="ind"><td class="t">${rpEsc(n)}${rpMini(v/expAll*100,color)}</td><td class="n">${rpMoney(v)}</td></tr>`).join('');
+  const expHtml = rpTable('rt-kv', '', `
+      <tr class="sub"><td class="t">Production overhead (inside COGS)</td><td class="n">${rpMoney(overheadSum)}</td></tr>
+      ${catRows(overheadByCat,'#9bbfae') || '<tr class="ind"><td class="t">None recorded</td><td class="n">—</td></tr>'}
+      <tr class="sub"><td class="t">Operating expenses (deducted in P&amp;L)</td><td class="n">${rpMoney(d.pnl?cur.opex:opexListed)}</td></tr>
+      ${catRows(opexByCat,'#f2c260')}
+      ${cur.wastage ? `<tr class="ind"><td class="t">Inventory wastage</td><td class="n">${rpMoney(cur.wastage)}</td></tr>` : ''}
+      ${cur.countVar ? `<tr class="ind"><td class="t">Inventory count variance</td><td class="n">${rpMoney(cur.countVar)}</td></tr>` : ''}
+      ${Math.abs(opexGap)>=0.01 ? `<tr class="ind bad"><td class="t">Unexplained difference</td><td class="n">${rpMoney(opexGap)}</td></tr>` : ''}
+      <tr class="tot"><td class="t">Total overhead and operating expenses</td><td class="n">${rpMoney(overheadSum + (d.pnl?cur.opex:opexListed))}</td></tr>`)
+    + (salaries>0 ? `<div class="rp-warn"><strong>Payroll is not in the P&amp;L.</strong> Salaries of ${rpMoney(salaries)} ETB were recorded for ${label}, but the database profit view does not deduct payroll. Net profit after payroll would be ${rpMoney(cur.net - salaries)} ETB.</div>` : '')
+    + (pendingExpenses.length ? `<p class="rp-note">${pendingExpenses.length} expense${pendingExpenses.length>1?'s are':' is'} still waiting for approval (${rpMoney(pendingExpenses.reduce((s,x)=>s+num(x.total_cost),0))} ETB). They are not in the P&amp;L until approved.</p>` : '')
+    + `<p class="rp-note">Milling fee categories are left out because they are already part of COGS through Injera Blend cost.</p>`;
+  if(salaries>0) checks.push({ok:false, text:`Payroll of ${rpMoney(salaries)} ETB is not deducted in the P&L`});
 
-  // ══ 10. KEY BUSINESS KPIS ══
-  const totalProdCost = (d.prodCosts||[]).reduce((s,b)=>s+num(b.total_cost),0);
-  const avgProductionCost = (d.prodCosts||[]).length ? totalProdCost/(d.prodCosts||[]).length : null;
+  // ── 10. Key business KPIs
+  const prodCosts = d.prodCosts||[];
+  const totalProdCost = prodCosts.reduce((s,b)=>s+num(b.total_cost),0);
+  const matCost = prodCosts.reduce((s,b)=>s+num(b.material_cost),0);
+  const ohCost = prodCosts.reduce((s,b)=>s+num(b.overhead_cost),0);
+  const avgBatchCost = prodCosts.length ? totalProdCost/prodCosts.length : null;
   const costPerInjera = injeraProducedTotal>0 ? totalProdCost/injeraProducedTotal : null;
-  const injeraSoldQty = (d.sales||[]).filter(r=>r.product_type!=='derkosh').reduce((s,r)=>s+num(r.quantity),0);
-  const revenuePerInjera = injeraSoldQty>0 ? num(p.injera_revenue)/injeraSoldQty : null;   // price per injera SOLD (same as the Average Selling Price)
-  const profitPerInjera = (costPerInjera!=null && revenuePerInjera!=null) ? revenuePerInjera-costPerInjera : null;
+  const revPerInjera = injeraSoldQty>0 ? cur.injRev/injeraSoldQty : null;
+  const profitPerInjera = (costPerInjera!=null && revPerInjera!=null) ? revPerInjera-costPerInjera : null;
+  const derRevPerKg = derkoshSold>0 ? cur.derRev/derkoshSold : null;
+  const derCostPerKg = derkoshSold>0 ? num(p.derkosh_cogs)/derkoshSold : null;
+  const derProfitPerKg = (derRevPerKg!=null && derCostPerKg!=null) ? derRevPerKg-derCostPerKg : null;
   const avgInventory = (openingValue+closingValue)/2;
-  const inventoryTurnover = avgInventory>0 ? totalCogs/avgInventory : null;
-  const kpiRows = [
-    ['Gross Margin', grossMargin!=null ? grossMargin.toFixed(1)+'%' : '—'],
-    ['Net Margin', netMargin!=null ? netMargin.toFixed(1)+'%' : '—'],
-    ['Inventory Turnover (Monthly)', inventoryTurnover!=null ? inventoryTurnover.toFixed(2)+'×' : '—'],
-    ['Average Production Cost / Batch', avgProductionCost!=null ? fmt0(avgProductionCost)+' ETB' : '—'],
-    ['Cost per Injera', costPerInjera!=null ? fmt(costPerInjera)+' ETB' : '—'],
-    ['\u00A0\u00A0of which materials', (costPerInjera!=null && injeraProducedTotal>0) ? fmt((d.prodCosts||[]).reduce((s,b)=>s+num(b.material_cost),0)/injeraProducedTotal)+' ETB' : '—'],
-    ['\u00A0\u00A0of which overhead', (costPerInjera!=null && injeraProducedTotal>0) ? fmt((d.prodCosts||[]).reduce((s,b)=>s+num(b.overhead_cost),0)/injeraProducedTotal)+' ETB' : '—'],
-    ...((d.overheadCompleteness && d.overheadCompleteness.is_provisional) ? [['Overhead status', 'Provisional \u2014 ' + [ (d.overheadCompleteness.missing_categories||[]).length ? 'missing '+d.overheadCompleteness.missing_categories.join(', ') : '', (d.overheadCompleteness.estimated_categories||[]).length ? 'estimated '+d.overheadCompleteness.estimated_categories.join(', ') : '' ].filter(Boolean).join(' \u00B7 ')]] : []),
-    ['Revenue per Injera', revenuePerInjera!=null ? fmt(revenuePerInjera)+' ETB' : '—'],
-    ['Profit per Injera', profitPerInjera!=null ? fmt(profitPerInjera)+' ETB' : '—']
-  ];
-  const kpiHtml = `<table class="mtbl"><tbody>${kpiRows.map(([l,v])=>`<tr><td>${l}</td><td>${v}</td></tr>`).join('')}</tbody></table>`;
+  const turnover = avgInventory>0 ? totalCogs/avgInventory : null;
+  const kv = (l,v,cls) => `<tr class="${cls||''}"><td class="t">${l}</td><td class="n">${v}</td></tr>`;
+  const money2 = v => v!=null ? rpMoney(v)+' ETB' : '—';
+  const oc = d.overheadCompleteness;
+  const provisional = (oc && oc.is_provisional)
+    ? kv('Overhead status', 'Provisional — ' + [ (oc.missing_categories||[]).length ? 'missing '+oc.missing_categories.join(', ') : '', (oc.estimated_categories||[]).length ? 'estimated '+oc.estimated_categories.join(', ') : ''].filter(Boolean).join('; ')) : '';
+  const kpiHtml = rpTable('rt-kv', '', `
+      ${kv('Gross margin', rpPct(grossMargin)+(prevGrossMargin!=null?` <span class="muted">${prevLabel}: ${rpPct(prevGrossMargin)}</span>`:''))}
+      ${kv('Net margin', rpPct(netMargin)+(prevNetMargin!=null?` <span class="muted">${prevLabel}: ${rpPct(prevNetMargin)}</span>`:''))}
+      ${kv('Stock turnover this month (COGS ÷ average stock)', turnover!=null ? turnover.toFixed(2)+'×' : '—')}
+      ${kv('Injera production cost','', 'sub')}
+      ${kv('Average cost per batch', money2(avgBatchCost), 'ind')}
+      ${kv('Cost per injera made', money2(costPerInjera), 'ind')}
+      ${kv('of which materials', costPerInjera!=null ? money2(matCost/injeraProducedTotal) : '—', 'ind')}
+      ${kv('of which overhead', costPerInjera!=null ? money2(ohCost/injeraProducedTotal) : '—', 'ind')}
+      ${provisional}
+      ${kv('Injera per piece sold','', 'sub')}
+      ${kv('Selling price per injera', money2(revPerInjera), 'ind')}
+      ${kv('Profit per injera', profitPerInjera!=null ? rpSigned(profitPerInjera,rpMoney)+' ETB' : '—', 'ind')}
+      ${kv('Derkosh per kg sold','', 'sub')}
+      ${kv('Selling price per kg', money2(derRevPerKg), 'ind')}
+      ${kv('Cost per kg', money2(derCostPerKg), 'ind')}
+      ${kv('Profit per kg', derProfitPerKg!=null ? rpSigned(derProfitPerKg,rpMoney)+' ETB' : '—', 'ind')}`)
+    + `<p class="rp-note">Injera profit per piece compares the price of the pieces sold with the cost of the pieces made this month. Derkosh cost per kg is the cost of the kilograms sold.</p>`;
 
-  // ══ 11. NOTES & APPROVALS ══
+  // ── 11. Notes and approvals
   const note = d.reportNote || {};
-  const pc = d.periodClose || null;
-  const approvedHtml = pc && pc.locked
-    ? `<div class="pill pill-done">Approved by ${pc.users?.name||'Accountant'} on ${new Date(pc.closed_at).toLocaleDateString()}</div>`
-    : `<div class="pill" style="background:#fef3e2;color:#b45309">Pending Accountant Approval</div>`;
   const notesHtml = `
-    <div style="margin-bottom:14px">
-      <div class="card-ttl" style="font-size:12px;margin-bottom:8px">Manager Comments</div>
-      <textarea id="mgrComment" rows="4" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--td);resize:vertical" placeholder="Add commentary on this month's performance…">${note.manager_comment||''}</textarea>
-      <button class="rsel" style="margin-top:8px;cursor:pointer" onclick="saveManagerComment()">Save Comment</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div>
-        <div class="card-ttl" style="font-size:12px;margin-bottom:6px">Accountant Approval</div>
-        ${approvedHtml}
-      </div>
-      ${!(pc && pc.locked) ? `<button class="rsel" style="cursor:pointer" onclick="approvePeriod()">Mark as Approved</button>` : ''}
-      <div class="dm-note" style="margin:0">Date Generated: ${new Date().toLocaleDateString()}</div>
+    <label class="rp-lbl" for="mgrComment">Manager comments</label>
+    <textarea id="mgrComment" class="rp-text" rows="4" placeholder="Add commentary on this month’s performance…">${rpEsc(note.manager_comment||'')}</textarea>
+    <div class="rp-actions"><button class="rsel" style="cursor:pointer" onclick="saveManagerComment()">Save comment</button></div>
+    <div class="rp-approval">
+      <div><div class="rp-lbl">Accountant approval</div>${approvedHtml}</div>
+      ${approved ? '' : `<button class="rsel" style="cursor:pointer" onclick="approvePeriod()">Mark as approved</button>`}
     </div>`;
 
+  const meta = document.getElementById('snapshotMeta');
+  if(meta) meta.innerHTML = `<span class="rp-gen">Generated ${new Date().toLocaleDateString()}</span>`;
+
+  const checksHtml = checks.length ? `<div class="rp-checks">${checks.map(c=>`<span class="rp-chk ${c.ok?'ok':'bad'}"><i>${c.ok?'✓':'!'}</i>${rpEsc(c.text)}</span>`).join('')}</div>` : '';
+
   document.getElementById('snapshotBody').innerHTML = `
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">1. Executive Summary — ${label}</div></div><div class="exec-row">${execHtml}</div></div>
-    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
-      <div class="card"><div class="card-hd"><div class="card-ttl">2. P&amp;L Summary</div></div><div class="card-bd">${plHtml}</div></div>
-      <div class="card"><div class="card-hd"><div class="card-ttl">3. Cash Flow Summary</div></div><div class="card-bd">${cfHtml}</div></div>
+    ${heroHtml}
+    ${rpCard('1. Executive summary', scoreHtml + flowHtml + pointsHtml + checksHtml, 'rp-exec')}
+    ${rpCard('2. Profit and loss', plHtml)}
+    <div class="rp-grid2">
+      ${rpCard('3. Cash flow', cfHtml)}
+      ${rpCard('4. Sales', salesHtml)}
     </div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">4. Sales Summary</div></div><div class="card-bd" style="overflow-x:auto">${salesHtml}</div></div>
-    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
-      <div class="card"><div class="card-hd"><div class="card-ttl">5. Production Summary</div></div><div class="card-bd">${prodHtml}</div></div>
-      <div class="card"><div class="card-hd"><div class="card-ttl">6. Inventory Summary</div></div><div class="card-bd">${invHtml}</div></div>
+    <div class="rp-grid2">
+      ${rpCard('5. Production', prodHtml)}
+      ${rpCard('6. Inventory', invHtml)}
     </div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">7. Itemized Purchases</div></div><div class="card-bd" style="overflow-x:auto">${purchHtml}</div></div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">8. Milling Conversions</div></div><div class="card-bd" style="overflow-x:auto">${millHtml}</div></div>
-    <div class="bot2" style="grid-template-columns:1fr 1fr;align-items:start;margin-bottom:20px">
-      <div class="card"><div class="card-hd"><div class="card-ttl">9. Expense Breakdown</div></div><div class="card-bd">${expHtml}</div></div>
-      <div class="card"><div class="card-hd"><div class="card-ttl">10. Key Business KPIs</div></div><div class="card-bd">${kpiHtml}</div></div>
+    ${rpCard('7. Itemized purchases', purchHtml)}
+    ${rpCard('8. Milling conversions', millHtml)}
+    <div class="rp-grid2">
+      ${rpCard('9. Expense breakdown', expHtml)}
+      ${rpCard('10. Key business KPIs', kpiHtml)}
     </div>
-    <div class="card" style="margin-bottom:20px"><div class="card-hd"><div class="card-ttl">11. Notes &amp; Approvals</div></div><div class="card-bd">${notesHtml}</div></div>
+    ${rpCard('11. Notes and approvals', notesHtml)}
   `;
 }
 
@@ -2765,11 +3132,11 @@ function renderYieldEfficiencyChart(){
     const displayYear = years[years.length-1];
     pct = MONTH_ABBR.map((_,i)=>{
       const m = yearData[displayYear]?.months?.[i];
-      return (m && m.hasData) ? yieldEfficiencyPct(m.injeraQty, m.expectedInjeraQty) : null;
+      return (m && m.hasData) ? yieldEfficiencyPct(m.measuredInjeraQty, m.expectedInjeraQty) : null;
     });
   } else {
     labels = yoyYearLabels(years);
-    pct = years.map(y=>yieldEfficiencyPct(yearData[y].injera, yearData[y].expectedInjera));
+    pct = years.map(y=>yieldEfficiencyPct(yearData[y].measuredInjera, yearData[y].expectedInjera));
   }
   const barColors = pct.map(v=> v==null ? '#d7e2dc' : v>=100 ? '#1d5c38' : v>=90 ? '#f59e0b' : '#e53935');
   charts.yield = new Chart(canvas.getContext('2d'), {
