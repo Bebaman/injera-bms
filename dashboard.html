@@ -944,7 +944,7 @@ async function refreshDashboard(){
       // ── New insight-module data (added 2026-07) — every query below reuses tables/
       // columns already queried elsewhere in this function; nothing new to the schema. ──
       sbGet(`sales?select=revenue&date=eq.${yesterday}&is_deleted=eq.false`),
-      sbGet(`production_batches?select=type,injera_qty&period=eq.${prevP}&is_deleted=eq.false`),
+      sbGet(`production_batches?select=type,injera_qty,production_batch_materials(item_id,quantity_used)&period=eq.${prevP}&is_deleted=eq.false`),
       sbGet(`sales?select=revenue,date&date=gte.${weekAgo}&is_deleted=eq.false`),
       sbGet(`purchases?select=total_cost,date&type=eq.purchase&date=gte.${weekAgo}&is_deleted=eq.false&approval_status=in.(auto_approved,approved)`),
       sbGet(`purchases?select=item_id,quantity,total_cost,date,supplier_id&type=eq.purchase&is_deleted=eq.false&supplier_id=not.is.null&item_id=not.is.null&approval_status=in.(auto_approved,approved)&order=date.desc&limit=500`),
@@ -1152,12 +1152,24 @@ async function refreshDashboard(){
     // figure is each batch's standard (Production → Efficiency Targets: Normal / Special). It is a yield measure per
     // batch run, not a monthly volume target. A batch whose type has no standard is left out of BOTH sides, so it
     // cannot push the percentage up (injeraBaked still counts every batch, for the output figures).
+    // Expected injera for ONE batch = the standard's pieces-per-kg x the kg this batch actually used.
+    // Same maths as production.html: kg = blend + corn + gomen (all batch materials) vs the standard's
+    // blend + corn + gomen. A partial 2 kg batch is judged against 2 kg of output, not a full batch.
+    // If the batch has no materials or the standard has no kg, the full standard count is used (old behaviour).
+    const expectedInjeraFor = (b, std)=>{
+      const full = num(std.target_injera_count);
+      const stdKg = num(std.target_blend_kg) + num(std.target_corn_kg) + num(std.target_gomen_kg);
+      if(!(stdKg>0)) return full;
+      let kg = 0;
+      (b.production_batch_materials||[]).forEach(m=>{ kg += num(m.quantity_used); });
+      return kg>0 ? full*(kg/stdKg) : full;
+    };
     let flourUsed = 0, injeraBaked = 0, targetTotal = 0, injeraMeasured = 0;
     prodBatchRows.forEach(b=>{
       injeraBaked += num(b.injera_qty);
       (b.production_batch_materials||[]).forEach(m=>{ if(flourItem && m.item_id===flourItem.id) flourUsed += num(m.quantity_used); });
       const std = batchStandardRows.find(s=>s.batch_type===b.type);
-      if(std && num(std.target_injera_count)>0){ targetTotal += num(std.target_injera_count); injeraMeasured += num(b.injera_qty); }
+      if(std && num(std.target_injera_count)>0){ targetTotal += expectedInjeraFor(b, std); injeraMeasured += num(b.injera_qty); }
     });
     const batchesCompleted = prodBatchRows.length;
     const derkoshPacked = derkoshPeriodProduced; // same figure computed above for the stock threshold
@@ -1593,7 +1605,7 @@ async function refreshDashboard(){
       (prodBatchRowsPrev||[]).forEach(b=>{
         const std = batchStandardRows.find(s=>s.batch_type===b.type);
         // same rule as this period: only batches that have a standard count, on both sides
-        if(std && num(std.target_injera_count)>0){ prevInjeraBaked += num(b.injera_qty); prevTargetTotal += num(std.target_injera_count); }
+        if(std && num(std.target_injera_count)>0){ prevInjeraBaked += num(b.injera_qty); prevTargetTotal += expectedInjeraFor(b, std); }
       });
       const prevMfgEfficiency = prevTargetTotal>0 ? clamp(Math.round((prevInjeraBaked/prevTargetTotal)*100),0,100) : null;
       if(prevMfgEfficiency!=null && targetTotal>0){
